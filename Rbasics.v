@@ -1,5 +1,5 @@
-
-(* To be related to https://github.com/wch/r-source/blob/trunk/src/include/Rinternals.h *)
+(** Rbasic.v
+* This file provides a higher level view from the typesd defined in the file Rinternals.v. **)
 
 Inductive mode : Type :=
   | mode_numeric
