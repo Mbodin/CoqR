@@ -38,9 +38,9 @@ Inductive SExpType :=
 (** The field “named” of “sxpinfo_struct” can take three values.
 * (see the file R-ints.pdf, Section 1.1.2 for more details.) **)
 Inductive named_field :=
-  | named_unique (** No other SExp shares this object. **)
-  | named_being_assigned (** Two versions of the object exists for the duration of the current computation. **)
-  | named_must_be_duplicated (** The object must be duplicated before changed. **)
+  | named_temporary (** 0 in R **)
+  | named_unique (** 1 in R; bound to at most one variable **)
+  | named_plural (** 2 in R; the object may be bound to more than one variable **)
   .
 
 (** sxpinfo_struct **)
@@ -60,6 +60,10 @@ Record SxpInfo := {
 (** SEXP, *SEXPREC **)
 Definition SExpRec_pointer := nat.
 
+(** One symbol for each primitive and internal. **)
+Inductive internal :=
+  .
+
 (** vecsxp_struct **)
 Record VecSxp_struct := {
     VecSxp_length : nat ;
@@ -68,7 +72,7 @@ Record VecSxp_struct := {
 
 (** primsxp_struct **)
 Record PrimSxp_struct := {
-    prim_offset : nat
+    prim_primitive : internal
   }.
 
 (** symsxp_struct **)
