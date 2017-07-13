@@ -1,0 +1,18 @@
+A Coq formalisation of the R programming language
+
+* Overview
+
+The project is divided in several passes, each providing a more typed
+version of the R programming language.
+Each pass is related with the next by the corresponding *relation.v file.
+
+** Rinternals.v
+   This file describes the data structures of R as they are in its C code.
+
+** Rtypedinternals.v
+   In practise, the different language elements of R can not receive
+   anything. This version presents a version of the semantics in which
+   these assumptions are made explicit.
+
+** Rhighlevel.v
+   A High-level intuition of how R behaves.
