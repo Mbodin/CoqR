@@ -44,3 +44,4 @@ Definition object_length (o : object) :=
 
 (* List of constructs: https://github.com/wch/r-source/blob/trunk/src/main/names.c and https://github.com/wch/r-source/blob/trunk/src/include/Internal.h *)
 
+(* Relevant link: https://cran.r-project.org/doc/manuals/r-release/R-lang.html *)

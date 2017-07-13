@@ -12,34 +12,28 @@ Record environment := make_environment {
     parent : option environment
   }.
 
-Definition value :=
-  | Nil
-  .
-
-Record object : Type := make_object {
+Record object value : Type := make_object {
     object_data :> value ;
     object_attributes : string -> option value
   }.
 
-Inductive Expr :=
-  | EvaluatedExpr : object -> Expr
-  | LazyExpr : environment -> Expr -> Expr -> Expr (** Application function **)
-  | Symbol : string -> Expr
+Inductive value :=
+  | value_nil : value
+  | value_clo : string list (** Argument list **) -> expr (** Closure body **) -> environment -> value
+  | value_string : string -> value
+with expr :=
+  | expr_value : object value -> expr
+  | expr_app : environment -> expr -> expr -> expr (** Application function **)
+  | expr_symbol : environment -> string -> expr
   .
 
-Inductive basicLanguagueElement : Type :=
-  | BLENil : basicLanguagueElement (** A NULL pointer. **)
-  | BLEList : list (basicLanguagueElement * option string) -> basicLanguagueElement (** An untyped Lisp-style list. **)
-  | BLEClo : string list (** The argument list; internally represented as a Lisp-style list of symbols. **) -> Expr (** Closure body **) -> environment -> basicLanguagueElement (** A closure. **)
-  | BLEEnv : environment -> basicLanguagueElement (** An environment. **)
-  | BLEProm : Expr -> basicLanguagueElement (** A promise, that is an expression that may not be evaluated. **)
-  | String : string -> basicLanguagueElement
-  | Vector : list ? -> basicLanguagueElement
-  .
+Definition Robject : object value.
 
-Inductive frameValue :=
-  | Missing : frameValue
-  | FrameExpr : Expr -> frameValue
+Coercion expr_value : Robject >-> expr
+
+Inductive frame_value :=
+  | frame_value_missing : frame_value
+  | frame_value_expr : expr -> frame_value
   .
 
 Definition frame := variable -> option frameValue.

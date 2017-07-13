@@ -58,11 +58,24 @@ Record SxpInfo := {
   }.
 
 (** SEXP, *SEXPREC **)
-Definition SExpRec_pointer := nat.
+(** We chose to represent points as an option type. [None] means NULL,
+  and [Some p] yields that the pointer [p] points to something. **)
+Definition SExpRec_pointer := option nat.
 
-(** One symbol for each primitive and internal. **)
+(** One symbol for each primitive, that is, built-in functions in call-by-value. **)
+Inductive primitive :=
+  .
+
+(** One symbol for each internal, that is, internals directly manipulating the promises. **)
 Inductive internal :=
   .
+
+Inductive primitive_construction :=
+  | primitive_construction_primitive : primitive -> primitive_construction
+  | primitive_construction_internal : internal -> primitive_construction
+  .
+Coercion primitive_construction_primitive : primitive >-> primitive_construction.
+Coercion primitive_construction_internal : internal >-> primitive_construction.
 
 (** vecsxp_struct **)
 Record VecSxp_struct := {
@@ -72,7 +85,7 @@ Record VecSxp_struct := {
 
 (** primsxp_struct **)
 Record PrimSxp_struct := {
-    prim_primitive : internal
+    prim_primitive : primitive_construction
   }.
 
 (** symsxp_struct **)
