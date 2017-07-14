@@ -1,8 +1,11 @@
-(** Rtypedinternals.v
+(** Rtypedinternals.
 * The internals presented in Rinternals are untyped: each basic
 * language element (SExprRec) are built on three pointers, without
 * further explanation.
-* But the R interpreter assumes that these pointers are *)
+* But the R interpreter assumes that some of these pointers are NULL,
+* other pointing to a simple basic language element, and other to
+* arrays.  This files makes this explicit.
+* A lot of this file is interpretation from https://cran.r-project.org/doc/manuals/r-release/R-lang.html *)
 
 
 Definition framePointer := int.

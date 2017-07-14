@@ -1,6 +1,8 @@
-(** Rinternals.v
+(** Rinternals.
 * The types of this file exactly correspond to the types defined in the file Rinternals.h,
-* which can be found in (for instance) https://github.com/wch/r-source/blob/trunk/src/include/Rinternals.h. **)
+* which can be found in (for instance) https://github.com/wch/r-source/blob/trunk/src/include/Rinternals.h **)
+
+(** * Types **)
 
 (** Following my experience from JSCert, this file has been defined to be as close as possible to the internals of R as possible. **)
 
@@ -57,10 +59,15 @@ Record SxpInfo := {
     (* ugccls : (*3 bits for the garbage collector, we do not model them. *) *)
   }.
 
+(** A type to represent C-style pointers. **)
+Defined defined_pointer := nat.
+
 (** SEXP, *SEXPREC **)
 (** We chose to represent points as an option type. [None] means NULL,
   and [Some p] yields that the pointer [p] points to something. **)
-Definition SExpRec_pointer := option nat.
+Definition SExpRec_pointer := option pointer.
+
+Definition R_UnboundValue : SExpRec_pointer := None.
 
 (** One symbol for each primitive, that is, built-in functions in call-by-value. **)
 Inductive primitive :=
@@ -76,12 +83,6 @@ Inductive primitive_construction :=
   .
 Coercion primitive_construction_primitive : primitive >-> primitive_construction.
 Coercion primitive_construction_internal : internal >-> primitive_construction.
-
-(** vecsxp_struct **)
-Record VecSxp_struct := {
-    VecSxp_length : nat ;
-    VecSxp_truelength : nat
-  }.
 
 (** primsxp_struct **)
 Record PrimSxp_struct := {
@@ -118,7 +119,7 @@ Record CloSxp_struct := {
 
 (** promsxp_struct **)
 Record PromSxp_struct := {
-    prom_value : SExpRec_pointer ;
+    prom_value : SExpRec_pointer ; (** The pointer is set to R_UnboundValue when unused, but . **)
     prom_expr : SExpRec_pointer ;
     prom_env : SExpRec_pointer
   }.
@@ -134,7 +135,7 @@ Inductive SExpRec_union :=
 
 (** SEXPREC_HEADER **)
 Record SExpRecHeader := {
-    sxpinfo : SxpInfo ;
+    sxpinfo :> SxpInfo ;
     attrib : SExpRec_pointer ;
     gengc_next_node : SExpRec_pointer ;
     gengc_prev_node : SExpRec_pointer
@@ -146,9 +147,56 @@ Record SExpRec := {
     SExpRec_data :> SExpRec_union (* node data *)
   }.
 
+(* Seems to be unused in R source code.
+(** vecsxp_struct **)
+Record VecSxp_struct := {
+    VecSxp_length : nat ;
+    VecSxp_truelength : nat
+  }.
+
 (** VECTOR_SEXPREC **)
 Record Vector_SExpRec := {
     Vector_SExpRec_header :> SExpRecHeader ;
     Vector_SExpRec_vecsxp :> VecSxp_struct
   }.
+*)
+
+
+(** * Accessors **)
+
+Definition get_primSxp e :=
+  match e with
+  | primSxp p => Some p
+  | _ => None
+  end.
+
+Definition get_listSxp e :=
+  match e with
+  | listSxp l => Some l
+  | _ => None
+  end.
+
+Definition get_envSxp e :=
+  match e with
+  | envSxp e => Some e
+  | _ => None
+  end.
+
+Definition get_cloSxp e :=
+  match e with
+  | cloSxp c => Some c
+  | _ => None
+  end.
+
+Definition get_promSxp e :=
+  match e with
+  | promSxp p => Some p
+  | _ => None
+  end.
+
+Definition set_named e :=
+  { e with
+    SExpRec_header := { SExpRec_header e with
+      sxpinfo := { sxpinfo (SExpRec_header e) with
+        name := named_plural } } }.
 
