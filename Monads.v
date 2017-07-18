@@ -3,18 +3,23 @@
 
 (** * A model for the C memory **)
 
+Require Export Rinternals.
+
 (** The global state of the C environment. In particular, it maps SEXP
   pointers to their corresponding expressions. **)
 Record state := make_state {
-    heap_SExp :> nat -> option SExprRec ;
+    heap_SExp :> nat -> option SExpRec ;
     free_pointer : nat ;
     free_pointer_free : forall p, p > free_pointer -> heap_SExp p = None
   }.
 
+(* TODO: Import TLC and prove pointers comparable. *)
+
 (** Allocate a new cell and provide it an initial value **)
-Definition alloc_SExp (S : state) e :=
-  let p := free_pointer S in
-  { S with heap_SExp free_pointer := S free_pointer, p' := If p = p' then Some e else S p' }
+Definition alloc_SExp (S : state) (e : SExpRec) : state.
+  refine (let p := free_pointer S in {|
+    heap_SExp p' := ifb p = p' then Some e else S p') ;
+    free_pointer := S p |}).
 
 (** Writes a value in the state. Might return [None] if the cell is not already allocated. **)
 Definition write_SExp (S : state) p e :=

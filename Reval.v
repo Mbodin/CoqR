@@ -4,10 +4,22 @@
 
 Require Export Rinternals Monads.
 
-(* TODO: A JSCert’s runs_type, as the following function won’t necessary terminate. *)
+(** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
+Record runs_type : Type := runs_type_intro {
+    runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> option (state * SExpRec_pointer)
+  }.
+
+
+Definition forcePromise runs (S : state) (e : SExpRec_pointer) : option (state * SExpRec_pointer) :=
+  if_defined (read_SExp S e) (fun exp =>
+    if_defined (get_promSxp e) (fun p =>
+      If prom_value p = R_UnboundValue then
+        runs_eval runs S (prom_expr p) (prom_env p)
+      else Some (S, e))).
+
 
 (** The eval function of https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L538 **)
-Fixpoint eval (S : state) (e rho : SExpRec_pointer) : option (state * SExpRec_pointer) :=
+Definition eval runs (S : state) (e rho : SExpRec_pointer) : option (state * SExpRec_pointer) :=
   if_defined (read_SExp S e) (fun exp =>
     match type exp with
     | NilSxp
@@ -39,7 +51,7 @@ Fixpoint eval (S : state) (e rho : SExpRec_pointer) : option (state * SExpRec_po
              * https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L5966
              * for the evaluator.
              * We do not consider byte code for now in this formalisation. **)
-            None 
+            None
           | SymSxp =>
             (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
              * I think that in essence, we are fetching the value of the symbol in the
@@ -79,14 +91,7 @@ Fixpoint eval (S : state) (e rho : SExpRec_pointer) : option (state * SExpRec_po
           end
         | _ => None
         end)
-    end)
-
-with forcePromise (S : state) (e : SExpRec_pointer) : option (state * SExpRec_pointer) :=
-  if_defined (read_SExp S e) (fun exp =>
-    if_defined (get_promSxp e) (fun p =>
-      If prom_value p = R_UnboundValue then
-        eval S (prom_expr p) (prom_env p)
-      else Some (S, e))).
+    end).
 
 (** The property we want to eventually prove is that if [eval] returns
   a result, then the C function eval does similarly. **)

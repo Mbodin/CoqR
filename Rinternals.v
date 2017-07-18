@@ -4,8 +4,6 @@
 
 (** * Types **)
 
-(** Following my experience from JSCert, this file has been defined to be as close as possible to the internals of R as possible. **)
-
 (** SEXPTYPE **)
 Inductive SExpType :=
   | NilSxp
@@ -46,7 +44,7 @@ Inductive named_field :=
   .
 
 (** sxpinfo_struct **)
-Record SxpInfo := {
+Record SxpInfo := make_SxpInfo {
     type : SExpType ;
     obj : bool ;
     named : named_field;
@@ -60,12 +58,12 @@ Record SxpInfo := {
   }.
 
 (** A type to represent C-style pointers. **)
-Defined defined_pointer := nat.
+Definition defined_pointer := nat.
 
 (** SEXP, *SEXPREC **)
 (** We chose to represent points as an option type. [None] means NULL,
   and [Some p] yields that the pointer [p] points to something. **)
-Definition SExpRec_pointer := option pointer.
+Definition SExpRec_pointer := option defined_pointer.
 
 Definition R_UnboundValue : SExpRec_pointer := None.
 
@@ -85,40 +83,40 @@ Coercion primitive_construction_primitive : primitive >-> primitive_construction
 Coercion primitive_construction_internal : internal >-> primitive_construction.
 
 (** primsxp_struct **)
-Record PrimSxp_struct := {
+Record PrimSxp_struct := make_PrimSxp_struct {
     prim_primitive : primitive_construction
   }.
 
 (** symsxp_struct **)
-Record SymSxp_struct := {
+Record SymSxp_struct := make_SymSxp_struct {
     sym_pname : SExpRec_pointer ;
     sym_value : SExpRec_pointer ;
     sym_internal : SExpRec_pointer
   }.
 
 (** listsxp_struct **)
-Record ListSxp_struct := {
+Record ListSxp_struct := make_ListSxp_struct {
     list_carval : SExpRec_pointer ;
     list_cdrval : SExpRec_pointer ;
     list_tagval : SExpRec_pointer
   }.
 
 (** envsxp_struct **)
-Record EnvSxp_struct := {
+Record EnvSxp_struct := make_EnvSxp_struct {
     env_frame : SExpRec_pointer ;
     env_enclos : SExpRec_pointer ;
     env_hashtab : SExpRec_pointer
   }.
 
 (** closxp_struct **)
-Record CloSxp_struct := {
+Record CloSxp_struct := make_CloSxp_struct {
     clo_formals : SExpRec_pointer ;
     clo_body : SExpRec_pointer ;
     clo_env : SExpRec_pointer
   }.
 
 (** promsxp_struct **)
-Record PromSxp_struct := {
+Record PromSxp_struct := make_PromSxp_struct {
     prom_value : SExpRec_pointer ; (** The pointer is set to R_UnboundValue when unused, but . **)
     prom_expr : SExpRec_pointer ;
     prom_env : SExpRec_pointer
@@ -134,7 +132,7 @@ Inductive SExpRec_union :=
   .
 
 (** SEXPREC_HEADER **)
-Record SExpRecHeader := {
+Record SExpRecHeader := make_SExpRecHeader {
     sxpinfo :> SxpInfo ;
     attrib : SExpRec_pointer ;
     gengc_next_node : SExpRec_pointer ;
@@ -142,7 +140,7 @@ Record SExpRecHeader := {
   }.
 
 (** SEXPREC **)
-Record SExpRec := {
+Record SExpRec := make_SExpRec {
     SExpRec_header :> SExpRecHeader ;
     SExpRec_data :> SExpRec_union (* node data *)
   }.
@@ -194,9 +192,19 @@ Definition get_promSxp e :=
   | _ => None
   end.
 
+Definition set_named_sxpinfo i n :=
+  make_SxpInfo (type i) (obj i) n (mark i) (debug i) (trace i) (spare i) (gcgen i).
+
+Definition set_named_to e n :=
+  make_SExpRec
+    (let h := SExpRec_header e in
+     make_SExpRecHeader
+       (set_named_sxpinfo (sxpinfo h) n)
+       (attrib h)
+       (gengc_prev_node h)
+       (gengc_next_node h))
+    (SExpRec_data e).
+
 Definition set_named e :=
-  { e with
-    SExpRec_header := { SExpRec_header e with
-      sxpinfo := { sxpinfo (SExpRec_header e) with
-        name := named_plural } } }.
+  set_named_to e named_plural.
 
