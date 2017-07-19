@@ -6,13 +6,44 @@ The project is divided in several passes, each providing a more typed
 version of the R programming language.
 Each pass is related with the next by the corresponding *relation.v file.
 
-** Rinternals.v
-   This file describes the data structures of R as they are in its C code.
+** low
 
-** Rtypedinternals.v
-   In practise, the different language elements of R can not receive
-   anything. This version presents a version of the semantics in which
-   these assumptions are made explicit.
+This folder is a low-level specification of R.
+It is the closest possible to the R source code (in C).
 
-** Rhighlevel.v
-   A High-level intuition of how R behaves.
+*** Rinternals.v
+
+This file describes the data structures of R as they are in its C code.
+
+*** Rmonads.v
+
+This file provides useful data structures to manipulate the model of the C memory.
+
+*** Reval.v
+
+A Coq formalisation of the evaluation functions of R in its C code.
+
+** structures
+
+A formalisation of R a little more structured and typed than the low-level
+representation.
+In particular, the C memory has been abstracted out.
+
+*** Rinternals.v
+
+In practise, the different language elements of R can not receive
+anything. This version presents a version of the semantics in which
+these assumptions are made explicit.
+
+** high
+
+A High-level intuition of how R behaves.
+
+*** Rstructures.v
+
+High-level data structures.
+
+*** RReasoning.v
+
+Provides tools to reason about R programs.
+
