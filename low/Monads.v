@@ -32,7 +32,7 @@ Defined.
 
 (** Writes a value in the state. Might return [None] if the cell is not already allocated. **)
 Definition write_SExp (S : state) (p : nat) (e : SExpRec) : option state.
-  refine (match read_option S p as r return _ = r -> _ with
+  refine (match read_option S p as r return r = _ -> _ with
           | None => fun _ => None
           | Some _ => fun Eq => Some {|
               state_heap_SExp := write S p e ;
@@ -40,7 +40,7 @@ Definition write_SExp (S : state) (p : nat) (e : SExpRec) : option state.
           end eq_refl).
   - introv. apply not_indom_write.
     + introv E. applys state_fresh_locations_fresh. rewrite E.
-      applys~ read_option_indom Eq.
+      symmetry in Eq. applys~ read_option_indom Eq.
     + applys~ state_fresh_locations_fresh.
   - apply* state_fresh_locations_different.
 Defined.
@@ -62,71 +62,46 @@ Lemma destruct_write_SExp_None : forall (S : state) p e,
   write_SExp S p e = None.
 Proof.
   introv E. unfolds.
-  asserts: (forall T P (x : option T) (f1 : None = x -> P None) (f2 : forall v, Some v = x -> _) (H : None = x),
+  asserts R: (forall T P (x : option T) (f1 : None = x -> P None) (f2 : forall v, Some v = x -> _)
+      (H : None = x),
     match x as r return r = x -> P r with
     | None => f1
     | Some v => fun E => f2 v E
-    end eq_refl =
-    match H in _ = r return P r with
-    | eq_refl => f1 H
-    end).
-  introv. destruct~ H.
-  asserts: (forall T P (x : option T) (f1 : x = None -> P None) (f2 : forall v, x = Some v -> _) (H1 : x = None) (H2 : None = x),
-    match x as r return x = r -> P r with
-    | None => f1
-    | Some v => fun E => f2 v E
-    end eq_refl =
-    match H2 in _ = r return P r with
-    | eq_refl => f1 H1
-    end).
-  introv. destruct H2. clear. destruct H1. destruct (eq_sym H) eqn: Eq. clear. destruct H.
-  forwards: TEMP (read_option S p). erewrite H.
-  asserts: (forall T P (x : option T) (f1 : None = x -> P None) (f2 : forall v, Some v = x -> _) (H : None = x),
-    match x as r return r = x -> P r with
-    | None => f1
-    | Some v => fun E => f2 v E
-    end eq_refl =
-    match H in _ = r return P r with
-    | eq_refl => f1 H
-    end).
-   skip.
-  forwards: TEMP (read_option S p). erewrite H.
-  asserts: (forall (x : bool) (P : bool -> Type) (t : true = x -> P true) (f : false = x -> P false) (H : true = x),
-     (if b as b' return b' = b -> P b'
-      then t
-      else f) eq_refl
-     = match H in (_ = b') return P b' with
-       | eq_refl => t H
-       end).
-  asserts: (forall (b : bool) (P : bool -> Type) (t : true = b -> P true) (f : false = b -> P false) (H : true = b),
-     (if b as b' return b' = b -> P b'
-      then t
-      else f) eq_refl
-     = match H in (_ = b') return P b' with
-       | eq_refl => t H
-       end).
-  asserts: (forall T P (x : option T) (f1 : None = x -> P None) (f2 : forall v, Some v = x -> _) (H : x = None),
-    match x as r return _ = r -> P r with
-    | None => f1
-    | Some v => f2 v
-    end eq_refl =
-    match H in _ = r return P r with
-    | eq_refl => f1 H
-    end).
-                   
+    end eq_refl
+    = match H in _ = r return P r with
+      | eq_refl => f1 H
+      end).
+  + clear. introv. destruct~ H.
+  + symmetry in E. lets R': (rm R) (read_option S p). erewrite (R' _ _ E). destruct~ E.
 Qed.
 
-Lemma destruct_write_SExp : forall S p e v,
+Lemma destruct_write_SExp : forall (S : state) p e v,
   read_option S p = Some v ->
   exists S',
     write_SExp S p e = Some S'
-    /\ S' = write S p e.
+    /\ (S' : heap _ _) = write S p e.
+Proof.
+  introv E. unfolds write_SExp.
+  asserts R: (forall T T' (x : option T) (f1 : None = x -> T') (f2 : forall v, Some v = x -> T')
+      v (H : Some v = x),
+    match x as r return r = x -> T' with
+    | None => f1
+    | Some v => fun E => f2 v E
+    end eq_refl
+    = f2 v H).
+  + clear. introv. destruct~ H.
+  + symmetry in E. lets R': (rm R) (read_option S p). rewrite (R' _ _ _ E). clear.
+    eexists. splits~.
+Qed.
 
 Lemma write_SExp_read_SExp_same : forall S S' e p,
   write_SExp S p e = Some S' ->
   read_SExp S' (Some p) = Some e.
 Proof.
-  introv. unfolds write_SExp. generalize (read_option S p). Eq. unfolds in Eq. destruct (read_option S p). inverts Eq.
+  introv E. simpl. destruct (read_option S p) eqn: E'.
+  + forwards (S2&E1&E2): destruct_write_SExp E'.
+    rewrite E in E1. inverts E1. rewrite E2. rewrite~ read_option_write_same.
+  + forwards Eq: destruct_write_SExp_None E'. rewrite Eq in E. false*.
 Qed.
 
 Lemma write_SExp_read_SExp : forall S S' e p p',
@@ -134,12 +109,18 @@ Lemma write_SExp_read_SExp : forall S S' e p p',
   p <> p' ->
   read_SExp S' (Some p') = read_SExp S (Some p').
 Proof.
+  introv E D. simpl. destruct (read_option S p) eqn: E'.
+  + forwards (S2&E1&E2): destruct_write_SExp E'.
+    rewrite E in E1. inverts E1. rewrite E2. rewrite~ read_option_write.
+  + forwards Eq: destruct_write_SExp_None E'. rewrite Eq in E. false*.
 Qed.
 
 Lemma read_SExp_write_SExp : forall S e e' p,
   read_SExp S (Some p) = Some e ->
   exists S', write_SExp S p e' = Some S'.
 Proof.
+  introv E. simpl in E. forwards (S'&E1&E2): destruct_write_SExp E.
+  exists S'. rewrite~ E1.
 Qed.
 
 
@@ -156,7 +137,7 @@ Definition if_defined (A B : Type) (o : option A) (f : A -> option B) : option B
 Definition if_returns (A B : Type) (o : option (state * A)) (f : state -> A -> option B) : option B :=
   match o with
   | None => None
-  | Some (S, x) => f S x
+  | Some (S0, x) => f S0 x
   end.
 
 
