@@ -1,6 +1,6 @@
 (** Reval.
 * Describes how R evaluates expressions.
-* The content of this file is the Coq equivalent of File eval.c, which can be for instance found in https://github.com/wch/r-source/blob/trunk/src/main/eval.c **)
+* The content of this file is the Coq equivalent of the file src/main/eval.c. **)
 
 Require Export Rinternals Monads.
 

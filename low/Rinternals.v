@@ -1,6 +1,6 @@
 (** Rinternals.
-* The types of this file exactly correspond to the types defined in the file Rinternals.h,
-* which can be found in (for instance) https://github.com/wch/r-source/blob/trunk/src/include/Rinternals.h **)
+* The types of this file exactly correspond to the types defined
+* in the R source file src/include/internals.h **)
 
 (** * Types **)
 
@@ -61,8 +61,9 @@ Record SxpInfo := make_SxpInfo {
 Definition defined_pointer := nat.
 
 (** SEXP, *SEXPREC **)
-(** We chose to represent points as an option type. [None] means NULL,
-  and [Some p] yields that the pointer [p] points to something. **)
+(** We chose to represent points as an option type. [None] means NULL
+* or R_UnboundValue, and [Some p] yields that the pointer [p] points
+* to something. **)
 Definition SExpRec_pointer := option defined_pointer.
 
 Definition R_UnboundValue : SExpRec_pointer := None.
@@ -117,7 +118,7 @@ Record CloSxp_struct := make_CloSxp_struct {
 
 (** promsxp_struct **)
 Record PromSxp_struct := make_PromSxp_struct {
-    prom_value : SExpRec_pointer ; (** The pointer is set to R_UnboundValue when unused, but . **)
+    prom_value : SExpRec_pointer ;
     prom_expr : SExpRec_pointer ;
     prom_env : SExpRec_pointer
   }.
@@ -145,7 +146,7 @@ Record SExpRec := make_SExpRec {
     SExpRec_data :> SExpRec_union (* node data *)
   }.
 
-(* Seems to be unused in R source code.
+(* FIXME: Seems to be unused in R source code.
 (** vecsxp_struct **)
 Record VecSxp_struct := {
     VecSxp_length : nat ;

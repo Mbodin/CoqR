@@ -15,7 +15,7 @@ It is the closest possible to the R source code (in C).
 
 This file describes the data structures of R as they are in its C code.
 
-*** Rmonads.v
+*** Monads.v
 
 This file provides useful data structures to manipulate the model of the C memory.
 
@@ -23,7 +23,7 @@ This file provides useful data structures to manipulate the model of the C memor
 
 A Coq formalisation of the evaluation functions of R in its C code.
 
-** structures
+** structured
 
 A formalisation of R a little more structured and typed than the low-level
 representation.

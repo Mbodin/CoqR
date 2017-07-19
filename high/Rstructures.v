@@ -1,4 +1,4 @@
-(** Rhighlevel.
+(** Rstructures.
 * In the original paper “R: A Language for Data Analysis and
 * Graphics”, the authors describe a fairly simple intuition on how the
 * R language should behave.

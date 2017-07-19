@@ -1,5 +1,5 @@
-(** Rtypedinternals.
-* The internals presented in Rinternals are untyped: each basic
+(** Rinternals.
+* The internals presented in Low.Rinternals are untyped: each basic
 * language element (SExprRec) are built on three pointers, without
 * further explanation.
 * But the R interpreter assumes that some of these pointers are NULL,
