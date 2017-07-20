@@ -15,6 +15,11 @@ It is the closest possible to the R source code (in C).
 
 This file describes the data structures of R as they are in its C code.
 
+*** RinternalsAux.v
+
+Auxiliary definitions and properties about the data structures defined in
+Rinternals.v.
+
 *** Monads.v
 
 This file provides useful data structures to manipulate the model of the C memory.
