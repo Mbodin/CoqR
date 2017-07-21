@@ -47,6 +47,7 @@ Inductive named_field :=
 
 (** sxpinfo_struct **)
 Record SxpInfo := make_SxpInfo {
+    (* TODO: Comment out unmodelled fields, and explain why in the draft. *)
     type : SExpType ;
     obj : bool ;
     named : named_field;
@@ -133,9 +134,16 @@ Inductive SExpRec_union :=
   | cloSxp : CloSxp_struct -> SExpRec_union
   | promSxp : PromSxp_struct -> SExpRec_union
   .
+Coercion primSxp : PrimSxp_struct >-> SExpRec_union.
+Coercion symSxp : SymSxp_struct >-> SExpRec_union.
+Coercion listSxp : ListSxp_struct >-> SExpRec_union.
+Coercion envSxp : EnvSxp_struct >-> SExpRec_union.
+Coercion cloSxp : CloSxp_struct >-> SExpRec_union.
+Coercion promSxp : PromSxp_struct >-> SExpRec_union.
 
 (** SEXPREC_HEADER **)
 Record SExpRecHeader := make_SExpRecHeader {
+    (* TODO: Comment out unmodelled fields, and explain why in the draft. *)
     sxpinfo :> SxpInfo ;
     attrib : SExpRec_pointer ;
     gengc_next_node : SExpRec_pointer ;

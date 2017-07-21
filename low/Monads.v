@@ -21,7 +21,7 @@ Record state := make_state {
   }.
 
 (** Allocate a new cell and provide it an initial value **)
-Definition alloc_SExp (S : state) (e : SExpRec) : state * nat.
+Definition alloc_SExp_nat (S : state) (e : SExpRec) : state * nat.
   refine (let p := stream_head (state_fresh_locations S) in ({|
       state_heap_SExp := write S p e ;
       state_fresh_locations := stream_tail (state_fresh_locations S) |},
@@ -31,6 +31,10 @@ Definition alloc_SExp (S : state) (e : SExpRec) : state * nat.
     + applys~ state_fresh_locations_fresh I'.
   - introv D. repeat rewrite stream_tail_nth. applys* state_fresh_locations_different.
 Defined.
+
+Definition alloc_SExp S e : state * SExpRec_pointer :=
+  let (S, p) := alloc_SExp_nat S e in
+  (S, Some p).
 
 (** Writes a value in the state. Might return [None] if the cell is not already allocated. **)
 Definition write_SExp_nat (S : state) (p : nat) (e : SExpRec) : option state.
@@ -63,10 +67,15 @@ Definition read_SExp (S : state) (p : SExpRec_pointer) :=
   | Some p => read_SExp_nat S p
   end.
 
-Lemma alloc_SExp_read_SExp : forall S S' e p,
-  alloc_SExp S e = (S', p) ->
+Lemma alloc_SExp_nat_read_SExp : forall S S' e p,
+  alloc_SExp_nat S e = (S', p) ->
   read_SExp S' (Some p) = Some e.
 Proof. introv Eq. inverts Eq. do 2 unfolds. simpl. rewrite~ read_option_write_same. Qed.
+
+Lemma alloc_SExp_read_SExp : forall S S' e p,
+  alloc_SExp S e = (S', p) ->
+  read_SExp S' p = Some e.
+Proof. introv Eq. inverts Eq. applys* alloc_SExp_nat_read_SExp. Qed.
 
 Lemma destruct_write_SExp_nat_None : forall (S : state) p e,
   read_option S p = None ->
@@ -176,6 +185,13 @@ Arguments result_bottom [A].
 * constructor [result_error].
 * We only throw [result_not_implemented] when our Coq code has not
 * implemented a behaviour of R. **)
+(** The difference between [result_error] and [result_impossible] is
+* more subjective. Sometimes, R returns an error because R consider
+* that something can not happen.
+* As a general rule, the only difference between [result_error] and
+* [result_impossible] is that we do care in this formalisation that
+* [result_impossible] may never be returned, whilst we consider that
+* [result_error] is not a huge issue. **)
 
 (** The monad for result. **)
 Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=

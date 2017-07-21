@@ -12,7 +12,7 @@ Instance SExpType_Comparable : Comparable SExpType.
 Defined.
 
 
-(** * Accessors **)
+(** * Accessors and Smart Constructors **)
 
 Definition get_primSxp e :=
   match e with
@@ -59,4 +59,15 @@ Definition set_named_to e n :=
 
 Definition set_named e :=
   set_named_to e named_plural.
+
+(** A smart constructor for SxpInfo **)
+Definition build_SxpInfo type : SxpInfo :=
+  make_SxpInfo type false named_temporary false false false false false.
+
+(** The pointers [gengc_prev_node] and [gengc_next_node] are only used
+* by the garbage collector of R. We do not need them here as memory
+* allocation is not targetted by this formalisation. We thus offer the
+* following smart constructor for the type [SExpRecHeader]. **)
+Definition build_SExpRecHeader type attrib : SExpRecHeader :=
+  make_SExpRecHeader (build_SxpInfo type) attrib None None.
 
