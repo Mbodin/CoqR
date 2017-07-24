@@ -13,17 +13,15 @@ Require Export Monads.
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
     runs_fold_left_listSxp_gen : forall A, state -> SExpRec_pointer -> A ->
-      (state -> A -> SExpRec -> result A) -> result A ;
+      (state -> A -> SExpRec_pointer -> SExpRec -> listsxp_struct -> result A) -> result A ;
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
   }.
 
 
 (** * Interpreter functions **)
 
-(** The C language performs a lot of pointer deferentiation. As a
-* convention, we write [p_] for the object referenced by the pointer [p]
-* in this section, and [p_f] for the field [f] or it, typically [p_sym]
-* for its [symSxp_struct] part and so on. **)
+(** We recall from RinternalsAux.v that we write [p_] for the object
+* referenced by the pointer [p], and [p_f] for the field [f] or it **)
 
 (** ** Frequent Pattern **)
 
@@ -34,22 +32,21 @@ Record runs_type : Type := runs_type_intro {
  * [fold_left_listSxp_gen] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
 Definition fold_left_listSxp_gen A runs (S : state) (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec -> result A) : result A :=
+    (iterate : state -> A -> SExpRec_pointer -> SExpRec -> listsxp_struct -> result A) : result A :=
   ifb l = R_NilValue then
     result_success S a
   else
     if_defined S (read_SExp S l) (fun l_ =>
-      if_success (iterate S a l_) (fun S a =>
-        if_defined S (get_listSxp l_) (fun l_list =>
+      if_defined S (get_listSxp l_) (fun l_list =>
+        if_success (iterate S a l l_ l_list) (fun S a =>
           runs_fold_left_listSxp_gen runs S (list_cdrval l_list) a iterate))).
 
 (* [fold_left_listSxp] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
 Definition fold_left_listSxp A runs (S : state) (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
-  fold_left_listSxp_gen runs S l a (fun S a l_ =>
-    if_defined S (get_listSxp l_) (fun l_list =>
-      iterate S a (list_carval l_list) (list_tagval l_list))).
+  fold_left_listSxp_gen runs S l a (fun S a _ _ l_list =>
+    iterate S a (list_carval l_list) (list_tagval l_list)).
 
 
 (** ** memory.c **)
@@ -93,10 +90,10 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
 * It is furthermore rather complicated.
 * This is a large function and is divided into all its passes. **)
 
-Definition set_argused S e :=
+Definition set_argused used e_ :=
   set_gp ?.
 
-Definition argused S e := ?.
+Definition argused e_ := ?.
 
 Definition matchArgs_first runs (S : state)
     (? : SExpRec_pointer) : SExpRec_pointer :=
@@ -110,40 +107,83 @@ Definition matchArgs_third runs (S : state)
 Definition matchArgs_dots runs (S : state)
     (dots supplied : SExpRec_pointer) : SExpRec_pointer :=
   if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
-    if argused S a then 1 + i else i)) (fun S i =>
-    ifb i = 0 then
-      result_success S tt
-    else
-      let (S, a) := allocList S i in
-      map_pointer S (fun a_ => set_type_to a_ DotSxp) (fun S =>
-        fold_left_listSxp_gen S supplied a (fun S f b_ =>
-          if argused b_ if_defined S (get_listSxp b_) (fun b_list =>
-            )) (fun S f =>
-          ))).
+    if_option S (read_SExp S a) (fun a_ =>
+      if argused a_ then
+        result_success S (1 + i)
+      else
+        result_success S i))
+    (fun S i =>
+      ifb i = 0 then
+        result_success S tt
+      else
+        let (S, a) := allocList S i in
+        map_pointer S (set_type DotSxp) (fun S =>
+          if_success (fold_left_listSxp_gen runs S supplied a (fun S f b b_ b_list =>
+            if argused b_ then
+              result_success S f
+            else
+              if_defined S (read_SExp S f) (fun f_ =>
+                if_defined S (get_listSxp f_) (fun f_list =>
+                  let f_list := {|
+                      list_carval := list_carval b_list ;
+                      list_cdrval := list_cdrval f_list ;
+                      list_tagval := list_tagval b_list
+                    |} in
+                  let f_ := {|
+                      SExpRec_header := SExpRec_header f_ ;
+                      SExpRec_data := f_list
+                    |} in
+                  if_defined S (write_SExp S f f_) (fun S =>
+                    result_success S (list_cdrval f_list)))))
+            (fun S _ =>
+              if_defined S (read_SExp S dots) (fun dots_ =>
+                if_defined S (get_listSxp dots_) (fun dots_list =>
+                  let dots_list := {|
+                      list_carval := a ;
+                      list_cdrval := list_cdrval dots_list ;
+                      list_tagval := list_tagval dots_list
+                    |} in
+                  let dots_ := {|
+                      SExpRec_header := SExpRec_header dots_ ;
+                      SExpRec_data := dots_list
+                    |} in
+                  if_defined S (write_SExp S dots dots_) (fun S =>
+                    result_success S tt))))))).
 
 Definition matchArgs_check runs (S : state)
-    (? : SExpRec_pointer) : SExpRec_pointer :=
+    (supplied : SExpRec_pointer) : SExpRec_pointer :=
+  if_success (fold_left_listSxp_gen runs S supplied false (fun S acc b b_ b_list =>
+    result_success S (acc || argused b_))
+    (fun S b =>
+      if b then
+        result_error S "[matchArgs_check] Unused argument(s)"
+      else
+        result_success S tt).
+
 
 Definition matchArgs runs (S : state)
     (formals supplied call : SExpRec_pointer) : SExpRec_pointer :=
   if_success (fold_left_listSxp S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
       let (actuals, argi) := actuals_argi in
       let (S, actuals) := cons (R_MissingArg, actuals) in
-      (actuals, 1 + argi))) (fun S actuals_argi =>
-    let (actuals, argi) := actuals_argi in
-    let fargused : list nat := ? (* list of size argi *) in
-    if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
-      map_pointer S b (fun b_ => set_argused b_ false) (fun S =>
-        result_success S tt)))) (fun S _ =>
-      if_success (matchArgs_first runs S ?) (fun S ? =>
-        if_success (matchArgs_second runs S ?) (fun S ? =>
-          if_success (matchArgs_third runs S ?) (fun S ? =>
-            ifb dots <> R_NilValue then
-              if_success (matchArgs_dots runs runs S ?) (fun S _ =>
-                return_success S actuals)
-            else
-              if_success (matchArgs_check runs S ?) (fun S _ =>
-                return_success S actuals)))))).
+      (actuals, 1 + argi)))
+    (fun S actuals_argi =>
+      let (actuals, argi) := actuals_argi in
+      let fargused : list nat := ? (* list of size argi *) in
+      if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
+        map_pointer S b (set_argused false) (fun S =>
+          result_success S tt))))
+        (fun S _ =>
+          if_success (matchArgs_first runs S ?) (fun S ? =>
+            if_success (matchArgs_second runs S ?) (fun S ? =>
+              if_success (matchArgs_third runs S ?) (fun S ? =>
+                ifb dots <> R_NilValue then
+                  if_success (matchArgs_dots runs runs S ?) (fun S _ =>
+                    return_success S actuals)
+                else
+                  if_success (matchArgs_check runs S ?) (fun S _ =>
+                    return_success S actuals)))))).
+
 
 (** ** eval.c **)
 
@@ -192,7 +232,7 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
     | ExtptrSxp
     | WeakrefSxp
     | ExprSxp =>
-      if_defined S (write_SExp S e (set_named e_)) (fun S =>
+      if_defined S (write_SExp S e (set_named_plural e_)) (fun S =>
         result_success S e)
     | _ =>
       if_defined S (read_SExp S rho) (fun rho_ =>

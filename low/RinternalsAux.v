@@ -5,6 +5,13 @@ Set Implicit Arguments.
 Require Export Rinternals Shared.
 
 
+(* TODO: Copy the following paragraph to the draft. *)
+(** The C language performs a lot of pointer deferentiation. As a
+* convention, we write [p_] for the object referenced by the pointer [p],
+* and [p_f] for the field [f] or it—for instance [p_sym]
+* for its [symSxp_struct] part. **)
+
+
 (** * Instances **)
 
 Instance SExpType_Comparable : Comparable SExpType.
@@ -14,64 +21,64 @@ Defined.
 
 (** * Accessors and Smart Constructors **)
 
-Definition get_primSxp e :=
-  match e with
-  | primSxp p => Some p
+Definition get_primSxp e_ :=
+  match e_ with
+  | primSxp e_prim => Some e_prim
   | _ => None
   end.
 
-Definition get_listSxp e :=
-  match e with
-  | listSxp l => Some l
+Definition get_listSxp e_ :=
+  match e_ with
+  | listSxp e_list => Some e_list
   | _ => None
   end.
 
-Definition get_envSxp e :=
-  match e with
-  | envSxp e => Some e
+Definition get_envSxp e_ :=
+  match e_ with
+  | envSxp e_env => Some e_env
   | _ => None
   end.
 
-Definition get_cloSxp e :=
-  match e with
-  | cloSxp c => Some c
+Definition get_cloSxp e_ :=
+  match e_ with
+  | cloSxp e_clo => Some e_clo
   | _ => None
   end.
 
-Definition get_promSxp e :=
-  match e with
-  | promSxp p => Some p
+Definition get_promSxp e_ :=
+  match e_ with
+  | promSxp e_prom => Some e_prom
   | _ => None
   end.
 
-Definition set_named_sxpinfo i n :=
-  make_SxpInfo (type i) (obj i) n (mark i) (debug i) (trace i) (spare i) (gcgen i).
+Definition set_named_sxpinfo n i_info :=
+  make_SxpInfo (type i_info) (obj i_info) n (mark i_info) (debug i_info) (trace i_info) (spare i_info) (gcgen i_info).
 
-Definition set_named_to e n :=
+Definition set_named n e_ :=
   make_SExpRec
-    (let h := SExpRec_header e in
+    (let h := SExpRec_header e_ in
      make_SExpRecHeader
-       (set_named_sxpinfo (sxpinfo h) n)
+       (set_named_sxpinfo n (sxpinfo h))
        (attrib h)
        (gengc_prev_node h)
        (gengc_next_node h))
-    (SExpRec_data e).
+    (SExpRec_data e_).
 
-Definition set_named e :=
-  set_named_to e named_plural.
+Definition set_named_plural :=
+  set_named named_plural.
 
-Definition set_type_sxpinfo i t :=
-  make_SxpInfo t (obj i) (named i) (mark i) (debug i) (trace i) (spare i) (gcgen i).
+Definition set_type_sxpinfo t i_info :=
+  make_SxpInfo t (obj i_info) (named i_info) (mark i_info) (debug i_info) (trace i_info) (spare i_info) (gcgen i_info).
 
-Definition set_type_to e n :=
+Definition set_type t e_ :=
   make_SExpRec
-    (let h := SExpRec_header e in
+    (let h := SExpRec_header e_ in
      make_SExpRecHeader
-       (set_type_sxpinfo (sxpinfo h) n)
+       (set_type_sxpinfo t (sxpinfo h))
        (attrib h)
        (gengc_prev_node h)
        (gengc_next_node h))
-    (SExpRec_data e).
+    (SExpRec_data e_).
 
 Definition set_gp := ?.
 
