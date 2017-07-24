@@ -1,5 +1,5 @@
 (** Monads.
-* Provides some model for the C memory and some monads to manipulate it easily. **)
+ * Provides some model for the C memory and some monads to manipulate it easily. **)
 
 Set Implicit Arguments.
 Require Export String.
@@ -11,7 +11,7 @@ Require Import TLC.LibStream.
 (** ** Basic Model **)
 
 (** The global state of the C environment. In particular, it maps SEXP
-  pointers to their corresponding expressions. **)
+ * pointers to their corresponding expressions. **)
 Record state := make_state {
     state_heap_SExp :> heap nat SExpRec ;
     state_fresh_locations : stream nat ;
@@ -166,7 +166,7 @@ Lemma read_SExp_write_SExp : forall S e e' p,
 Proof. introv E. destruct p; tryfalse. applys~ read_SExp_write_SExp_nat E. Qed.
 
 
-(* TODO: Do we need this?
+(* TODO: Do we need this? There is already allocList from Reval/memory.c
 (** ** Support for Arrays **)
 
 Fixpoint alloc_array_SExp S (es : list SExpRec) : state * SExpRec_pointer :=
@@ -192,6 +192,7 @@ Defined.
 
 (* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
 Definition NULL := None.
+Definition R_DotsSymbol := ?.
 Definition R_GlobalEnv := ?.
 Definition R_EmptyEnv := ?.
 Definition R_BaseEnv := ?.
@@ -217,18 +218,18 @@ Arguments result_not_implemented [A].
 Arguments result_bottom [A].
 
 (** A precision about [result_not_implemented] and [result_error]:
-* if the C source code of R throw a not-implemented error, we consider
-* this as an error thrown in the original interpreter and use the
-* constructor [result_error].
-* We only throw [result_not_implemented] when our Coq code has not
-* implemented a behaviour of R. **)
+ * if the C source code of R throw a not-implemented error, we consider
+ * this as an error thrown in the original interpreter and use the
+ * constructor [result_error].
+ * We only throw [result_not_implemented] when our Coq code has not
+ * implemented a behaviour of R. **)
 (** The difference between [result_error] and [result_impossible] is
-* more subjective. Sometimes, R returns an error because R consider
-* that something can not happen.
-* As a general rule, the only difference between [result_error] and
-* [result_impossible] is that we do care in this formalisation that
-* [result_impossible] may never be returned, whilst we consider that
-* [result_error] is not a huge issue. **)
+ * more subjective. Sometimes, R returns an error because R consider
+ * that something can not happen.
+ * As a general rule, the only difference between [result_error] and
+ * [result_impossible] is that we do care in this formalisation that
+ * [result_impossible] may never be returned, whilst we consider that
+ * [result_error] is not a huge issue. **)
 
 (** The monad for result. **)
 Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=
@@ -253,4 +254,15 @@ Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_poin
     (f : state -> result A) : result A :=
   if_defined S (read_SExp S p) (fun p_ =>
     if_defined S (write_SExp S p (map p_)) f).
+
+(** Updating the first element of a list. **)
+Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  if_defined S (read_SExp S p) (fun p_ =>
+    if_defined S (get_listSxp p_) (fun p_list =>
+      let p_list := set_car_list car p_list in
+      let p_ := {|
+          SExpRec_header := SExpRec_header p_ ;
+          SExpRec_data := p_list
+        |} in
+      if_defined S (write_SExp S p p_) f).
 

@@ -1,8 +1,8 @@
 (* TODO: Clean this file, or merge it with Rstructures.v *)
 
 (** Rbasic.v
-* This file provides a higher level view from the types defined in the file Rinternals.v.
-* This file will probably move to Rhighlevel at some point. **)
+ * This file provides a higher level view from the types defined in the file Rinternals.v.
+ * This file will probably move to Rhighlevel at some point. **)
 
 Inductive mode : Type :=
   (* | mode_raw *)

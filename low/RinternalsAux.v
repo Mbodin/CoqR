@@ -1,5 +1,5 @@
 (** RinternalsAux.
-* Auxiliary definitions for the data structures defined in Rinternals. **)
+ * Auxiliary definitions for the data structures defined in Rinternals. **)
 
 Set Implicit Arguments.
 Require Export Rinternals Shared.
@@ -7,9 +7,9 @@ Require Export Rinternals Shared.
 
 (* TODO: Copy the following paragraph to the draft. *)
 (** The C language performs a lot of pointer deferentiation. As a
-* convention, we write [p_] for the object referenced by the pointer [p],
-* and [p_f] for the field [f] or it—for instance [p_sym]
-* for its [symSxp_struct] part. **)
+ * convention, we write [p_] for the object referenced by the pointer [p]
+ * (that is, [p_] stands for [*p] in C), and [p_f] for its field [f]—for
+ * instance [p_sym] for its [symSxp_struct] part—, that is [p->f] in C. **)
 
 
 (** * Instances **)
@@ -82,14 +82,18 @@ Definition set_type t e_ :=
 
 Definition set_gp := ?.
 
+Definition set_car_list car l_list :=
+  make_ListSxp_struct car (list_cdrval l_list) (list_tagval l_list).
+
+
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
   make_SxpInfo type false named_temporary false false false false false.
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
-* by the garbage collector of R. We do not need them here as memory
-* allocation is not targetted by this formalisation. We thus offer the
-* following smart constructor for the type [SExpRecHeader]. **)
+ * by the garbage collector of R. We do not need them here as memory
+ * allocation is not targetted by this formalisation. We thus offer the
+ * following smart constructor for the type [SExpRecHeader]. **)
 Definition build_SExpRecHeader type attrib : SExpRecHeader :=
   make_SExpRecHeader (build_SxpInfo type) attrib None None.
 

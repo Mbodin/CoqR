@@ -1,6 +1,6 @@
 (** Rinternals.
-* The types of this file exactly correspond to the types defined
-* in the R source file src/include/internals.h **)
+ * The types of this file exactly correspond to the types defined
+ * in the R source file src/include/internals.h **)
 
 Set Implicit Arguments.
 
@@ -38,7 +38,8 @@ Inductive SExpType :=
   .
 
 (** The field “named” of “sxpinfo_struct” can take three values.
-* (see the file R-ints.pdf, Section 1.1.2 for more details.) **)
+ * (see the file R-ints.pdf, Section 1.1.2 for more details.)
+ * TODO: Explain this in the draft. **)
 Inductive named_field :=
   | named_temporary (** 0 in R **)
   | named_unique (** 1 in R; bound to at most one variable **)
@@ -76,9 +77,9 @@ Record SxpInfo := make_SxpInfo {
 Definition defined_pointer := nat.
 
 (** SEXP, *SEXPREC **)
-(** We chose to represent points as an option type. [None] means NULL
-* or R_UnboundValue, and [Some p] yields that the pointer [p] points
-* to something. **)
+(** We chose to represent pointers as an option type. [None] means
+ * R_UnboundValue (NULL is very rarely used in the R source code),
+ * [Some p] yielding that the pointer [p] points to something. **)
 Definition SExpRec_pointer := option defined_pointer.
 
 Definition R_UnboundValue : SExpRec_pointer := None.
@@ -168,7 +169,7 @@ Record SExpRec := make_SExpRec {
     SExpRec_data :> SExpRec_union (* node data *)
   }.
 
-(* FIXME: Seems to be unused in R source code.
+(* FIXME: Seems to be unused in R source code (it uses R’s style lists instead).
 (** vecsxp_struct **)
 Record VecSxp_struct := make_VecSxp_struct {
     VecSxp_length : nat ;

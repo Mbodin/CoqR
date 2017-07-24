@@ -1,9 +1,9 @@
 (** Reval.
-* Describes how R evaluates expressions.
-* The content of this file is the Coq equivalent of functions from R source code.
-* Note that only relevant definitions are translated here. Some are just
-* reinterpreted in Coq without following the original algorithm of the
-* C source. **)
+ * Describes how R evaluates expressions.
+ * The content of this file is the Coq equivalent of functions from R source code.
+ * Note that only relevant definitions are translated here. Some are just
+ * reinterpreted in Coq without following the original algorithm of the
+ * C source. **)
 
 Set Implicit Arguments.
 Require Export Monads.
@@ -21,7 +21,7 @@ Record runs_type : Type := runs_type_intro {
 (** * Interpreter functions **)
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
-* referenced by the pointer [p], and [p_f] for the field [f] or it **)
+ * referenced by the pointer [p], and [p_f] for the field [f] or it **)
 
 (** ** Frequent Pattern **)
 
@@ -52,7 +52,7 @@ Definition fold_left_listSxp A runs (S : state) (l : SExpRec_pointer) (a : A)
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file src/main/memory.c. **)
+ * in the file src/main/memory.c. **)
 
 Definition cons (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
   let e_ :=
@@ -61,7 +61,7 @@ Definition cons (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_pointe
   alloc_SExp S e_.
 
 Definition allocList S (n : nat) : state * SExpRec_pointer :=
-  fix aux S n p :=
+  let fix aux S n p :=
     match n with
     | 0 => (S, p)
     | S n =>
@@ -69,107 +69,145 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
       cons S R_NilValue p
   in aux S n R_NilValue.
 
-(* TODO: Note for the draft: SET_MISSING is about the garbage collector, and we do not model it. Make explicit what we model here and what we do not model. Note that the complexity of R algorthims associated to the structure is more important than the structure itself. *)
+(* TODO: Note for the draft: SET_MISSING is about the garbage collector (¡No, it is not!), and we do not model it. Make explicit what we model here and what we do not model. Note that the complexity of R algorthims associated to the structure is more important than the structure itself. *)
 
 
 (** ** match.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file src/main/match.c. **)
+ * in the file src/main/match.c. **)
 
 (* Understanding C code can be trikky. Here are some hints.
-* psmatch (s1, s2, TRUE) is exactly s1 = s2
-* psmatch (s1, s2, FALSE) is exactly String.prefix s1 s2 *)
+ * psmatch (s1, s2, TRUE) is exactly s1 = s2
+ * psmatch (s1, s2, FALSE) is exactly String.prefix s1 s2 *)
 
 (** The function [matchArgs] matches the arguments supplied to a given
-* call with the formal, expected arguments.
-* This is more complex as it may seem as arguments in R can be named
-* (and thus provided in any order), or can be ‘...’.
-* The algorithm presented in this function is thus crucial to understand
-* the semantics of function calls in R.
-* It is furthermore rather complicated.
-* This is a large function and is divided into all its passes. **)
+ * call with the formal, expected arguments.
+ * This is more complex as it may seem as arguments in R can be named
+ * (and thus provided in any order), or can be ‘...’.
+ * The algorithm presented in this function is thus crucial to understand
+ * the semantics of function calls in R.
+ * It is furthermore rather complicated.
+ * This is a large function and is divided into all its passes. **)
 
-Definition set_argused used e_ :=
+(** The function makes use of some bits from the general purpose pool
+ * to mark some arguments as being used or missing. **)
+Definition set_argused (used : ¿nat?) e_ :=
   set_gp ?.
 
-Definition argused e_ := ?.
+Definition argused e_ :=
+  gp ?.
+
+Definition set_missing (m : bool) e_ :=
+  set_gp ?.
+
+Definition missing e_ :=
+  gp ?.
 
 Definition matchArgs_first runs (S : state)
-    (? : SExpRec_pointer) : SExpRec_pointer :=
+    (formals actuals : SExpRec_pointer) : result ? :=
+  if_success (fold_left_listSxp S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
+    let (a, fargusedrev) := a_fargusedrev in
+    let ftag_name = (* CHAR(PRINTNAME(f_tag)) *) in
+    let continuation S fargusedi :=
+      if_defined S (read_SExp S a) (fun a_ =>
+        if_defined S (get_listSxp a_) (fun a_list =>
+          result_success S (list_cdrval a_list, fargusedi :: fargusedrev))) in
+    ifb f_tag <> R_DotsSymbol && f_tag <> R_NilValue then
+      if_success (fold_left_listSxp_gen S supplied 0 (fun S fargusedi b b_ b_list =>
+        let b_tag := list_tagval b_list in
+        let btag_name = (* CHAR(PRINTNAME(b_tag)) *) in
+        ifb b_tag <> R_NilValue && ftag_name = btag_name then
+          ifb fargusedi = 2 then
+            result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
+          else ifb argused b_ then
+            result_error S "[matchArgs_first] actual argument matches several formal arguments."
+          else
+            set_car S (list_carval b_list) a (fun S =>
+              if_success
+                (ifb list_carval b <> R_MissingArg then
+                  map_pointer S a (set_missing false)
+                else result_success S tt) (fun S _ =>
+                map_pointer S b (set_argused 2) (fun S =>
+                  result_success S 2)
+        else
+          result_success S fargusedi))
+        continuation
+    else continuation S 0))
+    (fun a_fargusedrev =>
+      let (a, fargusedrev) := a_fargusedrev in
+      List.rev fargusedrev).
 
 Definition matchArgs_second runs (S : state)
-    (? : SExpRec_pointer) : SExpRec_pointer :=
+    (? : SExpRec_pointer) : result ? :=
 
 Definition matchArgs_third runs (S : state)
-    (? : SExpRec_pointer) : SExpRec_pointer :=
+    (? : SExpRec_pointer) : result ? :=
 
 Definition matchArgs_dots runs (S : state)
-    (dots supplied : SExpRec_pointer) : SExpRec_pointer :=
-  if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
-    if_option S (read_SExp S a) (fun a_ =>
-      if argused a_ then
-        result_success S (1 + i)
-      else
-        result_success S i))
-    (fun S i =>
-      ifb i = 0 then
-        result_success S tt
-      else
-        let (S, a) := allocList S i in
-        map_pointer S (set_type DotSxp) (fun S =>
-          if_success (fold_left_listSxp_gen runs S supplied a (fun S f b b_ b_list =>
-            if argused b_ then
-              result_success S f
-            else
-              if_defined S (read_SExp S f) (fun f_ =>
-                if_defined S (get_listSxp f_) (fun f_list =>
-                  let f_list := {|
-                      list_carval := list_carval b_list ;
-                      list_cdrval := list_cdrval f_list ;
-                      list_tagval := list_tagval b_list
-                    |} in
-                  let f_ := {|
-                      SExpRec_header := SExpRec_header f_ ;
-                      SExpRec_data := f_list
-                    |} in
-                  if_defined S (write_SExp S f f_) (fun S =>
-                    result_success S (list_cdrval f_list)))))
-            (fun S _ =>
-              if_defined S (read_SExp S dots) (fun dots_ =>
-                if_defined S (get_listSxp dots_) (fun dots_list =>
-                  let dots_list := {|
-                      list_carval := a ;
-                      list_cdrval := list_cdrval dots_list ;
-                      list_tagval := list_tagval dots_list
-                    |} in
-                  let dots_ := {|
-                      SExpRec_header := SExpRec_header dots_ ;
-                      SExpRec_data := dots_list
-                    |} in
-                  if_defined S (write_SExp S dots dots_) (fun S =>
-                    result_success S tt))))))).
+    (dots supplied : SExpRec_pointer) : result unit :=
+  map_pointer S dots (set_missing false) (fun S =>
+    if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
+      if_option S (read_SExp S a) (fun a_ =>
+        if argused a_ then
+          result_success S (1 + i)
+        else
+          result_success S i))
+      (fun S i =>
+        ifb i = 0 then
+          result_success S tt
+        else
+          let (S, a) := allocList S i in
+          map_pointer S (set_type DotSxp) (fun S =>
+            if_success (fold_left_listSxp_gen runs S supplied a (fun S f b b_ b_list =>
+              if argused b_ then
+                result_success S f
+              else
+                if_defined S (read_SExp S f) (fun f_ =>
+                  if_defined S (get_listSxp f_) (fun f_list =>
+                    let f_list := {|
+                        list_carval := list_carval b_list ;
+                        list_cdrval := list_cdrval f_list ;
+                        list_tagval := list_tagval b_list
+                      |} in
+                    let f_ := {|
+                        SExpRec_header := SExpRec_header f_ ;
+                        SExpRec_data := f_list
+                      |} in
+                    if_defined S (write_SExp S f f_) (fun S =>
+                      result_success S (list_cdrval f_list)))))
+              (fun S _ =>
+                set_car S a dots (fun S =>
+                  result_success S tt))))))).
 
 Definition matchArgs_check runs (S : state)
-    (supplied : SExpRec_pointer) : SExpRec_pointer :=
+    (supplied : SExpRec_pointer) : result unit :=
   if_success (fold_left_listSxp_gen runs S supplied false (fun S acc b b_ b_list =>
     result_success S (acc || argused b_))
     (fun S b =>
       if b then
-        result_error S "[matchArgs_check] Unused argument(s)"
+        result_error S "[matchArgs_check] Unused argument(s)."
       else
         result_success S tt).
 
 
 Definition matchArgs runs (S : state)
-    (formals supplied call : SExpRec_pointer) : SExpRec_pointer :=
+    (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
   if_success (fold_left_listSxp S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
       let (actuals, argi) := actuals_argi in
       let (S, actuals) := cons (R_MissingArg, actuals) in
       (actuals, 1 + argi)))
     (fun S actuals_argi =>
       let (actuals, argi) := actuals_argi in
-      let fargused : list nat := ? (* list of size argi *) in
+      (* FIXME: We can do without.
+       * TODO: write in the draft that we allows ourselves to change the
+       * C code, as soon as the result is equivalent to the initial one.
+      let fargused : list nat :=
+        let fix aux i :=
+          match i with
+          | 0 => nil
+          | S n => 0 :: aux n in
+        in aux argi in *)
       if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
         map_pointer S b (set_argused false) (fun S =>
           result_success S tt))))
@@ -178,10 +216,10 @@ Definition matchArgs runs (S : state)
             if_success (matchArgs_second runs S ?) (fun S ? =>
               if_success (matchArgs_third runs S ?) (fun S ? =>
                 ifb dots <> R_NilValue then
-                  if_success (matchArgs_dots runs runs S ?) (fun S _ =>
+                  if_success (matchArgs_dots runs runs S dots supplied) (fun S _ =>
                     return_success S actuals)
                 else
-                  if_success (matchArgs_check runs S ?) (fun S _ =>
+                  if_success (matchArgs_check runs S supplied) (fun S _ =>
                     return_success S actuals)))))).
 
 
@@ -194,7 +232,8 @@ Definition matchArgs runs (S : state)
 Definition forcePromise runs (S : state) (e : SExpRec_pointer) : result SExpRec_pointer :=
   if_defined S (read_SExp S e) (fun e_ =>
     if_defined S (get_promSxp e_) (fun e_prom =>
-      If prom_value e_prom = R_UnboundValue then
+      ifb prom_value e_prom = R_UnboundValue then
+        (* FIXME: Do we want to catch the PRSEEN part? *)
         runs_eval runs S (prom_expr e_prom) (prom_env e_prom)
       else result_success S e)).
 
@@ -208,8 +247,9 @@ Definition applyClosure runs (S : state)
         if_defined S (get_cloSxp op_) (fun op_clo =>
           let formals := clo_formals op_clo in
           let savedrho := clo_env op_clo in
-          (* TODO : formals *)
-          result_not_implemented "[applyClosure]"))).
+          if_success (matchArgs runs S formals arglist call) (fun S actuals =>
+            (* TODO, line 1507 of eval.c *)
+            result_not_implemented "[applyClosure]")))).
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_pointer :=
@@ -248,13 +288,16 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
              * We do not consider byte code for now in this formalisation. **)
             result_not_implemented "[eval] byte code"
           | SymSxp =>
-            (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
-             * I think that in essence, we are fetching the value of the symbol in the
-             * environment, then evaluating it if we get a promise. **)
-            (** There is just a story about ddfindVar vs findVar which I don’t yet
-             * understand (depending on the general purpose field). I need to investigate
-             * about these two functions. **)
-            result_not_implemented "[eval] Symbols (TODO)"
+            ifb e = R_DotsSymbol then
+              result_error "[eval] ‘...’ used in an incorrect context."
+            else
+              (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
+               * I think that in essence, we are fetching the value of the symbol in the
+               * environment, then evaluating it if we get a promise. **)
+              (** There is just a story about ddfindVar vs findVar which I don’t yet
+               * understand (depending on the general purpose field). I need to investigate
+               * about these two functions. **)
+              result_not_implemented "[eval] Symbols (TODO)"
           | PromSxp =>
             if_defined S (get_promSxp e_) (fun e_prom =>
               ifb prom_value e_prom = R_UnboundValue then

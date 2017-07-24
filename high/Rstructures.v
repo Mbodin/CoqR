@@ -1,8 +1,8 @@
 (** Rstructures.
-* In the original paper “R: A Language for Data Analysis and
-* Graphics”, the authors describe a fairly simple intuition on how the
-* R language should behave.
-* This file formalises this intuition. **)
+ * In the original paper “R: A Language for Data Analysis and
+ * Graphics”, the authors describe a fairly simple intuition on how the
+ * R language should behave.
+ * This file formalises this intuition. **)
 
 
 Definition framePointer := int.
