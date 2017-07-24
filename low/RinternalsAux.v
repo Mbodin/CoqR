@@ -60,6 +60,21 @@ Definition set_named_to e n :=
 Definition set_named e :=
   set_named_to e named_plural.
 
+Definition set_type_sxpinfo i t :=
+  make_SxpInfo t (obj i) (named i) (mark i) (debug i) (trace i) (spare i) (gcgen i).
+
+Definition set_type_to e n :=
+  make_SExpRec
+    (let h := SExpRec_header e in
+     make_SExpRecHeader
+       (set_type_sxpinfo (sxpinfo h) n)
+       (attrib h)
+       (gengc_prev_node h)
+       (gengc_next_node h))
+    (SExpRec_data e).
+
+Definition set_gp := ?.
+
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
   make_SxpInfo type false named_temporary false false false false false.
@@ -70,4 +85,10 @@ Definition build_SxpInfo type : SxpInfo :=
 * following smart constructor for the type [SExpRecHeader]. **)
 Definition build_SExpRecHeader type attrib : SExpRecHeader :=
   make_SExpRecHeader (build_SxpInfo type) attrib None None.
+
+(** The Nil object TODO **)
+Definition Nil_SExpRec :=
+  make_SExpRec
+    (make_SExpRecHeader NilSxp None)
+    ?.
 

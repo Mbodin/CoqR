@@ -1,6 +1,9 @@
 (** Reval.
 * Describes how R evaluates expressions.
-* The content of this file is the Coq equivalent of the file src/main/eval.c from R source code. **)
+* The content of this file is the Coq equivalent of functions from R source code.
+* Note that only relevant definitions are translated here. Some are just
+* reinterpreted in Coq without following the original algorithm of the
+* C source. **)
 
 Set Implicit Arguments.
 Require Export Monads.
@@ -9,8 +12,8 @@ Require Export Monads.
 
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
-    runs_fold_left_listSxp : forall A, state -> SExpRec_pointer -> A ->
-      (state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) -> result A ;
+    runs_fold_left_listSxp_gen : forall A, state -> SExpRec_pointer -> A ->
+      (state -> A -> SExpRec -> result A) -> result A ;
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
   }.
 
@@ -28,32 +31,48 @@ Record runs_type : Type := runs_type_intro {
  * represent frequent programming pattern in its source code. **)
 
 (** Looping through a list is a frequent pattern in R source code.
- * [fold_left_listSxp] corresponds to the C code
- * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp A runs (S : state) (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
-  ifb l = None then
+ * [fold_left_listSxp_gen] corresponds to the C code
+ * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
+Definition fold_left_listSxp_gen A runs (S : state) (l : SExpRec_pointer) (a : A)
+    (iterate : state -> A -> SExpRec -> result A) : result A :=
+  ifb l = R_NilValue then
     result_success S a
   else
     if_defined S (read_SExp S l) (fun l_ =>
-      if_defined S (get_listSxp l_) (fun l_list =>
-        if_success (iterate S a (list_carval l_list) (list_tagval l_list)) (fun S a =>
-          runs_fold_left_listSxp runs S (list_cdrval l_list) a iterate))).
+      if_success (iterate S a l_) (fun S a =>
+        if_defined S (get_listSxp l_) (fun l_list =>
+          runs_fold_left_listSxp_gen runs S (list_cdrval l_list) a iterate))).
+
+(* [fold_left_listSxp] corresponds to the C code
+ * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
+Definition fold_left_listSxp A runs (S : state) (l : SExpRec_pointer) (a : A)
+    (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
+  fold_left_listSxp_gen runs S l a (fun S a l_ =>
+    if_defined S (get_listSxp l_) (fun l_list =>
+      iterate S a (list_carval l_list) (list_tagval l_list))).
+
 
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
 * in the file src/main/memory.c. **)
 
-Definition CONS_NR (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
-  let e_ := make_SExpRec (build_SExpRecHeader ListSxp None) (make_ListSxp_struct car cdr None) in
+Definition cons (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
+  let e_ :=
+    make_SExpRec (build_SExpRecHeader ListSxp R_NilValue)
+      (make_ListSxp_struct car cdr R_NilValue) in
   alloc_SExp S e_.
 
-(* Question: there is a point at which there is just too much details.
- * There is no point in translating the entire R source code,
- * even if we are skipping R functions.
- * It is fine to understand what a given function does without translating
- * exactly its source code. *)
+Definition allocList S (n : nat) : state * SExpRec_pointer :=
+  fix aux S n p :=
+    match n with
+    | 0 => (S, p)
+    | S n =>
+      let (S, p) := aux S n p in
+      cons S R_NilValue p
+  in aux S n R_NilValue.
+
+(* TODO: Note for the draft: SET_MISSING is about the garbage collector, and we do not model it. Make explicit what we model here and what we do not model. Note that the complexity of R algorthims associated to the structure is more important than the structure itself. *)
 
 
 (** ** match.c **)
@@ -71,11 +90,60 @@ Definition CONS_NR (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_poi
 * (and thus provided in any order), or can be ‘...’.
 * The algorithm presented in this function is thus crucial to understand
 * the semantics of function calls in R.
-* It is furthermore rather complicated. **)
+* It is furthermore rather complicated.
+* This is a large function and is divided into all its passes. **)
+
+Definition set_argused S e :=
+  set_gp ?.
+
+Definition argused S e := ?.
+
+Definition matchArgs_first runs (S : state)
+    (? : SExpRec_pointer) : SExpRec_pointer :=
+
+Definition matchArgs_second runs (S : state)
+    (? : SExpRec_pointer) : SExpRec_pointer :=
+
+Definition matchArgs_third runs (S : state)
+    (? : SExpRec_pointer) : SExpRec_pointer :=
+
+Definition matchArgs_dots runs (S : state)
+    (dots supplied : SExpRec_pointer) : SExpRec_pointer :=
+  if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
+    if argused S a then 1 + i else i)) (fun S i =>
+    ifb i = 0 then
+      result_success S tt
+    else
+      let (S, a) := allocList S i in
+      map_pointer S (fun a_ => set_type_to a_ DotSxp) (fun S =>
+        fold_left_listSxp_gen S supplied a (fun S f b_ =>
+          if argused b_ if_defined S (get_listSxp b_) (fun b_list =>
+            )) (fun S f =>
+          ))).
+
+Definition matchArgs_check runs (S : state)
+    (? : SExpRec_pointer) : SExpRec_pointer :=
+
 Definition matchArgs runs (S : state)
     (formals supplied call : SExpRec_pointer) : SExpRec_pointer :=
-  (* TODO: fold_left_listSxp *)
-  .
+  if_success (fold_left_listSxp S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
+      let (actuals, argi) := actuals_argi in
+      let (S, actuals) := cons (R_MissingArg, actuals) in
+      (actuals, 1 + argi))) (fun S actuals_argi =>
+    let (actuals, argi) := actuals_argi in
+    let fargused : list nat := ? (* list of size argi *) in
+    if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
+      map_pointer S b (fun b_ => set_argused b_ false) (fun S =>
+        result_success S tt)))) (fun S _ =>
+      if_success (matchArgs_first runs S ?) (fun S ? =>
+        if_success (matchArgs_second runs S ?) (fun S ? =>
+          if_success (matchArgs_third runs S ?) (fun S ? =>
+            ifb dots <> R_NilValue then
+              if_success (matchArgs_dots runs runs S ?) (fun S _ =>
+                return_success S actuals)
+            else
+              if_success (matchArgs_check runs S ?) (fun S _ =>
+                return_success S actuals)))))).
 
 (** ** eval.c **)
 
@@ -188,13 +256,13 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
 Fixpoint runs max_step : runs_type :=
   match max_step with
   | O => {|
-      runs_fold_left_listSxp := fun _ S _ _ _ => result_bottom S ;
+      runs_fold_left_listSxp_gen := fun _ S _ _ _ => result_bottom S ;
       runs_eval := fun S _ _ => result_bottom S
     |}
   | S max_step =>
     let wrap {A : Type} (f : runs_type -> A) : A :=
       f (runs max_step) in {|
-      runs_fold_left_listSxp := wrap fold_left_listSxp ;
+      runs_fold_left_listSxp_gen := wrap fold_left_listSxp_gen ;
       runs_eval := wrap eval
     |}
   end.

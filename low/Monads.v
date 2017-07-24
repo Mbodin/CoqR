@@ -6,7 +6,9 @@ Require Export String.
 Require Export RinternalsAux TLC.LibHeap Shared.
 Require Import TLC.LibStream.
 
-(** * A model for the C memory **)
+(** * A Model for the C Memory **)
+
+(** ** Basic Model **)
 
 (** The global state of the C environment. In particular, it maps SEXP
   pointers to their corresponding expressions. **)
@@ -164,6 +166,41 @@ Lemma read_SExp_write_SExp : forall S e e' p,
 Proof. introv E. destruct p; tryfalse. applys~ read_SExp_write_SExp_nat E. Qed.
 
 
+(* TODO: Do we need this?
+(** ** Support for Arrays **)
+
+Fixpoint alloc_array_SExp S (es : list SExpRec) : state * SExpRec_pointer :=
+  match es with
+  | nil => (S, None)
+  | e :: es =>
+    let (S, p) := alloc_SExp S e in
+  end.
+
+Lemmae of the form: if the read is in the length of the array, then it succeeds.
+*)
+
+(** ** Initial Memory **)
+
+Definition empty_state : state.
+  refine {|
+      state_heap_SExp := empty ;
+      state_fresh_locations := stream nat TODO
+    |}.
+  - introv. apply indom_empty.
+  - introv D. apply* D.
+Defined.
+
+(* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
+Definition NULL := None.
+Definition R_GlobalEnv := ?.
+Definition R_EmptyEnv := ?.
+Definition R_BaseEnv := ?.
+Definition R_UnboundValue := ?.
+Definition R_MissingArg := ?.
+Definition R_NilValue := snd (alloc_SExp empty_state Nil_SExpRec).
+Definition initial_state := fst (alloc_SExp empty_state Nil_SExpRec).
+
+
 (** * Monads **)
 
 (** A monad type for results. **)
@@ -209,4 +246,11 @@ Definition if_defined (A B : Type) S (o : option A) (f : A -> result B) : result
   | Some x => f x
   | None => result_impossible S "[if_defined] got an undefined result."
   end.
+
+(** Mapping onplace the content of a pointer is a frequent scheme.
+ * Here is a monad for it. **)
+Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
+    (f : state -> result A) : result A :=
+  if_defined S (read_SExp S p) (fun p_ =>
+    if_defined S (write_SExp S p (map p_)) f).
 

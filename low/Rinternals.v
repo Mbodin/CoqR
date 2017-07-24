@@ -45,19 +45,31 @@ Inductive named_field :=
   | named_plural (** 2 in R; the object may be bound to more than one variable **)
   .
 
+(* Do we want such a level of precision?
+Fixpoint nbits (n : nat) : Type :=
+  match n with
+  | 0 => False
+  | 1 => bool
+  | S n => bool * nbits n
+  end.
+
+Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
+Defined.
+*)
+
 (** sxpinfo_struct **)
 Record SxpInfo := make_SxpInfo {
     (* TODO: Comment out unmodelled fields, and explain why in the draft. *)
     type : SExpType ;
     obj : bool ;
     named : named_field;
-    (* gp : (* 16 bits of general purpose, we do not model them. *) ; *)
+    gp : nbits 16 (* Alternative: exist (T : Type) T - We may have to make this type visible. *) ;
     mark : bool ;
     debug : bool ;
     trace : bool ;
     spare : bool ;
     gcgen : bool ;
-    (* ugccls : (*3 bits for the garbage collector, we do not model them. *) *)
+    ugccls : nbits 3
   }.
 
 (** A type to represent C-style pointers. **)
@@ -158,13 +170,13 @@ Record SExpRec := make_SExpRec {
 
 (* FIXME: Seems to be unused in R source code.
 (** vecsxp_struct **)
-Record VecSxp_struct := {
+Record VecSxp_struct := make_VecSxp_struct {
     VecSxp_length : nat ;
     VecSxp_truelength : nat
   }.
 
 (** VECTOR_SEXPREC **)
-Record Vector_SExpRec := {
+Record Vector_SExpRec := make_Vector_SExpRec {
     Vector_SExpRec_header :> SExpRecHeader ;
     Vector_SExpRec_vecsxp :> VecSxp_struct
   }.
