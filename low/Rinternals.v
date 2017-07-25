@@ -37,16 +37,13 @@ Inductive SExpType :=
   | FunSxp
   .
 
-(** The field “named” of “sxpinfo_struct” can take three values.
- * (see the file R-ints.pdf, Section 1.1.2 for more details.)
- * TODO: Explain this in the draft. **)
+(** The field [named] of [sxpinfo_struct] can take these three values. **)
 Inductive named_field :=
   | named_temporary (** 0 in R **)
   | named_unique (** 1 in R; bound to at most one variable **)
   | named_plural (** 2 in R; the object may be bound to more than one variable **)
   .
 
-(* Do we want such a level of precision?
 Fixpoint nbits (n : nat) : Type :=
   match n with
   | 0 => False
@@ -54,23 +51,18 @@ Fixpoint nbits (n : nat) : Type :=
   | S n => bool * nbits n
   end.
 
-Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
-Defined.
-*)
-
 (** sxpinfo_struct **)
 Record SxpInfo := make_SxpInfo {
-    (* TODO: Comment out unmodelled fields, and explain why in the draft. *)
     type : SExpType ;
     obj : bool ;
-    named : named_field;
-    gp : nbits 16 (* Alternative: exist (T : Type) T - We may have to make this type visible. *) ;
-    mark : bool ;
-    debug : bool ;
-    trace : bool ;
-    spare : bool ;
-    gcgen : bool ;
-    ugccls : nbits 3
+    named : named_field ;
+    gp : nbits 16
+    (** mark : bool ; **)
+    (** debug : bool ; **)
+    (** trace : bool ; **)
+    (** spare : bool ; **)
+    (** gcgen : bool ; **)
+    (** ugccls : nbits 3 **)
   }.
 
 (** A type to represent C-style pointers. **)
@@ -156,11 +148,10 @@ Coercion promSxp : PromSxp_struct >-> SExpRec_union.
 
 (** SEXPREC_HEADER **)
 Record SExpRecHeader := make_SExpRecHeader {
-    (* TODO: Comment out unmodelled fields, and explain why in the draft. *)
     sxpinfo :> SxpInfo ;
-    attrib : SExpRec_pointer ;
-    gengc_next_node : SExpRec_pointer ;
-    gengc_prev_node : SExpRec_pointer
+    attrib : SExpRec_pointer
+    (** gengc_next_node : SExpRec_pointer ; **)
+    (** gengc_prev_node : SExpRec_pointer **)
   }.
 
 (** SEXPREC **)

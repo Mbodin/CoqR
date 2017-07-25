@@ -12,8 +12,7 @@ Require Export Monads.
 
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
-    runs_fold_left_listSxp_gen : forall A, state -> SExpRec_pointer -> A ->
-      (state -> A -> SExpRec_pointer -> SExpRec -> listsxp_struct -> result A) -> result A ;
+    runs_while : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
   }.
 
@@ -28,18 +27,29 @@ Record runs_type : Type := runs_type_intro {
 (** The functions presented here are not from R source code, but
  * represent frequent programming pattern in its source code. **)
 
+(** A basic C-like loop **)
+Definition while A runs (S : state) (a : A) expr stat : result A :=
+  if_success (expr S a) (fun S b =>
+    if b then
+      if_success (stat S a) (fun S a =>
+        runs_while runs expr state S a)
+    else
+      return_success S a).
+
 (** Looping through a list is a frequent pattern in R source code.
  * [fold_left_listSxp_gen] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
 Definition fold_left_listSxp_gen A runs (S : state) (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec -> listsxp_struct -> result A) : result A :=
-  ifb l = R_NilValue then
-    result_success S a
-  else
-    if_defined S (read_SExp S l) (fun l_ =>
-      if_defined S (get_listSxp l_) (fun l_list =>
-        if_success (iterate S a l l_ l_list) (fun S a =>
-          runs_fold_left_listSxp_gen runs S (list_cdrval l_list) a iterate))).
+  while runs S (l, a) (fun S la =>
+    let (l, a) := la in
+    result_success S (decide (l <> R_NilValue)))
+    (fun S la =>
+      let (l, a) := la in
+      if_defined S (read_SExp S l) (fun l_ =>
+        if_defined S (get_listSxp l_) (fun l_list =>
+          if_success (iterate S a l l_ l_list) (fun S a =>
+            result_success S (list_cdrval l_list, a))))).
 
 (* [fold_left_listSxp] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
@@ -69,17 +79,34 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
       cons S R_NilValue p
   in aux S n R_NilValue.
 
-(* TODO: Note for the draft: SET_MISSING is about the garbage collector (¡No, it is not!), and we do not model it. Make explicit what we model here and what we do not model. Note that the complexity of R algorthims associated to the structure is more important than the structure itself. *)
-
 
 (** ** match.c **)
 
 (** The function names of this section corresponds to the function names
  * in the file src/main/match.c. **)
 
-(* Understanding C code can be trikky. Here are some hints.
- * psmatch (s1, s2, TRUE) is exactly s1 = s2
- * psmatch (s1, s2, FALSE) is exactly String.prefix s1 s2 *)
+Definition psmatch s1 s2 exact :=
+  if exact then
+    decide (s1 = s2)
+  else
+    String.prefix s1 s2.
+
+Definition pmatch (S : state) (formal tag : SExpRec_pointer) exact : result bool :=
+  let get_name str :=
+    if_defined S (read_SExp S str) (fun str_ =>
+      match type str_ with
+      | SymSxp =>
+        result_success S (* CHAR(PRINTNAME(str)) *)
+      | CharSxp =>
+        result_success S (* CHAR(str) *)
+      | StrSxp =>
+        result_success S (* translateChar(STRING_ELT(str, 0)) *)
+      | _ =>
+        result_error S "[pmatch] invalid partial string match."
+      end) in
+    if_success (get_name formal) (fun S f =>
+      if_success (get_name tag) (fun S t =>
+        psmatch f t exact)).
 
 (** The function [matchArgs] matches the arguments supplied to a given
  * call with the formal, expected arguments.
@@ -105,7 +132,7 @@ Definition missing e_ :=
   gp ?.
 
 Definition matchArgs_first runs (S : state)
-    (formals actuals : SExpRec_pointer) : result ? :=
+    (formals actuals : SExpRec_pointer) : result (list nat) :=
   if_success (fold_left_listSxp S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
     let (a, fargusedrev) := a_fargusedrev in
     let ftag_name = (* CHAR(PRINTNAME(f_tag)) *) in
@@ -113,11 +140,11 @@ Definition matchArgs_first runs (S : state)
       if_defined S (read_SExp S a) (fun a_ =>
         if_defined S (get_listSxp a_) (fun a_list =>
           result_success S (list_cdrval a_list, fargusedi :: fargusedrev))) in
-    ifb f_tag <> R_DotsSymbol && f_tag <> R_NilValue then
+    ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
       if_success (fold_left_listSxp_gen S supplied 0 (fun S fargusedi b b_ b_list =>
         let b_tag := list_tagval b_list in
         let btag_name = (* CHAR(PRINTNAME(b_tag)) *) in
-        ifb b_tag <> R_NilValue && ftag_name = btag_name then
+        ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
           ifb fargusedi = 2 then
             result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
           else ifb argused b_ then
@@ -129,20 +156,89 @@ Definition matchArgs_first runs (S : state)
                   map_pointer S a (set_missing false)
                 else result_success S tt) (fun S _ =>
                 map_pointer S b (set_argused 2) (fun S =>
-                  result_success S 2)
+                  result_success S 2)))
         else
           result_success S fargusedi))
         continuation
     else continuation S 0))
-    (fun a_fargusedrev =>
+    (fun S a_fargusedrev =>
       let (a, fargusedrev) := a_fargusedrev in
-      List.rev fargusedrev).
+      result_success S (List.rev fargusedrev)).
 
 Definition matchArgs_second runs (S : state)
-    (? : SExpRec_pointer) : result ? :=
+    (actuals formals : SExpRec_pointer) fargused : result SExpRec_pointer :=
+  if_success (fold_left_listSxp S formals (actuals, fargused, R_NilValue, false) (fun S a_fargused_dots_seendots _ f_tag =>
+    let (a, fargused, dots, seendots) := a_fargused_dots_seendots in
+    match fargused with
+    | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
+    | fargusedi :: fargused =>
+      let continuation S dots seendots :=
+        if_defined S (read_SExp S a) (fun a_ =>
+          if_defined S (get_listSxp a_) (fun a_list =>
+            result_success S (list_cdrval a_list, fargused, dots, seendots))) in
+      ifb fargusedi = 0 then
+        ifb f_tag = R_DotsSymbol /\ ~ seendots then
+          continuation S a true
+        else
+          if_success (fold_left_listSxp_gen S supplied fargusedi (fun S fargusedi b b_ b_list =>
+            let b_tag := list_tagval b_list in
+            ifb argused b_ /\ b_tag <> R_NilValue then
+              if_success (pmatch S f_tag b_tag seendots) (fun S pmatch =>
+                if pmatch then
+                  if argused b_ then
+                    result_error "[matchArgs_second] actual argument matches several formal arguments."
+                  else ifb fargusedi = 1 then
+                    result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
+                  else
+                    (** Warning about partial arguments: should we ignore this part? **)
+                    set_car S (list_carval b_list) a (fun S =>
+                      if_success
+                        (ifb list_carval b <> R_MissingArg then
+                          map_pointer S a (set_missing false)
+                        else result_success S tt) (fun S _ =>
+                        map_pointer S b (set_argused 1) (fun S =>
+                          result_success S 1)))
+                else result_success S fargusedi)
+            else
+              result_success S fargusedi))
+            (fun S fargusedi =>
+              continuation S dots seendots)
+      else continuation S dots seendots
+    end)
+    (fun S a_fargused_dots_seendots =>
+      let (a, fargused, dots, seendots) := a_fargused_dots_seendots in
+      result_success S dots).
 
 Definition matchArgs_third runs (S : state)
-    (? : SExpRec_pointer) : result ? :=
+    (formals actuals supplied : SExpRec_pointer) : result unit :=
+  if_success
+    (while runs S (formals, actuals, supplied, false) (fun S f_a_b_seendots =>
+      let (f, a, b, seendots) := f_a_b_seendots in
+      result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)))
+      (fun S f_a_b_seendots =>
+        let (f, a, b, seendots) := f_a_b_seendots in
+        if_defined S (read_SExp S f) (fun f_ =>
+          if_defined S (get_listSxp f_) (fun f_list =>
+            if_defined S (read_SExp S a) (fun a_ =>
+              if_defined S (get_listSxp a_) (fun a_list =>
+                ifb list_tagval f_list = R_DotsSymbol then
+                  result_success S (list_cdrval f_list, list_cdrval a_list, b, true)
+                else ifb list_carval a_list <> R_MissingArg then
+                  result_success S (list_cdrval f_list, list_cdrval a_list, b, seendots)
+                else
+                  if_defined S (read_SExp S b) (fun b_ =>
+                    if_defined S (get_listSxp b_) (fun b_list =>
+                      ifb argused b_ \/ list_tagval b_list <> R_NilValue then
+                        result_success S (f, a, list_cdrval b_list, seendots)
+                      else
+                        set_car S (list_carval b_list) a (fun S =>
+                          if_success
+                            (ifb list_carval b <> R_MissingArg then
+                              map_pointer S a (set_missing false)
+                            else result_success S tt) (fun S _ =>
+                              result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)))))))))))
+    (fun S f_a_b_seendots =>
+      result_success S tt).
 
 Definition matchArgs_dots runs (S : state)
     (dots supplied : SExpRec_pointer) : result unit :=
@@ -199,9 +295,10 @@ Definition matchArgs runs (S : state)
       (actuals, 1 + argi)))
     (fun S actuals_argi =>
       let (actuals, argi) := actuals_argi in
-      (* FIXME: We can do without.
+      (* This code has been commented out to better fit Coq’s style.
        * TODO: write in the draft that we allows ourselves to change the
        * C code, as soon as the result is equivalent to the initial one.
+       * Then remove this comment.
       let fargused : list nat :=
         let fix aux i :=
           match i with
@@ -212,9 +309,9 @@ Definition matchArgs runs (S : state)
         map_pointer S b (set_argused false) (fun S =>
           result_success S tt))))
         (fun S _ =>
-          if_success (matchArgs_first runs S ?) (fun S ? =>
-            if_success (matchArgs_second runs S ?) (fun S ? =>
-              if_success (matchArgs_third runs S ?) (fun S ? =>
+          if_success (matchArgs_first runs S formals actuals) (fun S fargused =>
+            if_success (matchArgs_second runs S actuals formals fargused) (fun S dots =>
+              if_success (matchArgs_third runs S formals actuals supplied) (fun S _ =>
                 ifb dots <> R_NilValue then
                   if_success (matchArgs_dots runs runs S dots supplied) (fun S _ =>
                     return_success S actuals)
@@ -339,13 +436,13 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
 Fixpoint runs max_step : runs_type :=
   match max_step with
   | O => {|
-      runs_fold_left_listSxp_gen := fun _ S _ _ _ => result_bottom S ;
+      runs_while := fun _ S _ _ _ => result_bottom S ;
       runs_eval := fun S _ _ => result_bottom S
     |}
   | S max_step =>
     let wrap {A : Type} (f : runs_type -> A) : A :=
       f (runs max_step) in {|
-      runs_fold_left_listSxp_gen := wrap fold_left_listSxp_gen ;
+      runs_while := wrap while ;
       runs_eval := wrap eval
     |}
   end.

@@ -5,7 +5,6 @@ Set Implicit Arguments.
 Require Export Rinternals Shared.
 
 
-(* TODO: Copy the following paragraph to the draft. *)
 (** The C language performs a lot of pointer deferentiation. As a
  * convention, we write [p_] for the object referenced by the pointer [p]
  * (that is, [p_] stands for [*p] in C), and [p_f] for its field [f]—for
@@ -20,6 +19,22 @@ Defined.
 
 
 (** * Accessors and Smart Constructors **)
+
+Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
+Defined.
+
+Definition write_nbit {m : nat} (n : nat) : nbits m -> n < m -> bool -> nbits m.
+Defined.
+
+Fixpoint nbits_init (n : nat) (H : n <> 0) : Type :=
+  match n as n0 return n = n0 with
+  | 0 => fun E => False_ind (H E)
+  | 1 => false
+  | S n => (false, nbits_init n _)
+  end eq_refl.
+
+(* TODO: Create a tactic to fill out the [n < m] part.
+ * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. *)
 
 Definition get_primSxp e_ :=
   match e_ with
@@ -52,33 +67,31 @@ Definition get_promSxp e_ :=
   end.
 
 Definition set_named_sxpinfo n i_info :=
-  make_SxpInfo (type i_info) (obj i_info) n (mark i_info) (debug i_info) (trace i_info) (spare i_info) (gcgen i_info).
+  make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
+    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
-Definition set_named n e_ :=
+Definition map_sxpinfo f e_ :=
   make_SExpRec
     (let h := SExpRec_header e_ in
      make_SExpRecHeader
-       (set_named_sxpinfo n (sxpinfo h))
+       (f (sxpinfo h))
        (attrib h)
-       (gengc_prev_node h)
-       (gengc_next_node h))
+       (**gengc_prev_node h**)
+       (**gengc_next_node h**))
     (SExpRec_data e_).
+
+Definition set_named n e_ :=
+  map_sxpinfo (set_named_sxpinfo n).
 
 Definition set_named_plural :=
   set_named named_plural.
 
 Definition set_type_sxpinfo t i_info :=
-  make_SxpInfo t (obj i_info) (named i_info) (mark i_info) (debug i_info) (trace i_info) (spare i_info) (gcgen i_info).
+  make_SxpInfo t (obj i_info) (named i_info) (gp i_info)
+    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
 Definition set_type t e_ :=
-  make_SExpRec
-    (let h := SExpRec_header e_ in
-     make_SExpRecHeader
-       (set_type_sxpinfo t (sxpinfo h))
-       (attrib h)
-       (gengc_prev_node h)
-       (gengc_next_node h))
-    (SExpRec_data e_).
+  map_sxpinfo (set_type_sxpinfo t).
 
 Definition set_gp := ?.
 
