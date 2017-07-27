@@ -34,7 +34,7 @@ Inductive SExpType :=
   | S4Sxp
   | NewSxp
   | FreeSxp
-  | FunSxp
+  | FunSxp (** Note that in some place in the R source code, this last type is used as CloSxp, as only five digits are usually used to store the type, and they assigned this type the number 99: 99 mod 2^5 = 3. **)
   .
 
 (** The field [named] of [sxpinfo_struct] can take these three values. **)
@@ -112,8 +112,8 @@ Record ListSxp_struct := make_ListSxp_struct {
 (** envsxp_struct **)
 Record EnvSxp_struct := make_EnvSxp_struct {
     env_frame : SExpRec_pointer ;
-    env_enclos : SExpRec_pointer ;
-    env_hashtab : SExpRec_pointer
+    env_enclos : SExpRec_pointer
+    (** env_hashtab : SExpRec_pointer **)
   }.
 
 (** closxp_struct **)
@@ -154,22 +154,38 @@ Record SExpRecHeader := make_SExpRecHeader {
   }.
 
 (** SEXPREC **)
-Record SExpRec := make_SExpRec {
-    SExpRec_header :> SExpRecHeader ;
-    SExpRec_data :> SExpRec_union (* node data *)
+Record NonVector_SExpRec := make_NonVector_SExpRec {
+    NonVector_SExpRec_header :> SExpRecHeader ;
+    NonVector_SExpRec_data :> SExpRec_union (* node data *)
   }.
 
-(* FIXME: Seems to be unused in R source code (it uses R’s style lists instead).
 (** vecsxp_struct **)
-Record VecSxp_struct := make_VecSxp_struct {
+Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     VecSxp_length : nat ;
-    VecSxp_truelength : nat
+    (** VecSxp_truelength : nat ; **)
+    (** As stated in the R-ints documentation, such a structure is
+     * followed by an array. We represent this as a list in Coq. **)
+    VecSxp_data : list A
   }.
 
 (** VECTOR_SEXPREC **)
-Record Vector_SExpRec := make_Vector_SExpRec {
+Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
     Vector_SExpRec_header :> SExpRecHeader ;
-    Vector_SExpRec_vecsxp :> VecSxp_struct
+    Vector_SExpRec_vecsxp :> VecSxp_struct A
   }.
-*)
+
+(** Whilst in C, a pointer can point to any of the two
+ * structures SEXPREC and VECTOR_SEXPREC above, this is
+ * not the case in Coq. We thus provide this inductive. **)
+Inductive SExpRec :=
+  | SExpRec_NonVector : NonVector_SExpRec -> SExpRec
+  | SExpRec_VectorChar : Vector_SExpRec char -> SExpRec
+  | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec
+  | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
+  (** | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec **)
+  | SExpRec_VectorComplex : Vector_SExpRec RComplex -> SExpRec
+  | SExpRec_VectorReal : Vector_SExpRec double -> SExpRec
+  | SExpRec_VectorPointers : Vector_SExpRec SExpRec_pointer -> SExpRec
+  .
+Coercion SExpRec_NonVector : NonVector_SExpRec >-> SExpRec.
 

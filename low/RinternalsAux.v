@@ -117,3 +117,76 @@ Definition Nil_SExpRec :=
     (make_SExpRecHeader NilSxp None)
     ?.
 
+(** Smart constructors for each R data type. **)
+
+Definition make_SExpRec_sym attrib pname value internal :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader SymSxp attrib)
+      (make_SymSxp_struct pname value internal)).
+
+Definition make_SExpRec_list attrib car cdr tag :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader ListSxp attrib)
+      (make_ListSxp_struct car cdr tag)).
+
+Definition make_SExpRec_clo attrib formals body env :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader CloSxp attrib)
+      (make_CloSxp_struct formals body env)).
+
+Definition make_SExpRec_env attrib frame enclos (** hashtab **) :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader EnvSxp attrib)
+      (make_EnvSxp_struct frame enclos)).
+
+Definition make_SExpRec_prom attrib value expr env :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader CloSxp attrib)
+      (make_CloSxp_struct value expr env)).
+
+Definition make_SExpRec_lang attrib function argumentList :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader LangSxp attrib)
+      (make_ListSxp_struct function argumentList R_NilValue)).
+
+Definition make_SExpRec_prim attrib prim :=
+  SExpRec_NonVector
+    (make_SExpRec (build_SExpRecHeader
+        match prim with
+        | primitive_construction_primitive => BuiltinSxp
+        | primitive_construction_internal => SpecialSxp
+        end attrib)
+      (make_PrimSxp_struct prim).
+
+Definition make_SExpRec_char attrib array :=
+  SExpRec_VectorChar (build_SExpRecHeader CharSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_lgl attrib arr :=
+  SExpRec_VectorLogical (build_SExpRecHeader LglSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_int attrib arr :=
+  SExpRec_VectorInteger (build_SExpRecHeader IntSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_real attrib arr :=
+  SExpRec_VectorReal (build_SExpRecHeader RealSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_cpl attrib arr :=
+  SExpRec_VectorComplex (build_SExpRecHeader CplSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_str attrib arr :=
+  SExpRec_VectorPointers (build_SExpRecHeader StrSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_vec attrib arr :=
+  SExpRec_VectorPointers (build_SExpRecHeader VecSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+
+Definition make_SExpRec_expr attrib arr :=
+  SExpRec_VectorPointers (build_SExpRecHeader ExprSxp attrib)
+    (make_Vector_SExpRec (length array) array).
+

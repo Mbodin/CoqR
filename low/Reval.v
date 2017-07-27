@@ -65,9 +65,7 @@ Definition fold_left_listSxp A runs (S : state) (l : SExpRec_pointer) (a : A)
  * in the file src/main/memory.c. **)
 
 Definition cons (S : state) (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
-  let e_ :=
-    make_SExpRec (build_SExpRecHeader ListSxp R_NilValue)
-      (make_ListSxp_struct car cdr R_NilValue) in
+  let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
   alloc_SExp S e_.
 
 Definition allocList S (n : nat) : state * SExpRec_pointer :=
