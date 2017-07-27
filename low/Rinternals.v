@@ -46,8 +46,7 @@ Inductive named_field :=
 
 Fixpoint nbits (n : nat) : Type :=
   match n with
-  | 0 => False
-  | 1 => bool
+  | 0 => unit
   | S n => bool * nbits n
   end.
 

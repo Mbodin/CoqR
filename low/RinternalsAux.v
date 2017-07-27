@@ -26,15 +26,16 @@ Defined.
 Definition write_nbit {m : nat} (n : nat) : nbits m -> n < m -> bool -> nbits m.
 Defined.
 
-Fixpoint nbits_init (n : nat) (H : n <> 0) : Type :=
-  match n as n0 return n = n0 with
-  | 0 => fun E => False_ind (H E)
-  | 1 => false
-  | S n => (false, nbits_init n _)
-  end eq_refl.
+Fixpoint nbits_init (n : nat) : nbits n :=
+  match n with
+  | 0 => tt
+  | S n => (false, nbits_init n)
+  end.
 
-(* TODO: Create a tactic to fill out the [n < m] part.
+(* A tactic to fill out the [n < m] part.
  * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. *)
+Ltac nbits_ok := repeat constructors.
+
 
 Definition get_primSxp e_ :=
   match e_ with

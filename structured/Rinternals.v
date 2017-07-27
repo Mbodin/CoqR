@@ -12,12 +12,12 @@ Definition framePointer := int.
 
 (** Basic language elements (BLE). Each BLE corresponds to a SExpType. **)
 Inductive BLE : Type :=
-  | BLENil : BLE (** A NULL pointer. **)
+  | BLENil : BLE (** A special value, equivalent to the NULL pointer. **)
   | BLESym : string -> BLE (** A variable. **)
-  | BLEList : BLE (** Element **) -> BLE (** Rest of the list **) -> option string (** The name of the element **) -> BLE (** An untyped Lisp-style list. **)
+  | BLEList : BLE (** Element **) -> BLE (** Rest of the list **) -> option string (** The name of the element **) -> BLE (** An untyped Lisp-style list. **) (* FIXME: Wouldn’t it be better to define it as (list (BLE * option string)? What level of abstraction should we have here? *)
   | BLEClo : BLE (** The argument list; represented as a Lisp-style list of symbols. **) -> Expr (** Closure body **) -> environment -> BLE (** A closure. **)
   | BLEEnv : framePointer -> option BLE (** The parent environment **) -> BLE (** An environment. **)
-  | BLEProm : option BLE (** The value, if the promise already has been evaluated **) -> BLE (** The epxression to be evaluated **) -> BLE (** The environment **) -> BLE (** A promise, that is an expression that may not be evaluated. **)
+  | BLEProm : option BLE (** The value, if the promise already has been evaluated **) -> BLE (** The expression to be evaluated **) -> BLE (** The environment **) -> BLE (** A promise, that is an expression that may not be evaluated. **)
   | BLELand : BLE (** Element **) -> BLE (** Rest of the list **) -> option string (** The name of the element **) -> BLE (** Language constructs, implemented as a list **) (* TODO: Understand this. *)
   | BLESpecial : internal -> BLE (** Internal functions directly manipulating the promises **)
   | BLEBuiltin : primitive -> BLE (** Built-in functions, in call-by-value **)
@@ -39,5 +39,8 @@ Inductive BLE : Type :=
   | BLENew : BLE (** A fresh node without any useful data, used by the garbage collector **)
   | BLEFree : BLE (** A node without any useful data, freed by the garbage collector **)
   | BLEFun : BLE (** A closure or a built-in **) (* TODO: Understand where this is used. *)
+
+with BLE_attrib :=
+  | make_BLE_attrib : BLE -> (
   .
 

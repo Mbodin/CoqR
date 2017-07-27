@@ -295,16 +295,6 @@ Definition matchArgs runs (S : state)
       (actuals, 1 + argi)))
     (fun S actuals_argi =>
       let (actuals, argi) := actuals_argi in
-      (* This code has been commented out to better fit Coq’s style.
-       * TODO: write in the draft that we allows ourselves to change the
-       * C code, as soon as the result is equivalent to the initial one.
-       * Then remove this comment.
-      let fargused : list nat :=
-        let fix aux i :=
-          match i with
-          | 0 => nil
-          | S n => 0 :: aux n in
-        in aux argi in *)
       if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
         map_pointer S b (set_argused false) (fun S =>
           result_success S tt))))
