@@ -204,6 +204,8 @@ Definition initial_state := fst (alloc_SExp empty_state Nil_SExpRec).
 
 (** * Monads **)
 
+(** ** Monadic Type **)
+
 (** A monad type for results. **)
 Inductive result (A : Type) :=
   | result_success : state -> A -> result A (** The program terminated in this state with this result. **)
@@ -230,6 +232,8 @@ Arguments result_bottom [A].
  * [result_impossible] is that we do care in this formalisation that
  * [result_impossible] may never be returned, whilst we consider that
  * [result_error] is not a huge issue. **)
+
+(** ** Generic Monads **)
 
 (** The monad for result. **)
 Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=
@@ -265,4 +269,61 @@ Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : resul
           SExpRec_data := p_list
         |} in
       if_defined S (write_SExp S p p_) f).
+
+(** ** Monads to View Basic Language Elements Differently **)
+
+Definition if_is_sym A S (e_ : SExpRec) (f : NonVector_SExpRec -> SymSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_symSxp e_) (fun e_sym =>
+      f e_ e_sym)).
+
+Definition if_is_list A S (e_ : SExpRec) (f : NonVector_SExpRec -> ListSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_listSxp e_) (fun e_list =>
+      f e_ e_list)).
+
+Definition if_is_clo A S (e_ : SExpRec) (f : NonVector_SExpRec -> CloSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_cloSxp e_) (fun e_clo =>
+      f e_ e_clo)).
+
+Definition if_is_env A S (e_ : SExpRec) (f : NonVector_SExpRec -> EnvSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_envSxp e_) (fun e_env =>
+      f e_ e_env)).
+
+Definition if_is_prim A S (e_ : SExpRec) (f : NonVector_SExpRec -> PrimSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_primSxp e_) (fun e_prim =>
+      f e_ e_prim)).
+
+Definition if_is_prom A S (e_ : SExpRec) (f : NonVector_SExpRec -> PromSxp_struct -> result A) : result A :=
+  if_defined S (get_NonVector e_) (fun e_ =>
+    if_defined S (get_promSxp e_) (fun e_prom =>
+      f e_ e_prom)).
+
+
+Definition read_as_sym A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_sym S e_ f).
+
+Definition read_as_list A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_list S e_ f).
+
+Definition read_as_clo A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_clo S e_ f).
+
+Definition read_as_env A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_env S e_ f).
+
+Definition read_as_prim A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_prim S e_ f).
+
+Definition read_as_prom A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_is_prom S e_ f).
 

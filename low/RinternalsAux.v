@@ -20,26 +20,71 @@ Defined.
 
 (** * Accessors and Smart Constructors **)
 
-Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
-Defined.
-
-Definition write_nbit {m : nat} (n : nat) : nbits m -> n < m -> bool -> nbits m.
-Defined.
-
-Fixpoint nbits_init (n : nat) : nbits n :=
-  match n with
-  | 0 => tt
-  | S n => (false, nbits_init n)
+Definition get_NonVector e_ :=
+  match e_ with
+  | SExpRec_NonVector e_ => Some e_
+  | _ => None
   end.
 
-(* A tactic to fill out the [n < m] part.
- * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. *)
-Ltac nbits_ok := repeat constructors.
+Definition get_VectorChar e_ :=
+  match e_ with
+  | SExpRec_VectorChar e_ => Some e_
+  | _ => None
+  end.
+
+Definition get_VectorLogical e_ :=
+  match e_ with
+  | SExpRec_VectorLogical e_ => Some e_
+  | _ => None
+  end.
+
+Definition get_VectorInteger e_ :=
+  match e_ with
+  | SExpRec_VectorInteger e_ => Some e_
+  | _ => None
+  end.
+
+Definition get_VectorComplex e_ :=
+  match e_ with
+  | SExpRec_VectorComplex e_ => Some e_
+  | _ => None
+  end.
+
+Definition get_VectorReal e_ :=
+  match e_ with
+  | SExpRec_VectorReal e_ => Some e_
+  | _ => None
+  end.
+
+Definition get_VectorPointers e_ :=
+  match e_ with
+  | SExpRec_VectorPointers e_ => Some e_
+  | _ => None
+  end.
+
+
+Definition get_SxpInfo e_ :=
+  match e_ with
+  | SExpRec_NonVector e_ => e_
+  | SExpRec_VectorChar e_ => e_
+  | SExpRec_VectorLogical e_ => e_
+  | SExpRec_VectorInteger e_ => e_
+  | SExpRec_VectorComplex e_ => e_
+  | SExpRec_VectorReal e_ => e_
+  | SExpRec_VectorPointers e_ => e_
+  end.
+Coercion get_SxpInfo : SExpRec >-> SxpInfo.
 
 
 Definition get_primSxp e_ :=
   match e_ with
   | primSxp e_prim => Some e_prim
+  | _ => None
+  end.
+
+Definition get_symSxp e_ :=
+  match e_ with
+  | symSxp e_sym => Some e_sym
   | _ => None
   end.
 
@@ -66,6 +111,22 @@ Definition get_promSxp e_ :=
   | promSxp e_prom => Some e_prom
   | _ => None
   end.
+
+Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
+Defined.
+
+Definition write_nbit {m : nat} (n : nat) : nbits m -> n < m -> bool -> nbits m.
+Defined.
+
+Fixpoint nbits_init (n : nat) : nbits n :=
+  match n with
+  | 0 => tt
+  | S n => (false, nbits_init n)
+  end.
+
+(* A tactic to fill out the [n < m] part.
+ * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. *)
+Ltac nbits_ok := repeat constructors.
 
 Definition set_named_sxpinfo n i_info :=
   make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
@@ -102,7 +163,7 @@ Definition set_car_list car l_list :=
 
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
-  make_SxpInfo type false named_temporary false false false false false.
+  make_SxpInfo type false named_temporary (nbits_init _).
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
  * by the garbage collector of R. We do not need them here as memory
