@@ -318,7 +318,7 @@ Definition applyClosure runs (S : state)
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
   if_defined S (read_SExp S rho) (fun rho_ =>
     ifb type rho_ <> EnvSxp then
-      result_impossible S "[applyClosure] ‘rho’ must be an environment."
+      result_error S "[applyClosure] ‘rho’ must be an environment."
     else
       read_as_clo S op (fun op_ op_clo =>
         let formals := clo_formals op_clo in
@@ -353,7 +353,7 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
     | _ =>
       if_defined S (read_SExp S rho) (fun rho_ =>
         ifb type rho_ <> EnvSxp then
-          result_impossible S "[eval] ‘rho’ must be an environment."
+          result_error S "[eval] ‘rho’ must be an environment."
         else
           match type e_ with
           | BcodeSxp =>
@@ -404,7 +404,7 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
                       result_not_implemented "[eval] applyClosure (TODO)"
                     | _ => result_error S "[eval] Attempt to apply non-function."
                     end))))
-          | DotSxp => result_impossible S "[eval] ‘...’ used in an incorrect context"
+          | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
           | _ => result_error S "[eval] Type unimplemented in the R source code."
           end)
     end).

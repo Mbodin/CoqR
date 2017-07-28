@@ -64,7 +64,7 @@ Definition get_VectorPointers e_ :=
 
 
 Definition get_SxpInfo e_ :=
-  match e_ with
+  match e_ return SxpInfo with
   | SExpRec_NonVector e_ => e_
   | SExpRec_VectorChar e_ => e_
   | SExpRec_VectorLogical e_ => e_
@@ -132,15 +132,43 @@ Definition set_named_sxpinfo n i_info :=
   make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
-Definition map_sxpinfo f e_ :=
-  make_SExpRec
-    (let h := SExpRec_header e_ in
+Definition map_sxpinfo_NonVector_SExpRec f e_ :=
+  make_NonVector_SExpRec
+    (let h := NonVector_SExpRec_header e_ in
      make_SExpRecHeader
        (f (sxpinfo h))
        (attrib h)
        (**gengc_prev_node h**)
        (**gengc_next_node h**))
-    (SExpRec_data e_).
+    (NonVector_SExpRec_data e_).
+
+Definition map_sxpinfo_Vector_SExpRec T f (e_ : Vector_SExpRec T) :=
+  make_Vector_SExpRec
+    (let h := Vector_SExpRec_header e_ in
+     make_SExpRecHeader
+       (f (sxpinfo h))
+       (attrib h)
+       (**gengc_prev_node h**)
+       (**gengc_next_node h**))
+    (Vector_SExpRec_data e_).
+
+Definition map_sxpinfo f e_ :=
+  match e_ with
+  | SExpRec_NonVector e_ =>
+    SExpRec_NonVector (map_sxpinfo_NonVector_SExpRec e_)
+  | SExpRec_VectorChar e_ =>
+    SExpRec_VectorChar (map_sxpinfo_Vector_SExpRec e_)
+  | SExpRec_VectorLogical e_ =>
+    SExpRec_VectorLogical (map_sxpinfo_Vector_SExpRec e_)
+  | SExpRec_VectorInteger e_ =>
+    SExpRec_VectorInteger (map_sxpinfo_Vector_SExpRec e_)
+  | SExpRec_VectorComplex e_ =>
+    SExpRec_VectorComplex (map_sxpinfo_Vector_SExpRec e_)
+  | SExpRec_VectorReal e_ =>
+    SExpRec_VectorReal (map_sxpinfo_Vector_SExpRec e_)
+  | SExpRec_VectorPointers e_ =>
+    SExpRec_VectorPointers (map_sxpinfo_Vector_SExpRec e_)
+  end.
 
 Definition set_named n e_ :=
   map_sxpinfo (set_named_sxpinfo n).

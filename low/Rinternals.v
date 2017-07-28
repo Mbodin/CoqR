@@ -61,7 +61,7 @@ Record SxpInfo := make_SxpInfo {
     (** trace : bool ; **)
     (** spare : bool ; **)
     (** gcgen : bool ; **)
-    (** ugccls : nbits 3 **)
+    (** gccls : nbits 3 **)
   }.
 
 (** A type to represent C-style pointers. **)
@@ -180,7 +180,7 @@ Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
 Inductive SExpRec :=
   | SExpRec_NonVector : NonVector_SExpRec -> SExpRec
   | SExpRec_VectorChar : Vector_SExpRec char -> SExpRec
-  | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec
+  | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec (* FIXME: As for the field [named], we may want to declare a special type for this. *)
   | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
   (** | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec **)
   | SExpRec_VectorComplex : Vector_SExpRec RComplex -> SExpRec

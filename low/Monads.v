@@ -226,12 +226,17 @@ Arguments result_bottom [A].
  * We only throw [result_not_implemented] when our Coq code has not
  * implemented a behaviour of R. **)
 (** The difference between [result_error] and [result_impossible] is
- * more subjective. Sometimes, R returns an error because R consider
- * that something can not happen.
- * As a general rule, the only difference between [result_error] and
- * [result_impossible] is that we do care in this formalisation that
- * [result_impossible] may never be returned, whilst we consider that
- * [result_error] is not a huge issue. **)
+ * that [result_error] is thrown when the R interpreter throws an error
+ * (usally using the [error] C function), and [result_impossible] is
+ * thrown when R does not throw an error, but we know for sure that such
+ * a case can never happen. Typically because the C program accepts an
+ * impossible case to be missing, but that Coq does not recognise this
+ * case to be impossible. So if there is a possible case in which Coq
+ * must return something, but that the R interpreter in C does not cover
+ * this case (for instance by writting [e->type] without checking whether
+ * [e] actually maps to a valid expression), the Coq interpreter will
+ * return [result_impossible]. **)
+
 
 (** ** Generic Monads **)
 
