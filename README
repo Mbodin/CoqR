@@ -4,6 +4,9 @@ A Coq formalisation of the R programming language
 
 TODO
 
+opam install coq-flocq
+
+
 * Overview of the Project
 
 The project is divided in several passes, each providing a more typed

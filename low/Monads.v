@@ -181,25 +181,37 @@ Lemmae of the form: if the read is in the length of the array, then it succeeds.
 
 (** ** Initial Memory **)
 
+CoFixpoint all_locations n : stream nat :=
+  n ::: (all_locations (1 + n)).
+
+Lemma all_locations_nth : forall n m,
+  nth m (all_locations n) = m + n.
+Proof.
+  introv. gen n. induction m; introv.
+  - reflexivity.
+  - simpl. rewrite~ IHm.
+Qed.
+
 Definition empty_state : state.
   refine {|
       state_heap_SExp := empty ;
-      state_fresh_locations := stream nat TODO
+      state_fresh_locations := all_locations 0
     |}.
-  - introv. apply indom_empty.
-  - introv D. apply* D.
+  - introv. apply~ @not_indom_empty. typeclass.
+  - introv D. repeat rewrite all_locations_nth. math.
 Defined.
 
+
 (* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
-Definition NULL := None.
-Definition R_DotsSymbol := ?.
-Definition R_GlobalEnv := ?.
-Definition R_EmptyEnv := ?.
-Definition R_BaseEnv := ?.
-Definition R_UnboundValue := ?.
-Definition R_MissingArg := ?.
-Definition R_NilValue := snd (alloc_SExp empty_state Nil_SExpRec).
-Definition initial_state := fst (alloc_SExp empty_state Nil_SExpRec).
+Definition NULL : SExpRec_pointer := None.
+Definition R_NilValue : SExpRec_pointer := NULL. (* snd (alloc_SExp empty_state Nil_SExpRec). *)
+Definition R_DotsSymbol : SExpRec_pointer := NULL. (* TODO: See names.c *)
+Definition R_GlobalEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
+Definition R_EmptyEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
+Definition R_BaseEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
+Definition R_UnboundValue : SExpRec_pointer := NULL. (* TODO: See names.c *)
+Definition R_MissingArg : SExpRec_pointer := NULL. (* TODO: See names.c *)
+Definition initial_state := empty_state. (*fst (alloc_SExp empty_state ?).*)
 
 
 (** * Monads **)
@@ -267,13 +279,14 @@ Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_poin
 (** Updating the first element of a list. **)
 Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
   if_defined S (read_SExp S p) (fun p_ =>
-    if_defined S (get_listSxp p_) (fun p_list =>
-      let p_list := set_car_list car p_list in
-      let p_ := {|
-          SExpRec_header := SExpRec_header p_ ;
-          SExpRec_data := p_list
-        |} in
-      if_defined S (write_SExp S p p_) f).
+    if_defined S (get_NonVector p_) (fun p_ =>
+      if_defined S (get_listSxp p_) (fun p_list =>
+        let p_list := set_car_list car p_list in
+        let p_ := {|
+            NonVector_SExpRec_header := NonVector_SExpRec_header p_ ;
+            NonVector_SExpRec_data := p_list
+          |} in
+        if_defined S (write_SExp S p p_) f))).
 
 (** ** Monads to View Basic Language Elements Differently **)
 

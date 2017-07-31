@@ -30,25 +30,29 @@ Record runs_type : Type := runs_type_intro {
 (** A basic C-like loop **)
 Definition while A runs (S : state) (a : A) expr stat : result A :=
   if_success (expr S a) (fun S b =>
-    if b then
+    if b : bool then
       if_success (stat S a) (fun S a =>
-        runs_while runs expr state S a)
+        runs_while runs S a expr stat)
     else
-      return_success S a).
+      result_success S a).
 
 (** Looping through a list is a frequent pattern in R source code.
  * [fold_left_listSxp_gen] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
 Definition fold_left_listSxp_gen A runs (S : state) (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec -> listsxp_struct -> result A) : result A :=
-  while runs S (l, a) (fun S la =>
-    let (l, a) := la in
-    result_success S (decide (l <> R_NilValue)))
+    (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
+  if_success
+    (while runs S (l, a) (fun S la =>
+      let (l, a) := la in
+      result_success S (decide (l <> R_NilValue)))
+      (fun S la =>
+        let (l, a) := la in
+        read_as_list S l (fun l_ l_list =>
+          if_success (iterate S a l l_ l_list) (fun S a =>
+            result_success S (list_cdrval l_list, a)))))
     (fun S la =>
       let (l, a) := la in
-      read_as_list S l (fun l_ l_list =>
-        if_success (iterate S a l l_ l_list) (fun S a =>
-          result_success S (list_cdrval l_list, a)))).
+      result_success S a).
 
 (* [fold_left_listSxp] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
@@ -74,6 +78,7 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
     | S n =>
       let (S, p) := aux S n p in
       cons S R_NilValue p
+    end
   in aux S n R_NilValue.
 
 
@@ -83,7 +88,7 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
  * in the file src/main/match.c. **)
 
 Definition psmatch s1 s2 exact :=
-  if exact then
+  if exact : bool then
     decide (s1 = s2)
   else
     String.prefix s1 s2.
@@ -93,17 +98,17 @@ Definition pmatch (S : state) (formal tag : SExpRec_pointer) exact : result bool
     if_defined S (read_SExp S str) (fun str_ =>
       match type str_ with
       | SymSxp =>
-        result_success S (* CHAR(PRINTNAME(str)) *)
+        result_success S ""%string (* TODO: CHAR(PRINTNAME(str)) *)
       | CharSxp =>
-        result_success S (* CHAR(str) *)
+        result_success S ""%string (* TODO: CHAR(str) *)
       | StrSxp =>
-        result_success S (* translateChar(STRING_ELT(str, 0)) *)
+        result_success S ""%string (* TODO: translateChar(STRING_ELT(str, 0)) *)
       | _ =>
         result_error S "[pmatch] invalid partial string match."
       end) in
     if_success (get_name formal) (fun S f =>
       if_success (get_name tag) (fun S t =>
-        psmatch f t exact)).
+        result_success S (psmatch f t exact))).
 
 (** The function [matchArgs] matches the arguments supplied to a given
  * call with the formal, expected arguments.

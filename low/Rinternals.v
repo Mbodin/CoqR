@@ -4,6 +4,10 @@
 
 Set Implicit Arguments.
 
+Require Export TLC.LibString TLC.LibInt.
+Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
+
+
 (** * Types **)
 
 (** SEXPTYPE **)
@@ -46,7 +50,7 @@ Inductive named_field :=
 
 Fixpoint nbits (n : nat) : Type :=
   match n with
-  | 0 => unit
+  | O => unit
   | S n => bool * nbits n
   end.
 
@@ -172,6 +176,15 @@ Record VecSxp_struct (A : Type) := make_VecSxp_struct {
 Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
     Vector_SExpRec_header :> SExpRecHeader ;
     Vector_SExpRec_vecsxp :> VecSxp_struct A
+  }.
+
+Definition char := Ascii.ascii.
+
+Definition double : Type := Fappli_IEEE_bits .binary64.
+
+Record RComplex := make_Rcomplex {
+    Rcomplex_r : double ;
+    Rcomplex_i : double
   }.
 
 (** Whilst in C, a pointer can point to any of the two
