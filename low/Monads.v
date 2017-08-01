@@ -345,3 +345,27 @@ Definition read_as_prom A S (e : SExpRec_pointer) f : result A :=
   if_defined S (read_SExp S e) (fun e_ =>
     if_is_prom S e_ f).
 
+Definition read_as_VectorChar A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorChar e_) f).
+
+Definition read_as_VectorLogical A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorLogical e_) f).
+
+Definition read_as_VectorInteger A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorInteger e_) f).
+
+Definition read_as_VectorComplex A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorComplex e_) f).
+
+Definition read_as_VectorReal A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorReal e_) f).
+
+Definition read_as_VectorPointers A S (e : SExpRec_pointer) f : result A :=
+  if_defined S (read_SExp S e) (fun e_ =>
+    if_defined S (get_VectorPointers e_) f).
+

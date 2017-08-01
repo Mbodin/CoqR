@@ -1,7 +1,7 @@
 (** General lemmae.
   * This file can be seen as a library. **)
 
-Require Import TLC.LibStream TLC.LibHeap.
+Require Import TLC.LibStream TLC.LibHeap TLC.LibString.
 Require Export TLC.LibTactics TLC.LibReflect TLC.LibLogic TLC.LibList TLC.LibBool.
 
 Notation " [ ] " := nil : list_scope.
@@ -182,6 +182,17 @@ Proof.
     introv E. apply D. symmetry. apply* E.
     rewrite~ (not_indom_read_option I').
 Qed.
+
+
+Definition list_to_string :=
+  fold_left (fun c str => String c str) EmptyString.
+
+Fixpoint string_to_list (str : string) :=
+  match str with
+  | EmptyString => nil
+  | String c str =>
+    c :: string_to_list str
+  end.
 
 
 (** * Tactics about Comparable **)

@@ -98,11 +98,14 @@ Definition pmatch (S : state) (formal tag : SExpRec_pointer) exact : result bool
     if_defined S (read_SExp S str) (fun str_ =>
       match type str_ with
       | SymSxp =>
-        result_success S ""%string (* TODO: CHAR(PRINTNAME(str)) *)
+        if_is_sym S str_ (fun str_ str_sym =>
+          read_as_VectorChar S (sym_pname str_sym) (fun str_name_ =>
+            result_success S (list_to_string str_name_)))
       | CharSxp =>
-        result_success S ""%string (* TODO: CHAR(str) *)
+        if_defined S (get_VectorChar str_) (fun str_ =>
+          result_success S (list_to_string str_))
       | StrSxp =>
-        result_success S ""%string (* TODO: translateChar(STRING_ELT(str, 0)) *)
+        result_not_implemented "[pmatch] translateChar(STRING_ELT(str, 0))"
       | _ =>
         result_error S "[pmatch] invalid partial string match."
       end) in
@@ -140,32 +143,36 @@ Definition matchArgs_first runs (S : state)
     (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
   if_success (fold_left_listSxp runs S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
     let (a, fargusedrev) := a_fargusedrev in
-    let ftag_name := ""%string (* TODO: CHAR(PRINTNAME(f_tag)) *) in
-    let continuation S fargusedi :=
-      read_as_list S a (fun a_ a_list =>
-        result_success S (list_cdrval a_list, fargusedi :: fargusedrev)) in
-    ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-      if_success (fold_left_listSxp_gen runs S supplied 0 (fun S fargusedi b b_ b_list =>
-        let b_tag := list_tagval b_list in
-        let btag_name := ""%string (* TODO: CHAR(PRINTNAME(b_tag)) *) in
-        ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
-          ifb fargusedi = 2 then
-            result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
-          else ifb argused b_ = 2 then
-            result_error S "[matchArgs_first] actual argument matches several formal arguments."
-          else
-            set_car S (list_carval b_list) a (fun S =>
-              if_success
-                (ifb list_carval b_list <> R_MissingArg then
-                  map_pointer S (set_missing 1 ltac:(nbits_ok)) a (fun S =>
-                    result_success S tt)
-                else result_success S tt) (fun S _ =>
-                map_pointer S (set_argused 2 ltac:(nbits_ok)) b (fun S =>
-                  result_success S 2)))
-        else
-          result_success S fargusedi))
-        continuation
-    else continuation S 0))
+    read_as_sym S f_tag (fun f_tag_ f_tag_sym =>
+      read_as_VectorChar S (sym_pname f_tag_sym) (fun f_tag_sym_name_ =>
+        let ftag_name := list_to_string f_tag_sym_name_ in
+        let continuation S fargusedi :=
+          read_as_list S a (fun a_ a_list =>
+            result_success S (list_cdrval a_list, fargusedi :: fargusedrev)) in
+        ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
+          if_success (fold_left_listSxp_gen runs S supplied 0 (fun S fargusedi b b_ b_list =>
+            let b_tag := list_tagval b_list in
+            read_as_sym S b_tag (fun b_tag_ b_tag_sym =>
+              read_as_VectorChar S (sym_pname b_tag_sym) (fun b_tag_sym_name_ =>
+                let btag_name := list_to_string b_tag_sym_name_ in
+                ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
+                  ifb fargusedi = 2 then
+                    result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
+                  else ifb argused b_ = 2 then
+                    result_error S "[matchArgs_first] actual argument matches several formal arguments."
+                  else
+                    set_car S (list_carval b_list) a (fun S =>
+                      if_success
+                        (ifb list_carval b_list <> R_MissingArg then
+                          map_pointer S (set_missing 1 ltac:(nbits_ok)) a (fun S =>
+                            result_success S tt)
+                        else result_success S tt) (fun S _ =>
+                        map_pointer S (set_argused 2 ltac:(nbits_ok)) b (fun S =>
+                          result_success S 2)))
+                else
+                  result_success S fargusedi))))
+            continuation
+        else continuation S 0))))
     (fun S a_fargusedrev =>
       let (a, fargusedrev) := a_fargusedrev in
       result_success S (List.rev fargusedrev)).

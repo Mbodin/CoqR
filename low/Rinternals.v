@@ -169,7 +169,7 @@ Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     (** VecSxp_truelength : nat ; **)
     (** As stated in the R-ints documentation, such a structure is
      * followed by an array. We represent this as a list in Coq. **)
-    VecSxp_data : list A
+    VecSxp_data :> list A
   }.
 
 (** VECTOR_SEXPREC **)
