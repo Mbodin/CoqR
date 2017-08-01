@@ -121,42 +121,46 @@ Definition pmatch (S : state) (formal tag : SExpRec_pointer) exact : result bool
 
 (** The function makes use of some bits from the general purpose pool
  * to mark some arguments as being used or missing. **)
-Definition set_argused (used : ¿nat?) e_ :=
-  set_gp ?.
 
 Definition argused e_ :=
-  gp ?.
+  nbits_to_nat (gp e_).
 
-Definition set_missing (m : bool) e_ :=
-  set_gp ?.
+Definition set_argused (used : nat) I :=
+  set_gp (nat_to_nbits used I).
+Arguments set_argused : clear implicits.
 
 Definition missing e_ :=
-  gp ?.
+  sub_nbits 0 4 (gp e_) ltac:(nbits_ok).
+
+Definition set_missing (m : nat) I (e_ : SExpRec) :=
+  set_gp (write_nbits 0 (nat_to_nbits m I : nbits 4) (gp e_) ltac:(nbits_ok)) e_.
+Arguments set_missing : clear implicits.
 
 Definition matchArgs_first runs (S : state)
-    (formals actuals : SExpRec_pointer) : result (list nat) :=
-  if_success (fold_left_listSxp S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
+    (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
+  if_success (fold_left_listSxp runs S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
     let (a, fargusedrev) := a_fargusedrev in
-    let ftag_name = (* CHAR(PRINTNAME(f_tag)) *) in
+    let ftag_name := ""%string (* TODO: CHAR(PRINTNAME(f_tag)) *) in
     let continuation S fargusedi :=
       read_as_list S a (fun a_ a_list =>
-        result_success S (list_cdrval a_list, fargusedi :: fargusedrev))) in
+        result_success S (list_cdrval a_list, fargusedi :: fargusedrev)) in
     ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-      if_success (fold_left_listSxp_gen S supplied 0 (fun S fargusedi b b_ b_list =>
+      if_success (fold_left_listSxp_gen runs S supplied 0 (fun S fargusedi b b_ b_list =>
         let b_tag := list_tagval b_list in
-        let btag_name = (* CHAR(PRINTNAME(b_tag)) *) in
+        let btag_name := ""%string (* TODO: CHAR(PRINTNAME(b_tag)) *) in
         ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
           ifb fargusedi = 2 then
             result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
-          else ifb argused b_ then
+          else ifb argused b_ = 2 then
             result_error S "[matchArgs_first] actual argument matches several formal arguments."
           else
             set_car S (list_carval b_list) a (fun S =>
               if_success
-                (ifb list_carval b <> R_MissingArg then
-                  map_pointer S a (set_missing false)
+                (ifb list_carval b_list <> R_MissingArg then
+                  map_pointer S (set_missing 1 ltac:(nbits_ok)) a (fun S =>
+                    result_success S tt)
                 else result_success S tt) (fun S _ =>
-                map_pointer S b (set_argused 2) (fun S =>
+                map_pointer S (set_argused 2 ltac:(nbits_ok)) b (fun S =>
                   result_success S 2)))
         else
           result_success S fargusedi))
@@ -167,9 +171,9 @@ Definition matchArgs_first runs (S : state)
       result_success S (List.rev fargusedrev)).
 
 Definition matchArgs_second runs (S : state)
-    (actuals formals : SExpRec_pointer) fargused : result SExpRec_pointer :=
-  if_success (fold_left_listSxp S formals (actuals, fargused, R_NilValue, false) (fun S a_fargused_dots_seendots _ f_tag =>
-    let (a, fargused, dots, seendots) := a_fargused_dots_seendots in
+    (actuals formals supplied : SExpRec_pointer) fargused : result SExpRec_pointer :=
+  if_success (fold_left_listSxp runs S formals (actuals, fargused, R_NilValue, false) (fun S a_fargused_dots_seendots _ f_tag =>
+    let '(a, fargused, dots, seendots) := a_fargused_dots_seendots in
     match fargused with
     | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
     | fargusedi :: fargused =>
@@ -180,23 +184,24 @@ Definition matchArgs_second runs (S : state)
         ifb f_tag = R_DotsSymbol /\ ~ seendots then
           continuation S a true
         else
-          if_success (fold_left_listSxp_gen S supplied fargusedi (fun S fargusedi b b_ b_list =>
+          if_success (fold_left_listSxp_gen runs S supplied fargusedi (fun S fargusedi b b_ b_list =>
             let b_tag := list_tagval b_list in
-            ifb argused b_ /\ b_tag <> R_NilValue then
+            ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
               if_success (pmatch S f_tag b_tag seendots) (fun S pmatch =>
                 if pmatch then
-                  if argused b_ then
-                    result_error "[matchArgs_second] actual argument matches several formal arguments."
+                  ifb argused b_ <> 0 then
+                    result_error S "[matchArgs_second] actual argument matches several formal arguments."
                   else ifb fargusedi = 1 then
                     result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
                   else
                     (** Warning about partial arguments: should we ignore this part? **)
                     set_car S (list_carval b_list) a (fun S =>
                       if_success
-                        (ifb list_carval b <> R_MissingArg then
-                          map_pointer S a (set_missing false)
+                        (ifb list_carval b_list <> R_MissingArg then
+                          map_pointer S (set_missing 0 ltac:(nbits_ok)) a (fun S =>
+                            result_success S tt)
                         else result_success S tt) (fun S _ =>
-                        map_pointer S b (set_argused 1) (fun S =>
+                        map_pointer S (set_argused 1 ltac:(nbits_ok)) b (fun S =>
                           result_success S 1)))
                 else result_success S fargusedi)
             else
@@ -204,19 +209,19 @@ Definition matchArgs_second runs (S : state)
             (fun S fargusedi =>
               continuation S dots seendots)
       else continuation S dots seendots
-    end)
+    end))
     (fun S a_fargused_dots_seendots =>
-      let (a, fargused, dots, seendots) := a_fargused_dots_seendots in
+      let '(a, fargused, dots, seendots) := a_fargused_dots_seendots in
       result_success S dots).
 
 Definition matchArgs_third runs (S : state)
     (formals actuals supplied : SExpRec_pointer) : result unit :=
   if_success
     (while runs S (formals, actuals, supplied, false) (fun S f_a_b_seendots =>
-      let (f, a, b, seendots) := f_a_b_seendots in
+      let '(f, a, b, seendots) := f_a_b_seendots in
       result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)))
       (fun S f_a_b_seendots =>
-        let (f, a, b, seendots) := f_a_b_seendots in
+        let '(f, a, b, seendots) := f_a_b_seendots in
         read_as_list S f (fun f_ f_list =>
           read_as_list S a (fun a_ a_list =>
             ifb list_tagval f_list = R_DotsSymbol then
@@ -225,13 +230,14 @@ Definition matchArgs_third runs (S : state)
               result_success S (list_cdrval f_list, list_cdrval a_list, b, seendots)
             else
               read_as_list S b (fun b_ b_list =>
-                ifb argused b_ \/ list_tagval b_list <> R_NilValue then
+                ifb argused b_ <> 0 \/ list_tagval b_list <> R_NilValue then
                   result_success S (f, a, list_cdrval b_list, seendots)
                 else
                   set_car S (list_carval b_list) a (fun S =>
                     if_success
-                      (ifb list_carval b <> R_MissingArg then
-                        map_pointer S a (set_missing false)
+                      (ifb list_carval b_list <> R_MissingArg then
+                        map_pointer S (set_missing 0 ltac:(nbits_ok)) a (fun S =>
+                          result_success S tt)
                       else result_success S tt) (fun S _ =>
                         result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots))))))))
     (fun S f_a_b_seendots =>
@@ -239,21 +245,21 @@ Definition matchArgs_third runs (S : state)
 
 Definition matchArgs_dots runs (S : state)
     (dots supplied : SExpRec_pointer) : result unit :=
-  map_pointer S dots (set_missing false) (fun S =>
-    if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
-      if_option S (read_SExp S a) (fun a_ =>
-        if argused a_ then
+  map_pointer S (set_missing 0 ltac:(nbits_ok)) dots (fun S =>
+    if_success (fold_left_listSxp runs S supplied 0 (fun S i a _ =>
+      if_defined S (read_SExp S a) (fun a_ =>
+        ifb argused a_ = 0 then
           result_success S (1 + i)
         else
-          result_success S i))
+          result_success S i)))
       (fun S i =>
         ifb i = 0 then
           result_success S tt
         else
           let (S, a) := allocList S i in
-          map_pointer S (set_type DotSxp) (fun S =>
+          map_pointer S (set_type DotSxp) a (fun S =>
             if_success (fold_left_listSxp_gen runs S supplied a (fun S f b b_ b_list =>
-              if argused b_ then
+              ifb argused b_ <> 0 then
                 result_success S f
               else
                 read_as_list S f (fun f_ f_list =>
@@ -263,21 +269,21 @@ Definition matchArgs_dots runs (S : state)
                       list_tagval := list_tagval b_list
                     |} in
                   let f_ := {|
-                      SExpRec_header := SExpRec_header f_ ;
-                      SExpRec_data := f_list
+                      NonVector_SExpRec_header := NonVector_SExpRec_header f_ ;
+                      NonVector_SExpRec_data := f_list
                     |} in
                   if_defined S (write_SExp S f f_) (fun S =>
                     result_success S (list_cdrval f_list)))))
               (fun S _ =>
                 set_car S a dots (fun S =>
-                  result_success S tt))))))).
+                  result_success S tt))))).
 
 Definition matchArgs_check runs (S : state)
     (supplied : SExpRec_pointer) : result unit :=
   if_success (fold_left_listSxp_gen runs S supplied false (fun S acc b b_ b_list =>
-    result_success S (acc || argused b_))
+    result_success S (decide (acc \/ argused b_ <> 0))))
     (fun S b =>
-      if b then
+      if b : bool then
         result_error S "[matchArgs_check] Unused argument(s)."
       else
         result_success S tt).
@@ -285,25 +291,25 @@ Definition matchArgs_check runs (S : state)
 
 Definition matchArgs runs (S : state)
     (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
-  if_success (fold_left_listSxp S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
+  if_success (fold_left_listSxp runs S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
       let (actuals, argi) := actuals_argi in
-      let (S, actuals) := cons (R_MissingArg, actuals) in
-      (actuals, 1 + argi)))
+      let (S, actuals) := cons S R_MissingArg actuals in
+      result_success S (actuals, 1 + argi)))
     (fun S actuals_argi =>
       let (actuals, argi) := actuals_argi in
-      if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
-        map_pointer S b (set_argused false) (fun S =>
-          result_success S tt))))
+      if_success (fold_left_listSxp runs S supplied tt (fun S _ b _ =>
+        map_pointer S (set_argused 0 ltac:(nbits_ok)) b (fun S =>
+          result_success S tt)))
         (fun S _ =>
-          if_success (matchArgs_first runs S formals actuals) (fun S fargused =>
-            if_success (matchArgs_second runs S actuals formals fargused) (fun S dots =>
+          if_success (matchArgs_first runs S formals actuals supplied) (fun S fargused =>
+            if_success (matchArgs_second runs S actuals formals supplied fargused) (fun S dots =>
               if_success (matchArgs_third runs S formals actuals supplied) (fun S _ =>
                 ifb dots <> R_NilValue then
-                  if_success (matchArgs_dots runs runs S dots supplied) (fun S _ =>
-                    return_success S actuals)
+                  if_success (matchArgs_dots runs S dots supplied) (fun S _ =>
+                    result_success S actuals)
                 else
                   if_success (matchArgs_check runs S supplied) (fun S _ =>
-                    return_success S actuals)))))).
+                    result_success S actuals)))))).
 
 
 (** ** eval.c **)
@@ -317,7 +323,7 @@ Definition forcePromise runs (S : state) (e : SExpRec_pointer) : result SExpRec_
     ifb prom_value e_prom = R_UnboundValue then
       (* FIXME: Do we want to catch the PRSEEN part? *)
       runs_eval runs S (prom_expr e_prom) (prom_env e_prom)
-    else result_success S e)).
+    else result_success S e).
 
 Definition applyClosure runs (S : state)
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
@@ -330,7 +336,7 @@ Definition applyClosure runs (S : state)
         let savedrho := clo_env op_clo in
         if_success (matchArgs runs S formals arglist call) (fun S actuals =>
           (* TODO, line 1507 of eval.c *)
-          result_not_implemented "[applyClosure]")))).
+          result_not_implemented "[applyClosure]"))).
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_pointer :=
@@ -370,7 +376,7 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
             result_not_implemented "[eval] byte code"
           | SymSxp =>
             ifb e = R_DotsSymbol then
-              result_error "[eval] ‘...’ used in an incorrect context."
+              result_error S "[eval] ‘...’ used in an incorrect context."
             else
               (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
                * I think that in essence, we are fetching the value of the symbol in the
@@ -380,13 +386,13 @@ Definition eval runs (S : state) (e rho : SExpRec_pointer) : result SExpRec_poin
                * about these two functions. **)
               result_not_implemented "[eval] Symbols (TODO)"
           | PromSxp =>
-            if_defined S (get_promSxp e_) (fun e_prom =>
+            if_is_prom S e_ (fun e_ e_prom =>
               ifb prom_value e_prom = R_UnboundValue then
                 if_success (forcePromise runs S e) (fun S e =>
                   result_success S e)
               else result_success S e)
           | LangSxp =>
-            if_is_list S e_ (fun e_list =>
+            if_is_list S e_ (fun e_ e_list =>
               let car := list_carval e_list in
               if_defined S (read_SExp S car) (fun car_ =>
                 if_success
@@ -425,8 +431,10 @@ Fixpoint runs max_step : runs_type :=
     |}
   | S max_step =>
     let wrap {A : Type} (f : runs_type -> A) : A :=
-      f (runs max_step) in {|
-      runs_while := wrap while ;
+      f (runs max_step) in
+    let wrap_dep {A} (f : forall B : Type, runs_type -> A B) B : A B :=
+      f B (runs max_step) in {|
+      runs_while := wrap_dep while ;
       runs_eval := wrap eval
     |}
   end.

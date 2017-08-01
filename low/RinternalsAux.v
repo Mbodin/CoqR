@@ -13,18 +13,27 @@ Require Export Rinternals Shared.
 
 (** * About the [nbits] Structure **)
 
-Definition nth_bit {m : nat} (n : nat) : nbits m -> n < m -> bool.
-  introv a I. gen m. induction n as [|n]; introv a I; destruct m; try math.
+Definition nth_bit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool.
+  introv a I. gen m. induction n as [|n]; introv a I; destruct m; try solve [ false; math ].
   - exact (fst a).
   - applys IHn (snd a). math.
 Defined.
 Arguments nth_bit {m} n.
 
-(* A tactic to fill out the [n < m] part.
- * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. *)
-Ltac nbits_ok := repeat constructors.
+(** A tactic to fill out the [n < m] part.
+ * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. **)
+Ltac nbits_ok :=
+  clear; abstract
+    match goal with
+    | [ |- (_ < _)%nat ] =>
+      (* The [math] tactic does not work with the [^] operator.
+       * We thus first eliminate it. *)
+      repeat rewrite Nat.pow_succ_r;
+      repeat rewrite Nat.pow_0_r;
+      math
+    end.
 
-Lemma rewrite_nth_bit : forall n m (a : nbits m) (I I' : n < m),
+Lemma rewrite_nth_bit : forall n m (a : nbits m) (I I' : (n < m)%nat),
   nth_bit n a I = nth_bit n a I'.
 Proof.
   induction n; introv; destruct m; try solve [ false; math ].
@@ -32,35 +41,31 @@ Proof.
   - simpl. erewrite IHn. reflexivity.
 Qed.
 
-Lemma rewrite_S_nth_bit : forall n m (a : nbits (S m)) (I : S n < S m) (I' : n < m),
+Lemma rewrite_S_nth_bit : forall n m (a : nbits (S m)) (I : (S n < S m)%nat) (I' : (n < m)%nat),
   nth_bit (S n) a I = nth_bit n (snd a) I'.
 Proof. introv. erewrite rewrite_nth_bit with (n := n). simpl. reflexivity. Qed.
 
-Definition write_nbit {m : nat} (n : nat) : nbits m -> n < m -> bool -> nbits m.
-  introv a I b. gen m. induction n as [|n]; introv a I; destruct m; try math.
+Definition write_nbit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool -> nbits m.
+  introv a I b. gen m. induction n as [|n]; introv a I; destruct m; try solve [ false; math ].
   - exact (b, snd a).
   - refine (fst a, IHn _ (snd a) _). math.
 Defined.
 Arguments write_nbit {m} n.
 
-Lemma rewrite_write_nbit : forall n m (a : nbits m) (I I' : n < m) b,
+Lemma rewrite_write_nbit : forall n m (a : nbits m) (I I' : (n < m)%nat) b,
   write_nbit n a I b = write_nbit n a I' b.
-Proof.
-  induction n; introv; destruct m; try solve [ false; math ].
-  - reflexivity.
-  - simpl. erewrite IHn. reflexivity.
-Qed.
+Proof. introv. fequals. Qed.
 
-Lemma rewrite_S_write_nbit : forall n m (a : nbits (S m)) (I : S n < S m) (I' : n < m) b,
+Lemma rewrite_S_write_nbit : forall n m (a : nbits (S m)) (I : (S n < S m)%nat) (I' : (n < m)%nat) b,
   write_nbit (S n) a I b = (fst a, write_nbit n (snd a) I' b).
 Proof. introv. erewrite rewrite_write_nbit with (n := n). simpl. reflexivity. Qed.
 
-Lemma write_nth_bit : forall n m (I : n < m) (a : nbits m) b,
+Lemma write_nth_bit : forall n m (I : (n < m)%nat) (a : nbits m) b,
   nth_bit n (write_nbit n a I b) I = b.
 Proof.
   induction n; introv; destruct m; try solve [ false; math ].
   - reflexivity.
-  - asserts I': (n < m). math.
+  - asserts I': (n < m)%nat. { math. }
     rewrite rewrite_S_nth_bit with (I' := I'). rewrite rewrite_S_write_nbit with (I' := I').
     simpl. rewrite~ IHn.
 Qed.
@@ -71,12 +76,12 @@ Fixpoint nbits_init (n : nat) : nbits n :=
   | S n => (false, nbits_init n)
   end.
 
-Lemma nbits_init_read : forall n m (I : n < m),
+Lemma nbits_init_read : forall n m (I : (n < m)%nat),
   nth_bit n (nbits_init m) I = false.
 Proof.
   induction n; introv; destruct m; try solve [ false; math ].
   - reflexivity.
-  - asserts I': (n < m). math.
+  - asserts I': (n < m)%nat. { math. }
     rewrite rewrite_S_nth_bit with (I' := I'). rewrite~ IHn.
 Qed.
 
@@ -129,8 +134,8 @@ Lemma rewrite_nbits_to_nat : forall n (a : nbits (S n)),
   nbits_to_nat a = ((if fst a then 1 else 0) + 2 * nbits_to_nat (snd a)).
 Proof. reflexivity. Qed.
 
-Definition nat_to_nbits {n} m : m < 2 ^ n -> nbits n.
-  introv I'. asserts I: (m < 2 ^ n)%nat. math.
+Definition nat_to_nbits {n} m : (m < 2 ^ n)%nat -> nbits n.
+  introv I'. asserts I: (m < 2 ^ n)%nat. { math. }
   clear I'. gen m. induction n; introv I.
   - exact tt.
   - refine (decide (m mod 2 = 1), IHn (m / 2) _).
@@ -140,11 +145,7 @@ Arguments nat_to_nbits {n} m.
 
 Lemma rewrite_nat_to_nbits : forall n m I I',
   nat_to_nbits m I = (nat_to_nbits m I' : nbits n).
-Proof.
-  induction n; introv.
-  - reflexivity.
-  - unfolds. fequals.
-Qed.
+Proof. introv. fequals. Qed.
 
 Lemma rewrite_nat_to_nbits_cons : forall n m I I',
   nat_to_nbits m I = ((decide (m mod 2 = 1), nat_to_nbits (m / 2) I') : nbits (S n)).
@@ -155,13 +156,112 @@ Lemma nat_to_nbits_to_nat : forall n m I,
 Proof.
   introv. gen m. induction n; introv.
   - simpls. math.
-  - asserts I1: (m / 2 < 2 ^ n)%nat. apply~ Nat.div_lt_upper_bound. simpl in I. math.
-    asserts I2: (m / 2 < 2 ^ n). math.
-    rewrite rewrite_nat_to_nbits_cons with (I' := I2). rewrite rewrite_nbits_to_nat.
+  - asserts I': (m / 2 < 2 ^ n)%nat. { apply~ Nat.div_lt_upper_bound. }
+    rewrite rewrite_nat_to_nbits_cons with (I' := I'). rewrite rewrite_nbits_to_nat.
     unfold snd, fst. rewrite IHn.
     rewrite Nat.div_mod with (y := 2); [|math]. rewrite Nat.add_comm. fequals.
     clear. forwards I: Nat.mod_upper_bound m 2. math.
-    destruct (m mod 2); cases_if as M; fold_bool; rew_refl in M; try math.
+    destruct (m mod 2); cases_if as M; fold_bool; rew_refl in M; math.
+Qed.
+
+Definition nth_first_nbits {n : nat} m (a : nbits n) (I : (m < n)%nat) : nbits m.
+  gen n a. induction m; introv I a.
+  - exact tt.
+  - destruct n; try solve [ false; math ]. refine (fst a, IHm _ _ (snd a)). math.
+Defined.
+Arguments nth_first_nbits {n} m.
+
+Lemma rewrite_nth_first_nbits : forall n m I I' (a : nbits n),
+  nth_first_nbits m a I = nth_first_nbits m a I'.
+Proof. introv. fequals. Qed.
+
+Lemma rewrite_nth_first_nbits_cons : forall n m I I' (a : nbits (S n)),
+  nth_first_nbits (S m) a I = (fst a, nth_first_nbits m (snd a) I').
+Proof. introv. simpl. erewrite rewrite_nth_first_nbits. reflexivity. Qed.
+
+Lemma nth_nth_first_nbits : forall n m (a : nbits n) Im k Ikn Ikm,
+  nth_bit k a Ikn = nth_bit k (nth_first_nbits m a Im) Ikm.
+Proof.
+  introv. gen k n a. induction m; introv.
+  - false. math.
+  - destruct n; try solve [ false; math ]. destruct k.
+    + reflexivity.
+    + asserts I1: (k < m)%nat. { math. }
+      asserts I2: (k < n)%nat. { math. }
+      erewrite rewrite_S_nth_bit with (I' := I1).
+      erewrite rewrite_S_nth_bit with (I' := I2).
+      erewrite IHm. fequals.
+Qed.
+
+Lemma nat_from_nth_first_nbits : forall n m (a : nbits n) I,
+  (nbits_to_nat a < 2 ^ m)%nat ->
+  nbits_to_nat a = nbits_to_nat (nth_first_nbits m a I).
+Proof.
+  introv Im. gen n. induction m; introv Im.
+  - simpls. math.
+  - destruct n; try solve [ false; math ].
+    asserts In: (m < n)%nat. { math. }
+    rewrite rewrite_nth_first_nbits_cons with (I' := In).
+    do 2 rewrite rewrite_nbits_to_nat. fequals. fequals. apply IHm.
+    simpls. math.
+Qed.
+
+Definition sub_nbits {n} (start length : nat) (a : nbits n) (I : (start + length < n)%nat) : nbits length.
+  gen n a. induction start; introv I a.
+  - refine (nth_first_nbits length a _). math.
+  - destruct n; try solve [ false; math ]. refine (IHstart _ _ (snd a)). math.
+Defined.
+
+Lemma rewrite_sub_nbits : forall n start length (a : nbits n) I I',
+  sub_nbits start length a I = sub_nbits start length a I'.
+Proof. introv. fequals. Qed.
+
+Lemma rewrite_sub_nbits_cons : forall n start length (a : nbits (S n)) I I',
+  sub_nbits (S start) length a I = sub_nbits start length (snd a) I'.
+Proof. introv. simpl. erewrite rewrite_sub_nbits. reflexivity. Qed.
+
+Lemma rewrite_sub_nbits_zero : forall n length (a : nbits n) I I',
+  sub_nbits 0 length a I = nth_first_nbits length a I'.
+Proof. introv. simpl. fequals. Qed.
+
+Definition write_nbits {n m : nat} start (v : nbits m) (a : nbits n) (I : (start + m < n)%nat) : nbits n.
+  gen n a. induction start; introv I a.
+  - gen n a v. induction m; introv I a v.
+    + exact a.
+    + destruct n; try solve [ false; math ]. refine (fst v, IHm _ _ (snd a) (snd v)). math.
+  - destruct n; try solve [ false; math ]. refine (fst a, IHstart _ _ (snd a)). math.
+Defined.
+
+Lemma rewrite_write_nbits : forall n m start (v : nbits m) (a : nbits n) I I',
+  write_nbits start v a I = write_nbits start v a I'.
+Proof. introv. fequals. Qed.
+
+Lemma rewrite_write_nbits_cons : forall n m start (v : nbits m) (a : nbits (S n)) I I',
+  write_nbits (S start) v a I = (fst a, write_nbits start v (snd a) I').
+Proof. introv. simpl. erewrite rewrite_write_nbits. reflexivity. Qed.
+
+Lemma rewrite_write_nbits_zero_cons : forall n m (v : nbits (S m)) (a : nbits (S n)) I I',
+  write_nbits 0 v a I = (fst v, write_nbits 0 (snd v) (snd a) I').
+Proof. introv. simpl. repeat fequals. Qed.
+
+Lemma sub_write_nbits : forall n m start (v : nbits m) (a : nbits n) I,
+  sub_nbits start m (write_nbits start v a I) I = v.
+Proof.
+  introv. gen n m. induction start; introv.
+  - asserts I': (m < n)%nat. { math. }
+    rewrite rewrite_sub_nbits_zero with (I' := I').
+    gen n. induction m; introv.
+    + destruct~ v.
+    + destruct n; try solve [ false; math ].
+      asserts I'': (0 + m < n)%nat. { math. }
+      rewrite rewrite_write_nbits_zero_cons with (I' := I'').
+      rewrite rewrite_nth_first_nbits_cons with (I' := I'').
+      destruct v as [b v]. unfolds @snd. rewrite~ IHm.
+  - destruct n; try solve [ false; math ].
+    asserts I': (start + m < n)%nat. { math. }
+    rewrite rewrite_write_nbits_cons with (I' := I').
+    rewrite rewrite_sub_nbits_cons with (I' := I').
+    apply* IHstart.
 Qed.
 
 
@@ -260,10 +360,6 @@ Definition get_promSxp e_ :=
   end.
 
 
-Definition set_named_sxpinfo n i_info :=
-  make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
-    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
-
 Definition map_sxpinfo_NonVector_SExpRec f e_ :=
   make_NonVector_SExpRec
     (let h := NonVector_SExpRec_header e_ in
@@ -302,11 +398,22 @@ Definition map_sxpinfo f e_ :=
     SExpRec_VectorPointers (map_sxpinfo_Vector_SExpRec f e_)
   end.
 
+Definition set_named_sxpinfo n i_info :=
+  make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
+    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+
 Definition set_named n :=
   map_sxpinfo (set_named_sxpinfo n).
 
 Definition set_named_plural :=
   set_named named_plural.
+
+Definition set_gp_sxpinfo n i_info :=
+  make_SxpInfo (type i_info) (obj i_info) (named i_info) n
+    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+
+Definition set_gp n :=
+  map_sxpinfo (set_gp_sxpinfo n).
 
 Definition set_type_sxpinfo t i_info :=
   make_SxpInfo t (obj i_info) (named i_info) (gp i_info)
