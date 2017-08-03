@@ -27,9 +27,13 @@ This file describes the data structures of R as they are in its C code.
 Auxiliary definitions and properties about the data structures defined in
 Rinternals.v.
 
+*** State.v
+
+This file provides a model for the C memory, as well as most R global variables.
+
 *** Monads.v
 
-This file provides useful data structures to manipulate the model of the C memory.
+This file provides monads to manipulate R objects easily.
 
 *** Reval.v
 

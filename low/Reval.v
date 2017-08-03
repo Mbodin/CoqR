@@ -370,7 +370,57 @@ Definition R_envHasNoSpecialSymbols runs S (env : SExpRec_pointer) : result bool
         else result_success S b))).
 
 Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : SExpRec_pointer) : result unit :=
-  result_not_implemented "[addMissingVarsToNewEnv] TODO".
+  ifb addVars = R_NilValue then
+    result_success S tt
+  else
+    if_defined S (read_SExp S addVars) (fun addVars_ =>
+      ifb type addVars_ = EnvSxp then
+        result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
+      else
+        if_is_list S addVars_ (fun addVars_ addVars_list =>
+          if_success
+            (fold_left_listSxp_gen runs S (list_cdrval addVars_list) addVars
+              (fun S aprev a a_ a_list =>
+                result_success S a))
+            (fun S aprev =>
+              read_as_env S env (fun env_ env_env =>
+                set_cdr S (env_frame env_env) aprev (fun S =>
+                  let env_env := {|
+                      env_frame := addVars ;
+                      env_enclos := env_enclos env_env
+                    |} in
+                  let env_ := {|
+                      NonVector_SExpRec_header := env_ ;
+                      NonVector_SExpRec_data := env_env
+                    |} in
+                  if_defined S (write_SExp S env env_) (fun S =>
+                    fold_left_listSxp_gen runs S (list_cdrval addVars_list) tt (fun S _ _ end_ end_list =>
+                      let end_tag := list_tagval end_list in
+                      if_success
+                        (while runs S (addVars, addVars, R_NilValue) (fun S addVars_s_sprev =>
+                          let '(addVars, s, sprev) := addVars_s_sprev in
+                          result_success S (decide (s <> env)))
+                          (fun S addVars_s_sprev =>
+                            let '(addVars, s, sprev) := addVars_s_sprev in
+                            read_as_list S s (fun s_ s_list =>
+                              ifb list_tagval s_list = end_tag then
+                                ifb sprev = R_NilValue then
+                                  let env_env := {|
+                                      env_frame := addVars ;
+                                      env_enclos := env_enclos env_env
+                                    |} in
+                                  let env_ := {|
+                                      NonVector_SExpRec_header := env_ ;
+                                      NonVector_SExpRec_data := env_env
+                                    |} in
+                                  if_defined S (write_SExp S env env_) (fun S =>
+                                    result_success S (list_cdrval s_list, list_cdrval s_list, sprev))
+                                else
+                                  set_cdr S (list_cdrval s_list) sprev (fun S =>
+                                    result_success S (addVars, list_cdrval s_list, sprev))
+                              else result_success S (addVars, list_cdrval s_list, s))))
+                        (fun S _ =>
+                           result_success S tt)))))))).
 
 
 (** ** eval.c **)
@@ -553,8 +603,8 @@ Fixpoint runs max_step : runs_type :=
 (** * Proofs **)
 
 (** It would be nice to prove that the read-eval-print-loop can not
-* return a [result_impossible]. **)
+ * return a [result_impossible]. **)
 
 (** The property we want to eventually prove is that if [eval] returns
-* a result, then the C function eval does similarly. **)
+ * a result, then the C function eval does similarly. **)
 
