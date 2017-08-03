@@ -22,7 +22,7 @@ Record runs_type : Type := runs_type_intro {
 (** We recall from RinternalsAux.v that we write [p_] for the object
  * referenced by the pointer [p], and [p_f] for the field [f] or it **)
 
-(** ** Frequent Pattern **)
+(** ** Frequent Patterns **)
 
 (** The functions presented here are not from R source code, but
  * represent frequent programming pattern in its source code. **)
@@ -62,10 +62,42 @@ Definition fold_left_listSxp A runs S (l : SExpRec_pointer) (a : A)
     iterate S a (list_carval l_list) (list_tagval l_list)).
 
 
+(** ** context.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/context.c. **)
+
+Definition begincontext S flags syscall env sysp promargs callfun :=
+  let cptr := {|
+     nextcontext := Some (R_GlobalContext S) ;
+     callflag := flags ;
+     promargs := promargs ;
+     callfun := callfun ;
+     sysparent := sysp ;
+     call := syscall ;
+     cloenv := env ;
+     conexit := R_NilValue
+   |} in
+  state_with_context S cptr.
+
+Definition endcontext runs S :=
+  let cptr := R_GlobalContext S in
+  if_success
+    (ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
+       let s := conexit cptr in
+       let S := state_with_context S (context_with_conexit cptr R_NilValue) in
+       if_success (runs_eval runs S s (cloenv cptr)) (fun S _ =>
+         result_success S tt)
+     else result_success S tt)
+    (fun S _ =>
+       if_defined S (nextcontext cptr) (fun c =>
+         result_success (state_with_context S c) tt)).
+
+
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file src/main/memory.c. **)
+ * in the file main/memory.c. **)
 
 Definition cons S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
@@ -115,7 +147,7 @@ Definition mkPROMISE S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
 (** ** match.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file src/main/match.c. **)
+ * in the file main/match.c. **)
 
 Definition psmatch s1 s2 exact :=
   if exact : bool then
@@ -352,7 +384,7 @@ Definition matchArgs runs S
 (** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file src/main/envir.c. **)
+* in the file main/envir.c. **)
 
 Definition is_special_symbol e_ :=
   nth_bit 12 (gp e_) ltac:(nbits_ok).
@@ -426,7 +458,7 @@ Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : 
 (** ** eval.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file src/main/eval.c. **)
+* in the file main/eval.c. **)
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise runs S (e : SExpRec_pointer) : result SExpRec_pointer :=
@@ -494,7 +526,9 @@ Definition applyClosure runs S
                            result_success S tt)
                        else result_success S tt)) (fun S _ =>
                     R_execClosure runs S call newrho
-                      rho(* TODO: R_GlobalContext->callflag == CTXT_GENERIC ? R_GlobalContext->sysparent : rho *)
+                      (ifb callflag (R_GlobalContext S) = Ctxt_Generic then
+                         sysparent (R_GlobalContext S)
+                       else rho)
                       rho arglist op))))))).
 
 

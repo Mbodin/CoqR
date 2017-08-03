@@ -165,16 +165,86 @@ Lemma read_SExp_write_memory_SExp : forall S e_ e'_ e,
 Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E. Qed.
 
 
+(** * A Model for R’s Contexts **)
+
+(** Contexts are defined in the file main/context.c of R source code. **)
+
+(* FIXME: According to the C comments, these types can be mixed (as in
+ * a [nbits 6]), but the C code rarely does this. I am putting this as
+ * a simple inductive for now, but this may move later to a lower level
+ * formalisation, if it is needed. *)
+Inductive context_type :=
+  | Ctxt_TopLevel
+  | Ctxt_Next
+  | Ctxt_Break
+  | Ctxt_Loop
+  | Ctxt_Function
+  | Ctxt_CCode
+  | Ctxt_Return
+  | Ctxt_Browser
+  | Ctxt_Generic
+  | Ctxt_Restart
+  | Ctxt_Builtin
+  .
+
+Instance context_type_Comparable : Comparable context_type.
+  prove_comparable_simple_inductive.
+Defined.
+
+(*
+TODO: write about contexts in the report.
+The on.exit field is crucial for correctness.
+Furthermore, contexts also describe whether the result was due to an error or not.
+We do not model precisely errors, as we consider that they completely break the control flow.
+Such formalisation choices should be precised in the report.
+*)
+
+(** Note: not all fields have been modeled. See the report or the
+ * original definition in the file include/Defn.h for more details. **)
+(** RCNTXT, *context **)
+Inductive context := make_context {
+    nextcontext : option context ;
+    callflag : context_type ;
+    promargs : SExpRec_pointer ;
+    callfun : SExpRec_pointer ;
+    sysparent : SExpRec_pointer ;
+    call : SExpRec_pointer ;
+    cloenv : SExpRec_pointer ;
+    conexit : SExpRec_pointer
+  }.
+
+Definition context_with_conexit context conexit := {|
+     nextcontext := nextcontext context ;
+     callflag := callflag context ;
+     promargs := promargs context ;
+     callfun := callfun context ;
+     sysparent := sysparent context ;
+     call := call context ;
+     cloenv := cloenv context ;
+     conexit := conexit
+   |}.
+
+
 (** * A Model for R’s State **)
 
 Record state := make_state {
-    state_memory :> memory
+    state_memory :> memory ;
+    state_context : context
   }.
 
+Definition R_GlobalContext := state_context.
 
-Definition state_with_memory (S : state) m := {|
-    state_memory := m
+Definition state_with_memory S m := {|
+    state_memory := m ;
+    state_context := state_context S
   |}.
+
+Definition state_with_context S c := {|
+    state_memory := state_memory S ;
+    state_context := c
+  |}.
+
+(** Wrapping up with the functions defined in the previous section. **)
 
 Definition alloc_SExp (S : state) e_ :=
   let (m, e) := alloc_memory_SExp S e_ in
@@ -214,19 +284,31 @@ Defined.
 
 (* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
 Definition NULL : SExpRec_pointer := None.
-Definition R_NilValue : SExpRec_pointer := NULL. (* snd (alloc_SExp empty_state Nil_SExpRec). *)
+Definition R_NilValue : SExpRec_pointer := NULL.
 Definition R_DotsSymbol : SExpRec_pointer := NULL. (* TODO: See names.c *)
 Definition R_GlobalEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
 Definition R_EmptyEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
-Definition R_BaseEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
+Definition R_BaseEnv : SExpRec_pointer := NULL. (* TODO: See envir.c. TODO: Must be after the definition of [NewEnvironment], now in Reval.v. *)
 Definition R_UnboundValue : SExpRec_pointer := NULL. (* TODO: See names.c *)
 Definition R_MissingArg : SExpRec_pointer := NULL. (* TODO: See names.c *)
 
 
 (** ** Initial State **)
 
+Definition R_Toplevel := {|
+     nextcontext := None ;
+     callflag := Ctxt_TopLevel ;
+     promargs := R_NilValue ;
+     callfun := R_NilValue ;
+     sysparent := R_BaseEnv ;
+     call := R_NilValue ;
+     cloenv := R_BaseEnv ;
+     conexit := R_NilValue
+  |}.
+
 Definition empty_state := {|
-    state_memory := empty_memory
+    state_memory := empty_memory ;
+    state_context := R_Toplevel
   |}.
 
 Definition initial_state := empty_state.
