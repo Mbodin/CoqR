@@ -425,6 +425,11 @@ Definition set_type t :=
 Definition set_car_list car l_list :=
   make_ListSxp_struct car (list_cdrval l_list) (list_tagval l_list).
 
+Definition set_cdr_list cdr l_list :=
+  make_ListSxp_struct (list_carval l_list) cdr (list_tagval l_list).
+
+Definition set_tag_list tag l_list :=
+  make_ListSxp_struct (list_carval l_list) (list_cdrval l_list) tag.
 
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=

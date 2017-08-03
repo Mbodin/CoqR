@@ -276,17 +276,30 @@ Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_poin
   if_defined S (read_SExp S p) (fun p_ =>
     if_defined S (write_SExp S p (map p_)) f).
 
-(** Updating the first element of a list. **)
-Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
+(** Updating a list. **)
+Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
   if_defined S (read_SExp S p) (fun p_ =>
     if_defined S (get_NonVector p_) (fun p_ =>
       if_defined S (get_listSxp p_) (fun p_list =>
-        let p_list := set_car_list car p_list in
+        let p_list := f p_list in
         let p_ := {|
-            NonVector_SExpRec_header := NonVector_SExpRec_header p_ ;
+            NonVector_SExpRec_header := p_ ;
             NonVector_SExpRec_data := p_list
           |} in
-        if_defined S (write_SExp S p p_) f))).
+        if_defined S (write_SExp S p p_) cont))).
+
+(** Updating the first element of a list. **)
+Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map_list S (set_car_list car) p f.
+
+(** Updating the tail of a list. **)
+Definition set_cdr A S cdr (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map_list S (set_cdr_list cdr) p f.
+
+(** Updating the tag of a list. **)
+Definition set_tag A S tag (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map_list S (set_tag_list tag) p f.
+
 
 (** ** Monads to View Basic Language Elements Differently **)
 
