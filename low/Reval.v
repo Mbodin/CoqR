@@ -138,7 +138,7 @@ Definition NewEnvironment runs S (namelist valuelist rho : SExpRec_pointer) : re
       result_success S newrho).
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
-Definition mkPROMISE S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
   map_pointer S set_named_plural expr (fun S =>
     let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
     result_success S s).
@@ -509,7 +509,7 @@ Definition applyClosure runs S
               (fold_left_listSxp runs S formals actuals (fun S a f_car f_tag =>
                 read_as_list S a (fun a_ a_list =>
                   ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
-                    if_success (mkPROMISE S f_car newrho) (fun S newprom =>
+                    if_success (mkPromise S f_car newrho) (fun S newprom =>
                       set_car S newprom a (fun S =>
                         map_pointer S (set_missing 2 ltac:(nbits_ok)) a (fun S =>
                           result_success S (list_cdrval a_list))))

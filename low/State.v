@@ -191,14 +191,6 @@ Instance context_type_Comparable : Comparable context_type.
   prove_comparable_simple_inductive.
 Defined.
 
-(*
-TODO: write about contexts in the report.
-The on.exit field is crucial for correctness.
-Furthermore, contexts also describe whether the result was due to an error or not.
-We do not model precisely errors, as we consider that they completely break the control flow.
-Such formalisation choices should be precised in the report.
-*)
-
 (** Note: not all fields have been modeled. See the report or the
  * original definition in the file include/Defn.h for more details. **)
 (** RCNTXT, *context **)
@@ -281,16 +273,62 @@ Definition empty_memory : memory.
   - introv D. repeat rewrite all_locations_nth. math.
 Defined.
 
+(* FIXME: Initialisation
+
+  Initialisation is difficult.
+  It uses functions such as [defineVar] or [NewEnvironment] that updates the heap,
+  as well as doing several things that need the structure [runs] (for instance,
+  folding along a list).
+  It would thus be natural to perform it at the end, once all definitions have been
+  defined. However, some global variables (for instance [R_DotsSymbol]) are used
+  in the evaluation function.
+  One way would be to add these global variables to a global parameter,
+  then instantiate this parameter after every functions have been defined.
+*)
+
 
 (* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
 Definition NULL : SExpRec_pointer := None.
 Definition R_NilValue : SExpRec_pointer := NULL.
 Definition R_DotsSymbol : SExpRec_pointer := NULL. (* TODO: See names.c *)
-Definition R_GlobalEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
-Definition R_EmptyEnv : SExpRec_pointer := NULL. (* TODO: See envir.c *)
-Definition R_BaseEnv : SExpRec_pointer := NULL. (* TODO: See envir.c. TODO: Must be after the definition of [NewEnvironment], now in Reval.v. *)
 Definition R_UnboundValue : SExpRec_pointer := NULL. (* TODO: See names.c *)
 Definition R_MissingArg : SExpRec_pointer := NULL. (* TODO: See names.c *)
+
+(** Some initialisations from the functions [InitBaseEnv]
+  * and [InitGlobalEnv] in main/envir.c. **)
+
+Definition initial_allocations :=
+  let newEnvironmentEmpty S rho :=
+    (** This function behaves like [NewEnvironment] when one
+      * of its first two argument pointers are [R_NilValue]. **)
+    alloc_memory_SExp S (make_SExpRec_env R_NilValue R_NilValue rho) in
+  let S := empty_memory in
+  let (S, R_EmptyEnv) := newEnvironmentEmpty S R_NilValue in
+  let (S, R_BaseEnv) := newEnvironmentEmpty S R_EmptyEnv in
+  let (S, R_GlobalEnv) := newEnvironmentEmpty S R_BaseEnv in
+  let (S, R_BaseNamespace) := newEnvironmentEmpty S R_GlobalEnv in
+  (* TODO: R_PreserveObject and SET_SYMVALUE *)
+  let (S, R_NamespaceRegistry) := newEnvironmentEmpty S R_NilValue in
+  (* TODO: R_PreserveObject and defineVar *)
+  (S, R_EmptyEnv, R_BaseEnv, R_GlobalEnv, R_BaseNamespace, R_NamespaceRegistry).
+
+Definition initial_memory :=
+  let '(m, _, _, _, _, _) := initial_allocations in m.
+
+Definition R_EmptyEnv :=
+  let '(_, R_EmptyEnv, _, _, _, _) := initial_allocations in R_EmptyEnv.
+
+Definition R_BaseEnv :=
+  let '(_, _, R_BaseEnv, _, _, _) := initial_allocations in R_BaseEnv.
+
+Definition R_GlobalEnv :=
+  let '(_, _, _, R_GlobalEnv, _, _) := initial_allocations in R_GlobalEnv.
+
+Definition R_BaseNamespace :=
+  let '(_, _, _, _, R_BaseNamespace, _) := initial_allocations in R_BaseNamespace.
+
+Definition R_NamespaceRegistry :=
+  let '(_, _, _, _, _, R_NamespaceRegistry) := initial_allocations in R_NamespaceRegistry.
 
 
 (** ** Initial State **)
@@ -306,11 +344,9 @@ Definition R_Toplevel := {|
      conexit := R_NilValue
   |}.
 
-Definition empty_state := {|
-    state_memory := empty_memory ;
+Definition initial_state := {|
+    state_memory := initial_memory ;
     state_context := R_Toplevel
   |}.
-
-Definition initial_state := empty_state.
 
 
