@@ -17,6 +17,17 @@ Record runs_type : Type := runs_type_intro {
   }.
 
 
+Section Parameterised.
+
+Variable runs : runs_type.
+
+Variable Globals : Globals.
+
+Let R_DotsSymbol := R_DotsSymbol Globals.
+Let R_UnboundValue := R_UnboundValue Globals.
+Let R_MissingArg := R_MissingArg Globals.
+
+
 (** * Interpreter functions **)
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
@@ -28,7 +39,7 @@ Record runs_type : Type := runs_type_intro {
  * represent frequent programming pattern in its source code. **)
 
 (** A basic C-like loop **)
-Definition while A runs S (a : A) expr stat : result A :=
+Definition while A S (a : A) expr stat : result A :=
   if_success (expr S a) (fun S b =>
     if b : bool then
       if_success (stat S a) (fun S a =>
@@ -39,10 +50,10 @@ Definition while A runs S (a : A) expr stat : result A :=
 (** Looping through a list is a frequent pattern in R source code.
  * [fold_left_listSxp_gen] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen A runs S (l : SExpRec_pointer) (a : A)
+Definition fold_left_listSxp_gen A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
   if_success
-    (while runs S (l, a) (fun S la =>
+    (while S (l, a) (fun S la =>
       let (l, a) := la in
       result_success S (decide (l <> R_NilValue)))
       (fun S la =>
@@ -56,9 +67,9 @@ Definition fold_left_listSxp_gen A runs S (l : SExpRec_pointer) (a : A)
 
 (* [fold_left_listSxp] corresponds to the C code
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp A runs S (l : SExpRec_pointer) (a : A)
+Definition fold_left_listSxp A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
-  fold_left_listSxp_gen runs S l a (fun S a _ _ l_list =>
+  fold_left_listSxp_gen S l a (fun S a _ _ l_list =>
     iterate S a (list_carval l_list) (list_tagval l_list)).
 
 
@@ -80,7 +91,7 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
    |} in
   state_with_context S cptr.
 
-Definition endcontext runs S :=
+Definition endcontext S :=
   let cptr := R_GlobalContext S in
   if_success
     (ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
@@ -117,10 +128,10 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
   * [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
   * the compiled C files references [Rf_NewEnvironment] and not
   * [NewEnvironment]. These two functions are exactly the same. **)
-Definition NewEnvironment runs S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   if_success
-    (while runs S (valuelist, namelist) (fun S v_n =>
+    (while S (valuelist, namelist) (fun S v_n =>
       let (v, n) := v_n in
       result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)))
       (fun S v_n =>
@@ -201,9 +212,9 @@ Definition set_missing (m : nat) I (e_ : SExpRec) :=
   set_gp (write_nbits 0 (nat_to_nbits m I : nbits 4) (gp e_) ltac:(nbits_ok)) e_.
 Arguments set_missing : clear implicits.
 
-Definition matchArgs_first runs S
+Definition matchArgs_first S
     (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
-  if_success (fold_left_listSxp runs S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
+  if_success (fold_left_listSxp S formals (actuals, nil) (fun S a_fargusedrev _ f_tag =>
     let (a, fargusedrev) := a_fargusedrev in
     read_as_sym S f_tag (fun f_tag_ f_tag_sym =>
       read_as_VectorChar S (sym_pname f_tag_sym) (fun f_tag_sym_name_ =>
@@ -212,7 +223,7 @@ Definition matchArgs_first runs S
           read_as_list S a (fun a_ a_list =>
             result_success S (list_cdrval a_list, fargusedi :: fargusedrev)) in
         ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-          if_success (fold_left_listSxp_gen runs S supplied 0 (fun S fargusedi b b_ b_list =>
+          if_success (fold_left_listSxp_gen S supplied 0 (fun S fargusedi b b_ b_list =>
             let b_tag := list_tagval b_list in
             read_as_sym S b_tag (fun b_tag_ b_tag_sym =>
               read_as_VectorChar S (sym_pname b_tag_sym) (fun b_tag_sym_name_ =>
@@ -239,9 +250,9 @@ Definition matchArgs_first runs S
       let (a, fargusedrev) := a_fargusedrev in
       result_success S (List.rev fargusedrev)).
 
-Definition matchArgs_second runs S
+Definition matchArgs_second S
     (actuals formals supplied : SExpRec_pointer) fargused : result SExpRec_pointer :=
-  if_success (fold_left_listSxp runs S formals (actuals, fargused, R_NilValue, false) (fun S a_fargused_dots_seendots _ f_tag =>
+  if_success (fold_left_listSxp S formals (actuals, fargused, R_NilValue, false) (fun S a_fargused_dots_seendots _ f_tag =>
     let '(a, fargused, dots, seendots) := a_fargused_dots_seendots in
     match fargused with
     | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
@@ -253,7 +264,7 @@ Definition matchArgs_second runs S
         ifb f_tag = R_DotsSymbol /\ ~ seendots then
           continuation S a true
         else
-          if_success (fold_left_listSxp_gen runs S supplied fargusedi (fun S fargusedi b b_ b_list =>
+          if_success (fold_left_listSxp_gen S supplied fargusedi (fun S fargusedi b b_ b_list =>
             let b_tag := list_tagval b_list in
             ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
               if_success (pmatch S f_tag b_tag seendots) (fun S pmatch =>
@@ -283,10 +294,10 @@ Definition matchArgs_second runs S
       let '(a, fargused, dots, seendots) := a_fargused_dots_seendots in
       result_success S dots).
 
-Definition matchArgs_third runs S
+Definition matchArgs_third S
     (formals actuals supplied : SExpRec_pointer) : result unit :=
   if_success
-    (while runs S (formals, actuals, supplied, false) (fun S f_a_b_seendots =>
+    (while S (formals, actuals, supplied, false) (fun S f_a_b_seendots =>
       let '(f, a, b, seendots) := f_a_b_seendots in
       result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)))
       (fun S f_a_b_seendots =>
@@ -312,10 +323,10 @@ Definition matchArgs_third runs S
     (fun S f_a_b_seendots =>
       result_success S tt).
 
-Definition matchArgs_dots runs S
+Definition matchArgs_dots S
     (dots supplied : SExpRec_pointer) : result unit :=
   map_pointer S (set_missing 0 ltac:(nbits_ok)) dots (fun S =>
-    if_success (fold_left_listSxp runs S supplied 0 (fun S i a _ =>
+    if_success (fold_left_listSxp S supplied 0 (fun S i a _ =>
       if_defined S (read_SExp S a) (fun a_ =>
         ifb argused a_ = 0 then
           result_success S (1 + i)
@@ -327,7 +338,7 @@ Definition matchArgs_dots runs S
         else
           let (S, a) := allocList S i in
           map_pointer S (set_type DotSxp) a (fun S =>
-            if_success (fold_left_listSxp_gen runs S supplied a (fun S f b b_ b_list =>
+            if_success (fold_left_listSxp_gen S supplied a (fun S f b b_ b_list =>
               ifb argused b_ <> 0 then
                 result_success S f
               else
@@ -347,9 +358,9 @@ Definition matchArgs_dots runs S
                 set_car S a dots (fun S =>
                   result_success S tt))))).
 
-Definition matchArgs_check runs S
+Definition matchArgs_check S
     (supplied : SExpRec_pointer) : result unit :=
-  if_success (fold_left_listSxp_gen runs S supplied false (fun S acc b b_ b_list =>
+  if_success (fold_left_listSxp_gen S supplied false (fun S acc b b_ b_list =>
     result_success S (decide (acc \/ argused b_ <> 0))))
     (fun S b =>
       if b : bool then
@@ -358,26 +369,26 @@ Definition matchArgs_check runs S
         result_success S tt).
 
 
-Definition matchArgs runs S
+Definition matchArgs S
     (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
-  if_success (fold_left_listSxp runs S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
+  if_success (fold_left_listSxp S formals (R_NilValue, 0) (fun S actuals_argi _ _ =>
       let (actuals, argi) := actuals_argi in
       let (S, actuals) := cons S R_MissingArg actuals in
       result_success S (actuals, 1 + argi)))
     (fun S actuals_argi =>
       let (actuals, argi) := actuals_argi in
-      if_success (fold_left_listSxp runs S supplied tt (fun S _ b _ =>
+      if_success (fold_left_listSxp S supplied tt (fun S _ b _ =>
         map_pointer S (set_argused 0 ltac:(nbits_ok)) b (fun S =>
           result_success S tt)))
         (fun S _ =>
-          if_success (matchArgs_first runs S formals actuals supplied) (fun S fargused =>
-            if_success (matchArgs_second runs S actuals formals supplied fargused) (fun S dots =>
-              if_success (matchArgs_third runs S formals actuals supplied) (fun S _ =>
+          if_success (matchArgs_first S formals actuals supplied) (fun S fargused =>
+            if_success (matchArgs_second S actuals formals supplied fargused) (fun S dots =>
+              if_success (matchArgs_third S formals actuals supplied) (fun S _ =>
                 ifb dots <> R_NilValue then
-                  if_success (matchArgs_dots runs S dots supplied) (fun S _ =>
+                  if_success (matchArgs_dots S dots supplied) (fun S _ =>
                     result_success S actuals)
                 else
-                  if_success (matchArgs_check runs S supplied) (fun S _ =>
+                  if_success (matchArgs_check S supplied) (fun S _ =>
                     result_success S actuals)))))).
 
 
@@ -392,16 +403,16 @@ Definition is_special_symbol e_ :=
 Definition set_no_special_symbols (e_ : SExpRec) :=
   set_gp (write_nbit 12 (gp e_) ltac:(nbits_ok) true) e_.
 
-Definition R_envHasNoSpecialSymbols runs S (env : SExpRec_pointer) : result bool :=
+Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read_as_env S env (fun env_ env_env =>
     (* A note about hashtabs commented out. *)
-    fold_left_listSxp runs S (env_frame env_env) true (fun S b frame_car frame_tag =>
+    fold_left_listSxp S (env_frame env_env) true (fun S b frame_car frame_tag =>
       if_defined S (read_SExp S frame_tag) (fun frame_tag_ =>
         if is_special_symbol frame_tag_ then
           result_success S false
         else result_success S b))).
 
-Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : SExpRec_pointer) : result unit :=
+Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result unit :=
   ifb addVars = R_NilValue then
     result_success S tt
   else
@@ -411,7 +422,7 @@ Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : 
       else
         if_is_list S addVars_ (fun addVars_ addVars_list =>
           if_success
-            (fold_left_listSxp_gen runs S (list_cdrval addVars_list) addVars
+            (fold_left_listSxp_gen S (list_cdrval addVars_list) addVars
               (fun S aprev a a_ a_list =>
                 result_success S a))
             (fun S aprev =>
@@ -426,10 +437,10 @@ Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : 
                       NonVector_SExpRec_data := env_env
                     |} in
                   if_defined S (write_SExp S env env_) (fun S =>
-                    fold_left_listSxp_gen runs S (list_cdrval addVars_list) tt (fun S _ _ end_ end_list =>
+                    fold_left_listSxp_gen S (list_cdrval addVars_list) tt (fun S _ _ end_ end_list =>
                       let end_tag := list_tagval end_list in
                       if_success
-                        (while runs S (addVars, addVars, R_NilValue) (fun S addVars_s_sprev =>
+                        (while S (addVars, addVars, R_NilValue) (fun S addVars_s_sprev =>
                           let '(addVars, s, sprev) := addVars_s_sprev in
                           result_success S (decide (s <> env)))
                           (fun S addVars_s_sprev =>
@@ -461,7 +472,7 @@ Definition addMissingVarsToNewEnv (runs : runs_type) (S : state) (env addVars : 
 * in the file main/eval.c. **)
 
 (** The function [forcePromise] evaluates a promise if needed. **)
-Definition forcePromise runs S (e : SExpRec_pointer) : result SExpRec_pointer :=
+Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
   read_as_prom S e (fun e_ e_prom =>
     ifb prom_value e_prom = R_UnboundValue then
       let cont S :=
@@ -490,11 +501,11 @@ Definition forcePromise runs S (e : SExpRec_pointer) : result SExpRec_pointer :=
       else cont S
     else result_success S (prom_value e_prom)).
 
-Definition R_execClosure (runs : runs_type) (S : state)
+Definition R_execClosure (S : state)
     (call newrho sysparent rho arglist op : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[R_execClosure] TODO".
 
-Definition applyClosure runs S
+Definition applyClosure S
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
   if_defined S (read_SExp S rho) (fun rho_ =>
     ifb type rho_ <> EnvSxp then
@@ -503,10 +514,10 @@ Definition applyClosure runs S
       read_as_clo S op (fun op_ op_clo =>
         let formals := clo_formals op_clo in
         let savedrho := clo_env op_clo in
-        if_success (matchArgs runs S formals arglist call) (fun S actuals =>
-          if_success (NewEnvironment runs S formals actuals savedrho) (fun S newrho =>
+        if_success (matchArgs S formals arglist call) (fun S actuals =>
+          if_success (NewEnvironment S formals actuals savedrho) (fun S newrho =>
             if_success
-              (fold_left_listSxp runs S formals actuals (fun S a f_car f_tag =>
+              (fold_left_listSxp S formals actuals (fun S a f_car f_tag =>
                 read_as_list S a (fun a_ a_list =>
                   ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
                     if_success (mkPromise S f_car newrho) (fun S newprom =>
@@ -517,15 +528,15 @@ Definition applyClosure runs S
               (fun S _ =>
                 if_success
                   (ifb suppliedvars <> R_NilValue then
-                     addMissingVarsToNewEnv runs S newrho suppliedvars
+                     addMissingVarsToNewEnv S newrho suppliedvars
                    else result_success S tt) (fun S _ =>
                   if_success
-                    (if_success (R_envHasNoSpecialSymbols runs S newrho) (fun S b =>
+                    (if_success (R_envHasNoSpecialSymbols S newrho) (fun S b =>
                        if b then
                          map_pointer S set_no_special_symbols newrho (fun S =>
                            result_success S tt)
                        else result_success S tt)) (fun S _ =>
-                    R_execClosure runs S call newrho
+                    R_execClosure S call newrho
                       (ifb callflag (R_GlobalContext S) = Ctxt_Generic then
                          sysparent (R_GlobalContext S)
                        else rho)
@@ -533,7 +544,7 @@ Definition applyClosure runs S
 
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
-Definition eval runs S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
   if_defined S (read_SExp S e) (fun e_ =>
     match type e_ with
     | NilSxp
@@ -582,7 +593,7 @@ Definition eval runs S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
           | PromSxp =>
             if_is_prom S e_ (fun e_ e_prom =>
               ifb prom_value e_prom = R_UnboundValue then
-                if_success (forcePromise runs S e) (fun S e =>
+                if_success (forcePromise S e) (fun S e =>
                   result_success S e)
               else result_success S e)
           | LangSxp =>
@@ -614,31 +625,5 @@ Definition eval runs S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
           end)
     end).
 
-
-(** * Closing the loop **)
-
-Fixpoint runs max_step : runs_type :=
-  match max_step with
-  | O => {|
-      runs_while := fun _ S _ _ _ => result_bottom S ;
-      runs_eval := fun S _ _ => result_bottom S
-    |}
-  | S max_step =>
-    let wrap {A : Type} (f : runs_type -> A) : A :=
-      f (runs max_step) in
-    let wrap_dep {A} (f : forall B : Type, runs_type -> A B) B : A B :=
-      f B (runs max_step) in {|
-      runs_while := wrap_dep while ;
-      runs_eval := wrap eval
-    |}
-  end.
-
-
-(** * Proofs **)
-
-(** It would be nice to prove that the read-eval-print-loop can not
- * return a [result_impossible]. **)
-
-(** The property we want to eventually prove is that if [eval] returns
- * a result, then the C function eval does similarly. **)
+End Parameterised.
 

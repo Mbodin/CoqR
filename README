@@ -29,7 +29,7 @@ Rinternals.v.
 
 *** State.v
 
-This file provides a model for the C memory, as well as most R global variables.
+This file provides a model for the C memory.
 
 *** Monads.v
 
@@ -38,6 +38,10 @@ This file provides monads to manipulate R objects easily.
 *** Reval.v
 
 A Coq formalisation of the evaluation functions of R in its C code.
+
+*** Rinit.v
+
+Initialises global variables.
 
 *** Relation.v
 

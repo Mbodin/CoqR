@@ -1,5 +1,5 @@
 (** Monads.
- * Provides a model for the C memory, as well as most R global variables. **)
+ * Provides a model for the C memory. **)
 
 Set Implicit Arguments.
 Require Export String.
@@ -273,6 +273,9 @@ Definition empty_memory : memory.
   - introv D. repeat rewrite all_locations_nth. math.
 Defined.
 
+Definition NULL : SExpRec_pointer := None.
+Definition R_NilValue : SExpRec_pointer := NULL.
+
 (* FIXME: Initialisation
 
   Initialisation is difficult.
@@ -284,69 +287,14 @@ Defined.
   in the evaluation function.
   One way would be to add these global variables to a global parameter,
   then instantiate this parameter after every functions have been defined.
+
+  TODO: Implement this.
 *)
 
-
-(* TODO: Fix this. Also track “None” in the Coq and replace it by the corresponding value. *)
-Definition NULL : SExpRec_pointer := None.
-Definition R_NilValue : SExpRec_pointer := NULL.
-Definition R_DotsSymbol : SExpRec_pointer := NULL. (* TODO: See names.c *)
-Definition R_UnboundValue : SExpRec_pointer := NULL. (* TODO: See names.c *)
-Definition R_MissingArg : SExpRec_pointer := NULL. (* TODO: See names.c *)
-
-(** Some initialisations from the functions [InitBaseEnv]
-  * and [InitGlobalEnv] in main/envir.c. **)
-
-Definition initial_allocations :=
-  let newEnvironmentEmpty S rho :=
-    (** This function behaves like [NewEnvironment] when one
-      * of its first two argument pointers are [R_NilValue]. **)
-    alloc_memory_SExp S (make_SExpRec_env R_NilValue R_NilValue rho) in
-  let S := empty_memory in
-  let (S, R_EmptyEnv) := newEnvironmentEmpty S R_NilValue in
-  let (S, R_BaseEnv) := newEnvironmentEmpty S R_EmptyEnv in
-  let (S, R_GlobalEnv) := newEnvironmentEmpty S R_BaseEnv in
-  let (S, R_BaseNamespace) := newEnvironmentEmpty S R_GlobalEnv in
-  (* TODO: R_PreserveObject and SET_SYMVALUE *)
-  let (S, R_NamespaceRegistry) := newEnvironmentEmpty S R_NilValue in
-  (* TODO: R_PreserveObject and defineVar *)
-  (S, R_EmptyEnv, R_BaseEnv, R_GlobalEnv, R_BaseNamespace, R_NamespaceRegistry).
-
-Definition initial_memory :=
-  let '(m, _, _, _, _, _) := initial_allocations in m.
-
-Definition R_EmptyEnv :=
-  let '(_, R_EmptyEnv, _, _, _, _) := initial_allocations in R_EmptyEnv.
-
-Definition R_BaseEnv :=
-  let '(_, _, R_BaseEnv, _, _, _) := initial_allocations in R_BaseEnv.
-
-Definition R_GlobalEnv :=
-  let '(_, _, _, R_GlobalEnv, _, _) := initial_allocations in R_GlobalEnv.
-
-Definition R_BaseNamespace :=
-  let '(_, _, _, _, R_BaseNamespace, _) := initial_allocations in R_BaseNamespace.
-
-Definition R_NamespaceRegistry :=
-  let '(_, _, _, _, _, R_NamespaceRegistry) := initial_allocations in R_NamespaceRegistry.
-
-
-(** ** Initial State **)
-
-Definition R_Toplevel := {|
-     nextcontext := None ;
-     callflag := Ctxt_TopLevel ;
-     promargs := R_NilValue ;
-     callfun := R_NilValue ;
-     sysparent := R_BaseEnv ;
-     call := R_NilValue ;
-     cloenv := R_BaseEnv ;
-     conexit := R_NilValue
-  |}.
-
-Definition initial_state := {|
-    state_memory := initial_memory ;
-    state_context := R_Toplevel
-  |}.
+Record Globals := {
+    R_DotsSymbol : SExpRec_pointer ;
+    R_UnboundValue : SExpRec_pointer ;
+    R_MissingArg : SExpRec_pointer
+  }.
 
 
