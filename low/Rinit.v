@@ -4,11 +4,74 @@
 Set Implicit Arguments.
 Require Export Reval.
 
+(* TODO: to bew sorted. *)
+Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer.
+Admitted. (* TODO. See main/names.c. It creates a new symbol object from this string. *)
 
-(** * Initial Memory **)
+Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer.
+Admitted. (* TODO. See main/envir.c. *)
+
+(** * Initial State and Memory **)
 
 (** Some initialisations from the functions [InitBaseEnv]
-  * and [InitGlobalEnv] in main/envir.c. **)
+  * and [InitGlobalEnv] in main/envir.c. These initialisations
+  * are packed into a function [init_Globals]. **)
+
+Definition empty_context := {|
+     nextcontext := None ;
+     callflag := Ctxt_TopLevel ;
+     promargs := R_NilValue ;
+     callfun := R_NilValue ;
+     sysparent := NULL ;
+     call := R_NilValue ;
+     cloenv := NULL ;
+     conexit := R_NilValue
+  |}.
+
+Definition empty_state := {|
+    state_memory := empty_memory ;
+    state_context := empty_context
+  |}.
+
+(* TODO: SymbolSHortcuts from main/names.c. We need a nice way to represent it. *)
+
+Definition init_R_Toplevel runs : result context :=
+  let S := empty_state in
+  if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_EmptyEnv =>
+    if_success (NewEnvironment runs S R_NilValue R_NilValue R_EmptyEnv) (fun S R_BaseEnv =>
+      if_success (NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv) (fun S R_GlobalEnv =>
+        if_success (NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv) (fun S R_BaseNamespace =>
+          if_success (install runs S ".BaseNamespaceEnv") (fun S BaseNamespaceEnvSym =>
+            read_as_sym S BaseNamespaceEnvSym (fun BaseNamespaceEnvSym_ BaseNamespaceEnvSym_sym =>
+              let BaseNamespaceEnvSym_sym := {|
+                  sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
+                  sym_value := R_BaseNamespace ;
+                  sym_internal := sym_internal BaseNamespaceEnvSym_sym
+                |} in
+              let BaseNamespaceEnvSym_ := {|
+                  NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
+                  NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
+                |} in
+              if_defined S (write_SExp S BaseNamespaceEnvSym BaseNamespaceEnvSym_) (fun S =>
+                (* R_BaseNamespaceName *)
+                if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_NamespaceRegistry =>
+                  if_success (defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry) (fun S _ =>
+                    result_success S {|
+                        nextcontext := None ;
+                        callflag := Ctxt_TopLevel ;
+                        promargs := R_NilValue ;
+                        callfun := R_NilValue ;
+                        sysparent := R_BaseEnv ;
+                        call := R_NilValue ;
+                        cloenv := R_BaseEnv ;
+                        conexit := R_NilValue
+                      |}))))))))).
+
+Definition init_Globals runs : result Globals :=
+  .
+
+(* TODO: Add in the repport that [R_PreserveObject] is just a function telling the garbage
+   collector that the object should not be freed. *)
 
 (* TODO: We are now *after* the definition of [NewEnvironment] and can now use it.
  * I think that it would be easy to use tactics to check that [initial_allocations]
@@ -24,7 +87,7 @@ Definition initial_allocations :=
   let (S, R_BaseEnv) := newEnvironmentEmpty S R_EmptyEnv in
   let (S, R_GlobalEnv) := newEnvironmentEmpty S R_BaseEnv in
   let (S, R_BaseNamespace) := newEnvironmentEmpty S R_GlobalEnv in
-  (* TODO: R_PreserveObject and SET_SYMVALUE *)
+  (* TODO: SET_SYMVALUE *)
   let (S, R_NamespaceRegistry) := newEnvironmentEmpty S R_NilValue in
   (* TODO: R_PreserveObject and defineVar *)
   (S, R_EmptyEnv, R_BaseEnv, R_GlobalEnv, R_BaseNamespace, R_NamespaceRegistry).
@@ -48,8 +111,6 @@ Definition R_NamespaceRegistry :=
   let '(_, _, _, _, _, R_NamespaceRegistry) := initial_allocations in R_NamespaceRegistry.
 
 
-(** * Initial State **)
-
 Definition R_Toplevel := {|
      nextcontext := None ;
      callflag := Ctxt_TopLevel ;
@@ -66,10 +127,6 @@ Definition initial_state := {|
     state_context := R_Toplevel
   |}.
 
-
-Definition Globals : Globals := {|
-    TODO
-  |}.
 
 
 (** * Closing the Loop **)
@@ -92,6 +149,8 @@ Fixpoint runs max_step : runs_type :=
 
 
 (** * Proofs **)
+
+(* TODO: move to another file, like Rinvariant.v. *)
 
 (* TODO *)
 

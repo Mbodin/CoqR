@@ -288,7 +288,7 @@ Definition R_NilValue : SExpRec_pointer := NULL.
   One way would be to add these global variables to a global parameter,
   then instantiate this parameter after every functions have been defined.
 
-  TODO: Implement this.
+  TODO: Implement this and write it in the report.
 *)
 
 Record Globals := {
