@@ -5,11 +5,13 @@ Set Implicit Arguments.
 Require Export Reval.
 
 (* TODO: to bew sorted. *)
-Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer.
-Admitted. (* TODO. See main/names.c. It creates a new symbol object from this string. *)
+Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer :=
+  result_not_implemented "[install] TODO".
+(* TODO. See main/names.c. It creates a new symbol object from this string. *)
 
-Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer.
-Admitted. (* TODO. See main/envir.c. *)
+Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[defineVar] TODO".
+(* TODO. See main/envir.c. *)
 
 (** * Initial State and Memory **)
 
@@ -35,37 +37,41 @@ Definition empty_state := {|
 
 (* TODO: SymbolSHortcuts from main/names.c. We need a nice way to represent it. *)
 
-Definition init_R_Toplevel runs : result context :=
-  let S := empty_state in
+Definition InitBaseEnv runs S :=
   if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_EmptyEnv =>
     if_success (NewEnvironment runs S R_NilValue R_NilValue R_EmptyEnv) (fun S R_BaseEnv =>
-      if_success (NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv) (fun S R_GlobalEnv =>
-        if_success (NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv) (fun S R_BaseNamespace =>
-          if_success (install runs S ".BaseNamespaceEnv") (fun S BaseNamespaceEnvSym =>
-            read_as_sym S BaseNamespaceEnvSym (fun BaseNamespaceEnvSym_ BaseNamespaceEnvSym_sym =>
-              let BaseNamespaceEnvSym_sym := {|
-                  sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
-                  sym_value := R_BaseNamespace ;
-                  sym_internal := sym_internal BaseNamespaceEnvSym_sym
-                |} in
-              let BaseNamespaceEnvSym_ := {|
-                  NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
-                  NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
-                |} in
-              if_defined S (write_SExp S BaseNamespaceEnvSym BaseNamespaceEnvSym_) (fun S =>
-                (* R_BaseNamespaceName *)
-                if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_NamespaceRegistry =>
-                  if_success (defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry) (fun S _ =>
-                    result_success S {|
-                        nextcontext := None ;
-                        callflag := Ctxt_TopLevel ;
-                        promargs := R_NilValue ;
-                        callfun := R_NilValue ;
-                        sysparent := R_BaseEnv ;
-                        call := R_NilValue ;
-                        cloenv := R_BaseEnv ;
-                        conexit := R_NilValue
-                      |}))))))))).
+      result_success S (R_EmptyEnv, R_BaseEnv))).
+
+Definition InitGlobalEnv runs S R_BaseSymbol R_BaseEnv :=
+  if_success (NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv) (fun S R_GlobalEnv =>
+    if_success (NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv) (fun S R_BaseNamespace =>
+      if_success (install runs S ".BaseNamespaceEnv") (fun S BaseNamespaceEnvSym =>
+        read_as_sym S BaseNamespaceEnvSym (fun BaseNamespaceEnvSym_ BaseNamespaceEnvSym_sym =>
+          let BaseNamespaceEnvSym_sym := {|
+              sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
+              sym_value := R_BaseNamespace ;
+              sym_internal := sym_internal BaseNamespaceEnvSym_sym
+            |} in
+          let BaseNamespaceEnvSym_ := {|
+              NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
+              NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
+            |} in
+          if_defined S (write_SExp S BaseNamespaceEnvSym BaseNamespaceEnvSym_) (fun S =>
+            (* R_BaseNamespaceName *)
+            if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_NamespaceRegistry =>
+              if_success (defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry) (fun S _ =>
+                
+
+                result_success S {|
+                    nextcontext := None ;
+                    callflag := Ctxt_TopLevel ;
+                    promargs := R_NilValue ;
+                    callfun := R_NilValue ;
+                    sysparent := R_BaseEnv ;
+                    call := R_NilValue ;
+                    cloenv := R_BaseEnv ;
+                    conexit := R_NilValue
+                  |}
 
 Definition init_Globals runs : result Globals :=
   .

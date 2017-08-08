@@ -276,21 +276,6 @@ Defined.
 Definition NULL : SExpRec_pointer := None.
 Definition R_NilValue : SExpRec_pointer := NULL.
 
-(* FIXME: Initialisation
-
-  Initialisation is difficult.
-  It uses functions such as [defineVar] or [NewEnvironment] that updates the heap,
-  as well as doing several things that need the structure [runs] (for instance,
-  folding along a list).
-  It would thus be natural to perform it at the end, once all definitions have been
-  defined. However, some global variables (for instance [R_DotsSymbol]) are used
-  in the evaluation function.
-  One way would be to add these global variables to a global parameter,
-  then instantiate this parameter after every functions have been defined.
-
-  TODO: Implement this and write it in the report.
-*)
-
 Record Globals := {
     R_DotsSymbol : SExpRec_pointer ;
     R_UnboundValue : SExpRec_pointer ;
