@@ -38,40 +38,48 @@ Definition empty_state := {|
 (* TODO: SymbolSHortcuts from main/names.c. We need a nice way to represent it. *)
 
 Definition InitBaseEnv runs S :=
-  if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_EmptyEnv =>
-    if_success (NewEnvironment runs S R_NilValue R_NilValue R_EmptyEnv) (fun S R_BaseEnv =>
-      result_success S (R_EmptyEnv, R_BaseEnv))).
+  let%success R_EmptyEnv :=
+    NewEnvironment runs S R_NilValue R_NilValue R_NilValue using S in
+  let%success R_BaseEnv :=
+    NewEnvironment runs S R_NilValue R_NilValue R_EmptyEnv using S in
+  result_success S (R_EmptyEnv, R_BaseEnv).
 
 Definition InitGlobalEnv runs S R_BaseSymbol R_BaseEnv :=
-  if_success (NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv) (fun S R_GlobalEnv =>
-    if_success (NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv) (fun S R_BaseNamespace =>
-      if_success (install runs S ".BaseNamespaceEnv") (fun S BaseNamespaceEnvSym =>
-        read_as_sym S BaseNamespaceEnvSym (fun BaseNamespaceEnvSym_ BaseNamespaceEnvSym_sym =>
-          let BaseNamespaceEnvSym_sym := {|
-              sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
-              sym_value := R_BaseNamespace ;
-              sym_internal := sym_internal BaseNamespaceEnvSym_sym
-            |} in
-          let BaseNamespaceEnvSym_ := {|
-              NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
-              NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
-            |} in
-          if_defined S (write_SExp S BaseNamespaceEnvSym BaseNamespaceEnvSym_) (fun S =>
-            (* R_BaseNamespaceName *)
-            if_success (NewEnvironment runs S R_NilValue R_NilValue R_NilValue) (fun S R_NamespaceRegistry =>
-              if_success (defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry) (fun S _ =>
-                
+  let%success R_GlobalEnv :=
+    NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv using S in
+  let%success R_BaseNamespace :=
+    NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv using S in
+  let%success BaseNamespaceEnvSym :=
+    install runs S ".BaseNamespaceEnv" using S in
+  read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
+    BaseNamespaceEnvSym using S in
+  let BaseNamespaceEnvSym_sym := {|
+      sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
+      sym_value := R_BaseNamespace ;
+      sym_internal := sym_internal BaseNamespaceEnvSym_sym
+    |} in
+  let BaseNamespaceEnvSym_ := {|
+      NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
+      NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
+    |} in
+  write%defined BaseNamespaceEnvSym := BaseNamespaceEnvSym_ using S in
+  (* R_BaseNamespaceName *)
+  let%success R_NamespaceRegistry :=
+    NewEnvironment runs S R_NilValue R_NilValue R_NilValue using S in
+  let%success _ :=
+    defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
+        
 
-                result_success S {|
-                    nextcontext := None ;
-                    callflag := Ctxt_TopLevel ;
-                    promargs := R_NilValue ;
-                    callfun := R_NilValue ;
-                    sysparent := R_BaseEnv ;
-                    call := R_NilValue ;
-                    cloenv := R_BaseEnv ;
-                    conexit := R_NilValue
-                  |}
+  result_success S {|
+      nextcontext := None ;
+      callflag := Ctxt_TopLevel ;
+      promargs := R_NilValue ;
+      callfun := R_NilValue ;
+      sysparent := R_BaseEnv ;
+      call := R_NilValue ;
+      cloenv := R_BaseEnv ;
+      conexit := R_NilValue
+    |}
 
 Definition init_Globals runs : result Globals :=
   .
@@ -140,7 +148,7 @@ Definition initial_state := {|
 Fixpoint runs max_step : runs_type :=
   match max_step with
   | O => {|
-      runs_while := fun _ S _ _ _ => result_bottom S ;
+      runs_do_while := fun _ S _ _ _ => result_bottom S ;
       runs_eval := fun S _ _ => result_bottom S
     |}
   | S max_step =>
@@ -148,7 +156,7 @@ Fixpoint runs max_step : runs_type :=
       f (runs max_step) in
     let wrap_dep {A} (f : forall B : Type, runs_type -> A B) B : A B :=
       f B (runs max_step) in {|
-      runs_while := wrap_dep while ;
+      runs_do_while := wrap_dep do_while ;
       runs_eval := wrap eval
     |}
   end.
