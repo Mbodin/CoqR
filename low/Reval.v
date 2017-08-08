@@ -21,11 +21,11 @@ Section Parameterised.
 
 Variable runs : runs_type.
 
-Variable Globals : Globals.
+Variable globals : Globals.
 
-Let R_DotsSymbol := R_DotsSymbol Globals.
-Let R_UnboundValue := R_UnboundValue Globals.
-Let R_MissingArg := R_MissingArg Globals.
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_UnboundValue := R_UnboundValue globals.
+Let R_MissingArg := R_MissingArg globals.
 
 
 (** * Interpreter functions **)
@@ -374,7 +374,7 @@ Definition psmatch s1 s2 exact :=
 
 Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   let get_name str :=
-    let%defined str_ := read_SExp S str using S in
+    read%defined str_ := str using S in
     match type str_ with
     | SymSxp =>
       let%sym str_, str_sym := str_ using S in
@@ -522,11 +522,11 @@ Definition matchArgs_dots S
     (dots supplied : SExpRec_pointer) : result unit :=
   map%pointer dots with set_missing 0 ltac:(nbits_ok) using S in
   fold%success i := 0 along supplied as a, _ do
-    let%defined a_ := read_SExp S a using S in
-      ifb argused a_ = 0 then
-        result_success S (1 + i)
-      else
-        result_success S i using S in
+    read%defined a_ := a using S in
+    ifb argused a_ = 0 then
+      result_success S (1 + i)
+    else
+      result_success S i using S in
   ifb i = 0 then
     result_success S tt
   else
@@ -595,7 +595,7 @@ Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
   (* A note about hashtabs commented out. *)
   fold%let b := true along env_frame env_env as frame_car, frame_tag do
-    let%defined frame_tag_ := read_SExp S frame_tag using S in
+    read%defined frame_tag_ := frame_tag using S in
     if is_special_symbol frame_tag_ then
       result_success S false
     else result_success S b using S.
@@ -604,7 +604,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
   ifb addVars = R_NilValue then
     result_success S tt
   else
-    let%defined addVars_ := read_SExp S addVars using S in
+    read%defined addVars_ := addVars using S in
     ifb type addVars_ = EnvSxp then
       result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
     else
@@ -688,7 +688,7 @@ Definition R_execClosure (S : state)
 
 Definition applyClosure S
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
-  let%defined rho_ := read_SExp S rho using S in
+  read%defined rho_ := rho using S in
   ifb type rho_ <> EnvSxp then
     result_error S "[applyClosure] ‘rho’ must be an environment."
   else
@@ -724,7 +724,7 @@ Definition applyClosure S
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
-  let%defined e_ := read_SExp S e using S in
+  read%defined e_ := e using S in
     match type e_ with
     | NilSxp
     | ListSxp
@@ -746,7 +746,7 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
       write%defined e := set_named_plural e_ using S in
       result_success S e
     | _ =>
-      let%defined rho_ := read_SExp S rho using S in
+      read%defined rho_ := rho using S in
       ifb type rho_ <> EnvSxp then
         result_error S "[eval] ‘rho’ must be an environment."
       else
@@ -778,13 +778,13 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
         | LangSxp =>
           let%list e_, e_list := e_ using S in
           let car := list_carval e_list in
-          let%defined car_ := read_SExp S car using S in
+          read%defined car_ := car using S in
           let%success op :=
             ifb type car_ = SymSxp then
               (* TODO: findFun3 — in essence, this is just a variable look-up. *)
               result_not_implemented "[eval] findFun3 (TODO)"
             else runs_eval runs S car rho using S in
-          let%defined op_ := read_SExp S op using S in
+          read%defined op_ := op using S in
             match type op_ with
             | SpecialSxp =>
               (* TODO: This is basically a direct call to PRIMFUN. *)

@@ -90,6 +90,10 @@ Notation "'write%defined' p ':=' p_ 'using' S 'in' cont" :=
   (let%defined S := write_SExp S p p_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
+  (let%defined p_ := read_SExp S p using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** Mapping onplace the content of a pointer is a frequent scheme.
  * Here is a monad for it. **)
