@@ -515,7 +515,7 @@ Definition make_SExpRec_real attrib array :=
       (build_SExpRecHeader RealSxp attrib)
       (make_VecSxp_struct (length array) array)).
 
-Definition make_SExpRec_cpl attrib array :=
+Definition make_SExpRec_cplx attrib array :=
   SExpRec_VectorComplex
     (make_Vector_SExpRec
       (build_SExpRecHeader CplxSxp attrib)
@@ -550,7 +550,7 @@ Instance SExpRec_Inhab : Inhab SExpRec.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
             (make_SExpRecHeader (make_SxpInfo NilSxp false named_plural (nbits_init _)) None)
-            (make_ListSxp_struct None None None)). (* May not be the best choice. *)
+            (make_ListSxp_struct None None None)).
 Defined.
 
 

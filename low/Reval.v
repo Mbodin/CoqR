@@ -21,7 +21,28 @@ Section Parameterised.
 
 Variable runs : runs_type.
 
+(** * Global Definitions **)
+
+Definition INT_MIN : int := - 2 ^ 31. (* We may want to make this a parameter. *)
+
+Definition R_NaInt := INT_MIN.
+Definition NA_LOGICAL := R_NaInt.
+
 Variable globals : Globals.
+
+Let R_NilValue := R_NilValue globals.
+
+Let R_EmptyEnv := R_EmptyEnv globals.
+Let R_BaseEnv := R_BaseEnv globals.
+Let R_GlobalEnv := R_GlobalEnv globals.
+Let R_BaseNamespace := R_BaseNamespace globals.
+Let R_BaseNamespaceName := R_BaseNamespaceName globals.
+Let R_BaseSymbol := R_BaseSymbol globals.
+Let R_NamespaceRegistry := R_NamespaceRegistry globals.
+
+Let R_TrueValue := R_TrueValue globals.
+Let R_FalseValue := R_FalseValue globals.
+Let R_LogicalNAValue := R_LogicalNAValue globals.
 
 Let R_DotsSymbol := R_DotsSymbol globals.
 Let R_UnboundValue := R_UnboundValue globals.
@@ -283,6 +304,80 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' l
      using S using S in
    cont)
   (at level 50, left associativity) : monad_scope.
+
+
+(** ** Rinlinedfuns.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file include/Rinlinedfuns.c. **)
+
+(** The way the original functions [allocVector], [allocVector3], etc.
+  * from R source code are defined are not compatible with the way the
+  * memory of the C language has been formalised here. The functions
+  * below are thus slightly from their C counterparts. **)
+
+Definition alloc_vector_char S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_char R_NilValue v_data).
+
+Definition alloc_vector_lgl S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_lgl R_NilValue v_data).
+
+Definition alloc_vector_int S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_int R_NilValue v_data).
+
+Definition alloc_vector_real S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_real R_NilValue v_data).
+
+Definition alloc_vector_cplx S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_cplx R_NilValue v_data).
+
+Definition alloc_vector_str S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_str R_NilValue v_data).
+
+Definition alloc_vector_vec S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_vec R_NilValue v_data).
+
+Definition alloc_vector_expr S v_data : state * SExpRec_pointer :=
+  alloc_SExp S (make_SExpRec_expr R_NilValue v_data).
+
+Definition ScalarLogical x : SExpRec_pointer :=
+  ifb x = NA_LOGICAL then
+    R_LogicalNAValue
+  else ifb x <> 0 then
+    R_TrueValue
+  else R_FalseValue.
+
+Definition ScalarInteger S x : state * SExpRec_pointer :=
+  alloc_vector_int S [x].
+
+Definition ScalarReal S x : state * SExpRec_pointer :=
+  alloc_vector_real S [x].
+
+Definition ScalarComplex S x : state * SExpRec_pointer :=
+  alloc_vector_cplx S [x].
+
+Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
+  read%defined x_ := x using S in
+  ifb type x_ <> CharSxp then
+    result_error S "[ScalarString] The given argument is not of type ‘CharSxp’."
+  else
+    let (S, s) := alloc_vector_str S [x] in
+    result_success S s.
+
+
+(** ** gram.y **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/gram.y. **)
+
+Definition mkTrue S :=
+  alloc_vector_lgl S [1 : int].
+
+Definition mkFalse S :=
+  alloc_vector_lgl S [0 : int].
+
+Definition mkNA S :=
+  alloc_vector_lgl S [NA_LOGICAL : int].
 
 
 (** ** context.c **)
@@ -585,6 +680,14 @@ Definition matchArgs S
 (** The function names of this section corresponds to the function names
 * in the file main/envir.c. **)
 
+(** The function [mkChar] from the R source code performs a lot of things.
+ * It deals with encoding, for embedded zero-characters, as well as avoid
+ * allocated twice the same string, by looking through the already
+ * allocated strings. We do none of the above. **)
+(* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
+Definition mkChar S (str : string) : state * SExpRec_pointer :=
+  alloc_vector_char S (string_to_list str).
+
 Definition is_special_symbol e_ :=
   nth_bit 12 (gp e_) ltac:(nbits_ok).
 
@@ -645,6 +748,10 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
             else result_success S (addVars, list_cdrval s_list, s)
         using S in
         result_success S tt using S.
+
+Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[defineVar] TODO".
+(* TODO. *)
 
 
 (** ** eval.c **)
@@ -803,6 +910,17 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
         | _ => result_error S "[eval] Type unimplemented in the R source code."
         end
     end.
+
+
+(** ** names.c **)
+
+(** The function names of this section corresponds to the function names
+* in the file main/names.c. **)
+
+Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer :=
+  result_not_implemented "[install] TODO".
+(* TODO. It creates a new symbol object from this string. *)
+
 
 End Parameterised.
 

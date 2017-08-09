@@ -249,9 +249,7 @@ Definition write_SExp (S : state) e e_ :=
   end.
 
 
-(** * Initial State **)
-
-(** ** Initial Memory **)
+(** * Initial Memory **)
 
 CoFixpoint all_locations n : stream nat :=
   n ::: (all_locations (1 + n)).
@@ -274,9 +272,24 @@ Definition empty_memory : memory.
 Defined.
 
 Definition NULL : SExpRec_pointer := None.
-Definition R_NilValue : SExpRec_pointer := NULL.
 
+(** Global variables that are initialised once, then treated as
+  constants.  They are initialised in the file Rinit.v. **)
 Record Globals := {
+    R_NilValue : SExpRec_pointer ;
+
+    R_EmptyEnv : SExpRec_pointer ;
+    R_BaseEnv : SExpRec_pointer ;
+    R_GlobalEnv : SExpRec_pointer ;
+    R_BaseNamespace : SExpRec_pointer ;
+    R_BaseNamespaceName : SExpRec_pointer ;
+    R_BaseSymbol : SExpRec_pointer ;
+    R_NamespaceRegistry : SExpRec_pointer ;
+
+    R_TrueValue : SExpRec_pointer ;
+    R_FalseValue : SExpRec_pointer ;
+    R_LogicalNAValue : SExpRec_pointer ;
+
     R_DotsSymbol : SExpRec_pointer ;
     R_UnboundValue : SExpRec_pointer ;
     R_MissingArg : SExpRec_pointer

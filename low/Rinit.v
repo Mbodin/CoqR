@@ -4,25 +4,144 @@
 Set Implicit Arguments.
 Require Export Reval.
 
-(* TODO: to bew sorted. *)
-Definition ScalarString (S : state) (x : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[ScalarString] TODO".
-(* TODO. See include/Rinlinedfuns.h. It seems to be an indirection to a string (to only manipulate arrays of strings at the top level). *)
 
-(* TODO: to bew sorted. *)
-Definition mkChar (S : state) (str : string) : result SExpRec_pointer :=
-  result_not_implemented "[mkChar] TODO".
-(* TODO. See main/envir.c. It creates a character vector from a string. *)
+(** * Initialising Functions **)
 
-(* TODO: to bew sorted. *)
-Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer :=
-  result_not_implemented "[install] TODO".
-(* TODO. See main/names.c. It creates a new symbol object from this string. *)
+Section Globals.
 
-(* TODO: to bew sorted. *)
-Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[defineVar] TODO".
-(* TODO. See main/envir.c. *)
+Variable globals : Globals.
+
+Let R_NilValue := R_NilValue globals.
+
+Let R_EmptyEnv := R_EmptyEnv globals.
+Let R_BaseEnv := R_BaseEnv globals.
+Let R_GlobalEnv := R_GlobalEnv globals.
+Let R_BaseNamespace := R_BaseNamespace globals.
+Let R_BaseNamespaceName := R_BaseNamespaceName globals.
+Let R_BaseSymbol := R_BaseSymbol globals.
+Let R_NamespaceRegistry := R_NamespaceRegistry globals.
+
+Let R_TrueValue := R_TrueValue globals.
+Let R_FalseValue := R_FalseValue globals.
+Let R_LogicalNAValue := R_LogicalNAValue globals.
+
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_UnboundValue := R_UnboundValue globals.
+Let R_MissingArg := R_MissingArg globals.
+
+
+(** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
+Definition init_R_NilValue S :=
+  let nil_obj := {|
+      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp) NULL ;
+      NonVector_SExpRec_data := {|
+          list_carval := NULL ;
+          list_cdrval := NULL ;
+          list_tagval := NULL
+      |}
+    |} in
+  let (S, R_NilValue) := alloc_SExp S nil_obj in
+  let nil_obj := {|
+      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp) R_NilValue ;
+      NonVector_SExpRec_data := {|
+          list_carval := R_NilValue ;
+          list_cdrval := R_NilValue ;
+          list_tagval := R_NilValue
+      |}
+    |} in
+  write%defined R_NilValue := nil_obj using S in
+  map%pointer R_NilValue with set_named_plural using S in
+  result_success S R_NilValue.
+
+(** [InitMemory], from main/memory.c **)
+Definition InitMemory S :=
+  let%success R_NilValue := init_R_NilValue S using S in
+  let (S, R_TrueValue) := mkTrue globals S in
+  let (S, R_FalseValue) := mkFalse globals S in
+  let (S, R_LogicalNAValue) := alloc_vector_lgl globals S [NA_LOGICAL] in
+  result_success S R_NilValue.
+
+(** [InitBaseEnv], from main/envir.c **)
+Definition InitBaseEnv runs S :=
+  let%success R_EmptyEnv :=
+    NewEnvironment runs globals S R_NilValue R_NilValue R_NilValue using S in
+  let%success R_BaseEnv :=
+    NewEnvironment runs globals S R_NilValue R_NilValue R_EmptyEnv using S in
+  result_success S (R_EmptyEnv, R_BaseEnv).
+
+(** [InitNames], from main/names.c **)
+Definition InitNames S :=
+  TODO.
+
+(** [InitGlobalEnv], from main/envir.c **)
+Definition InitGlobalEnv runs S :=
+  let%success R_GlobalEnv :=
+    NewEnvironment runs globals S R_NilValue R_NilValue R_BaseEnv using S in
+  let%success R_BaseNamespace :=
+    NewEnvironment runs globals S R_NilValue R_NilValue R_GlobalEnv using S in
+  let%success BaseNamespaceEnvSym :=
+    install runs S ".BaseNamespaceEnv" using S in
+  read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
+    BaseNamespaceEnvSym using S in
+  let BaseNamespaceEnvSym_sym := {|
+      sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
+      sym_value := R_BaseNamespace ;
+      sym_internal := sym_internal BaseNamespaceEnvSym_sym
+    |} in
+  let BaseNamespaceEnvSym_ := {|
+      NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
+      NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
+    |} in
+  write%defined BaseNamespaceEnvSym := BaseNamespaceEnvSym_ using S in
+  let%success R_BaseNamespaceName :=
+    let (S, str) :=
+      mkChar globals S "base" in
+    ScalarString globals S str using S in
+  let%success R_NamespaceRegistry :=
+    NewEnvironment runs globals S R_NilValue R_NilValue R_NilValue using S in
+  let%success _ :=
+    defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
+  result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
+
+(** [InitOptions], from main/options.c **)
+(* FIXME: Do we want to model it? *)
+Definition InitOptions runs S :=
+  TODO.
+
+(** [InitTypeTables], from main/util.c **)
+(* FIXME: Do we want to model it? *)
+Definition InitTypeTables runs S :=
+  TODO.
+
+(** [InitS3DefaulTypes], from main/attrib.c **)
+(* FIXME: Do we want to model it? *)
+Definition InitS3DefaulTypes runs S :=
+  TODO.
+
+(** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
+Definition init_R_Toplevel runs S :=
+  let%success (R_EmptyEnv, R_BaseEnv) :=
+    InitBaseEnv runs S using S in
+  result_success S {|
+      nextcontext := None ;
+      callflag := Ctxt_TopLevel ;
+      promargs := R_NilValue ;
+      callfun := R_NilValue ;
+      sysparent := R_BaseEnv ;
+      call := R_NilValue ;
+      cloenv := R_BaseEnv ;
+      conexit := R_NilValue
+    |}.
+
+End Globals.
+
+(** The functions above are all called in the C version of [setup_Rmainloop].
+  * In C, each of these functions modify some global variables.
+  * In Coq, we have to build intermediate [Globals] structures,
+  * accounting for the various changes. **)
+Definition setup_Rmainloop runs S : result Globals :=
+  result_not_implemented "[setup_Rmainloop] TODO".
+
 
 (** * Initial State and Memory **)
 
@@ -43,89 +162,30 @@ Definition empty_state := {|
     state_context := empty_context
   |}.
 
-(** [InitBaseEnv], from main/envir.c **)
-Definition InitBaseEnv runs S :=
-  let%success R_EmptyEnv :=
-    NewEnvironment runs S R_NilValue R_NilValue R_NilValue using S in
-  let%success R_BaseEnv :=
-    NewEnvironment runs S R_NilValue R_NilValue R_EmptyEnv using S in
-  result_success S (R_EmptyEnv, R_BaseEnv).
 
-(* FIXME: I think that we can remove this definition. *)
-Definition init_context runs S :=
-  let%success (R_EmptyEnv, R_BaseEnv) :=
-    InitBaseEnv runs S using S in
-  result_success S {|
-      nextcontext := None ;
-      callflag := Ctxt_TopLevel ;
-      promargs := R_NilValue ;
-      callfun := R_NilValue ;
-      sysparent := R_BaseEnv ;
-      call := R_NilValue ;
-      cloenv := R_BaseEnv ;
-      conexit := R_NilValue
-    |}.
-
-(** [InitGlobalEnv], from main/envir.c **)
-Definition InitGlobalEnv runs S R_BaseSymbol R_BaseEnv :=
-  let%success R_GlobalEnv :=
-    NewEnvironment runs S R_NilValue R_NilValue R_BaseEnv using S in
-  let%success R_BaseNamespace :=
-    NewEnvironment runs S R_NilValue R_NilValue R_GlobalEnv using S in
-  let%success BaseNamespaceEnvSym :=
-    install runs S ".BaseNamespaceEnv" using S in
-  read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
-    BaseNamespaceEnvSym using S in
-  let BaseNamespaceEnvSym_sym := {|
-      sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
-      sym_value := R_BaseNamespace ;
-      sym_internal := sym_internal BaseNamespaceEnvSym_sym
-    |} in
-  let BaseNamespaceEnvSym_ := {|
-      NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
-      NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
-    |} in
-  write%defined BaseNamespaceEnvSym := BaseNamespaceEnvSym_ using S in
-  let%success R_BaseNamespaceName :=
-    let%success str :=
-      mkChar S "base" using S in
-    ScalarString S str using S in
-  let%success R_NamespaceRegistry :=
-    NewEnvironment runs S R_NilValue R_NilValue R_NilValue using S in
-  let%success _ :=
-    defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
-  result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
-
-
-(* TODO: [SymbolSHortcuts] from main/names.c. We need a nice way to represent it. *)
-
-Definition init_globals (runs : runs_type) : result Globals :=
-  result_not_implemented "[init_globals]".
-
-(* TODO: Add in the repport that [R_PreserveObject] is just a function telling the garbage
-   collector that the object should not be freed. *)
-
-(* I think that it would be easy to use tactics to check that [initial_allocations]
+Definition globals : Globals.
+(** We can now start the bootstrapping procedure to compute [globals]. **)
+(* TODO *)
+(* I think that it would be easy to use tactics to check that [setup_Rmainloop]
  * is indeed of the form [result_success S globals] or something like that. *)
 
-Definition initial_memory :=
-  let '(m, _, _, _, _, _) := initial_allocations in m.
+Let R_NilValue := R_NilValue globals.
 
-Definition R_EmptyEnv :=
-  let '(_, R_EmptyEnv, _, _, _, _) := initial_allocations in R_EmptyEnv.
+Let R_EmptyEnv := R_EmptyEnv globals.
+Let R_BaseEnv := R_BaseEnv globals.
+Let R_GlobalEnv := R_GlobalEnv globals.
+Let R_BaseNamespace := R_BaseNamespace globals.
+Let R_BaseNamespaceName := R_BaseNamespaceName globals.
+Let R_BaseSymbol := R_BaseSymbol globals.
+Let R_NamespaceRegistry := R_NamespaceRegistry globals.
 
-Definition R_BaseEnv :=
-  let '(_, _, R_BaseEnv, _, _, _) := initial_allocations in R_BaseEnv.
+Let R_TrueValue := R_TrueValue globals.
+Let R_FalseValue := R_FalseValue globals.
+Let R_LogicalNAValue := R_LogicalNAValue globals.
 
-Definition R_GlobalEnv :=
-  let '(_, _, _, R_GlobalEnv, _, _) := initial_allocations in R_GlobalEnv.
-
-Definition R_BaseNamespace :=
-  let '(_, _, _, _, R_BaseNamespace, _) := initial_allocations in R_BaseNamespace.
-
-Definition R_NamespaceRegistry :=
-  let '(_, _, _, _, _, R_NamespaceRegistry) := initial_allocations in R_NamespaceRegistry.
-
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_UnboundValue := R_UnboundValue globals.
+Let R_MissingArg := R_MissingArg globals.
 
 Definition R_Toplevel := {|
      nextcontext := None ;
@@ -143,6 +203,10 @@ Definition initial_state := {|
     state_context := R_Toplevel
   |}.
 
+
+(** * Installing Symbols **)
+
+(* TODO: [SymbolSHortcuts] from main/names.c. We need a nice way to represent it. *)
 
 
 (** * Closing the Loop **)
