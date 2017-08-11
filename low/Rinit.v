@@ -222,18 +222,22 @@ Notation "'{' g 'with' L '}'" :=
 (** The functions above are all called in the C version of [setup_Rmainloop].
   * In C, each of these functions modify some global variables.
   * In Coq, we have to build intermediate [Globals] structures,
-  * accounting for the various changes. **)
-Definition setup_Rmainloop runs S : result Globals :=
+  * accounting for the various changes.
+  * The definition of this function is tricky, as we are using [runs], whose
+  * value depends on global variables. We are thus taking as argument the
+  * [max_step] argument from [runs], and recomputing it at each step with
+  * the updated [globals]. **)
+Definition setup_Rmainloop max_step S : result Globals :=
   let globals := empty_globals in
   let%success NilValue :=
     InitMemory globals S using S in
   let globals := { globals with [(R_NilValue, NilValue)] } in
   let%success (EmptyEnv, BaseEnv) :=
-    InitBaseEnv globals runs S using S in
+    InitBaseEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_EmptyEnv, EmptyEnv);
                                  (R_BaseEnv, BaseEnv)] } in
   let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
-    InitGlobalEnv globals runs S using S in
+    InitGlobalEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_GlobalEnv, GlobalEnv);
                                  (R_BaseNamespace, BaseNamespace);
                                  (R_BaseNamespaceName, BaseNamespaceName);
@@ -242,7 +246,7 @@ Definition setup_Rmainloop runs S : result Globals :=
   (* TODO [InitTypeTables] *)
   (* TODO [InitS3DefaulTypes] *)
   let%success R_Toplevel :=
-    init_R_Toplevel globals runs S using S in
+    init_R_Toplevel globals (runs globals max_step) S using S in
   let S := {|
       state_memory := S ;
       state_context := R_Toplevel
@@ -285,7 +289,18 @@ Definition empty_state := {|
 
 (* TODO: Move to another file. *)
 
-Extraction "coqExtract.ml" setup_Rmainloop runs.
+Extraction Language Ocaml.
+
+Require Import ExtrOcamlBasic.
+Require Import ExtrOcamlNatInt.
+(*Require Import ExtrOcamlString.*)
+
+(* TODO: Clean. *)
+(* As classical logic statements are now unused, they should not be extracted
+   (otherwise, useless errors will be launched). *)
+Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
+
+Extraction "coqExtract.ml" setup_Rmainloop empty_state.
 
 (** * Proofs **)
 

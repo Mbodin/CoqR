@@ -2,3 +2,7 @@
 coqExtract.ml
 coqExtract.mli
 
+_build
+
+*.native
+
