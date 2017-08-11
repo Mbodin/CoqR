@@ -17,9 +17,7 @@ Record runs_type : Type := runs_type_intro {
   }.
 
 
-Section Parameterised.
-
-Variable runs : runs_type.
+Section ParameterisedGlobals.
 
 (** * Global Definitions **)
 
@@ -47,6 +45,10 @@ Let R_LogicalNAValue := R_LogicalNAValue globals.
 Let R_DotsSymbol := R_DotsSymbol globals.
 Let R_UnboundValue := R_UnboundValue globals.
 Let R_MissingArg := R_MissingArg globals.
+
+Section ParameterisedRuns.
+
+Variable runs : runs_type.
 
 
 (** * Interpreter functions **)
@@ -921,6 +923,24 @@ Definition install (runs : runs_type) (S : state) (name : string) : result SExpR
   result_not_implemented "[install] TODO".
 (* TODO. It creates a new symbol object from this string. *)
 
+End ParameterisedRuns.
 
-End Parameterised.
+
+(** * Closing the Loop **)
+
+Fixpoint runs max_step : runs_type :=
+  match max_step with
+  | O => {|
+      runs_do_while := fun _ S _ _ _ => result_bottom S ;
+      runs_eval := fun S _ _ => result_bottom S
+    |}
+  | S max_step =>
+    let wrap {A : Type} (f : runs_type -> A) : A :=
+      f (runs max_step) in {|
+      runs_do_while := wrap do_while ;
+      runs_eval := wrap eval
+    |}
+  end.
+
+End ParameterisedGlobals.
 

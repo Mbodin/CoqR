@@ -275,7 +275,7 @@ Definition NULL : SExpRec_pointer := None.
 
 (** Global variables that are initialised once, then treated as
   constants.  They are initialised in the file Rinit.v. **)
-Record Globals := {
+Record Globals := make_Globals {
     R_NilValue : SExpRec_pointer ;
 
     R_EmptyEnv : SExpRec_pointer ;

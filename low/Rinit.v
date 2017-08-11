@@ -30,6 +30,12 @@ Let R_UnboundValue := R_UnboundValue globals.
 Let R_MissingArg := R_MissingArg globals.
 
 
+(** ** Functions **)
+
+(** All the functions of this section are called from [setup_Rmainloop].
+ * Each sets some global variables. We implement these functions by
+ * returning the corresponding values. **)
+
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
 Definition init_R_NilValue S :=
   let nil_obj := {|
@@ -64,21 +70,21 @@ Definition InitMemory S :=
 (** [InitBaseEnv], from main/envir.c **)
 Definition InitBaseEnv runs S :=
   let%success R_EmptyEnv :=
-    NewEnvironment runs globals S R_NilValue R_NilValue R_NilValue using S in
+    NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success R_BaseEnv :=
-    NewEnvironment runs globals S R_NilValue R_NilValue R_EmptyEnv using S in
+    NewEnvironment globals runs S R_NilValue R_NilValue R_EmptyEnv using S in
   result_success S (R_EmptyEnv, R_BaseEnv).
 
 (** [InitNames], from main/names.c **)
-Definition InitNames S :=
-  TODO.
+(*Definition InitNames S :=
+  TODO.*)
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv runs S :=
   let%success R_GlobalEnv :=
-    NewEnvironment runs globals S R_NilValue R_NilValue R_BaseEnv using S in
+    NewEnvironment globals runs S R_NilValue R_NilValue R_BaseEnv using S in
   let%success R_BaseNamespace :=
-    NewEnvironment runs globals S R_NilValue R_NilValue R_GlobalEnv using S in
+    NewEnvironment globals runs S R_NilValue R_NilValue R_GlobalEnv using S in
   let%success BaseNamespaceEnvSym :=
     install runs S ".BaseNamespaceEnv" using S in
   read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
@@ -98,25 +104,25 @@ Definition InitGlobalEnv runs S :=
       mkChar globals S "base" in
     ScalarString globals S str using S in
   let%success R_NamespaceRegistry :=
-    NewEnvironment runs globals S R_NilValue R_NilValue R_NilValue using S in
+    NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success _ :=
     defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
   result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
-Definition InitOptions runs S :=
-  TODO.
+(*Definition InitOptions runs S :=
+  TODO.*)
 
 (** [InitTypeTables], from main/util.c **)
 (* FIXME: Do we want to model it? *)
-Definition InitTypeTables runs S :=
-  TODO.
+(*Definition InitTypeTables runs S :=
+  TODO.*)
 
 (** [InitS3DefaulTypes], from main/attrib.c **)
 (* FIXME: Do we want to model it? *)
-Definition InitS3DefaulTypes runs S :=
-  TODO.
+(*Definition InitS3DefaulTypes runs S :=
+  TODO.*)
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel runs S :=
@@ -135,12 +141,114 @@ Definition init_R_Toplevel runs S :=
 
 End Globals.
 
+(** ** [setup_Rmainloop] **)
+
+(** We can now close the initialising loop. **)
+
+(** We are going to update structures of type [Globals] a lot of time
+ * in this section. There is unfortunately no [{o with f := v}] syntax
+ * in Coq. As we are going to need it (as it helps avoid mistakes in
+ * this particular case), we implement a specialised version in Ltac. **)
+
+(** Here follows a list of all the constructors of [Globals]. **)
+Definition Globals_all_constructors :=
+  [ R_NilValue ;
+    R_EmptyEnv ;
+    R_BaseEnv ;
+    R_GlobalEnv ;
+    R_BaseNamespace ;
+    R_BaseNamespaceName ;
+    R_BaseSymbol ;
+    R_NamespaceRegistry ;
+    R_TrueValue ;
+    R_FalseValue ;
+    R_LogicalNAValue ;
+    R_DotsSymbol ;
+    R_UnboundValue ;
+    R_MissingArg ].
+
+(** The following property translates the [{o with f := v}] syntax from
+ * OCaml as a property. Intuitively, we have
+ * [globals_with g [(C1, p1);... ; (Cn, pn)] g'] if and only if
+ * [g' = {g with C1 := p1, ..., Cn := pn}]. **)
+Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) g' := {
+    globals_with_in : forall C p,
+      Mem (C, p) L ->
+      C g' = p ;
+    globals_with_out : forall C,
+      (forall p, ~ Mem (C, p) L) ->
+      Mem C Globals_all_constructors ->
+      C g' = C g ;
+  }.
+
+(** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
+Ltac solve_globals_with :=
+  let g := fresh "g" in
+  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
+  exists g; constructors;
+  [ let M := fresh "M" in introv M;
+    repeat (inverts M as M; try solve [ simpl; reflexivity ])
+  | let NM := fresh "NM" in introv NM;
+    let M := fresh "M" in introv M;
+    repeat (inverts M as M; try solve [ simpl; reflexivity
+                                      | false NM; repeat constructors ]) ].
+
+(** The following tactics builds a term [g'] such that [globals_with g L g']. **)
+Ltac build_globals_with g L :=
+  let g' := fresh "g" in
+  exact (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g L g' })).
+
+(** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
+Definition empty_globals := {|
+    R_NilValue := NULL ;
+    R_EmptyEnv := NULL ;
+    R_BaseEnv := NULL ;
+    R_GlobalEnv := NULL ;
+    R_BaseNamespace := NULL ;
+    R_BaseNamespaceName := NULL ;
+    R_BaseSymbol := NULL ;
+    R_NamespaceRegistry := NULL ;
+    R_TrueValue := NULL ;
+    R_FalseValue := NULL ;
+    R_LogicalNAValue := NULL ;
+    R_DotsSymbol := NULL ;
+    R_UnboundValue := NULL ;
+    R_MissingArg := NULL
+  |}.
+
+Notation "'{' g 'with' L '}'" :=
+  (ltac:(build_globals_with g L)).
+
 (** The functions above are all called in the C version of [setup_Rmainloop].
   * In C, each of these functions modify some global variables.
   * In Coq, we have to build intermediate [Globals] structures,
   * accounting for the various changes. **)
 Definition setup_Rmainloop runs S : result Globals :=
-  result_not_implemented "[setup_Rmainloop] TODO".
+  let globals := empty_globals in
+  let%success NilValue :=
+    InitMemory globals S using S in
+  let globals := { globals with [(R_NilValue, NilValue)] } in
+  let%success (EmptyEnv, BaseEnv) :=
+    InitBaseEnv globals runs S using S in
+  let globals := { globals with [(R_EmptyEnv, EmptyEnv);
+                                 (R_BaseEnv, BaseEnv)] } in
+  let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
+    InitGlobalEnv globals runs S using S in
+  let globals := { globals with [(R_GlobalEnv, GlobalEnv);
+                                 (R_BaseNamespace, BaseNamespace);
+                                 (R_BaseNamespaceName, BaseNamespaceName);
+                                 (R_NamespaceRegistry, NamespaceRegistry)] } in
+  (* TODO [InitOptions] *)
+  (* TODO [InitTypeTables] *)
+  (* TODO [InitS3DefaulTypes] *)
+  let%success R_Toplevel :=
+    init_R_Toplevel globals runs S using S in
+  let S := {|
+      state_memory := S ;
+      state_context := R_Toplevel
+    |} in
+  (* TODO: Check. *)
+  result_success S globals.
 
 
 (** * Initial State and Memory **)
@@ -163,45 +271,9 @@ Definition empty_state := {|
   |}.
 
 
-Definition globals : Globals.
-(** We can now start the bootstrapping procedure to compute [globals]. **)
-(* TODO *)
 (* I think that it would be easy to use tactics to check that [setup_Rmainloop]
  * is indeed of the form [result_success S globals] or something like that. *)
 
-Let R_NilValue := R_NilValue globals.
-
-Let R_EmptyEnv := R_EmptyEnv globals.
-Let R_BaseEnv := R_BaseEnv globals.
-Let R_GlobalEnv := R_GlobalEnv globals.
-Let R_BaseNamespace := R_BaseNamespace globals.
-Let R_BaseNamespaceName := R_BaseNamespaceName globals.
-Let R_BaseSymbol := R_BaseSymbol globals.
-Let R_NamespaceRegistry := R_NamespaceRegistry globals.
-
-Let R_TrueValue := R_TrueValue globals.
-Let R_FalseValue := R_FalseValue globals.
-Let R_LogicalNAValue := R_LogicalNAValue globals.
-
-Let R_DotsSymbol := R_DotsSymbol globals.
-Let R_UnboundValue := R_UnboundValue globals.
-Let R_MissingArg := R_MissingArg globals.
-
-Definition R_Toplevel := {|
-     nextcontext := None ;
-     callflag := Ctxt_TopLevel ;
-     promargs := R_NilValue ;
-     callfun := R_NilValue ;
-     sysparent := R_BaseEnv ;
-     call := R_NilValue ;
-     cloenv := R_BaseEnv ;
-     conexit := R_NilValue
-  |}.
-
-Definition initial_state := {|
-    state_memory := initial_memory ;
-    state_context := R_Toplevel
-  |}.
 
 
 (** * Installing Symbols **)
@@ -209,24 +281,11 @@ Definition initial_state := {|
 (* TODO: [SymbolSHortcuts] from main/names.c. We need a nice way to represent it. *)
 
 
-(** * Closing the Loop **)
+(** * Extraction **)
 
-Fixpoint runs max_step : runs_type :=
-  match max_step with
-  | O => {|
-      runs_do_while := fun _ S _ _ _ => result_bottom S ;
-      runs_eval := fun S _ _ => result_bottom S
-    |}
-  | S max_step =>
-    let wrap {A : Type} (f : runs_type -> A) : A :=
-      f (runs max_step) in
-    let wrap_dep {A} (f : forall B : Type, runs_type -> A B) B : A B :=
-      f B (runs max_step) in {|
-      runs_do_while := wrap_dep do_while ;
-      runs_eval := wrap eval
-    |}
-  end.
+(* TODO: Move to another file. *)
 
+Extraction "coqExtract.ml" setup_Rmainloop runs.
 
 (** * Proofs **)
 
