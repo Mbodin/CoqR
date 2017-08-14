@@ -59,13 +59,12 @@ Definition init_R_NilValue S :=
   map%pointer R_NilValue with set_named_plural using S in
   result_success S R_NilValue.
 
-(** [InitMemory], from main/memory.c **)
+(** The second part of [InitMemory], from main/memory.c **)
 Definition InitMemory S :=
-  let%success R_NilValue := init_R_NilValue S using S in
   let (S, R_TrueValue) := mkTrue globals S in
   let (S, R_FalseValue) := mkFalse globals S in
   let (S, R_LogicalNAValue) := alloc_vector_lgl globals S [NA_LOGICAL] in
-  result_success S R_NilValue.
+  result_success S (R_TrueValue, R_FalseValue, R_LogicalNAValue).
 
 (** [InitBaseEnv], from main/envir.c **)
 Definition InitBaseEnv runs S :=
@@ -230,17 +229,22 @@ Notation "'{' g 'with' L '}'" :=
 Definition setup_Rmainloop max_step S : result Globals :=
   let globals := empty_globals in
   let%success NilValue :=
-    InitMemory globals S using S in
+    init_R_NilValue S using S in
   let globals := { globals with [(R_NilValue, NilValue)] } in
+  let%success (TrueValue, FalseValue, LogicalNAValue) :=
+    InitMemory globals S using S in
+  let globals := { globals with [(R_TrueValue, TrueValue) ;
+                                  (R_FalseValue, FalseValue) ;
+                                  (R_LogicalNAValue, LogicalNAValue)] } in
   let%success (EmptyEnv, BaseEnv) :=
     InitBaseEnv globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_EmptyEnv, EmptyEnv);
+  let globals := { globals with [(R_EmptyEnv, EmptyEnv) ;
                                  (R_BaseEnv, BaseEnv)] } in
   let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_GlobalEnv, GlobalEnv);
-                                 (R_BaseNamespace, BaseNamespace);
-                                 (R_BaseNamespaceName, BaseNamespaceName);
+  let globals := { globals with [(R_GlobalEnv, GlobalEnv) ;
+                                 (R_BaseNamespace, BaseNamespace) ;
+                                 (R_BaseNamespaceName, BaseNamespaceName) ;
                                  (R_NamespaceRegistry, NamespaceRegistry)] } in
   (* TODO [InitOptions] *)
   (* TODO [InitTypeTables] *)
@@ -293,14 +297,14 @@ Extraction Language Ocaml.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
-(*Require Import ExtrOcamlString.*)
+Require Import ExtrOcamlString.
 
 (* TODO: Clean. *)
 (* As classical logic statements are now unused, they should not be extracted
    (otherwise, useless errors will be launched). *)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
-Extraction "coqExtract.ml" setup_Rmainloop empty_state.
+Extraction "low.ml" setup_Rmainloop empty_state.
 
 (** * Proofs **)
 

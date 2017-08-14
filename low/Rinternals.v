@@ -178,7 +178,7 @@ Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
     Vector_SExpRec_vecsxp :> VecSxp_struct A
   }.
 
-Definition char := Ascii.ascii.
+Definition character := Ascii.ascii.
 
 Definition double : Type := Fappli_IEEE_bits .binary64.
 
@@ -192,7 +192,7 @@ Record RComplex := make_Rcomplex {
  * not the case in Coq. We thus provide this inductive. **)
 Inductive SExpRec :=
   | SExpRec_NonVector : NonVector_SExpRec -> SExpRec
-  | SExpRec_VectorChar : Vector_SExpRec char -> SExpRec
+  | SExpRec_VectorChar : Vector_SExpRec character -> SExpRec
   | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec (* FIXME: As for the field [named], we may want to declare a special type for this. *)
   | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
   (** | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec **)

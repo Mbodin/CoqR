@@ -935,9 +935,16 @@ Fixpoint runs max_step : runs_type :=
       runs_eval := fun S _ _ => result_bottom S
     |}
   | S max_step =>
-    let wrap {A : Type} (f : runs_type -> A) : A :=
-      f (runs max_step) in {|
-      runs_do_while := wrap do_while ;
+    let wrap {A B : Type} (f : runs_type -> B -> A) (x : B) : A :=
+      (** It is important to take this additional parameter [x] as a parameter,
+        * to defer the computation of [runs max_step] when it is indeed needed.
+        * Without this, the application of [runs max_int] would overflow the
+        * stack. **)
+      f (runs max_step) x in
+    let wrap_dep {A : Type -> Type} (f : runs_type -> forall B, A B) (T : Type) : A T :=
+      (** A dependent version of [wrap]. **)
+      f (runs max_step) T in {|
+      runs_do_while := wrap_dep do_while ;
       runs_eval := wrap eval
     |}
   end.
