@@ -30,6 +30,8 @@ Variable globals : Globals.
 
 Let R_NilValue := R_NilValue globals.
 
+Let R_SymbolTable := R_SymbolTable globals.
+
 Let R_EmptyEnv := R_EmptyEnv globals.
 Let R_BaseEnv := R_BaseEnv globals.
 Let R_GlobalEnv := R_GlobalEnv globals.
@@ -751,7 +753,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
         using S in
         result_success S tt using S.
 
-Definition defineVar (runs : runs_type) (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition defineVar (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[defineVar] TODO".
 (* TODO. *)
 
@@ -919,9 +921,41 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
 (** The function names of this section corresponds to the function names
 * in the file main/names.c. **)
 
-Definition install (runs : runs_type) (S : state) (name : string) : result SExpRec_pointer :=
-  result_not_implemented "[install] TODO".
-(* TODO. It creates a new symbol object from this string. *)
+Definition mkSymMarker S pname :=
+  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
+  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
+  result_success S ans.
+
+Definition install S name : result SExpRec_pointer :=
+  (** As said in the description of [InitNames] in Rinit.v,
+    * the hash table present in [R_SymbolTable] has not been
+    * formalised as such.
+    * Instead, it is represented as a single list, and not
+    * as [HSIZE] different lists.
+    * This approach is slower, but equivalent. **)
+  fold%success ret := None along R_SymbolTable as R_SymbolTable_car, _ do
+    match ret with
+    | Some v => ret
+    | None =>
+      let%sym str_, str_sym := R_SymbolTable_car using S in
+      read%VectorChar str_name_ := sym_pname str_sym using S in
+      ifb name = str_name_ then
+        Some R_SymbolTable_car
+      else None
+    end
+    using S in
+  match ret with
+  | Some v => result_success S v
+  | None =>
+    ifb name = "" then
+      result_error S "[install] Attempt to use zero-length variable name."
+    else
+      let (S, str) := mkChar name in
+      let%success sym := mkSYMSXP S str R_UnboundValue in
+      R_SymbolTable (* TODO. R_SymbolTable is often modified.
+                     * It should thus not be in [Globals], but in the state. *)
+        := cons S sym R_SymbolTable
+  end.
 
 End ParameterisedRuns.
 

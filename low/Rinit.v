@@ -13,6 +13,8 @@ Variable globals : Globals.
 
 Let R_NilValue := R_NilValue globals.
 
+Let R_SymbolTable := R_SymbolTable globals.
+
 Let R_EmptyEnv := R_EmptyEnv globals.
 Let R_BaseEnv := R_BaseEnv globals.
 Let R_GlobalEnv := R_GlobalEnv globals.
@@ -75,8 +77,18 @@ Definition InitBaseEnv runs S :=
   result_success S (R_EmptyEnv, R_BaseEnv).
 
 (** [InitNames], from main/names.c **)
-(*Definition InitNames S :=
-  TODO.*)
+Definition InitNames S :=
+  let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
+  let (S, str) := mkChar globals S "" in
+  let%success R_MissingArg := mkSymMarker globals S str using S in
+  (* Some ignored global values *)
+  let R_SymbolTable :=
+    (** We do not model the full hash table for symbols.
+      * Instead, we consider that it spans over only one
+      * cell. **) (* TODO: Write about this in the report. *)
+    R_NilValue in
+  (* TODO *)
+  result_success S (R_UnboundValue, R_MissingArg, R_SymbolTable).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv runs S :=
@@ -152,6 +164,7 @@ End Globals.
 (** Here follows a list of all the constructors of [Globals]. **)
 Definition Globals_all_constructors :=
   [ R_NilValue ;
+    R_SymbolTable ;
     R_EmptyEnv ;
     R_BaseEnv ;
     R_GlobalEnv ;
@@ -183,7 +196,7 @@ Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)
 (** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
 Ltac solve_globals_with :=
   let g := fresh "g" in
-  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
+  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
   exists g; constructors;
   [ let M := fresh "M" in introv M;
     repeat (inverts M as M; try solve [ simpl; reflexivity ])
@@ -200,6 +213,7 @@ Ltac build_globals_with g L :=
 (** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
 Definition empty_globals := {|
     R_NilValue := NULL ;
+    R_SymbolTable := NULL ;
     R_EmptyEnv := NULL ;
     R_BaseEnv := NULL ;
     R_GlobalEnv := NULL ;
@@ -218,7 +232,8 @@ Definition empty_globals := {|
 Notation "'{' g 'with' L '}'" :=
   (ltac:(build_globals_with g L)).
 
-(** The functions above are all called in the C version of [setup_Rmainloop].
+(** The functions above are all called in the C version of [setup_Rmainloop],
+  * in main/main.c.
   * In C, each of these functions modify some global variables.
   * In Coq, we have to build intermediate [Globals] structures,
   * accounting for the various changes.
@@ -240,6 +255,11 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitBaseEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_EmptyEnv, EmptyEnv) ;
                                  (R_BaseEnv, BaseEnv)] } in
+  let%success (UnboundValue, MissingArg, SymbolTable) :=
+    InitNames globals S using S in
+  let globals := { globals with [(R_UnboundValue, UnboundValue) ;
+                                 (R_MissingArg, MissingArg) ;
+                                 (R_SymbolTable, SymbolTable)] } in
   let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_GlobalEnv, GlobalEnv) ;

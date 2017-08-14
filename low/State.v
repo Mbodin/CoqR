@@ -278,6 +278,8 @@ Definition NULL : SExpRec_pointer := None.
 Record Globals := make_Globals {
     R_NilValue : SExpRec_pointer ;
 
+    R_SymbolTable : SExpRec_pointer ;
+
     R_EmptyEnv : SExpRec_pointer ;
     R_BaseEnv : SExpRec_pointer ;
     R_GlobalEnv : SExpRec_pointer ;
