@@ -13,8 +13,6 @@ Variable globals : Globals.
 
 Let R_NilValue := R_NilValue globals.
 
-Let R_SymbolTable := R_SymbolTable globals.
-
 Let R_EmptyEnv := R_EmptyEnv globals.
 Let R_BaseEnv := R_BaseEnv globals.
 Let R_GlobalEnv := R_GlobalEnv globals.
@@ -87,8 +85,9 @@ Definition InitNames S :=
       * Instead, we consider that it spans over only one
       * cell. **) (* TODO: Write about this in the report. *)
     R_NilValue in
+  let S := update_R_SymbolTable S R_SymbolTable in
   (* TODO *)
-  result_success S (R_UnboundValue, R_MissingArg, R_SymbolTable).
+  result_success S (R_UnboundValue, R_MissingArg).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv runs S :=
@@ -97,7 +96,7 @@ Definition InitGlobalEnv runs S :=
   let%success R_BaseNamespace :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_GlobalEnv using S in
   let%success BaseNamespaceEnvSym :=
-    install runs S ".BaseNamespaceEnv" using S in
+    install globals runs S ".BaseNamespaceEnv" using S in
   read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
     BaseNamespaceEnvSym using S in
   let BaseNamespaceEnvSym_sym := {|
@@ -117,7 +116,7 @@ Definition InitGlobalEnv runs S :=
   let%success R_NamespaceRegistry :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success _ :=
-    defineVar runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
+    defineVar S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
   result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
@@ -164,7 +163,6 @@ End Globals.
 (** Here follows a list of all the constructors of [Globals]. **)
 Definition Globals_all_constructors :=
   [ R_NilValue ;
-    R_SymbolTable ;
     R_EmptyEnv ;
     R_BaseEnv ;
     R_GlobalEnv ;
@@ -196,7 +194,7 @@ Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)
 (** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
 Ltac solve_globals_with :=
   let g := fresh "g" in
-  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
+  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
   exists g; constructors;
   [ let M := fresh "M" in introv M;
     repeat (inverts M as M; try solve [ simpl; reflexivity ])
@@ -213,7 +211,6 @@ Ltac build_globals_with g L :=
 (** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
 Definition empty_globals := {|
     R_NilValue := NULL ;
-    R_SymbolTable := NULL ;
     R_EmptyEnv := NULL ;
     R_BaseEnv := NULL ;
     R_GlobalEnv := NULL ;
@@ -249,17 +246,16 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success (TrueValue, FalseValue, LogicalNAValue) :=
     InitMemory globals S using S in
   let globals := { globals with [(R_TrueValue, TrueValue) ;
-                                  (R_FalseValue, FalseValue) ;
-                                  (R_LogicalNAValue, LogicalNAValue)] } in
+                                 (R_FalseValue, FalseValue) ;
+                                 (R_LogicalNAValue, LogicalNAValue)] } in
   let%success (EmptyEnv, BaseEnv) :=
     InitBaseEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_EmptyEnv, EmptyEnv) ;
                                  (R_BaseEnv, BaseEnv)] } in
-  let%success (UnboundValue, MissingArg, SymbolTable) :=
+  let%success (UnboundValue, MissingArg) :=
     InitNames globals S using S in
   let globals := { globals with [(R_UnboundValue, UnboundValue) ;
-                                 (R_MissingArg, MissingArg) ;
-                                 (R_SymbolTable, SymbolTable)] } in
+                                 (R_MissingArg, MissingArg)] } in
   let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_GlobalEnv, GlobalEnv) ;
@@ -273,7 +269,8 @@ Definition setup_Rmainloop max_step S : result Globals :=
     init_R_Toplevel globals (runs globals max_step) S using S in
   let S := {|
       state_memory := S ;
-      state_context := R_Toplevel
+      state_context := R_Toplevel ;
+      R_SymbolTable := R_SymbolTable S
     |} in
   (* TODO: Check. *)
   result_success S globals.
@@ -295,7 +292,8 @@ Definition empty_context := {|
 
 Definition empty_state := {|
     state_memory := empty_memory ;
-    state_context := empty_context
+    state_context := empty_context ;
+    R_SymbolTable := NULL
   |}.
 
 

@@ -1,7 +1,8 @@
 (** General lemmae.
-  * This file can be seen as a library. **)
+  * This file contains all the construct that I consider should be in my libraries by are not.
+  * It can be seen as a personnal library. **)
 
-Require Import TLC.LibStream TLC.LibHeap TLC.LibString.
+Require Import TLC.LibStream TLC.LibHeap TLC.LibString TLC.LibNat TLC.LibInt.
 Require Export TLC.LibTactics TLC.LibReflect TLC.LibLogic TLC.LibList TLC.LibBool.
 
 Notation " [ ] " := nil : list_scope.
@@ -193,6 +194,60 @@ Fixpoint string_to_list (str : string) :=
   | String c str =>
     c :: string_to_list str
   end.
+
+
+Instance nat_lt_Decidable : forall n1 n2 : nat,
+    Decidable (n1 < n2)%nat.
+  intros. applys Decidable_equiv.
+   symmetry. apply nat_compare_lt.
+   typeclass.
+Defined.
+
+Instance Z_lt_Decidable : forall n1 n2,
+    Decidable (n1 < n2)%Z.
+  intros. applys Decidable_equiv Z.compare_lt_iff. typeclass.
+Defined.
+
+Instance lt_Decidable : forall n1 n2,
+    Decidable (n1 < n2).
+  intros. applys Decidable_equiv (n1 < n2)%Z.
+   math.
+   typeclass.
+Defined.
+
+Instance lt_nat_Decidable : forall n1 n2,
+    Decidable (@lt nat (@lt_from_le nat le_nat_inst) n1 n2).
+  intros. applys Decidable_equiv (lt_Decidable n1 n2). math.
+Defined.
+
+Instance nat_gt_Decidable : forall n1 n2 : nat,
+    Decidable (n1 > n2)%nat.
+  intros. applys Decidable_equiv.
+   symmetry. apply nat_compare_lt.
+   typeclass.
+Defined.
+
+Instance Z_gt_Decidable : forall n1 n2,
+    Decidable (n1 > n2)%Z.
+  intros. applys sumbool_decidable Z_gt_dec.
+Defined.
+
+Instance gt_Decidable : forall n1 n2,
+    Decidable (n1 > n2).
+  intros. applys Decidable_equiv (n1 > n2)%Z.
+   math.
+   typeclass.
+Defined.
+
+Instance gt_nat_Decidable : forall n1 n2,
+    Decidable (@gt nat (@gt_from_le nat le_nat_inst) n1 n2).
+  intros. applys Decidable_equiv (gt_Decidable n1 n2). math.
+Defined.
+
+
+Instance Ascii_comparable : Comparable Ascii.ascii.
+  apply make_comparable. intros. applys sumbool_decidable Ascii.ascii_dec.
+Defined.
 
 
 (** * Tactics about Comparable **)

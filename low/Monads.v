@@ -107,6 +107,11 @@ Notation "'map%pointer' p 'with' map 'using' S 'in' cont" :=
   (map_pointer S map p (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
+  (map%pointer p with map_gp f using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+
 (** Updating a list. **)
 Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
   let%defined p_ := read_SExp S p using S in

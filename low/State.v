@@ -221,19 +221,28 @@ Definition context_with_conexit context conexit := {|
 
 Record state := make_state {
     state_memory :> memory ;
-    state_context : context
+    state_context : context ;
+    R_SymbolTable : SExpRec_pointer
   }.
 
 Definition R_GlobalContext := state_context.
 
 Definition state_with_memory S m := {|
     state_memory := m ;
-    state_context := state_context S
+    state_context := state_context S ;
+    R_SymbolTable := R_SymbolTable S
   |}.
 
 Definition state_with_context S c := {|
     state_memory := state_memory S ;
-    state_context := c
+    state_context := c ;
+    R_SymbolTable := R_SymbolTable S
+  |}.
+
+Definition update_R_SymbolTable S p := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_SymbolTable := p
   |}.
 
 (** Wrapping up with the functions defined in the previous section. **)
@@ -277,8 +286,6 @@ Definition NULL : SExpRec_pointer := None.
   constants.  They are initialised in the file Rinit.v. **)
 Record Globals := make_Globals {
     R_NilValue : SExpRec_pointer ;
-
-    R_SymbolTable : SExpRec_pointer ;
 
     R_EmptyEnv : SExpRec_pointer ;
     R_BaseEnv : SExpRec_pointer ;

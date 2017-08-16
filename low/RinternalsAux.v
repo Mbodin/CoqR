@@ -415,6 +415,13 @@ Definition set_gp_sxpinfo n i_info :=
 Definition set_gp n :=
   map_sxpinfo (set_gp_sxpinfo n).
 
+Definition map_gp_sxpinfo f i_info :=
+  make_SxpInfo (type i_info) (obj i_info) (named i_info) (f (gp i_info))
+    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+
+Definition map_gp f :=
+  map_sxpinfo (map_gp_sxpinfo f).
+
 Definition set_type_sxpinfo t i_info :=
   make_SxpInfo t (obj i_info) (named i_info) (gp i_info)
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).

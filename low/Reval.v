@@ -6,6 +6,7 @@
  * C source. **)
 
 Set Implicit Arguments.
+Require Import Ascii.
 Require Export Monads.
 
 (** * Global structure of the interpreter **)
@@ -26,11 +27,10 @@ Definition INT_MIN : int := - 2 ^ 31. (* We may want to make this a parameter. *
 Definition R_NaInt := INT_MIN.
 Definition NA_LOGICAL := R_NaInt.
 
+
 Variable globals : Globals.
 
 Let R_NilValue := R_NilValue globals.
-
-Let R_SymbolTable := R_SymbolTable globals.
 
 Let R_EmptyEnv := R_EmptyEnv globals.
 Let R_BaseEnv := R_BaseEnv globals.
@@ -310,6 +310,21 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' l
   (at level 50, left associativity) : monad_scope.
 
 
+(** ** Rinternals.h **)
+
+(** The function names of this section corresponds to the macro names
+ * in the file include/Rinternals.h. **)
+
+Definition PRINTNAME S x :=
+  read%defined x_ := x using S in
+  let%sym x_, x_sym := x_ using S in
+  result_success S (sym_pname x_sym).
+
+Definition CHAR S x :=
+  read%VectorChar x_ := x using S in
+  result_success S (list_to_string x_).
+
+
 (** ** Rinlinedfuns.c **)
 
 (** The function names of this section corresponds to the function names
@@ -382,6 +397,30 @@ Definition mkFalse S :=
 
 Definition mkNA S :=
   alloc_vector_lgl S [NA_LOGICAL : int].
+
+
+(** ** dstruct.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/dstruct.c. **)
+
+Definition iSDDName S (name : SExpRec_pointer) :=
+  let%success buf := CHAR S name using S in
+  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := substring 2 (String.length buf) buf in
+    (* I am simplifying the C code here. *)
+    result_success S (decide (Forall (fun c : Ascii.ascii =>
+        Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
+      (string_to_list buf)))
+  else
+  result_success S false.
+
+Definition mkSYMSXP S (name value : SExpRec_pointer) :=
+  let%success i := iSDDName S name using S in
+  let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
+  map%gp c with fun gp =>
+    write_nbit 0 gp ltac:(nbits_ok) i using S in
+  result_success S c.
 
 
 (** ** context.c **)
@@ -476,12 +515,10 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
     read%defined str_ := str using S in
     match type str_ with
     | SymSxp =>
-      let%sym str_, str_sym := str_ using S in
-      read%VectorChar str_name_ := sym_pname str_sym using S in
-      result_success S (list_to_string str_name_)
+      let%success str_name := PRINTNAME S str using S in
+      CHAR S str_name
     | CharSxp =>
-      let%defined str_ := get_VectorChar str_ using S in
-      result_success S (list_to_string str_)
+      CHAR S str
     | StrSxp =>
       result_not_implemented "[pmatch] translateChar(STRING_ELT(str, 0))"
     | _ =>
@@ -520,18 +557,16 @@ Arguments set_missing : clear implicits.
 Definition matchArgs_first S
     (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
   fold%success (a, fargusedrev) := (actuals, nil) along formals as _, f_tag do
-    read%sym f_tag_, f_tag_sym := f_tag using S in
-    read%VectorChar f_tag_sym_name_ := sym_pname f_tag_sym using S in
-    let ftag_name := list_to_string f_tag_sym_name_ in
+    let%success f_tag_sym_name := PRINTNAME S f_tag using S in
+    let%success ftag_name := CHAR S f_tag_sym_name using S in
     let continuation S fargusedi :=
       read%list a_, a_list := a using S in
       result_success S (list_cdrval a_list, fargusedi :: fargusedrev) in
     ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
       if_success (fold%let fargusedi := 0 along supplied as b, b_, b_list do
         let b_tag := list_tagval b_list in
-        read%sym b_tag_, b_tag_sym := b_tag using S in
-        read%VectorChar b_tag_sym_name_ := sym_pname b_tag_sym using S in
-        let btag_name := list_to_string b_tag_sym_name_ in
+        let%success b_tag_sym_name := PRINTNAME S b_tag using S in
+        let%success btag_name := CHAR S b_tag_sym_name using S in
         ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
           ifb fargusedi = 2 then
             result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
@@ -933,28 +968,29 @@ Definition install S name : result SExpRec_pointer :=
     * Instead, it is represented as a single list, and not
     * as [HSIZE] different lists.
     * This approach is slower, but equivalent. **)
-  fold%success ret := None along R_SymbolTable as R_SymbolTable_car, _ do
+  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
     match ret with
-    | Some v => ret
+    | Some v =>
+      result_success S ret
     | None =>
-      let%sym str_, str_sym := R_SymbolTable_car using S in
-      read%VectorChar str_name_ := sym_pname str_sym using S in
+      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
+      let%success str_name_ := CHAR S str_sym using S in
       ifb name = str_name_ then
-        Some R_SymbolTable_car
-      else None
+        result_success S (Some R_SymbolTable_car)
+      else result_success S None
     end
     using S in
   match ret with
   | Some v => result_success S v
   | None =>
-    ifb name = "" then
+    ifb name = ""%string then
       result_error S "[install] Attempt to use zero-length variable name."
     else
-      let (S, str) := mkChar name in
-      let%success sym := mkSYMSXP S str R_UnboundValue in
-      R_SymbolTable (* TODO. R_SymbolTable is often modified.
-                     * It should thus not be in [Globals], but in the state. *)
-        := cons S sym R_SymbolTable
+      let (S, str) := mkChar S name in
+      let%success sym := mkSYMSXP S str R_UnboundValue using S in
+      let (S, SymbolTable) := cons S sym (R_SymbolTable S) in
+      let S := update_R_SymbolTable S SymbolTable in
+      result_success S sym
   end.
 
 End ParameterisedRuns.
