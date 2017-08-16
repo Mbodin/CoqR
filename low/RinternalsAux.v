@@ -322,6 +322,18 @@ Definition get_SxpInfo e_ :=
   end.
 Coercion get_SxpInfo : SExpRec >-> SxpInfo.
 
+Definition get_SExpRecHeader e_ :=
+  match e_ return SExpRecHeader with
+  | SExpRec_NonVector e_ => e_
+  | SExpRec_VectorChar e_ => e_
+  | SExpRec_VectorLogical e_ => e_
+  | SExpRec_VectorInteger e_ => e_
+  | SExpRec_VectorComplex e_ => e_
+  | SExpRec_VectorReal e_ => e_
+  | SExpRec_VectorPointers e_ => e_
+  end.
+Coercion get_SExpRecHeader : SExpRec >-> SExpRecHeader.
+
 
 Definition get_primSxp e_ :=
   match e_ with
@@ -449,13 +461,24 @@ Definition build_SxpInfo type : SxpInfo :=
 Definition build_SExpRecHeader type attrib : SExpRecHeader :=
   make_SExpRecHeader (build_SxpInfo type) attrib (**None**) (**None**).
 
-(* This object seems to be just NULL.
-(** The Nil object TODO **)
-Definition Nil_SExpRec :=
-  make_NonVector_SExpRec
-    (make_SExpRecHeader NilSxp None)
-    ?.
-*)
+Definition get_VecSxp_length e_ :=
+  match e_ with
+  | SExpRec_NonVector e_ =>
+    None
+  | SExpRec_VectorChar e_ =>
+    Some (VecSxp_length e_)
+  | SExpRec_VectorLogical e_ =>
+    Some (VecSxp_length e_)
+  | SExpRec_VectorInteger e_ =>
+    Some (VecSxp_length e_)
+  | SExpRec_VectorComplex e_ =>
+    Some (VecSxp_length e_)
+  | SExpRec_VectorReal e_ =>
+    Some (VecSxp_length e_)
+  | SExpRec_VectorPointers e_ =>
+    Some (VecSxp_length e_)
+  end.
+
 
 (** Smart constructors for each R data type. **)
 

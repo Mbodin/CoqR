@@ -299,9 +299,13 @@ Record Globals := make_Globals {
     R_FalseValue : SExpRec_pointer ;
     R_LogicalNAValue : SExpRec_pointer ;
 
-    R_DotsSymbol : SExpRec_pointer ;
     R_UnboundValue : SExpRec_pointer ;
-    R_MissingArg : SExpRec_pointer
+    R_MissingArg : SExpRec_pointer ;
+    R_DotsSymbol : SExpRec_pointer ;
+    R_QuoteSymbol : SExpRec_pointer ;
+
+    R_ClassSymbol : SExpRec_pointer ;
+    R_RowNamesSymbol : SExpRec_pointer
   }.
 
 

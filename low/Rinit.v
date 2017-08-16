@@ -25,9 +25,13 @@ Let R_TrueValue := R_TrueValue globals.
 Let R_FalseValue := R_FalseValue globals.
 Let R_LogicalNAValue := R_LogicalNAValue globals.
 
-Let R_DotsSymbol := R_DotsSymbol globals.
 Let R_UnboundValue := R_UnboundValue globals.
 Let R_MissingArg := R_MissingArg globals.
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_QuoteSymbol := R_QuoteSymbol globals.
+
+Let R_ClassSymbol := R_ClassSymbol globals.
+Let R_RowNamesSymbol := R_RowNamesSymbol globals.
 
 
 (** ** Functions **)
@@ -116,7 +120,7 @@ Definition InitGlobalEnv runs S :=
   let%success R_NamespaceRegistry :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success _ :=
-    defineVar S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
+    defineVar globals runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
   result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
@@ -173,9 +177,12 @@ Definition Globals_all_constructors :=
     R_TrueValue ;
     R_FalseValue ;
     R_LogicalNAValue ;
-    R_DotsSymbol ;
     R_UnboundValue ;
-    R_MissingArg ].
+    R_MissingArg ;
+    R_DotsSymbol ;
+    R_QuoteSymbol ;
+    R_ClassSymbol ;
+    R_RowNamesSymbol ].
 
 (** The following property translates the [{o with f := v}] syntax from
  * OCaml as a property. Intuitively, we have
@@ -194,7 +201,7 @@ Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)
 (** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
 Ltac solve_globals_with :=
   let g := fresh "g" in
-  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
+  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
   exists g; constructors;
   [ let M := fresh "M" in introv M;
     repeat (inverts M as M; try solve [ simpl; reflexivity ])
@@ -221,9 +228,12 @@ Definition empty_globals := {|
     R_TrueValue := NULL ;
     R_FalseValue := NULL ;
     R_LogicalNAValue := NULL ;
-    R_DotsSymbol := NULL ;
     R_UnboundValue := NULL ;
-    R_MissingArg := NULL
+    R_MissingArg := NULL ;
+    R_DotsSymbol := NULL ;
+    R_QuoteSymbol := NULL ;
+    R_ClassSymbol := NULL ;
+    R_RowNamesSymbol := NULL
   |}.
 
 Notation "'{' g 'with' L '}'" :=

@@ -14,7 +14,9 @@ Require Export Monads.
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
     runs_do_while : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
-    runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
+    runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
+    runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
+    runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
   }.
 
 
@@ -44,9 +46,13 @@ Let R_TrueValue := R_TrueValue globals.
 Let R_FalseValue := R_FalseValue globals.
 Let R_LogicalNAValue := R_LogicalNAValue globals.
 
-Let R_DotsSymbol := R_DotsSymbol globals.
 Let R_UnboundValue := R_UnboundValue globals.
 Let R_MissingArg := R_MissingArg globals.
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_QuoteSymbol := R_QuoteSymbol globals.
+
+Let R_ClassSymbol := R_ClassSymbol globals.
+Let R_RowNamesSymbol := R_RowNamesSymbol globals.
 
 Section ParameterisedRuns.
 
@@ -325,6 +331,51 @@ Definition CHAR S x :=
   result_success S (list_to_string x_).
 
 
+(** ** memory.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/memory.c. **)
+
+Definition cons S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
+  let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
+  alloc_SExp S e_.
+
+Definition allocList S (n : nat) : state * SExpRec_pointer :=
+  let fix aux S n p :=
+    match n with
+    | 0 => (S, p)
+    | S n =>
+      let (S, p) := aux S n p in
+      cons S R_NilValue p
+    end
+  in aux S n R_NilValue.
+
+(** Note: there is a macro definition renaming [NewEnvironment] to
+  * [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
+  * the compiled C files references [Rf_NewEnvironment] and not
+  * [NewEnvironment]. These two functions are exactly the same. **)
+Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
+  let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
+  do%success (v, n) := (valuelist, namelist)
+  while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
+    read%list v_, v_list := v using S in
+    read%list n_, n_list := n using S in
+    let v_list := set_tag_list (list_tagval n_list) v_list in
+    let v_ := {|
+        NonVector_SExpRec_header := v_ ;
+        NonVector_SExpRec_data := v_list
+      |} in
+    write%defined v := v_ using S in
+    result_success S (list_cdrval v_list, list_cdrval n_list) using S in
+  result_success S newrho.
+
+(** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
+Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
+  map%pointer expr with set_named_plural using S in
+  let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
+  result_success S s.
+
+
 (** ** Rinlinedfuns.c **)
 
 (** The function names of this section corresponds to the function names
@@ -382,6 +433,67 @@ Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
   else
     let (S, s) := alloc_vector_str S [x] in
     result_success S s.
+
+(** Named [length] in the C source file. **)
+Definition R_length S s :=
+  read%defined s_ := s using S in
+  match type s_ with
+  | NilSxp => result_success S 0
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | CharSxp
+  | VecSxp
+  | ExprSxp
+  | RawSxp =>
+    let%defined l := get_VecSxp_length s_ using S in
+    result_success S l
+  | ListSxp
+  | LangSxp
+  | DotSxp =>
+    do%success (s, i) := (s, 0)
+    while result_success S (decide (s <> NULL /\ s <> R_NilValue))
+    do
+      read%list s_, s_list := s using S in
+      result_success S (list_cdrval s_list, 1 + i)
+    using S in
+    result_success S i
+  | EnvSxp =>
+    result_not_implemented "[R_length] Rf_envlength"
+  | _ =>
+    result_success S 1
+  end.
+
+Definition inherits S s name :=
+  read%defined s_ := s using S in
+  if obj s_ then
+    let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
+    read%VectorPointers klass_ := klass using S in
+    let%success b :=
+      fold_left (fun str rb =>
+        let%success b := rb using S in
+        if b : bool then
+          result_success S true
+        else
+          let%success str_ := CHAR S str using S in
+          result_success S (decide (str_ = name)))
+        (result_success S false) (VecSxp_data klass_) using S in
+    result_success S b
+  else
+    result_success S false.
+
+Definition isInteger S s :=
+  read%defined s_ := s using S in
+  let%success inh := inherits S s "factor" using S in
+  result_success S (decide (type s_ = IntSxp /\ ~ inh)).
+
+
+Definition lcons S car cdr :=
+  let (S, e) := cons S car cdr in
+  map%pointer e with set_type LangSxp using S in
+  result_success S e.
 
 
 (** ** gram.y **)
@@ -452,51 +564,6 @@ Definition endcontext S :=
     else result_success S tt using S in
   let%defined c := nextcontext cptr using S in
   result_success (state_with_context S c) tt.
-
-
-(** ** memory.c **)
-
-(** The function names of this section corresponds to the function names
- * in the file main/memory.c. **)
-
-Definition cons S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
-  let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
-  alloc_SExp S e_.
-
-Definition allocList S (n : nat) : state * SExpRec_pointer :=
-  let fix aux S n p :=
-    match n with
-    | 0 => (S, p)
-    | S n =>
-      let (S, p) := aux S n p in
-      cons S R_NilValue p
-    end
-  in aux S n R_NilValue.
-
-(** Note: there is a macro definition renaming [NewEnvironment] to
-  * [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
-  * the compiled C files references [Rf_NewEnvironment] and not
-  * [NewEnvironment]. These two functions are exactly the same. **)
-Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
-  let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
-  do%success (v, n) := (valuelist, namelist)
-  while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
-    read%list v_, v_list := v using S in
-    read%list n_, n_list := n using S in
-    let v_list := set_tag_list (list_tagval n_list) v_list in
-    let v_ := {|
-        NonVector_SExpRec_header := v_ ;
-        NonVector_SExpRec_data := v_list
-      |} in
-    write%defined v := v_ using S in
-    result_success S (list_cdrval v_list, list_cdrval n_list) using S in
-  result_success S newrho.
-
-(** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
-Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
-  map%pointer expr with set_named_plural using S in
-  let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
-  result_success S s.
 
 
 (** ** match.c **)
@@ -788,9 +855,178 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
         using S in
         result_success S tt using S.
 
-Definition defineVar (S : state) (symbol value rho : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[defineVar] TODO".
-(* TODO. *)
+Definition FRAME_IS_LOCKED S rho :=
+  read%defined rho_ := rho using S in
+  result_success S (nth_bit 14 (gp rho_) ltac:(nbits_ok)).
+
+Definition BINDING_IS_LOCKED S symbol :=
+  read%defined symbol_ := symbol using S in
+  result_success S (nth_bit 14 (gp symbol_) ltac:(nbits_ok)).
+
+Definition IS_ACTIVE_BINDING S symbol :=
+  read%defined symbol_ := symbol using S in
+  result_success S (nth_bit 15 (gp symbol_) ltac:(nbits_ok)).
+
+Definition setActiveValue S (f v : SExpRec_pointer) :=
+  let%success arg_tail := lcons S v R_NilValue using S in
+  let%success arg := lcons S R_QuoteSymbol arg_tail using S in
+  let%success expr_tail := lcons S arg R_NilValue using S in
+  let%success expr := lcons S f expr_tail using S in
+  let%success _ := runs_eval runs S expr R_GlobalEnv using S in
+  result_success S tt.
+
+Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
+  let%success locked := FRAME_IS_LOCKED S rho using S in
+  let cont _ :=
+    let%success locked := BINDING_IS_LOCKED S symbol using S in
+    ifb locked then
+      result_error S "[gsetVar] Can not change value of locked biding."
+    else
+      let%success active := IS_ACTIVE_BINDING S symbol using S in
+      read%sym symbol_, symbol_sym := symbol using S in
+      ifb active then
+        setActiveValue S (sym_value symbol_sym) value
+      else
+        let symbol_sym := {|
+            sym_pname := sym_pname symbol_sym ;
+            sym_value := value ;
+            sym_internal := sym_internal symbol_sym
+          |} in
+        let symbol_ := {|
+            NonVector_SExpRec_header := NonVector_SExpRec_header symbol_ ;
+            NonVector_SExpRec_data := symbol_sym
+          |} in
+        write%defined symbol := symbol_ using S in
+        result_success S tt
+    in
+  if locked then
+    read%sym symbol_, symbol_sym := symbol using S in
+    ifb sym_value symbol_sym = R_UnboundValue then
+      result_error S "[gsetVar] Can not add such a bidding to the base environment."
+    else cont tt
+  else cont tt.
+
+Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
+  ifb rho = R_EmptyEnv then
+    result_error S "[defineVar] Can not assign values in the empty environment."
+  else
+    read%defined rho_ := rho using S in
+    let%success inh := inherits S rho "UserDefinedDatabase" using S in
+    if obj rho_ && inh then
+      result_not_implemented "[defineVar] [R_ObjectTable]"
+    else
+      ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
+        gsetVar S symbol value rho
+      else
+        result_not_implemented "[defineVar] TODO".
+
+
+(** ** names.c **)
+
+(** The function names of this section corresponds to the function names
+* in the file main/names.c. **)
+
+Definition mkSymMarker S pname :=
+  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
+  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
+  result_success S ans.
+
+Definition install S name : result SExpRec_pointer :=
+  (** As said in the description of [InitNames] in Rinit.v,
+    * the hash table present in [R_SymbolTable] has not been
+    * formalised as such.
+    * Instead, it is represented as a single list, and not
+    * as [HSIZE] different lists.
+    * This approach is slower, but equivalent. **)
+  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
+    match ret with
+    | Some v =>
+      result_success S ret
+    | None =>
+      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
+      let%success str_name_ := CHAR S str_sym using S in
+      ifb name = str_name_ then
+        result_success S (Some R_SymbolTable_car)
+      else result_success S None
+    end
+    using S in
+  match ret with
+  | Some v => result_success S v
+  | None =>
+    ifb name = ""%string then
+      result_error S "[install] Attempt to use zero-length variable name."
+    else
+      let (S, str) := mkChar S name in
+      let%success sym := mkSYMSXP S str R_UnboundValue using S in
+      let (S, SymbolTable) := cons S sym (R_SymbolTable S) in
+      let S := update_R_SymbolTable S SymbolTable in
+      result_success S sym
+  end.
+
+(** We here choose to model [installChar] as its specifation
+  * given by the associated comment in the C source file. **)
+Definition installChar S charSXP :=
+  let%success str := CHAR S charSXP using S in
+  install S str.
+
+
+(** ** sysutils.c **)
+
+(** The function names of this section corresponds to the function names
+* in the file main/sysutils.c. **)
+
+Definition installTrChar S x :=
+  read%defined x_ := x using S in
+  ifb type x_ <> CharSxp then
+    result_error S "[installTrChar] Must be called on a [CharSxp]."
+  else
+    (** The original C program deals with encoding here. **)
+    installChar S x.
+
+
+(** ** attrib.c **)
+
+(** The function names of this section corresponds to the function names
+* in the file main/attrib.c. **)
+
+Definition getAttrib0 (S : state) (vec name : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[getAttrib0] TODO".
+
+Definition getAttrib S (vec name : SExpRec_pointer) :=
+  read%defined vec_ := vec using S in
+  ifb type vec_ = CharSxp then
+    result_error S "[getAttrib] Can not have attributes on a [CharSxp]."
+  else
+    ifb attrib vec_ = R_NilValue /\ ~ (type vec_ = ListSxp \/ type vec_ = LangSxp) then
+      result_success S R_NilValue
+    else
+      read%defined name_ := name using S in
+      let cont name :=
+        ifb name = R_RowNamesSymbol then
+          let%success s := getAttrib0 S vec name using S in
+          read%defined s_ := s using S in
+          let%success s_int := isInteger S s using S in
+          ifb s_int then
+            let%defined s_length := get_VecSxp_length s_ using S in
+            ifb s_length = 2 then
+              read%VectorInteger s_ := s using S in
+              let%defined s_0 := head (VecSxp_data s_) using S in
+              ifb s_0 = R_NaInt then
+                let%defined s_1 := head (tail (VecSxp_data s_)) using S in
+                let n := abs s_1 in
+                let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
+                result_success S s
+              else result_success S s
+            else result_success S s
+          else result_success S s
+        else getAttrib0 S vec name
+      in
+      ifb type name_ = StrSxp then
+        read%VectorPointers name_ := name using S in
+        let%defined str := head name_ using S in
+        let%success sym := installTrChar S str using S in
+        cont sym
+      else cont name.
 
 
 (** ** eval.c **)
@@ -951,48 +1187,6 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
     end.
 
 
-(** ** names.c **)
-
-(** The function names of this section corresponds to the function names
-* in the file main/names.c. **)
-
-Definition mkSymMarker S pname :=
-  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
-  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
-  result_success S ans.
-
-Definition install S name : result SExpRec_pointer :=
-  (** As said in the description of [InitNames] in Rinit.v,
-    * the hash table present in [R_SymbolTable] has not been
-    * formalised as such.
-    * Instead, it is represented as a single list, and not
-    * as [HSIZE] different lists.
-    * This approach is slower, but equivalent. **)
-  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
-    match ret with
-    | Some v =>
-      result_success S ret
-    | None =>
-      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
-      let%success str_name_ := CHAR S str_sym using S in
-      ifb name = str_name_ then
-        result_success S (Some R_SymbolTable_car)
-      else result_success S None
-    end
-    using S in
-  match ret with
-  | Some v => result_success S v
-  | None =>
-    ifb name = ""%string then
-      result_error S "[install] Attempt to use zero-length variable name."
-    else
-      let (S, str) := mkChar S name in
-      let%success sym := mkSYMSXP S str R_UnboundValue using S in
-      let (S, SymbolTable) := cons S sym (R_SymbolTable S) in
-      let S := update_R_SymbolTable S SymbolTable in
-      result_success S sym
-  end.
-
 End ParameterisedRuns.
 
 
@@ -1002,7 +1196,9 @@ Fixpoint runs max_step : runs_type :=
   match max_step with
   | O => {|
       runs_do_while := fun _ S _ _ _ => result_bottom S ;
-      runs_eval := fun S _ _ => result_bottom S
+      runs_eval := fun S _ _ => result_bottom S ;
+      runs_inherits := fun S _ _ => result_bottom S ;
+      runs_getAttrib := fun S _ _ => result_bottom S
     |}
   | S max_step =>
     let wrap {A B : Type} (f : runs_type -> B -> A) (x : B) : A :=
@@ -1015,7 +1211,9 @@ Fixpoint runs max_step : runs_type :=
       (** A dependent version of [wrap]. **)
       f (runs max_step) T in {|
       runs_do_while := wrap_dep do_while ;
-      runs_eval := wrap eval
+      runs_eval := wrap eval ;
+      runs_inherits := wrap inherits ;
+      runs_getAttrib := wrap getAttrib
     |}
   end.
 
