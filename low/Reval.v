@@ -41,6 +41,8 @@ Let R_BaseNamespace := R_BaseNamespace globals.
 Let R_BaseNamespaceName := R_BaseNamespaceName globals.
 Let R_BaseSymbol := R_BaseSymbol globals.
 Let R_NamespaceRegistry := R_NamespaceRegistry globals.
+Let R_NamespaceSymbol := R_NamespaceSymbol globals.
+Let R_MethodsNamespace := R_MethodsNamespace globals.
 
 Let R_TrueValue := R_TrueValue globals.
 Let R_FalseValue := R_FalseValue globals.

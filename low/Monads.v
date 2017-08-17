@@ -78,6 +78,16 @@ Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' r 'using' S 
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' r 'using' S 'in' cont" :=
+  (let%success x := r using S in
+   let '(a1, a2, a3, a4, a5, a6) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ')' ':=' r 'using' S 'in' cont" :=
+  (let%success x := r using S in
+   let '(a1, a2, a3, a4, a5, a6, a7) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** As for [if_success], but from an option type. We suppose that the option type is defined. **)
 Definition if_defined (A B : Type) S (o : option A) (f : A -> result B) : result B :=

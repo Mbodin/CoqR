@@ -20,6 +20,8 @@ Let R_BaseNamespace := R_BaseNamespace globals.
 Let R_BaseNamespaceName := R_BaseNamespaceName globals.
 Let R_BaseSymbol := R_BaseSymbol globals.
 Let R_NamespaceRegistry := R_NamespaceRegistry globals.
+Let R_NamespaceSymbol := R_NamespaceSymbol globals.
+Let R_MethodsNamespace := R_MethodsNamespace globals.
 
 Let R_TrueValue := R_TrueValue globals.
 Let R_FalseValue := R_FalseValue globals.
@@ -32,6 +34,8 @@ Let R_QuoteSymbol := R_QuoteSymbol globals.
 
 Let R_ClassSymbol := R_ClassSymbol globals.
 Let R_RowNamesSymbol := R_RowNamesSymbol globals.
+
+Variable runs : runs_type.
 
 
 (** ** Functions **)
@@ -65,38 +69,67 @@ Definition init_R_NilValue S :=
 
 (** The second part of [InitMemory], from main/memory.c **)
 Definition InitMemory S :=
+  let%success R_NilValue :=
+    init_R_NilValue S using S in
   let (S, R_TrueValue) := mkTrue globals S in
   let (S, R_FalseValue) := mkFalse globals S in
   let (S, R_LogicalNAValue) := alloc_vector_lgl globals S [NA_LOGICAL] in
-  result_success S (R_TrueValue, R_FalseValue, R_LogicalNAValue).
+  result_success S (R_NilValue, R_TrueValue, R_FalseValue, R_LogicalNAValue).
 
 (** [InitBaseEnv], from main/envir.c **)
-Definition InitBaseEnv runs S :=
+Definition InitBaseEnv S :=
   let%success R_EmptyEnv :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success R_BaseEnv :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_EmptyEnv using S in
   result_success S (R_EmptyEnv, R_BaseEnv).
 
+
+(* TODO: Explain in the repport that in R, to speed up calculus, symbols are
+ * represented by unique pointers. This means that comparison is simple: it
+ * is just comparing the pointers. But this means that each pointer needs
+ * to be installed using the [install] function, and that parsing must look
+ * in the symbol table. *)
+
+(** [SymbolShortcuts], from main/names.c **)
+Definition SymbolShortcuts S :=
+  let L := [
+      (* TODO *)
+      (R_DotsSymbol, "...")
+      (* TODO *)
+    ]%string in
+  fold_left (fun sym_str st =>
+    let%success L' := st using S in
+    let (sym, str) := sym_str : _ * _ in
+    let%success p :=
+      install globals runs S str using S in
+    result_success S ((sym, p) :: L')) (result_success S nil) L.
+
 (** [InitNames], from main/names.c **)
 Definition InitNames S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
-  (* Some ignored global values *)
+  (* Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
+   * [R_CurrentExpression], [NA_STRING], [R_BlankString], [R_BlankScalarString]. *)
   let R_SymbolTable :=
     (** We do not model the full hash table for symbols.
       * Instead, we consider that it spans over only one
       * cell. **) (* TODO: Write about this in the report. *)
     R_NilValue in
   let S := update_R_SymbolTable S R_SymbolTable in
+  let%success L :=
+    SymbolShortcuts S using S in
   (* TODO *)
-  result_success S (R_UnboundValue, R_MissingArg).
+  result_success S (R_UnboundValue, R_MissingArg, L).
 
 (** [InitGlobalEnv], from main/envir.c **)
-Definition InitGlobalEnv runs S :=
+Definition InitGlobalEnv S :=
+  let%success R_NamespaceSymbol :=
+     install globals runs S ".__NAMESPACE__." using S in
   let%success R_GlobalEnv :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_BaseEnv using S in
+  let R_MethodsNamespace := R_GlobalEnv in
   let%success R_BaseNamespace :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_GlobalEnv using S in
   let%success BaseNamespaceEnvSym :=
@@ -121,7 +154,7 @@ Definition InitGlobalEnv runs S :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success _ :=
     defineVar globals runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
-  result_success S (R_GlobalEnv, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
+  result_success S (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
@@ -139,9 +172,9 @@ Definition InitGlobalEnv runs S :=
   TODO.*)
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
-Definition init_R_Toplevel runs S :=
+Definition init_R_Toplevel S :=
   let%success (R_EmptyEnv, R_BaseEnv) :=
-    InitBaseEnv runs S using S in
+    InitBaseEnv S using S in
   result_success S {|
       nextcontext := None ;
       callflag := Ctxt_TopLevel ;
@@ -165,7 +198,7 @@ End Globals.
  * this particular case), we implement a specialised version in Ltac. **)
 
 (** Here follows a list of all the constructors of [Globals]. **)
-Definition Globals_all_constructors :=
+Definition Globals_constructors :=
   [ R_NilValue ;
     R_EmptyEnv ;
     R_BaseEnv ;
@@ -174,6 +207,8 @@ Definition Globals_all_constructors :=
     R_BaseNamespaceName ;
     R_BaseSymbol ;
     R_NamespaceRegistry ;
+    R_NamespaceSymbol ;
+    R_MethodsNamespace ;
     R_TrueValue ;
     R_FalseValue ;
     R_LogicalNAValue ;
@@ -194,21 +229,21 @@ Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)
       C g' = p ;
     globals_with_out : forall C,
       (forall p, ~ Mem (C, p) L) ->
-      Mem C Globals_all_constructors ->
+      Mem C Globals_constructors ->
       C g' = C g ;
   }.
 
 (** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
 Ltac solve_globals_with :=
   let g := fresh "g" in
-  refine (let g := make_Globals _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ in _);
+  refine (let g := make_Globals in _); repeat refine (let g := g _ in _);
   exists g; constructors;
   [ let M := fresh "M" in introv M;
-    repeat (inverts M as M; try solve [ simpl; reflexivity ])
+    repeat (inverts M as M; [ simpl; reflexivity |]); inverts M
   | let NM := fresh "NM" in introv NM;
     let M := fresh "M" in introv M;
-    repeat (inverts M as M; try solve [ simpl; reflexivity
-                                      | false NM; repeat constructors ]) ].
+    repeat (inverts M as M; [ try solve [ simpl; reflexivity
+                                        | false NM; repeat constructors ] |]); inverts M ].
 
 (** The following tactics builds a term [g'] such that [globals_with g L g']. **)
 Ltac build_globals_with g L :=
@@ -216,25 +251,11 @@ Ltac build_globals_with g L :=
   exact (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g L g' })).
 
 (** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
-Definition empty_globals := {|
-    R_NilValue := NULL ;
-    R_EmptyEnv := NULL ;
-    R_BaseEnv := NULL ;
-    R_GlobalEnv := NULL ;
-    R_BaseNamespace := NULL ;
-    R_BaseNamespaceName := NULL ;
-    R_BaseSymbol := NULL ;
-    R_NamespaceRegistry := NULL ;
-    R_TrueValue := NULL ;
-    R_FalseValue := NULL ;
-    R_LogicalNAValue := NULL ;
-    R_UnboundValue := NULL ;
-    R_MissingArg := NULL ;
-    R_DotsSymbol := NULL ;
-    R_QuoteSymbol := NULL ;
-    R_ClassSymbol := NULL ;
-    R_RowNamesSymbol := NULL
-  |}.
+Definition empty_globals : Globals.
+  refine (proj1_sig (P := fun g => forall C, Mem C Globals_constructors -> C g = NULL) _).
+  refine (let g := make_Globals in _). repeat refine (let g := g _ in _). exists g.
+  introv M. repeat (inverts M as M; [simpl; reflexivity|]). inverts M.
+Defined.
 
 Notation "'{' g 'with' L '}'" :=
   (ltac:(build_globals_with g L)).
@@ -250,25 +271,30 @@ Notation "'{' g 'with' L '}'" :=
   * the updated [globals]. **)
 Definition setup_Rmainloop max_step S : result Globals :=
   let globals := empty_globals in
-  let%success NilValue :=
-    init_R_NilValue S using S in
-  let globals := { globals with [(R_NilValue, NilValue)] } in
-  let%success (TrueValue, FalseValue, LogicalNAValue) :=
+  let%success (NilValue, TrueValue, FalseValue, LogicalNAValue) :=
     InitMemory globals S using S in
-  let globals := { globals with [(R_TrueValue, TrueValue) ;
+  let globals := { globals with [(R_NilValue, NilValue) ;
+                                 (R_TrueValue, TrueValue) ;
                                  (R_FalseValue, FalseValue) ;
                                  (R_LogicalNAValue, LogicalNAValue)] } in
   let%success (EmptyEnv, BaseEnv) :=
     InitBaseEnv globals (runs globals max_step) S using S in
   let globals := { globals with [(R_EmptyEnv, EmptyEnv) ;
                                  (R_BaseEnv, BaseEnv)] } in
-  let%success (UnboundValue, MissingArg) :=
-    InitNames globals S using S in
+  let%success (UnboundValue, MissingArg, L) :=
+    InitNames globals (runs globals max_step) S using S in
   let globals := { globals with [(R_UnboundValue, UnboundValue) ;
                                  (R_MissingArg, MissingArg)] } in
-  let%success (GlobalEnv, BaseNamespace, BaseNamespaceName, NamespaceRegistry) :=
+  -- (*let globals := { globals with L } in*) (* TODO: This just does not work,
+                                                 the tactic looping forever. *)
+     (* Maybe if we inline [SymbolShortcuts] here? We would need to get the [unfold]
+        and [simpl] rights to make it work. *)
+  let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
+      BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_GlobalEnv, GlobalEnv) ;
+  let globals := { globals with [(R_NamespaceSymbol, NamespaceSymbol) ;
+                                 (R_GlobalEnv, GlobalEnv) ;
+                                 (R_MethodsNamespace, MethodsNamespace) ;
                                  (R_BaseNamespace, BaseNamespace) ;
                                  (R_BaseNamespaceName, BaseNamespaceName) ;
                                  (R_NamespaceRegistry, NamespaceRegistry)] } in

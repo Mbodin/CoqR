@@ -294,6 +294,8 @@ Record Globals := make_Globals {
     R_BaseNamespaceName : SExpRec_pointer ;
     R_BaseSymbol : SExpRec_pointer ;
     R_NamespaceRegistry : SExpRec_pointer ;
+    R_NamespaceSymbol : SExpRec_pointer ;
+    R_MethodsNamespace : SExpRec_pointer ;
 
     R_TrueValue : SExpRec_pointer ;
     R_FalseValue : SExpRec_pointer ;
