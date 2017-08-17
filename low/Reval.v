@@ -330,13 +330,18 @@ Definition CHAR S x :=
   read%VectorChar x_ := x using S in
   result_success S (list_to_string x_).
 
+Definition SET_MISSING S e (m : nat) I :=
+  map%gp e with fun gp => write_nbits 0 (nat_to_nbits m I : nbits 4) gp ltac:(nbits_ok) using S in
+  result_success S tt.
+Arguments SET_MISSING : clear implicits.
+
 
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
  * in the file main/memory.c. **)
 
-Definition cons S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
+Definition CONS S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
   alloc_SExp S e_.
 
@@ -346,7 +351,7 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
     | 0 => (S, p)
     | S n =>
       let (S, p) := aux S n p in
-      cons S R_NilValue p
+      CONS S R_NilValue p
     end
   in aux S n R_NilValue.
 
@@ -491,7 +496,7 @@ Definition isInteger S s :=
 
 
 Definition lcons S car cdr :=
-  let (S, e) := cons S car cdr in
+  let (S, e) := CONS S car cdr in
   map%pointer e with set_type LangSxp using S in
   result_success S e.
 
@@ -617,10 +622,6 @@ Arguments set_argused : clear implicits.
 Definition missing e_ :=
   sub_nbits 0 4 (gp e_) ltac:(nbits_ok).
 
-Definition set_missing (m : nat) I (e_ : SExpRec) :=
-  set_gp (write_nbits 0 (nat_to_nbits m I : nbits 4) (gp e_) ltac:(nbits_ok)) e_.
-Arguments set_missing : clear implicits.
-
 Definition matchArgs_first S
     (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
   fold%success (a, fargusedrev) := (actuals, nil) along formals as _, f_tag do
@@ -643,7 +644,7 @@ Definition matchArgs_first S
             set%car a := list_carval b_list using S in
             let%success _ :=
               ifb list_carval b_list <> R_MissingArg then
-                map%pointer a with set_missing 1 ltac:(nbits_ok) using S in
+                let%success _ := SET_MISSING S a 1 ltac:(nbits_ok) using S in
                 result_success S tt
               else result_success S tt using S in
             map%pointer b with set_argused 2 ltac:(nbits_ok) using S in
@@ -682,7 +683,7 @@ Definition matchArgs_second S
                     set%car a := list_carval b_list using S in
                     let%success _ :=
                       ifb list_carval b_list <> R_MissingArg then
-                        map%pointer a with set_missing 0 ltac:(nbits_ok) using S in
+                        let%success _ := SET_MISSING S a 0 ltac:(nbits_ok) using S in
                         result_success S tt
                       else result_success S tt using S in
                     map%pointer b with set_argused 1 ltac:(nbits_ok) using S in
@@ -712,7 +713,7 @@ Definition matchArgs_third S
         set%car a := list_carval b_list using S in
         let%success _ :=
           ifb list_carval b_list <> R_MissingArg then
-            map%pointer a with set_missing 0 ltac:(nbits_ok) using S in
+            let%success _ := SET_MISSING S a 0 ltac:(nbits_ok) using S in
             result_success S tt
           else result_success S tt using S in
         result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)
@@ -721,7 +722,7 @@ Definition matchArgs_third S
 
 Definition matchArgs_dots S
     (dots supplied : SExpRec_pointer) : result unit :=
-  map%pointer dots with set_missing 0 ltac:(nbits_ok) using S in
+  let%success _ := SET_MISSING S dots 0 ltac:(nbits_ok) using S in
   fold%success i := 0 along supplied as a, _ do
     read%defined a_ := a using S in
     ifb argused a_ = 0 then
@@ -737,17 +738,9 @@ Definition matchArgs_dots S
       ifb argused b_ <> 0 then
         result_success S f
       else
+        set%car f := list_carval b_list using S in
+        set%tag f := list_tagval b_list using S in
         read%list f_, f_list := f using S in
-        let f_list := {|
-            list_carval := list_carval b_list ;
-            list_cdrval := list_cdrval f_list ;
-            list_tagval := list_tagval b_list
-          |} in
-        let f_ := {|
-            NonVector_SExpRec_header := NonVector_SExpRec_header f_ ;
-            NonVector_SExpRec_data := f_list
-          |} in
-        write%defined f := f_ using S in
         result_success S (list_cdrval f_list) using S in
     set%car dots := a using S in
     result_success S tt.
@@ -765,7 +758,7 @@ Definition matchArgs_check S
 Definition matchArgs S
     (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
   fold%success (actuals, argi) := (R_NilValue, 0) along formals as _, _ do
-    let (S, actuals) := cons S R_MissingArg actuals in
+    let (S, actuals) := CONS S R_MissingArg actuals in
     result_success S (actuals, 1 + argi) using S in
   fold%success _ := tt along supplied as b, _ do
     map%pointer b with set_argused 0 ltac:(nbits_ok) using S in
@@ -794,18 +787,20 @@ Definition matchArgs S
 Definition mkChar S (str : string) : state * SExpRec_pointer :=
   alloc_vector_char S (string_to_list str).
 
-Definition is_special_symbol e_ :=
-  nth_bit 12 (gp e_) ltac:(nbits_ok).
+Definition IS_SPECIAL_SYMBOL S symbol :=
+  read%defined symbol_ := symbol using S in
+  result_success S (nth_bit 12 (gp symbol_) ltac:(nbits_ok)).
 
-Definition set_no_special_symbols (e_ : SExpRec) :=
-  set_gp (write_nbit 12 (gp e_) ltac:(nbits_ok) true) e_.
+Definition SET_SPECIAL_SYMBOL S x v :=
+  map%gp x with fun gp => write_nbit 12 gp ltac:(nbits_ok) v using S in
+  result_success S tt.
 
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
   (* A note about hashtabs commented out. *)
   fold%let b := true along env_frame env_env as frame_car, frame_tag do
-    read%defined frame_tag_ := frame_tag using S in
-    if is_special_symbol frame_tag_ then
+    let%success special := IS_SPECIAL_SYMBOL S frame_tag using S in
+    if special then
       result_success S false
     else result_success S b using S.
 
@@ -875,9 +870,22 @@ Definition setActiveValue S (f v : SExpRec_pointer) :=
   let%success _ := runs_eval runs S expr R_GlobalEnv using S in
   result_success S tt.
 
+Definition SET_BINDING_VALUE S b val :=
+  let%success locked := BINDING_IS_LOCKED S b using S in
+  ifb locked then
+    result_error S "[SET_BINDING_VALUE] Can not change value of locked binding."
+  else
+    let%success active := IS_ACTIVE_BINDING S b using S in
+    read%list b_, b_list := b using S in
+    ifb active then
+      setActiveValue S (list_carval b_list) val
+    else
+      set%car b := val using S in
+    result_success S tt.
+
 Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
   let%success locked := FRAME_IS_LOCKED S rho using S in
-  let cont _ :=
+  let continuation S :=
     let%success locked := BINDING_IS_LOCKED S symbol using S in
     ifb locked then
       result_error S "[gsetVar] Can not change value of locked biding."
@@ -903,8 +911,8 @@ Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
     read%sym symbol_, symbol_sym := symbol using S in
     ifb sym_value symbol_sym = R_UnboundValue then
       result_error S "[gsetVar] Can not add such a bidding to the base environment."
-    else cont tt
-  else cont tt.
+    else continuation S
+  else continuation S.
 
 Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
   ifb rho = R_EmptyEnv then
@@ -918,7 +926,44 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
         gsetVar S symbol value rho
       else
-        result_not_implemented "[defineVar] TODO".
+        let continuation S :=
+          (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+          let%env rho_, rho_env := rho_ using S in
+          fold%success ret := false along env_frame rho_env as frame, frame_, frame_list do
+            if ret then
+              result_success S true
+            else
+              ifb list_tagval frame_list = symbol then
+                let%success _ := SET_BINDING_VALUE S frame value using S in
+                let%success _ := SET_MISSING S frame 0 ltac:(nbits_ok) using S in
+                result_success S true
+              else
+                result_success S false
+            using S in
+          if ret then
+            result_success S tt
+          else
+            let%success locked := FRAME_IS_LOCKED S rho using S in
+            ifb locked then
+              result_error S "[defineVar] Can not add a binding to a locked environment."
+            else
+              let (S, l) := CONS S value (env_frame rho_env) in
+              let rho_env := {|
+                  env_frame := l ;
+                  env_enclos := env_enclos rho_env
+                |} in
+              let rho_ := {|
+                  NonVector_SExpRec_header := rho_ ;
+                  NonVector_SExpRec_data := rho_env
+                |} in
+              write%defined rho := rho_ using S in
+              set%tag env_frame rho_env := symbol using S in
+              result_success S tt in
+        let%success special := IS_SPECIAL_SYMBOL S symbol using S in
+        if special then
+          let%success _ := SET_SPECIAL_SYMBOL S rho false using S in
+          continuation S
+        else continuation S.
 
 
 (** ** names.c **)
@@ -958,7 +1003,7 @@ Definition install S name : result SExpRec_pointer :=
     else
       let (S, str) := mkChar S name in
       let%success sym := mkSYMSXP S str R_UnboundValue using S in
-      let (S, SymbolTable) := cons S sym (R_SymbolTable S) in
+      let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
       let S := update_R_SymbolTable S SymbolTable in
       result_success S sym
   end.
@@ -1001,7 +1046,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
       result_success S R_NilValue
     else
       read%defined name_ := name using S in
-      let cont name :=
+      let continuation S name :=
         ifb name = R_RowNamesSymbol then
           let%success s := getAttrib0 S vec name using S in
           read%defined s_ := s using S in
@@ -1025,8 +1070,8 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
         read%VectorPointers name_ := name using S in
         let%defined str := head name_ using S in
         let%success sym := installTrChar S str using S in
-        cont sym
-      else cont name.
+        continuation S sym
+      else continuation S name.
 
 
 (** ** eval.c **)
@@ -1038,10 +1083,10 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
   read%prom e_, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
-    let cont S :=
-      map%pointer e with set_gp (@nat_to_nbits 16 1 ltac:(nbits_ok)) using S in
+    let continuation S :=
+      set%gp e with @nat_to_nbits 16 1 ltac:(nbits_ok) using S in
       let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
-      map%pointer e with set_gp (@nat_to_nbits 16 0 ltac:(nbits_ok)) using S in
+      set%gp e with @nat_to_nbits 16 0 ltac:(nbits_ok) using S in
       map%pointer val with set_named_plural using S in
       read%prom e_, e_prom := e using S in
       let e_prom := {|
@@ -1060,8 +1105,8 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
         result_error S "[forcePromise] Promise already under evaluation."
       else
         (* Warning: restarting interrupted promise evaluation. *)
-        cont S
-    else cont S
+        continuation S
+    else continuation S
   else result_success S (prom_value e_prom).
 
 Definition R_execClosure (S : state)
@@ -1084,7 +1129,7 @@ Definition applyClosure S
       ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
         let%success newprom := mkPromise S f_car newrho using S in
         set%car a := newprom using S in
-        map%pointer a with set_missing 2 ltac:(nbits_ok) using S in
+        let%success _ := SET_MISSING S a 2 ltac:(nbits_ok) using S in
         result_success S (list_cdrval a_list)
       else result_success S (list_cdrval a_list) using S in
     let%success _ :=
@@ -1094,7 +1139,7 @@ Definition applyClosure S
     let%success _ :=
       let%success b := R_envHasNoSpecialSymbols S newrho using S in
       if b then
-        map%pointer newrho with set_no_special_symbols using S in
+        let%success _ := SET_SPECIAL_SYMBOL S newrho false using S in
         result_success S tt
       else result_success S tt using S in
     R_execClosure S call newrho

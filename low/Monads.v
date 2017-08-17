@@ -59,19 +59,23 @@ Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%success' '(' a1 ',' a2 ')' ':=' r 'using' S 'in' cont" :=
-  (if_success r (fun S x => let (a1, a2) := x in cont))
+  (let%success x := r using S in
+   let '(a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%success' '(' a1 ',' a2 ',' a3 ')' ':=' r 'using' S 'in' cont" :=
-  (if_success r (fun S x => let '(a1, a2, a3) := x in cont))
+  (let%success x := r using S in
+   let '(a1, a2, a3) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' r 'using' S 'in' cont" :=
-  (if_success r (fun S x => let '(a1, a2, a3, a4) := x in cont))
+  (let%success x := r using S in
+   let '(a1, a2, a3, a4) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' r 'using' S 'in' cont" :=
-  (if_success r (fun S x => let '(a1, a2, a3, a4, a5) := x in cont))
+  (let%success x := r using S in
+   let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 
@@ -111,6 +115,10 @@ Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
   (map%pointer p with map_gp f using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
+  (map%pointer p with set_gp v using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** Updating a list. **)
 Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
@@ -131,7 +139,7 @@ Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
 
 (** Updating the first element of a list. **)
 Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map_list S (set_car_list car) p f.
+  map%list p with set_car_list car using S in f S.
 
 Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
   (set_car S car p (fun S => cont))
@@ -139,7 +147,7 @@ Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
 
 (** Updating the tail of a list. **)
 Definition set_cdr A S cdr (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map_list S (set_cdr_list cdr) p f.
+  map%list p with set_cdr_list cdr using S in f S.
 
 Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
   (set_cdr S cdr p (fun S => cont))
@@ -147,7 +155,7 @@ Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
 
 (** Updating the tag of a list. **)
 Definition set_tag A S tag (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map_list S (set_tag_list tag) p f.
+  map%list p with set_tag_list tag using S in f S.
 
 Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
   (set_car S tag p (fun S => cont))
@@ -213,7 +221,8 @@ Notation "'let%prom' a_ ',' a_prom ':=' e_ 'using' S 'in' cont" :=
 
 Definition read_as_sym A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_sym S e_ f.
+  let%sym e_, e_sym := e_ using S in
+  f e_ e_sym.
 
 Notation "'read%sym' e_ ',' e_sym ':=' e 'using' S 'in' cont" :=
   (read_as_sym S e (fun e_ e_sym => cont))
@@ -221,7 +230,8 @@ Notation "'read%sym' e_ ',' e_sym ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_list A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_list S e_ f.
+  let%list e_, e_list := e_ using S in
+  f e_ e_list.
 
 Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   (read_as_list S e (fun e_ e_list => cont))
@@ -229,7 +239,8 @@ Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_clo A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_clo S e_ f.
+  let%clo e_, e_clo := e_ using S in
+  f e_ e_clo.
 
 Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
   (read_as_clo S e (fun e_ e_clo => cont))
@@ -237,7 +248,8 @@ Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_env A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_env S e_ f.
+  let%env e_, e_env := e_ using S in
+  f e_ e_env.
 
 Notation "'read%env' e_ ',' e_env ':=' e 'using' S 'in' cont" :=
   (read_as_env S e (fun e_ e_env => cont))
@@ -245,7 +257,8 @@ Notation "'read%env' e_ ',' e_env ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_prim A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_prim S e_ f.
+  let%prim e_, e_prim := e_ using S in
+  f e_ e_prim.
 
 Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
   (read_as_prim S e (fun e_ e_prim => cont))
@@ -253,7 +266,8 @@ Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_prom A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_is_prom S e_ f.
+  let%prom e_, e_prom := e_ using S in
+  f e_ e_prom.
 
 Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
   (read_as_prom S e (fun e_ e_prom => cont))
@@ -261,7 +275,8 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorChar A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorChar e_) f.
+  let%defined e_ := get_VectorChar e_ using S in
+  f e_.
 
 Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorChar S e (fun e_ => cont))
@@ -269,7 +284,8 @@ Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorLogical A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorLogical e_) f.
+  let%defined e_ := get_VectorLogical e_ using S in
+  f e_.
 
 Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorLogical S e (fun e_ => cont))
@@ -277,7 +293,8 @@ Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorInteger A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorInteger e_) f.
+  let%defined e_ := get_VectorInteger e_ using S in
+  f e_.
 
 Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorInteger S e (fun e_ => cont))
@@ -285,7 +302,8 @@ Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorComplex A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorComplex e_) f.
+  let%defined e_ := get_VectorComplex e_ using S in
+  f e_.
 
 Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorComplex S e (fun e_ => cont))
@@ -293,7 +311,8 @@ Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorReal A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorReal e_) f.
+  let%defined e_ := get_VectorReal e_ using S in
+  f e_.
 
 Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorReal S e (fun e_ => cont))
@@ -301,7 +320,8 @@ Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_as_VectorPointers A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  if_defined S (get_VectorPointers e_) f.
+  let%defined e_ := get_VectorPointers e_ using S in
+  f e_.
 
 Notation "'read%VectorPointers' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorPointers S e (fun e_ => cont))
