@@ -31,6 +31,11 @@ Rinternals.v.
 
 This file provides a model for the C memory.
 
+*** Globals.v
+
+This file lists all global variables used in the C source code of R,
+that are initialised, then never changed.
+
 *** Monads.v
 
 This file provides monads to manipulate R objects easily.

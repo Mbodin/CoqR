@@ -190,75 +190,7 @@ End Globals.
 
 (** ** [setup_Rmainloop] **)
 
-(** We can now close the initialising loop. **)
-
-(** We are going to update structures of type [Globals] a lot of time
- * in this section. There is unfortunately no [{o with f := v}] syntax
- * in Coq. As we are going to need it (as it helps avoid mistakes in
- * this particular case), we implement a specialised version in Ltac. **)
-
-(** Here follows a list of all the constructors of [Globals]. **)
-Definition Globals_constructors :=
-  [ R_NilValue ;
-    R_EmptyEnv ;
-    R_BaseEnv ;
-    R_GlobalEnv ;
-    R_BaseNamespace ;
-    R_BaseNamespaceName ;
-    R_BaseSymbol ;
-    R_NamespaceRegistry ;
-    R_NamespaceSymbol ;
-    R_MethodsNamespace ;
-    R_TrueValue ;
-    R_FalseValue ;
-    R_LogicalNAValue ;
-    R_UnboundValue ;
-    R_MissingArg ;
-    R_DotsSymbol ;
-    R_QuoteSymbol ;
-    R_ClassSymbol ;
-    R_RowNamesSymbol ].
-
-(** The following property translates the [{o with f := v}] syntax from
- * OCaml as a property. Intuitively, we have
- * [globals_with g [(C1, p1);... ; (Cn, pn)] g'] if and only if
- * [g' = {g with C1 := p1, ..., Cn := pn}]. **)
-Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) g' := {
-    globals_with_in : forall C p,
-      Mem (C, p) L ->
-      C g' = p ;
-    globals_with_out : forall C,
-      (forall p, ~ Mem (C, p) L) ->
-      Mem C Globals_constructors ->
-      C g' = C g ;
-  }.
-
-(** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
-Ltac solve_globals_with :=
-  let g := fresh "g" in
-  refine (let g := make_Globals in _); repeat refine (let g := g _ in _);
-  exists g; constructors;
-  [ let M := fresh "M" in introv M;
-    repeat (inverts M as M; [ simpl; reflexivity |]); inverts M
-  | let NM := fresh "NM" in introv NM;
-    let M := fresh "M" in introv M;
-    repeat (inverts M as M; [ try solve [ simpl; reflexivity
-                                        | false NM; repeat constructors ] |]); inverts M ].
-
-(** The following tactics builds a term [g'] such that [globals_with g L g']. **)
-Ltac build_globals_with g L :=
-  let g' := fresh "g" in
-  exact (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g L g' })).
-
-(** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
-Definition empty_globals : Globals.
-  refine (proj1_sig (P := fun g => forall C, Mem C Globals_constructors -> C g = NULL) _).
-  refine (let g := make_Globals in _). repeat refine (let g := g _ in _). exists g.
-  introv M. repeat (inverts M as M; [simpl; reflexivity|]). inverts M.
-Defined.
-
-Notation "'{' g 'with' L '}'" :=
-  (ltac:(build_globals_with g L)).
+(** This section concludes the initialisation. **)
 
 (** The functions above are all called in the C version of [setup_Rmainloop],
   * in main/main.c.
@@ -273,18 +205,18 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := empty_globals in
   let%success (NilValue, TrueValue, FalseValue, LogicalNAValue) :=
     InitMemory globals S using S in
-  let globals := { globals with [(R_NilValue, NilValue) ;
-                                 (R_TrueValue, TrueValue) ;
-                                 (R_FalseValue, FalseValue) ;
-                                 (R_LogicalNAValue, LogicalNAValue)] } in
+  let globals := {{ globals with [(R_NilValue, NilValue) ;
+                                  (R_TrueValue, TrueValue) ;
+                                  (R_FalseValue, FalseValue) ;
+                                  (R_LogicalNAValue, LogicalNAValue)] }} in
   let%success (EmptyEnv, BaseEnv) :=
     InitBaseEnv globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_EmptyEnv, EmptyEnv) ;
-                                 (R_BaseEnv, BaseEnv)] } in
+  let globals := {{ globals with [(R_EmptyEnv, EmptyEnv) ;
+                                  (R_BaseEnv, BaseEnv)] }} in
   let%success (UnboundValue, MissingArg, L) :=
     InitNames globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_UnboundValue, UnboundValue) ;
-                                 (R_MissingArg, MissingArg)] } in
+  let globals := {{ globals with [(R_UnboundValue, UnboundValue) ;
+                                  (R_MissingArg, MissingArg)] }} in
   -- (*let globals := { globals with L } in*) (* TODO: This just does not work,
                                                  the tactic looping forever. *)
      (* Maybe if we inline [SymbolShortcuts] here? We would need to get the [unfold]
@@ -292,12 +224,12 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
-  let globals := { globals with [(R_NamespaceSymbol, NamespaceSymbol) ;
-                                 (R_GlobalEnv, GlobalEnv) ;
-                                 (R_MethodsNamespace, MethodsNamespace) ;
-                                 (R_BaseNamespace, BaseNamespace) ;
-                                 (R_BaseNamespaceName, BaseNamespaceName) ;
-                                 (R_NamespaceRegistry, NamespaceRegistry)] } in
+  let globals := {{ globals with [(R_NamespaceSymbol, NamespaceSymbol) ;
+                                  (R_GlobalEnv, GlobalEnv) ;
+                                  (R_MethodsNamespace, MethodsNamespace) ;
+                                  (R_BaseNamespace, BaseNamespace) ;
+                                  (R_BaseNamespaceName, BaseNamespaceName) ;
+                                  (R_NamespaceRegistry, NamespaceRegistry)] }} in
   (* TODO [InitOptions] *)
   (* TODO [InitTypeTables] *)
   (* TODO [InitS3DefaulTypes] *)

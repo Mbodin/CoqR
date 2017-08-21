@@ -7,7 +7,7 @@
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Export Monads.
+Require Export Monads Globals.
 
 (** * Global structure of the interpreter **)
 

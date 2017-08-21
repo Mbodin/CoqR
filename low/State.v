@@ -1,4 +1,4 @@
-(** Monads.
+(** State.
  * Provides a model for the C memory. **)
 
 Set Implicit Arguments.
@@ -67,6 +67,13 @@ Definition read_SExp (S : memory) (e : SExpRec_pointer) :=
   | None => None
   | Some e => read_SExp_nat S e
   end.
+
+
+Lemma read_SExp_NULL : forall S,
+  read_SExp S NULL = None.
+Proof.
+  introv. reflexivity.
+Qed.
 
 Lemma alloc_memory_SExp_nat_read_SExp : forall S S' e_ e,
   alloc_memory_SExp_nat S e_ = (S', e) ->
@@ -279,35 +286,4 @@ Definition empty_memory : memory.
   - introv. apply~ @not_indom_empty. typeclass.
   - introv D. repeat rewrite all_locations_nth. math.
 Defined.
-
-Definition NULL : SExpRec_pointer := None.
-
-(** Global variables that are initialised once, then treated as
-  constants.  They are initialised in the file Rinit.v. **)
-Record Globals := make_Globals {
-    R_NilValue : SExpRec_pointer ;
-
-    R_EmptyEnv : SExpRec_pointer ;
-    R_BaseEnv : SExpRec_pointer ;
-    R_GlobalEnv : SExpRec_pointer ;
-    R_BaseNamespace : SExpRec_pointer ;
-    R_BaseNamespaceName : SExpRec_pointer ;
-    R_BaseSymbol : SExpRec_pointer ;
-    R_NamespaceRegistry : SExpRec_pointer ;
-    R_NamespaceSymbol : SExpRec_pointer ;
-    R_MethodsNamespace : SExpRec_pointer ;
-
-    R_TrueValue : SExpRec_pointer ;
-    R_FalseValue : SExpRec_pointer ;
-    R_LogicalNAValue : SExpRec_pointer ;
-
-    R_UnboundValue : SExpRec_pointer ;
-    R_MissingArg : SExpRec_pointer ;
-    R_DotsSymbol : SExpRec_pointer ;
-    R_QuoteSymbol : SExpRec_pointer ;
-
-    R_ClassSymbol : SExpRec_pointer ;
-    R_RowNamesSymbol : SExpRec_pointer
-  }.
-
 

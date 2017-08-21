@@ -583,4 +583,7 @@ Instance SExpRec_Inhab : Inhab SExpRec.
             (make_ListSxp_struct None None None)).
 Defined.
 
+Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
+  prove_comparable_simple_inductive.
+Defined.
 

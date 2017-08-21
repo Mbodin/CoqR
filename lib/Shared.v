@@ -91,6 +91,18 @@ Lemma Nth_last : forall A l (x : A),
   Nth (length l) (l & x) x.
 Proof. introv. induction l; rew_list; constructors~. Qed.
 
+Lemma Mem_map_inv : forall A B (f : A -> B) l y,
+  Mem y (map f l) ->
+  exists x,
+    Mem x l /\ y = f x.
+Proof.
+  induction l; introv M.
+  - inverts M.
+  - rewrite map_cons in M. inverts M as M.
+    + exists* a.
+    + forwards* (x&Mx&Ex): (rm IHl) M.
+Qed.
+
 Global Instance No_duplicates_decidable : forall A (l : list A),
     Comparable A ->
     Decidable (No_duplicates l).
@@ -194,6 +206,89 @@ Fixpoint string_to_list (str : string) :=
   | String c str =>
     c :: string_to_list str
   end.
+
+
+Fixpoint divide_list {A} (l : list A) :=
+  match l with
+  | nil => (nil, nil)
+  | x :: nil => ([x], nil)
+  | x :: y :: l =>
+    let (l1, l2) := divide_list l in
+    (x :: l1, y :: l2)
+  end.
+
+Lemma divide_list_cons : forall A (l l1 l2: list A) x,
+  divide_list l = (l1, l2) ->
+  divide_list (x :: l) = (x :: l2, l1).
+Proof.
+  introv E. gen l1 l2. induction l; introv E.
+  - inverts~ E.
+  - simpls. destruct (divide_list l) as [la lb]. forwards~ E': (rm IHl).
+    destruct l as [|e l]; simpls.
+    + inverts E. inverts~ E'.
+    + destruct divide_list. inverts E. inverts~ E'.
+Qed.
+
+Lemma divide_list_Mem : forall A l (x : A) l1 l2,
+  Mem x l ->
+  divide_list l = (l1, l2) ->
+  Mem x l1 \/ Mem x l2.
+Proof.
+  introv M E. gen l1 l2. induction M; introv E.
+  - destruct l; inverts E as E; autos~. destruct divide_list. inverts~ E.
+  - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
+    inverts E. forwards*: (rm IHM).
+Qed.
+
+Lemma divide_list_Mem_inv : forall A l (x : A) l1 l2,
+  Mem x l1 \/ Mem x l2 ->
+  divide_list l = (l1, l2) ->
+  Mem x l.
+Proof.
+  induction l; introv O E.
+  - inverts E. inverts* O.
+  - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
+    inverts E. inverts O as O.
+    + inverts O as O.
+      * constructors*.
+      * constructors. eapply IHl; [| reflexivity ]. right~.
+    + constructors*.
+Qed.
+
+Lemma divide_list_No_duplicates : forall A (l l1 l2 : list A),
+  No_duplicates l ->
+  divide_list l = (l1, l2) ->
+  No_duplicates l1 /\ No_duplicates l2.
+Proof.
+  introv ND E. gen l1 l2. induction l; introv E.
+  - inverts~ E.
+  - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
+    inverts E. forwards~ (ND1&ND2): (rm IHl).
+    + inverts~ ND.
+    + splits~. constructors~. introv M. forwards M': divide_list_Mem_inv El.
+      * right*.
+      * inverts* ND.
+Qed.
+
+Lemma divide_list_Mem_No_duplicates : forall A l (x : A) l1 l2,
+  Mem x l ->
+  No_duplicates l ->
+  divide_list l = (l1, l2) ->
+  Mem x l1 ->
+  Mem x l2 ->
+  False.
+Proof.
+  introv M ND E. gen l1 l2. induction l; introv E M1 M2.
+  - inverts E. invert M1.
+  - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
+    inverts E. inverts M1 as M1.
+    + forwards: divide_list_Mem_inv El.
+      * left*.
+      * inverts* ND.
+    + applys~ IHl.
+      * applys~ divide_list_Mem_inv El.
+      * inverts~ ND.
+Qed.
 
 
 Instance nat_lt_Decidable : forall n1 n2 : nat,

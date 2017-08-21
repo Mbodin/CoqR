@@ -72,12 +72,14 @@ Record SxpInfo := make_SxpInfo {
 Definition defined_pointer := nat.
 
 (** SEXP, *SEXPREC **)
-(** We chose to represent pointers as an option type. [None] means
- * R_UnboundValue (NULL is very rarely used in the R source code),
- * [Some p] yielding that the pointer [p] points to something. **)
+(** We chose to represent pointers as an option type.
+ * [None] means NULL (it is very rarely used in the R source code).
+ * [Some p] yields that the pointer [p] points to something. **)
 Definition SExpRec_pointer := option defined_pointer.
 
-Definition R_UnboundValue : SExpRec_pointer := None.
+Definition NULL : SExpRec_pointer := None.
+
+Definition R_UnboundValue : SExpRec_pointer := NULL.
 
 (** One symbol for each primitive, that is, built-in functions in call-by-value. **)
 Inductive primitive :=
