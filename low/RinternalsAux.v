@@ -11,7 +11,7 @@ Require Export Rinternals Shared.
  * instance [p_sym] for its [symSxp_struct] part—, that is [p->f] in C. **)
 
 
-(** * About the [nbits] Structure **)
+(** * The [nbits] Structure **)
 
 Definition nth_bit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool.
   introv a I. gen m. induction n as [|n]; introv a I; destruct m; try solve [ false; math ].
@@ -585,5 +585,13 @@ Defined.
 
 Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
   prove_comparable_simple_inductive.
+Defined.
+
+
+(** * Miscellanous **)
+
+(** A dummy pointer different than [NULL]. **)
+Definition dummy_not_NULL : { p : SExpRec_pointer | p <> NULL }.
+  exists (Some 0 : SExpRec_pointer). discriminate.
 Defined.
 

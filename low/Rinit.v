@@ -11,29 +11,71 @@ Section Globals.
 
 Variable globals : Globals.
 
-Let R_NilValue := R_NilValue globals.
-
-Let R_EmptyEnv := R_EmptyEnv globals.
+Let R_AsCharacterSymbol := R_AsCharacterSymbol globals.
 Let R_BaseEnv := R_BaseEnv globals.
-Let R_GlobalEnv := R_GlobalEnv globals.
-Let R_BaseNamespace := R_BaseNamespace globals.
 Let R_BaseNamespaceName := R_BaseNamespaceName globals.
+Let R_BaseNamespace := R_BaseNamespace globals.
 Let R_BaseSymbol := R_BaseSymbol globals.
+Let R_BraceSymbol := R_BraceSymbol globals.
+Let R_Bracket2Symbol := R_Bracket2Symbol globals.
+Let R_BracketSymbol := R_BracketSymbol globals.
+Let R_ClassSymbol := R_ClassSymbol globals.
+Let R_ColonSymbol := R_ColonSymbol globals.
+Let R_CommentSymbol := R_CommentSymbol globals.
+Let R_ConnIdSymbol := R_ConnIdSymbol globals.
+Let R_DevicesSymbol := R_DevicesSymbol globals.
+Let R_DeviceSymbol := R_DeviceSymbol globals.
+Let R_DimNamesSymbol := R_DimNamesSymbol globals.
+Let R_DimSymbol := R_DimSymbol globals.
+Let R_DollarSymbol := R_DollarSymbol globals.
+Let R_dot_Class := R_dot_Class globals.
+Let R_dot_defined := R_dot_defined globals.
+Let R_DotEnvSymbol := R_DotEnvSymbol globals.
+Let R_dot_GenericCallEnv := R_dot_GenericCallEnv globals.
+Let R_dot_GenericDefEnv := R_dot_GenericDefEnv globals.
+Let R_dot_Generic := R_dot_Generic globals.
+Let R_dot_Group := R_dot_Group globals.
+Let R_dot_Method := R_dot_Method globals.
+Let R_dot_Methods := R_dot_Methods globals.
+Let R_dot_packageName := R_dot_packageName globals.
+Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_dot_target := R_dot_target globals.
+Let R_DoubleColonSymbol := R_DoubleColonSymbol globals.
+Let R_DropSymbol := R_DropSymbol globals.
+Let R_EmptyEnv := R_EmptyEnv globals.
+Let R_ExactSymbol := R_ExactSymbol globals.
+Let R_FalseValue := R_FalseValue globals.
+Let R_GlobalEnv := R_GlobalEnv globals.
+Let R_LevelsSymbol := R_LevelsSymbol globals.
+Let R_LogicalNAValue := R_LogicalNAValue globals.
+Let R_MethodsNamespace := R_MethodsNamespace globals.
+Let R_MissingArg := R_MissingArg globals.
+Let R_ModeSymbol := R_ModeSymbol globals.
+Let R_NamespaceEnvSymbol := R_NamespaceEnvSymbol globals.
 Let R_NamespaceRegistry := R_NamespaceRegistry globals.
 Let R_NamespaceSymbol := R_NamespaceSymbol globals.
-Let R_MethodsNamespace := R_MethodsNamespace globals.
-
-Let R_TrueValue := R_TrueValue globals.
-Let R_FalseValue := R_FalseValue globals.
-Let R_LogicalNAValue := R_LogicalNAValue globals.
-
-Let R_UnboundValue := R_UnboundValue globals.
-Let R_MissingArg := R_MissingArg globals.
-Let R_DotsSymbol := R_DotsSymbol globals.
+Let R_NamesSymbol := R_NamesSymbol globals.
+Let R_NameSymbol  := R_NameSymbol  globals.
+Let R_NaRmSymbol := R_NaRmSymbol globals.
+Let R_NilValue := R_NilValue globals.
+Let R_PackageSymbol := R_PackageSymbol globals.
+Let R_PreviousSymbol := R_PreviousSymbol globals.
 Let R_QuoteSymbol := R_QuoteSymbol globals.
-
-Let R_ClassSymbol := R_ClassSymbol globals.
+Let R_RecursiveSymbol := R_RecursiveSymbol globals.
 Let R_RowNamesSymbol := R_RowNamesSymbol globals.
+Let R_SeedsSymbol := R_SeedsSymbol globals.
+Let R_SortListSymbol := R_SortListSymbol globals.
+Let R_SourceSymbol := R_SourceSymbol globals.
+Let R_SpecSymbol := R_SpecSymbol globals.
+Let R_SrcfileSymbol := R_SrcfileSymbol globals.
+Let R_SrcrefSymbol := R_SrcrefSymbol globals.
+Let R_TmpvalSymbol := R_TmpvalSymbol globals.
+Let R_TripleColonSymbol := R_TripleColonSymbol globals.
+Let R_TrueValue := R_TrueValue globals.
+Let R_TspSymbol := R_TspSymbol globals.
+Let R_UnboundValue := R_UnboundValue globals.
+Let R_UseNamesSymbol := R_UseNamesSymbol globals.
+Let R_WholeSrcrefSymbol := R_WholeSrcrefSymbol globals.
 
 Variable runs : runs_type.
 
