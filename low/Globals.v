@@ -172,53 +172,72 @@ Qed.
 
 (** The following property translates the [{o with f := v}] syntax from
  * OCaml as a property. Intuitively, we have
- * [globals_with g [(C1, p1);... ; (Cn, pn)] g'] if and only if
+ * [globals_with_list g [(C1, p1);... ; (Cn, pn)] g'] if and only if
  * [g' = {g with C1 := p1, ..., Cn := pn}]. **)
-Record globals_with g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) g' := {
-    globals_with_in : forall C p,
+Record globals_with_list g (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) g' := {
+    globals_with_list_in : forall C p,
       Mem (C, p) L ->
       C g' = p ;
-    globals_with_out : forall C,
+    globals_with_list_out : forall C,
       (forall p, ~ Mem (C, p) L) ->
       Mem C Globals_projections ->
       C g' = C g ;
   }.
 
-Lemma globals_with_empty : forall g g',
-  globals_with g nil g' <-> g = g'.
+(** The following property is an instanciation of this property for a list with one element. **)
+Record globals_with g C p g' := {
+    globals_with_in : C g' = p ;
+    globals_with_out : forall C',
+      C <> C' ->
+      Mem C' Globals_projections ->
+      C' g' = C' g
+  }.
+
+Lemma globals_with_globals_with_list : forall g g' C p,
+  globals_with g C p g' <-> globals_with_list g [(C, p)] g'.
+Proof.
+  introv. iff G; inverts G as G1 G2; constructors; try introv F M; try introv M.
+  - repeat inverts M as M. reflexivity.
+  - apply~ G1. introv E. false F. substs. constructors~.
+  - apply~ G1.
+  - apply~ G2. introv M'. repeat inverts M' as M'. false~ F.
+Qed.
+
+Lemma globals_with_list_empty : forall g g',
+  globals_with_list g nil g' <-> g = g'.
 Proof.
   iff G.
   - apply Globals_projections_all. introv M.
-    symmetry. applys~ globals_with_out G. introv M'. inverts M'.
+    symmetry. applys~ globals_with_list_out G. introv M'. inverts M'.
   - constructors.
     + introv M. inverts M.
     + introv F M. rewrite~ G.
 Qed.
 
-Lemma globals_with_transitive : forall g1 g2 g3 L1 L2 L1',
-  globals_with g1 L1 g2 ->
+Lemma globals_with_list_transitive : forall g1 g2 g3 L1 L2 L1',
+  globals_with_list g1 L1 g2 ->
   (forall C v, Mem (C, v) L1 -> Mem C Globals_projections) ->
-  globals_with g2 L2 g3 ->
+  globals_with_list g2 L2 g3 ->
   Filter (fun C_v => ~ exists v, Mem (fst C_v, v) L2) L1 = L1' ->
-  globals_with g1 (L1' ++ L2) g3.
+  globals_with_list g1 (L1' ++ L2) g3.
 Proof.
   introv G1 I G2 F. rewrite <- F. clear F. constructors.
   - introv M. rewrite Mem_app_or_eq in M. inverts M as M.
     + forwards (M'&NE): Filter_Mem_inv M.
-      erewrite globals_with_out with (g := g2).
-      * erewrite globals_with_in.
+      erewrite globals_with_list_out with (g := g2).
+      * erewrite globals_with_list_in.
         -- reflexivity.
         -- apply G1.
         -- autos~.
       * apply G2.
       * rew_logic~ in NE.
       * applys I M'.
-    + erewrite globals_with_in.
+    + erewrite globals_with_list_in.
       * reflexivity.
       * apply G2.
       * autos~.
-  - introv NM M. erewrite globals_with_out with (g := g2).
-    + erewrite globals_with_out with (g := g1).
+  - introv NM M. erewrite globals_with_list_out with (g := g2).
+    + erewrite globals_with_list_out with (g := g1).
       * reflexivity.
       * apply~ G1.
       * introv M1. eapply NM. rewrite Mem_app_or_eq. left. applys Filter_Mem M1.
@@ -229,14 +248,14 @@ Proof.
     + autos~.
 Qed.
 
-Lemma globals_with_transitive_step : forall g1 g2 g3 C1 v1 L2,
-  globals_with g1 [(C1, v1)] g2 ->
+Lemma globals_with_list_transitive_step : forall g1 g2 g3 C1 v1 L2,
+  globals_with_list g1 [(C1, v1)] g2 ->
   Mem C1 Globals_projections ->
   (forall v, ~ Mem (C1, v) L2) ->
-  globals_with g2 L2 g3 ->
-  globals_with g1 ((C1, v1) :: L2) g3.
+  globals_with_list g2 L2 g3 ->
+  globals_with_list g1 ((C1, v1) :: L2) g3.
 Proof.
-  introv G1 M F G2. forwards~ G: globals_with_transitive G1 G2.
+  introv G1 M F G2. forwards~ G: globals_with_list_transitive G1 G2.
   - introv M'. inverts M' as M'.
     + autos~.
     + inverts M'.
@@ -245,37 +264,52 @@ Proof.
     + lets (v&MI): (rm I). false* F.
 Qed.
 
+(** Adds a fresh globals in the context. **)
+Ltac allocate_Globals g :=
+  refine (let g := make_Globals in _);
+  repeat refine (let g := g _ _ _ _ _ in _); (* Small optimisation. *)
+  repeat refine (let g := g _ in _).
 
-(** Solves a goal of the form [{g' | globals_with g L g'}] with an instanciated [L]. **)
+(** Solves a goal of the form [{g' | globals_with g C p g'}] with an instanciated [C]. **)
 Ltac solve_globals_with :=
   let g := fresh "g" in
-  refine (let g := make_Globals in _); repeat refine (let g := g _ in _);
-  exists g; constructors;
-  [ let M := fresh "M" in introv M;
-    repeat (inverts M as M; [ simpl; reflexivity |]); inverts M
-  | let NM := fresh "NM" in introv NM;
-    let M := fresh "M" in introv M;
-    repeat (inverts M as M; [ try solve [ simpl; reflexivity
-                                        | false NM; repeat constructors ] |]); inverts M ].
+  let D := fresh "D" in let M := fresh "M" in
+  allocate_Globals g; exists g; unfold g; constructors;
+  [ reflexivity
+  | introv D M;
+    repeat (inverts M as M;
+            [ try solve [ reflexivity
+                        | false~ D ] |]); inverts M ].
 
-(** The following tactics builds a term [g'] such that [globals_with g L g']. **)
-Ltac build_globals_with g L :=
-  let g' := fresh "g" in
-  exact (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g L g' })).
+(** Solves a goal of the form [{g' | globals_with_list g L g'}] with an instanciated [L]. **)
+Ltac solve_globals_with_list :=
+  let g := fresh "g" in
+  let M := fresh "M" in let NM := fresh "NM" in
+  allocate_Globals g; exists g; unfold g; constructors;
+  [ introv M; repeat (inverts M as M; [ reflexivity |]); inverts M
+  | introv NM M;
+    repeat (inverts M as M;
+            [ try solve [ reflexivity
+                        | false NM; repeat constructors ] |]); inverts M ].
 
 Delimit Scope globals_scope with globals.
 
-(** Hidding the tactic under a readable notation. **)
+(** The following notation builds a term [g'] such that [globals_with_list g L g']. **)
 Notation "'{{!' g 'with' L '!}}'" :=
-  (ltac:(build_globals_with g L)) : globals_scope.
+  (proj1_sig (ltac:(solve_globals_with_list) : { g' | globals_with_list g L g' }))
+  : globals_scope.
+
+Notation "'{{!' g 'with' C ':=' p '!}}'" :=
+  (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g C p g' }))
+  : globals_scope.
 
 Open Scope globals.
 
 (** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
 Definition empty_globals : Globals.
   refine (proj1_sig (P := fun g => forall C, Mem C Globals_projections -> C g = NULL) _).
-  refine (let g := make_Globals in _). repeat refine (let g := g _ in _). exists g.
-  introv M. repeat (inverts M as M; [simpl; reflexivity|]). inverts M.
+  allocate_Globals g. exists g.
+  introv M. unfold g. repeat (inverts M as M; [ reflexivity |]). inverts M.
 Defined.
 
 Lemma empty_globals_projections : forall C,
@@ -293,7 +327,7 @@ Ltac prove_no_duplicate_projections :=
     [ abstract
         (introv M; repeat (inverts M as M; [
            match type of M with ?C1 = ?C2 =>
-             set (g := {{! empty_globals with [(C1, proj1_sig dummy_not_NULL)] !}});
+             set (g := {{! empty_globals with C1 := proj1_sig dummy_not_NULL !}});
              asserts E: (C1 g = C2 g); [ rewrite M; reflexivity | inverts E ]
            end |]);
          inverts M)
@@ -302,6 +336,90 @@ Ltac prove_no_duplicate_projections :=
 (** No projection appears twice in [Globals_projections]. **)
 Lemma No_duplicates_Globals_projections : No_duplicates Globals_projections.
 Proof.
+  (*
+  apply No_duplicates_cons.
+  introv M. inverts M as M.
+  set (g := {|
+    R_AsCharacterSymbol := proj1_sig dummy_not_NULL ;
+    R_BaseEnv := NULL ;
+    R_BaseNamespaceName := NULL ;
+    R_BaseNamespace := NULL ;
+    R_BaseSymbol := NULL ;
+    R_BraceSymbol := NULL ;
+    R_Bracket2Symbol := NULL ;
+    R_BracketSymbol := NULL ;
+    R_ClassSymbol := NULL ;
+    R_ColonSymbol := NULL ;
+    R_CommentSymbol := NULL ;
+    R_ConnIdSymbol := NULL ;
+    R_DevicesSymbol := NULL ;
+    R_DeviceSymbol := NULL ;
+    R_DimNamesSymbol := NULL ;
+    R_DimSymbol := NULL ;
+    R_DollarSymbol := NULL ;
+    R_dot_Class := NULL ;
+    R_dot_defined := NULL ;
+    R_DotEnvSymbol := NULL ;
+    R_dot_GenericCallEnv := NULL ;
+    R_dot_GenericDefEnv := NULL ;
+    R_dot_Generic := NULL ;
+    R_dot_Group := NULL ;
+    R_dot_Method := NULL ;
+    R_dot_Methods := NULL ;
+    R_dot_packageName := NULL ;
+    R_DotsSymbol := NULL ;
+    R_dot_target := NULL ;
+    R_DoubleColonSymbol := NULL ;
+    R_DropSymbol := NULL ;
+    R_EmptyEnv := NULL ;
+    R_ExactSymbol := NULL ;
+    R_FalseValue := NULL ;
+    R_GlobalEnv := NULL ;
+    R_LevelsSymbol := NULL ;
+    R_LogicalNAValue := NULL ;
+    R_MethodsNamespace := NULL ;
+    R_MissingArg := NULL ;
+    R_ModeSymbol := NULL ;
+    R_NamespaceEnvSymbol := NULL ;
+    R_NamespaceRegistry := NULL ;
+    R_NamespaceSymbol := NULL ;
+    R_NamesSymbol := NULL ;
+    R_NameSymbol  := NULL ;
+    R_NaRmSymbol := NULL ;
+    R_NilValue := NULL ;
+    R_PackageSymbol := NULL ;
+    R_PreviousSymbol := NULL ;
+    R_QuoteSymbol := NULL ;
+    R_RecursiveSymbol := NULL ;
+    R_RowNamesSymbol := NULL ;
+    R_SeedsSymbol := NULL ;
+    R_SortListSymbol := NULL ;
+    R_SourceSymbol := NULL ;
+    R_SpecSymbol := NULL ;
+    R_SrcfileSymbol := NULL ;
+    R_SrcrefSymbol := NULL ;
+    R_TmpvalSymbol := NULL ;
+    R_TripleColonSymbol := NULL ;
+    R_TrueValue := NULL ;
+    R_TspSymbol := NULL ;
+    R_UnboundValue := NULL ;
+    R_UseNamesSymbol := NULL ;
+    R_WholeSrcrefSymbol := NULL |}).
+    asserts E: (R_AsCharacterSymbol g = R_BaseEnv g); [ rewrite M; reflexivity | inverts E ].
+  
+  let M := fresh "M" in let E := fresh "E" in
+  do 5 (apply No_duplicates_cons;
+    [ abstract
+        (introv M; repeat (inverts M as M; [
+           match type of M with ?C1 = ?C2 =>
+             set (g := {{! empty_globals with C1 := proj1_sig dummy_not_NULL !}});
+             asserts E: (C1 g = C2 g); [ rewrite M; reflexivity | inverts E ]
+           end |]);
+         inverts M)
+    |]).
+
+
+  *)
   prove_no_duplicate_projections.
 Qed.
 
@@ -366,15 +484,15 @@ Defined.
 Definition Globals_with_list (g : Globals) (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) :
     (forall C v, Mem (C, v) L -> Mem C Globals_projections) ->
     No_duplicates (map fst L) ->
-    { g' | globals_with g L g' }.
+    { g' | globals_with_list g L g' }.
   introv F ND. gen g. induction L; introv.
-  - exists g. rewrite~ globals_with_empty.
+  - exists g. rewrite~ globals_with_list_empty.
   - destruct a as [C v]. asserts M: (Mem C Globals_projections).
     + apply~ F.
-    + forwards IHg: IHL (proj1_sig (Globals_with g C v M)).
+    + forwards IHg: IHL (proj1_sig (Globals_with_list g C v M)).
       * introv M'. apply~ F. apply* Mem_next.
       * inverts~ ND.
-      * exists (proj1_sig IHg). apply~ globals_with_transitive_step.
+      * exists (proj1_sig IHg). apply~ globals_with_list_transitive_step.
         -- refine (proj2_sig (Globals_with _ _ _ M)).
         -- introv M'. rew_list in ND. inverts ND as NM ND. false NM.
            applys Mem_map M'.
@@ -385,4 +503,13 @@ Defined.
 Notation "'{{' g 'with' L 'using' F ',' ND '}}'" :=
   (Globals_with_list g L F ND) : globals_scope.
 
+(** Solves a goal of the form [forall C v, Mem (C, v) L -> Mem C Globals_projections]
+ * with an instanciated [L]. **)
+Ltac prove_mem_Globals_projections :=
+  let M := fresh "M" in
+  introv M; repeat constructors.
+
+Notation "'{{' g 'with' L '}}'" :=
+  ({{ g with L using ltac:(prove_mem_Globals_projections),
+                     ltac:(prove_no_duplicate_projections)}}) : globals_scope.
 
