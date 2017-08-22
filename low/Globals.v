@@ -307,9 +307,9 @@ Open Scope globals.
 
 (** A dummy element of [Globals], in which all fields are mapped to [NULL]. **)
 Definition empty_globals : Globals.
-  refine (proj1_sig (P := fun g => forall C, Mem C Globals_projections -> C g = NULL) _).
-  allocate_Globals g. exists g.
-  introv M. unfold g. repeat (inverts M as M; [ reflexivity |]). inverts M.
+  refine (let g := make_Globals in _);
+  repeat refine (let g := g NULL in _).
+  exact g.
 Defined.
 
 Lemma empty_globals_projections : forall C,
@@ -322,7 +322,7 @@ Qed.
 (** Solves a goal of the form [No_duplicates L], where [L] is a list
  * of projections of [Globals]. **)
 Ltac prove_no_duplicate_projections :=
-  let M := fresh "M" in let E := fresh "E" in
+  let M := fresh "M" in let E := fresh "E" in let g := fresh "g" in
   repeat (apply No_duplicates_cons;
     [ abstract
         (introv M; repeat (inverts M as M; [
@@ -333,94 +333,62 @@ Ltac prove_no_duplicate_projections :=
          inverts M)
     |]); apply No_duplicates_nil.
 
+Ltac copy_Globals g g' :=
+  allocate_Globals g';
+  asserts _: (g' = g); [ unfold g'; reflexivity |].
+
+(** The tactic above take a lot of time to compute an additionnal proof that
+ * they have computed the right object. This tactic generates a copy of [g0],
+ * expect that its [n]th argument (counting from 1, from the last constructor)
+ * has been replaced by [p']. It then names it [g']. **)
+Ltac generate_globals_nth_change g0 n p' g' :=
+  let n := eval compute in n in
+  let g := fresh "g" in
+  copy_Globals g0 g;
+  let rec aux g c :=
+    match g with
+    | make_Globals => constr:(make_Globals)
+    | ?f ?p =>
+      match c with
+      | S O =>
+        let t := aux f O in
+        constr:(t p')
+      | S ?c' =>
+        let t := aux f c' in
+        constr:(t p)
+      | O =>
+        let t := aux f O in
+        constr:(t p)
+      end
+    | ?t =>
+      let t' := eval unfold t in t in
+      let r := aux t' c in
+      constr:(r)
+    end in
+  let r := aux g n in
+  set (g' := r).
+
+(** Same as [prove_no_duplicate_projections] when applied directly on
+ * [Globals_projections], but faster, and with less memory. **)
+Ltac prove_no_duplicate_projections_fast :=
+  let M := fresh "M" in let E := fresh "E" in let g := fresh "g" in
+  repeat (apply No_duplicates_cons;
+    [ abstract
+        (introv M;
+         repeat match type of M with Mem ?C1 ?l =>
+           inverts M as M; [
+           match type of M with ?C1 = ?C2 =>
+             generate_globals_nth_change empty_globals (length l) (proj1_sig dummy_not_NULL) g;
+             asserts E: (C1 g = C2 g); [ rewrite M; reflexivity | inverts E ]
+           end |]
+         end;
+         inverts M)
+    |]); apply No_duplicates_nil.
+
 (** No projection appears twice in [Globals_projections]. **)
 Lemma No_duplicates_Globals_projections : No_duplicates Globals_projections.
 Proof.
-  (*
-  apply No_duplicates_cons.
-  introv M. inverts M as M.
-  set (g := {|
-    R_AsCharacterSymbol := proj1_sig dummy_not_NULL ;
-    R_BaseEnv := NULL ;
-    R_BaseNamespaceName := NULL ;
-    R_BaseNamespace := NULL ;
-    R_BaseSymbol := NULL ;
-    R_BraceSymbol := NULL ;
-    R_Bracket2Symbol := NULL ;
-    R_BracketSymbol := NULL ;
-    R_ClassSymbol := NULL ;
-    R_ColonSymbol := NULL ;
-    R_CommentSymbol := NULL ;
-    R_ConnIdSymbol := NULL ;
-    R_DevicesSymbol := NULL ;
-    R_DeviceSymbol := NULL ;
-    R_DimNamesSymbol := NULL ;
-    R_DimSymbol := NULL ;
-    R_DollarSymbol := NULL ;
-    R_dot_Class := NULL ;
-    R_dot_defined := NULL ;
-    R_DotEnvSymbol := NULL ;
-    R_dot_GenericCallEnv := NULL ;
-    R_dot_GenericDefEnv := NULL ;
-    R_dot_Generic := NULL ;
-    R_dot_Group := NULL ;
-    R_dot_Method := NULL ;
-    R_dot_Methods := NULL ;
-    R_dot_packageName := NULL ;
-    R_DotsSymbol := NULL ;
-    R_dot_target := NULL ;
-    R_DoubleColonSymbol := NULL ;
-    R_DropSymbol := NULL ;
-    R_EmptyEnv := NULL ;
-    R_ExactSymbol := NULL ;
-    R_FalseValue := NULL ;
-    R_GlobalEnv := NULL ;
-    R_LevelsSymbol := NULL ;
-    R_LogicalNAValue := NULL ;
-    R_MethodsNamespace := NULL ;
-    R_MissingArg := NULL ;
-    R_ModeSymbol := NULL ;
-    R_NamespaceEnvSymbol := NULL ;
-    R_NamespaceRegistry := NULL ;
-    R_NamespaceSymbol := NULL ;
-    R_NamesSymbol := NULL ;
-    R_NameSymbol  := NULL ;
-    R_NaRmSymbol := NULL ;
-    R_NilValue := NULL ;
-    R_PackageSymbol := NULL ;
-    R_PreviousSymbol := NULL ;
-    R_QuoteSymbol := NULL ;
-    R_RecursiveSymbol := NULL ;
-    R_RowNamesSymbol := NULL ;
-    R_SeedsSymbol := NULL ;
-    R_SortListSymbol := NULL ;
-    R_SourceSymbol := NULL ;
-    R_SpecSymbol := NULL ;
-    R_SrcfileSymbol := NULL ;
-    R_SrcrefSymbol := NULL ;
-    R_TmpvalSymbol := NULL ;
-    R_TripleColonSymbol := NULL ;
-    R_TrueValue := NULL ;
-    R_TspSymbol := NULL ;
-    R_UnboundValue := NULL ;
-    R_UseNamesSymbol := NULL ;
-    R_WholeSrcrefSymbol := NULL |}).
-    asserts E: (R_AsCharacterSymbol g = R_BaseEnv g); [ rewrite M; reflexivity | inverts E ].
-  
-  let M := fresh "M" in let E := fresh "E" in
-  do 5 (apply No_duplicates_cons;
-    [ abstract
-        (introv M; repeat (inverts M as M; [
-           match type of M with ?C1 = ?C2 =>
-             set (g := {{! empty_globals with C1 := proj1_sig dummy_not_NULL !}});
-             asserts E: (C1 g = C2 g); [ rewrite M; reflexivity | inverts E ]
-           end |]);
-         inverts M)
-    |]).
-
-
-  *)
-  prove_no_duplicate_projections.
+  prove_no_duplicate_projections_fast.
 Qed.
 
 
@@ -433,10 +401,45 @@ Qed.
  * Note that as [{{! g with L !}}] is faster at execution time, it is still
  * preferable when possible. **)
 
+(** Generates a new [globals] structure [g'] from [g] in which all constructors
+ * whose index are in the form [k + i * 2 ^ n] have been replaced by [p']. **)
+Ltac generate_globals_diff g n k p' g' :=
+  let n2 := eval compute in (2 ^ n) in
+  let len := eval compute in (length Globals_projections) in
+  let rec aux i g :=
+    let j := eval compute in (k + i * n2) in
+    match eval compute in (len - j) with
+    | O => set (g' := g)
+    | _ =>
+      let gi := fresh "gi" in
+      generate_globals_nth_change g j p' gi;
+      aux (1 + i) gi
+    end
+  in aux 0 g.
+
 Definition Globals_with (g : Globals) (C : Globals -> SExpRec_pointer) (v : SExpRec_pointer) :
     Mem C Globals_projections ->
-    { g' | globals_with g [(C, v)] g' }.
+    { g' | globals_with g C v g' }.
   introv M0. lets M: M0. lets ND: No_duplicates_Globals_projections.
+(*
+  let len := eval compute in (length Globals_projections) in
+  let rec aux n k :=
+    (** Invariant: [generate_globals_diff empty_globals n k (proj1_sig dummy_not_NULL) g']
+     * implies that there exists [C] in a position of the form [k + i * 2 ^ n] such that
+     * [C g' <> NULL]. **)
+    match eval compute in (len - 2 ^ n) with
+    | O => idtac
+    | _ =>
+      let n' := eval compute in (1 + n) in
+      let k' := eval compute in (2 * k)%nat in
+      generate_globals_diff empty_globals n' k' (proj1_sig dummy_not_NULL) g';
+      let E := fresh "E" in
+      destruct (decide (C g' = NULL)) eqn: E; fold_bool; rew_refl in E;
+      [ aux k n'
+      | aux k' n' ]
+    end
+  in aux 0 0.
+*)
   repeat match type of M with
     | Mem _ [?C0] =>
       let E := fresh "E" in
@@ -451,7 +454,7 @@ Definition Globals_with (g : Globals) (C : Globals -> SExpRec_pointer) (v : SExp
       let g' := fresh "g" in
       set (g' :=
         let L := map (fun C => (C, proj1_sig dummy_not_NULL)) (fst (divide_list l)) in
-        ltac:(solve_globals_with) : { g' | globals_with empty_globals L g' });
+        ltac:(solve_globals_with_list) : { g' | globals_with_list empty_globals L g' });
       let E := fresh "E" in
       destruct (decide (C (proj1_sig g') = NULL)) eqn: E; fold_bool; rew_refl in E;
       [ (* [true] case: we are in the second list. *)
