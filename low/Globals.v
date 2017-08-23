@@ -7,7 +7,9 @@ Require Export RinternalsAux.
 
 
 (** Global variables that are initialised once, then treated as
-  constants.  They are initialised in the file Rinit.v. **)
+ * constants.  They are initialised in the file Rinit.v. **)
+(** If you add a projection here, please make sure to also add it
+ * in [Globals_projections] in the same order. **)
 Record Globals := make_Globals {
     R_AsCharacterSymbol : SExpRec_pointer ;
     R_BaseEnv : SExpRec_pointer ;
@@ -297,10 +299,12 @@ Delimit Scope globals_scope with globals.
 (** The following notation builds a term [g'] such that [globals_with_list g L g']. **)
 Notation "'{{!' g 'with' L '!}}'" :=
   (proj1_sig (ltac:(solve_globals_with_list) : { g' | globals_with_list g L g' }))
+  (only parsing)
   : globals_scope.
 
 Notation "'{{!' g 'with' C ':=' p '!}}'" :=
   (proj1_sig (ltac:(solve_globals_with) : { g' | globals_with g C p g' }))
+  (only parsing)
   : globals_scope.
 
 Open Scope globals.
@@ -333,18 +337,12 @@ Ltac prove_no_duplicate_projections :=
          inverts M)
     |]); apply No_duplicates_nil.
 
-Ltac copy_Globals g g' :=
-  allocate_Globals g';
-  asserts _: (g' = g); [ unfold g'; reflexivity |].
-
 (** The tactic above take a lot of time to compute an additionnal proof that
  * they have computed the right object. This tactic generates a copy of [g0],
  * expect that its [n]th argument (counting from 1, from the last constructor)
  * has been replaced by [p']. It then names it [g']. **)
-Ltac generate_globals_nth_change g0 n p' g' :=
+Ltac generate_globals_nth_change g n p' g' :=
   let n := eval compute in n in
-  let g := fresh "g" in
-  copy_Globals g0 g;
   let rec aux g c :=
     match g with
     | make_Globals => constr:(make_Globals)
@@ -379,7 +377,9 @@ Ltac prove_no_duplicate_projections_fast :=
            inverts M as M; [
            match type of M with ?C1 = ?C2 =>
              generate_globals_nth_change empty_globals (length l) (proj1_sig dummy_not_NULL) g;
-             asserts E: (C1 g = C2 g); [ rewrite M; reflexivity | inverts E ]
+             asserts E: (C2 g = C1 g);
+             [ rewrite M; reflexivity
+             | false proj2_sig dummy_not_NULL E ]
            end |]
          end;
          inverts M)
@@ -401,6 +401,17 @@ Qed.
  * Note that as [{{! g with L !}}] is faster at execution time, it is still
  * preferable when possible. **)
 
+(** Like [generate_globals_nth_change], but with [n] ranging from [1] to
+ * [length Globals_projections], changing the [n]th projection from the
+ * beginning. If [n = 0], the change is aborted. **)
+Ltac generate_globals_nth_change_inv g n p' g' :=
+  let len := constr:(length Globals_projections) in
+  match eval compute in (S len - n) with
+  | O => set (g' := g)
+  | ?n' =>
+    generate_globals_nth_change g n' p' g'
+  end.
+
 (** Generates a new [globals] structure [g'] from [g] in which all constructors
  * whose index are in the form [k + i * 2 ^ n] have been replaced by [p']. **)
 Ltac generate_globals_diff g n k p' g' :=
@@ -408,11 +419,14 @@ Ltac generate_globals_diff g n k p' g' :=
   let len := eval compute in (length Globals_projections) in
   let rec aux i g :=
     let j := eval compute in (k + i * n2) in
-    match eval compute in (len - j) with
-    | O => set (g' := g)
+    match eval compute in (S len - j) with
+    | O =>
+      set (g' := g);
+      try clear g
     | _ =>
       let gi := fresh "gi" in
-      generate_globals_nth_change g j p' gi;
+      generate_globals_nth_change_inv g j p' gi;
+      try clear g;
       aux (1 + i) gi
     end
   in aux 0 g.
@@ -420,68 +434,46 @@ Ltac generate_globals_diff g n k p' g' :=
 Definition Globals_with (g : Globals) (C : Globals -> SExpRec_pointer) (v : SExpRec_pointer) :
     Mem C Globals_projections ->
     { g' | globals_with g C v g' }.
-  introv M0. lets M: M0. lets ND: No_duplicates_Globals_projections.
-(*
-  let len := eval compute in (length Globals_projections) in
+  introv M.
+  let E := fresh "E" in
+  let M' := fresh "M" in
   let rec aux n k :=
-    (** Invariant: [generate_globals_diff empty_globals n k (proj1_sig dummy_not_NULL) g']
-     * implies that there exists [C] in a position of the form [k + i * 2 ^ n] such that
-     * [C g' <> NULL]. **)
-    match eval compute in (len - 2 ^ n) with
-    | O => idtac
-    | _ =>
-      let n' := eval compute in (1 + n) in
-      let k' := eval compute in (2 * k)%nat in
-      generate_globals_diff empty_globals n' k' (proj1_sig dummy_not_NULL) g';
-      let E := fresh "E" in
-      destruct (decide (C g' = NULL)) eqn: E; fold_bool; rew_refl in E;
-      [ aux k n'
-      | aux k' n' ]
-    end
-  in aux 0 0.
-*)
-  repeat match type of M with
+    match type of M with
     | Mem _ [?C0] =>
-      let E := fresh "E" in
       asserts E: (C = C0);
       [ inverts M as M; [ reflexivity | inverts M ]
       | clear M; rewrite E; solve_globals_with ]
     | Mem _ ?l =>
-      let M1 := fresh "M" in
-      (forwards M1: divide_list_Mem M; [ apply surjective_pairing |]);
-      let ND1 := fresh "ND" in let ND2 := fresh "ND" in
-      (forwards (ND1&ND2): divide_list_No_duplicates ND; [ reflexivity |]);
-      let g' := fresh "g" in
-      set (g' :=
-        let L := map (fun C => (C, proj1_sig dummy_not_NULL)) (fst (divide_list l)) in
-        ltac:(solve_globals_with_list) : { g' | globals_with_list empty_globals L g' });
-      let E := fresh "E" in
-      destruct (decide (C (proj1_sig g') = NULL)) eqn: E; fold_bool; rew_refl in E;
-      [ (* [true] case: we are in the second list. *)
-        asserts M': (Mem C (snd (divide_list l)));
-        [ inverts M1 as M1;
-          [ erewrite globals_with_in with (p := proj1_sig dummy_not_NULL) in E;
-            [ false~ (proj2_sig dummy_not_NULL)
-            | apply (proj2_sig g')
-            | apply Mem_map with (f := fun C => (C, proj1_sig dummy_not_NULL)); apply M1 ]
-          | eassumption ]
-        | clear ND ND1 M; rename M' into M; rename ND2 into ND ]
-      | (* [false] case: we are in the first list. *)
+      let g := fresh "g" in
+      let n' := eval compute in (1 + n) in
+      generate_globals_diff empty_globals n' k (proj1_sig dummy_not_NULL) g;
+      destruct (decide (C g = NULL)) eqn: E; fold_bool; rew_refl in E;
+      [ (* [true] case: we are in the first list. *)
         asserts M': (Mem C (fst (divide_list l)));
-        [ inverts M1 as M1;
-          [ eassumption
-          | erewrite globals_with_out in E;
-            [ rewrite empty_globals_projections in E; [ false~ E | apply M0 ]
-            | apply (proj2_sig g')
-            | let MA := fresh "M" in let M2 := fresh "M" in let E' := fresh "E" in
-              introv MA; forwards (?&M2&E'): Mem_map_inv (rm MA); inverts E';
-              applys divide_list_Mem_No_duplicates M ND M2 M1; reflexivity
-            | apply M0 ]
-        ]
-        | clear ND ND2 M; rename M' into M; rename ND1 into ND ]
-      ];
-      clear M1 E g'; simpl in M
-  end.
+        [ abstract (
+            repeat (inverts M as M;
+                    [ apply Mem_here
+                    | apply Mem_next;
+                      (inverts M as M; [ false proj2_sig dummy_not_NULL E |])
+                       || solve [ inverts M ] ]);
+            solve [ inverts M ])
+        | clear - M'; rename M' into M; simpl in M;
+          let k' := eval compute in (k + 2 ^ n)%nat in
+          abstract (aux n' k') ]
+      | (* [false] case: we are in the second list. *)
+        asserts M': (Mem C (snd (divide_list l)));
+        [ abstract (
+            repeat (inverts M as M;
+                    [ false~ E
+                    | (inverts M as M; [ apply Mem_here | apply Mem_next ])
+                       || solve [ inverts M ] ]);
+            solve [ inverts M ])
+      | clear - M'; rename M' into M; simpl in M;
+        let k' := eval compute in (k + 2 ^ (1 + n))%nat in
+        abstract (aux n' k') ]
+      ]
+    end
+  in aux 0 2.
 Defined.
 
 Definition Globals_with_list (g : Globals) (L : list ((Globals -> SExpRec_pointer) * SExpRec_pointer)) :
@@ -492,11 +484,12 @@ Definition Globals_with_list (g : Globals) (L : list ((Globals -> SExpRec_pointe
   - exists g. rewrite~ globals_with_list_empty.
   - destruct a as [C v]. asserts M: (Mem C Globals_projections).
     + apply~ F.
-    + forwards IHg: IHL (proj1_sig (Globals_with_list g C v M)).
+    + forwards IHg: IHL (proj1_sig (Globals_with g C v M)).
       * introv M'. apply~ F. apply* Mem_next.
       * inverts~ ND.
       * exists (proj1_sig IHg). apply~ globals_with_list_transitive_step.
-        -- refine (proj2_sig (Globals_with _ _ _ M)).
+        -- rewrite <- globals_with_globals_with_list.
+           refine (proj2_sig (Globals_with _ _ _ M)).
         -- introv M'. rew_list in ND. inverts ND as NM ND. false NM.
            applys Mem_map M'.
         -- apply~ proj2_sig.
@@ -504,7 +497,7 @@ Defined.
 
 (** We can now prove a notation for this function. **)
 Notation "'{{' g 'with' L 'using' F ',' ND '}}'" :=
-  (Globals_with_list g L F ND) : globals_scope.
+  (proj1_sig (Globals_with_list g L F ND)) : globals_scope.
 
 (** Solves a goal of the form [forall C v, Mem (C, v) L -> Mem C Globals_projections]
  * with an instanciated [L]. **)
@@ -514,5 +507,6 @@ Ltac prove_mem_Globals_projections :=
 
 Notation "'{{' g 'with' L '}}'" :=
   ({{ g with L using ltac:(prove_mem_Globals_projections),
-                     ltac:(prove_no_duplicate_projections)}}) : globals_scope.
+                     ltac:(prove_no_duplicate_projections)}})
+  (only parsing) : globals_scope.
 

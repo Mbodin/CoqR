@@ -127,7 +127,7 @@ Definition InitBaseEnv S :=
   result_success S (R_EmptyEnv, R_BaseEnv).
 
 
-(* TODO: Explain in the repport that in R, to speed up calculus, symbols are
+(* TODO: Explain in the report that in R, to speed up calculus, symbols are
  * represented by unique pointers. This means that comparison is simple: it
  * is just comparing the pointers. But this means that each pointer needs
  * to be installed using the [install] function, and that parsing must look
