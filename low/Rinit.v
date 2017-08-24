@@ -21,7 +21,7 @@ Let R_Bracket2Symbol := R_Bracket2Symbol globals.
 Let R_BracketSymbol := R_BracketSymbol globals.
 Let R_ClassSymbol := R_ClassSymbol globals.
 Let R_ColonSymbol := R_ColonSymbol globals.
-Let R_CommentSymbol := R_CommentSymbol globals.
+(*Let R_CommentSymbol := R_CommentSymbol globals.*)
 Let R_ConnIdSymbol := R_ConnIdSymbol globals.
 Let R_DevicesSymbol := R_DevicesSymbol globals.
 Let R_DeviceSymbol := R_DeviceSymbol globals.
@@ -126,27 +126,6 @@ Definition InitBaseEnv S :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_EmptyEnv using S in
   result_success S (R_EmptyEnv, R_BaseEnv).
 
-
-(* TODO: Explain in the report that in R, to speed up calculus, symbols are
- * represented by unique pointers. This means that comparison is simple: it
- * is just comparing the pointers. But this means that each pointer needs
- * to be installed using the [install] function, and that parsing must look
- * in the symbol table. *)
-
-(** [SymbolShortcuts], from main/names.c **)
-Definition SymbolShortcuts S :=
-  let L := [
-      (* TODO *)
-      (R_DotsSymbol, "...")
-      (* TODO *)
-    ]%string in
-  fold_left (fun sym_str st =>
-    let%success L' := st using S in
-    let (sym, str) := sym_str : _ * _ in
-    let%success p :=
-      install globals runs S str using S in
-    result_success S ((sym, p) :: L')) (result_success S nil) L.
-
 (** [InitNames], from main/names.c **)
 Definition InitNames S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
@@ -160,10 +139,8 @@ Definition InitNames S :=
       * cell. **) (* TODO: Write about this in the report. *)
     R_NilValue in
   let S := update_R_SymbolTable S R_SymbolTable in
-  let%success L :=
-    SymbolShortcuts S using S in
   (* TODO *)
-  result_success S (R_UnboundValue, R_MissingArg, L).
+  result_success S (R_UnboundValue, R_MissingArg).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -230,6 +207,83 @@ Definition init_R_Toplevel S :=
 
 End Globals.
 
+
+(** ** [SymbolShortcuts] **)
+
+(* TODO: Explain in the report that in R, to speed up calculus, symbols are
+ * represented by unique pointers. This means that comparison is simple: it
+ * is just comparing the pointers. But this means that each pointer needs
+ * to be installed using the [install] function, and that parsing must look
+ * in the symbol table. *)
+
+Ltac check_projection proj :=
+  refine (exist _ proj ltac:(repeat constructors) : { C | Mem C Globals_projections }).
+
+(*
+(** [SymbolShortcuts], from main/names.c **)
+Definition SymbolShortcuts S globals :=
+  let L := [
+      (ltac:(check_projection R_Bracket2Symbol), "[[") ;
+      (ltac:(check_projection R_BracketSymbol), "[") ;
+      (ltac:(check_projection R_BraceSymbol), "{") ;
+      (ltac:(check_projection R_ClassSymbol), "class") ;
+      (ltac:(check_projection R_DeviceSymbol), ".Device") ;
+      (ltac:(check_projection R_DimNamesSymbol), "dimnames") ;
+      (ltac:(check_projection R_DimSymbol), "dim") ;
+      (ltac:(check_projection R_DollarSymbol), "$") ;
+      (ltac:(check_projection R_DotsSymbol), "...") ;
+      (ltac:(check_projection R_DropSymbol), "drop") ;
+      (ltac:(check_projection R_LastvalueSymbol), ".Last.value") ;
+      (ltac:(check_projection R_LevelsSymbol), "levels") ;
+      (ltac:(check_projection R_ModeSymbol), "mode") ;
+      (ltac:(check_projection R_NameSymbol ), "name") ;
+      (ltac:(check_projection R_NamesSymbol), "names") ;
+      (ltac:(check_projection R_NaRmSymbol), "na.rm") ;
+      (ltac:(check_projection R_PackageSymbol), "package") ;
+      (ltac:(check_projection R_PreviousSymbol), "previous") ;
+      (ltac:(check_projection R_QuoteSymbol), "quote") ;
+      (ltac:(check_projection R_RowNamesSymbol), "row.names") ;
+      (ltac:(check_projection R_SeedsSymbol), ".Random.seed") ;
+      (ltac:(check_projection R_SortListSymbol), "sort.list") ;
+      (ltac:(check_projection R_SourceSymbol), "source") ;
+      (ltac:(check_projection R_TspSymbol), "tsp") ;
+      (ltac:(check_projection R_CommentSymbol), "comment") ;
+      (ltac:(check_projection R_DotEnvSymbol), ".Environment") ;
+      (ltac:(check_projection R_ExactSymbol), "exact") ;
+      (ltac:(check_projection R_RecursiveSymbol), "recursive") ;
+      (ltac:(check_projection R_SrcfileSymbol), "srcfile") ;
+      (ltac:(check_projection R_SrcrefSymbol), "srcref") ;
+      (ltac:(check_projection R_WholeSrcrefSymbol), "wholeSrcref") ;
+      (ltac:(check_projection R_TmpvalSymbol), "*tmp*") ;
+      (ltac:(check_projection R_UseNamesSymbol), "use.names") ;
+      (ltac:(check_projection R_ColonSymbol), ":") ;
+      (ltac:(check_projection R_DoubleColonSymbol), "::") ;
+      (ltac:(check_projection R_TripleColonSymbol), ":::") ;
+      (ltac:(check_projection R_ConnIdSymbol), "conn_id") ;
+      (ltac:(check_projection R_DevicesSymbol), ".Devices") ;
+      (ltac:(check_projection R_BaseSymbol), "base") ;
+      (ltac:(check_projection R_SpecSymbol), "spec") ;
+      (ltac:(check_projection R_NamespaceEnvSymbol), ".__NAMESPACE__.") ;
+      (ltac:(check_projection R_AsCharacterSymbol), "as.character") ;
+      (ltac:(check_projection R_dot_Generic), ".Generic") ;
+      (ltac:(check_projection R_dot_Method), ".Method") ;
+      (ltac:(check_projection R_dot_Methods), ".Methods") ;
+      (ltac:(check_projection R_dot_defined), ".defined") ;
+      (ltac:(check_projection R_dot_target), ".target") ;
+      (ltac:(check_projection R_dot_Group), ".Group") ;
+      (ltac:(check_projection R_dot_Class), ".Class") ;
+      (ltac:(check_projection R_dot_GenericCallEnv), ".GenericCallEnv") ;
+      (ltac:(check_projection R_dot_GenericDefEnv), ".GenericDefEnv") ;
+      (ltac:(check_projection R_dot_packageName), ".packageName")
+    ]%string in
+  fold_left (fun sym_str st =>
+    let%success L' := st using S in
+    let (sym, str) := sym_str : _ * _ in
+    let%success p :=
+      install globals runs S str using S in
+    result_success S ((sym, p) :: L')) (result_success S nil) L.
+*)
+
 (** ** [setup_Rmainloop] **)
 
 (** This section concludes the initialisation. **)
@@ -255,11 +309,12 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitBaseEnv globals (runs globals max_step) S using S in
   let globals := {{ globals with [(R_EmptyEnv, EmptyEnv) ;
                                   (R_BaseEnv, BaseEnv)] }} in
-  let%success (UnboundValue, MissingArg, L) :=
+  let%success (UnboundValue, MissingArg) :=
     InitNames globals (runs globals max_step) S using S in
   let globals := {{ globals with [(R_UnboundValue, UnboundValue) ;
                                   (R_MissingArg, MissingArg)] }} in
-  -- (*let globals := { globals with L } in*) (* TODO: This just does not work,
+  (* TODO: SymbolShortcuts *)
+  (*let globals := { globals with L } in*) (* TODO: This just does not work,
                                                  the tactic looping forever. *)
      (* Maybe if we inline [SymbolShortcuts] here? We would need to get the [unfold]
         and [simpl] rights to make it work. *)

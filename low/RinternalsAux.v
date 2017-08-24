@@ -588,10 +588,3 @@ Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
 Defined.
 
 
-(** * Miscellanous **)
-
-(** A dummy pointer different than [NULL]. **)
-Definition dummy_not_NULL : { p : SExpRec_pointer | p <> NULL }.
-  exists (Some 0 : SExpRec_pointer). discriminate.
-Defined.
-
