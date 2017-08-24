@@ -7,7 +7,12 @@ Require Export RinternalsAux.
 
 
 (** Global variables that are initialised once, then treated as
- * constants.  They are initialised in the file Rinit.v. **)
+ * constants.  They are initialised in the file Rinit.v.
+ * Each of these syntactic global variables are then associated
+ * with the natural coercion (using the current context of type
+ * [Globals], see below) to their value, of type [SExpRec_pointer].
+ * See the beginning of the files Reval.v and Rinit.v for more
+ * details. **)
 Inductive GlobalVariable :=
   | R_AsCharacterSymbol
   | R_BaseEnv
@@ -77,6 +82,11 @@ Inductive GlobalVariable :=
   | R_WholeSrcrefSymbol
   .
 
+(** It is important for the following type class to only be local,
+ * to avoid having a code of the form [ifb C1 = C2 then], where [C1]
+ * and [C2] are two global variables, to be interpreted as the
+ * syntactic equality where it should be seen as a semantic equality,
+ * throught the context coercion. **)
 Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
   prove_comparable_simple_inductive.
 Defined.
@@ -104,15 +114,41 @@ Definition GlobalsWith_list :=
 Notation "'{{' g 'with' L '}}'" :=
   (GlobalsWith_list g L) : globals_scope.
 
-
-(** To avoid too many closures. **)
+(** Each application of [GlobalsWith] adds a closure in the built context.
+ * To avoid too many closures (which may lead to slowness or stack overflow),
+ * we propose the following definition.
+ * It computes once and for all the value of [g] for all possible global
+ * variable, then waits for an argument, which is matched, looking for the
+ * right precomputed value.
+ * There is thus only one (used) closure at the end, and a fairly reasonnable
+ * compiler should optimise out the [g] argument, unused after the precomputation.
+ * The definition of [flatten_Globals] is however done using tactics, which are
+ * quite slow (as they proof its correctness at the same time as defining it).
+ * Its computation is thus disabled by default. **)
+(*
 Definition flatten_Globals (g : Globals) : Globals.
   refine (proj1_sig (_ : { g' | forall C, g C = g' C })).
-  refine (exist _ (let args : _ := _ in fun C : GlobalVariable =>
-                   ltac:(destruct C; do 100 (exact (fst args) || refine (let args := snd args in _)))) _).
-  intro C. destruct C; try reflexivity.
-  refine (exist _ (let args : _ := _ in fun C : GlobalVariable =>
-                   ltac:(destruct C; repeat (exact (fst args) || refine (let args := snd args in _)))) _).
-  intro C. destruct C; repeat (exact (fst args) || refine (let args := snd args in _)).
+  refine (exist _ (let args := _ in fun C : GlobalVariable =>
+                   ltac:(destruct C;
+                         repeat (exact arg
+                             || refine (let (arg, args) := args : _ * _ in _)))) _).
+  intro C. destruct C; [ > .. |
+   let rec aux :=
+     match goal with |- ?g = let (arg, args) := ?y in _ =>
+       let E := fresh "E" in
+       asserts E: (y = (g, tt)) || (
+         let ya := fresh "arg" in let yb := fresh "args" in
+         match type of y with (?A * ?B)%type => evar (ya : A); evar (yb : B) end;
+         asserts E: (y = (ya, yb)); [| unfolds yb; try rewrite E; (reflexivity || aux) ]) end
+   in simpl; aux; reflexivity ]; simpl; reflexivity.
 Defined.
+
+Lemma flatten_Globals_correct : forall g C,
+  g C = flatten_Globals g C.
+Proof.
+  introv. unfolds flatten_Globals.
+  match goal with |- context [ proj1_sig ?s ] => sets_eq si: s end.
+  apply (proj2_sig si).
+Qed.
+*)
 
