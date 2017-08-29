@@ -11,7 +11,9 @@ Section Globals.
 
 Variable globals : Globals.
 
-Local Coercion globals : GlobalVariable >-> SExpRec_pointer.
+Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
+
+Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Variable runs : runs_type.
 

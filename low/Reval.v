@@ -32,7 +32,9 @@ Definition NA_LOGICAL := R_NaInt.
 
 Variable globals : Globals.
 
-Local Coercion globals : GlobalVariable >-> SExpRec_pointer.
+Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
+
+Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Section ParameterisedRuns.
 
@@ -637,7 +639,8 @@ Definition matchArgs_first S
 
 Definition matchArgs_second S
     (actuals formals supplied : SExpRec_pointer) fargused : result SExpRec_pointer :=
-  fold%success (a, fargused, dots, seendots) := (actuals, fargused, R_NilValue, false)
+  fold%success (a, fargused, dots, seendots) :=
+    (actuals, fargused, R_NilValue : SExpRec_pointer, false)
   along formals as _, f_tag do
       match fargused with
       | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
@@ -737,7 +740,7 @@ Definition matchArgs_check S
 
 Definition matchArgs S
     (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
-  fold%success (actuals, argi) := (R_NilValue, 0) along formals as _, _ do
+  fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0) along formals as _, _ do
     let (S, actuals) := CONS S R_MissingArg actuals in
     result_success S (actuals, 1 + argi) using S in
   fold%success _ := tt along supplied as b, _ do
@@ -808,7 +811,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
       write%defined env := env_ using S in
       fold%let _ := tt along list_cdrval addVars_list as _, end_, end_list do
         let end_tag := list_tagval end_list in
-        do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue)
+        do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
         while result_success S (decide (s <> env)) do
           read%list s_, s_list := s using S in
             ifb list_tagval s_list = end_tag then
@@ -1023,10 +1026,10 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
     result_error S "[getAttrib] Can not have attributes on a [CharSxp]."
   else
     ifb attrib vec_ = R_NilValue /\ ~ (type vec_ = ListSxp \/ type vec_ = LangSxp) then
-      result_success S R_NilValue
+      result_success S (R_NilValue : SExpRec_pointer)
     else
       read%defined name_ := name using S in
-      let continuation S name :=
+      let continuation S (name : SExpRec_pointer) :=
         ifb name = R_RowNamesSymbol then
           let%success s := getAttrib0 S vec name using S in
           read%defined s_ := s using S in
