@@ -64,6 +64,11 @@ Rinit.v, and Rfeatures.v.
 
 Links the low-level formalisation to the C source code of R.
 
+*** RelationCorrect.v
+
+Proof that the relation defined in Module Relation holds along the
+execution of the functions of Reval.
+
 *** Extraction.v
 
 Extract R interpreter into OCaml.

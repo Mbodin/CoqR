@@ -1,15 +1,22 @@
-MODULES := Low Structured High
-VS      := $(MODULES:%=%.v)
+# Makefile originally taken from coq-club
 
-.PHONY: coq clean
+%: Makefile.coq phony
+	+make -f Makefile.coq $@
 
-coq: Makefile.coq
-	        $(MAKE) -f Makefile.coq
+all: Makefile.coq
+	+make -f Makefile.coq all
 
-Makefile.coq: Makefile $(VS)
-	        coq_makefile -R . Main -R low Low -R structured Structured -R high High -R lib Lib -R lib/tlc/src TLC $(VS) -o Makefile.coq
+clean: Makefile.coq
+	+make -f Makefile.coq clean
+	rm -f Makefile.coq
 
-clean:: Makefile.coq
-	        $(MAKE) -f Makefile.coq clean
-			        rm -f Makefile.coq
+Makefile.coq: _CoqProject Makefile
+	coq_makefile -f _CoqProject | sed 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' > Makefile.coq
 
+_CoqProject: ;
+
+Makefile: ;
+
+phony: ;
+
+.PHONY: all clean phony

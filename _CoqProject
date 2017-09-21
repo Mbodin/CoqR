@@ -1,0 +1,39 @@
+
+-R ./lib Lib
+
+# Flocq
+
+-R ./lib/tlc/src TLC
+
+./lib/Shared.v
+
+
+-R ./low Low
+
+./low/Rinternals.v
+./low/RinternalsAux.v
+./low/State.v
+./low/Globals.v
+./low/Monads.v
+./low/Reval.v
+./low/Rfeatures.v
+./low/Rinit.v
+./low/Rinvariants.v
+./low/Relation.v
+./low/Extraction.v
+
+
+-R ./structured Structured
+
+./structured/RelationCorrect.v
+./structured/Relation.v
+./structured/Rinternals.v
+
+
+-R ./high High
+
+./high/Relation.v
+./high/RReasoning.v
+./high/Rstructures.v
+./high/Rbasics.v
+
