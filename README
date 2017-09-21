@@ -42,15 +42,31 @@ This file provides monads to manipulate R objects easily.
 
 *** Reval.v
 
-A Coq formalisation of the evaluation functions of R in its C code.
+A Coq formalisation of the evaluation functions of R from its C code.
+Note that only relevant definitions are translated here. Some are just
+reinterpreted in Coq without following the original algorithm of the
+C source. See report for more details.
 
 *** Rinit.v
 
 Initialises global variables.
 
+*** Rfeatures.v
+
+A Coq formalisation of additionnal functions of R from its C code.
+
+*** Rinvariants.v
+
+Proofs of some invariants respected by the functions defined in Reval.v,
+Rinit.v, and Rfeatures.v.
+
 *** Relation.v
 
 Links the low-level formalisation to the C source code of R.
+
+*** Extraction.v
+
+Extract R interpreter into OCaml.
 
 ** structured
 

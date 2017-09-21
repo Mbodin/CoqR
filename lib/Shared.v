@@ -61,6 +61,57 @@ Proof using.
     apply length_Nth_lt. rewrite (proj1 F23). apply* Nth_lt_length.
 Qed.
 
+Lemma Forall2_Forall : forall A1 A2 (P : _ -> Prop) (Q : _ -> _ -> Prop)
+    (l1 : list A1) (l2 : list A2),
+  Forall P l1 ->
+  Forall2 Q l1 l2 ->
+  Forall2 (fun a b => P a /\ Q a b) l1 l2.
+Proof.
+  introv F F2. gen l2. induction F; introv F2; inverts F2; constructors~.
+Qed.
+
+Lemma Forall2_combine : forall A1 A2 A3 (P Q : _ -> _ -> Prop)
+    (l1 : list A1) (l2 : list A2) (l3 : list A3),
+  Forall2 P l1 l2 ->
+  Forall2 Q l1 l3 ->
+  Forall2 (fun a bc => P a (fst bc) /\ Q a (snd bc)) l1 (combine l2 l3).
+Proof.
+  introv F1 F2. gen l3. induction F1; introv F2; inverts F2; constructors~.
+Qed.
+
+Instance Forall2_Decidable_Mem : forall A B (P : A -> B -> Prop) l1 l2,
+  (forall a b, Mem a l1 -> Mem b l2 -> Decidable (P a b)) ->
+  Decidable (Forall2 P l1 l2).
+Proof.
+  introv F. gen l2. induction l1 as [|a l1]; introv F.
+   destruct l2.
+    applys Decidable_equiv True.
+     iff~ I. constructors.
+     typeclass.
+    applys Decidable_equiv False.
+     iff I; tryfalse. inverts~ I.
+     typeclass.
+   destruct l2 as [|b l2].
+    applys Decidable_equiv False.
+     iff I; tryfalse. inverts~ I.
+     typeclass.
+    applys Decidable_equiv (P a b /\ Forall2 P l1 l2).
+     iff I.
+      constructors*.
+      inverts* I.
+     apply and_decidable.
+      typeclass.
+      apply IHl1. introv M1 M2. apply* F.
+Defined.
+
+Global Instance Forall2_Decidable : forall A B (P : A -> B -> Prop) l1 l2,
+  (forall a b, Decidable (P a b)) ->
+  Decidable (Forall2 P l1 l2).
+Proof.
+  introv F. apply~ Forall2_Decidable_Mem.
+Defined.
+
+
 Lemma Mem_Nth : forall A l (x : A),
   Mem x l ->
   exists n, Nth n l x.

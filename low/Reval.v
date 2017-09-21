@@ -3,7 +3,7 @@
  * The content of this file is the Coq equivalent of functions from R source code.
  * Note that only relevant definitions are translated here. Some are just
  * reinterpreted in Coq without following the original algorithm of the
- * C source. **)
+ * C source. See report for more details. **)
 
 Set Implicit Arguments.
 Require Import Ascii.
