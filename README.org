@@ -1,17 +1,37 @@
 A Coq formalisation of the R programming language
 
-* Building the Project
-
-TODO
-
-opam install coq-flocq
-
-
 * Overview of the Project
+
+This project is still in early development.
 
 The project is divided in several passes, each providing a more typed
 version of the R programming language.
 Each pass is related to the previous by the corresponding Relation.v file.
+
+For more details, see my reports (not in this repository).
+
+* Building the Project
+
+You need to install Coq and OCaml.
+The simplest way is using Opam.
+
+    sudo apt install opam
+    opam install coq # TODO: Pin version?
+
+Some tools are needed.
+
+    # Install coq_makefile
+
+You need to install Flocq.
+
+    opam install coq-flocq
+
+You need to compile TLC.
+
+After all this, the Makefile should work.
+
+    make
+
 
 ** low
 
@@ -79,7 +99,7 @@ A formalisation of R a little more structured and typed than the low-level
 representation.
 In particular, the C memory has been abstracted out.
 
-*** Rinternals.v
+*** Rexpressions.v
 
 In practise, the different language elements of R can not receive
 anything. This version presents a version of the semantics in which

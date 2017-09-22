@@ -4,7 +4,7 @@
  * R language should behave.
  * This file formalises this intuition. **)
 
-
+(* TODO
 Definition framePointer := int.
 
 Record environment := make_environment {
@@ -39,4 +39,5 @@ Inductive frame_value :=
 Definition frame := variable -> option frameValue.
 
 (* TODO: Semantics. *)
+*)
 

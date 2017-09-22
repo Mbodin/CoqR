@@ -38,7 +38,7 @@ Inductive SExpType :=
   | S4Sxp
   | NewSxp
   | FreeSxp
-  | FunSxp (** Note that in some place in the R source code, this last type is used as CloSxp, as only five digits are usually used to store the type, and they assigned this type the number 99: 99 mod 2^5 = 3. **)
+  | FunSxp (** Note that in some place in the R source code, this last type is used as [CloSxp]. See Definition [SExpType_restrict] in RinternalsAux for more details. **)
   .
 
 (** The field [named] of [sxpinfo_struct] can take these three values. **)

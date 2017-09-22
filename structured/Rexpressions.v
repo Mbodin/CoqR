@@ -1,4 +1,4 @@
-(** Rinternals.
+(** Rexpressions.
  * The internals presented in Low.Rinternals are untyped: each basic
  * language element (SExprRec) are built on three pointers, without
  * further explanation.
@@ -7,7 +7,7 @@
  * arrays.  This files makes this explicit.
  * A lot of this file is interpretation from https://cran.r-project.org/doc/manuals/r-release/R-lang.html *)
 
-
+(* TODO
 Definition framePointer := int.
 
 (** Basic language elements (BLE). Each BLE corresponds to a SExpType. **)
@@ -43,4 +43,5 @@ with BLE_List := list (BLE (** Element **) * option string (** Optionnal tag **)
 
 with BLE_attrib := TODO
   .
+*)
 

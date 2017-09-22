@@ -13,6 +13,8 @@ Require Export Rinternals Shared.
 
 (** * The [nbits] Structure **)
 
+(** This structure formalises bit fields of a given size. **)
+
 Definition nth_bit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool.
   introv a I. gen m. induction n as [|n]; introv a I; destruct m; try solve [ false; math ].
   - exact (fst a).
@@ -267,6 +269,19 @@ Qed.
 
 (** * Accessors and Smart Constructors **)
 
+(** In some place in the R source code, only five digits are used to store
+ * the type of basic language element. This is an issue as [FunSxp] is
+ * associated with the value 99, which is greater than 2^5.
+ * The following function maps [FunSxp] to [CloSxp], effectivelly mapping
+ * a general [SExpType] to a [SExpType] stored in only five bits.
+ * We have indeed 99 mod 2^5 = 3. **)
+Definition SExpType_restrict t :=
+  match t with
+  | FunSxp => CloSxp
+  | _ => t
+  end.
+
+
 Definition get_NonVector e_ :=
   match e_ with
   | SExpRec_NonVector e_ => Some e_
@@ -411,7 +426,8 @@ Definition map_sxpinfo f e_ :=
   end.
 
 Definition set_named_sxpinfo n i_info :=
-  make_SxpInfo (type i_info) (obj i_info) n (gp i_info)
+  make_SxpInfo (SExpType_restrict (type i_info))
+    (obj i_info) n (gp i_info)
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
 Definition set_named n :=
@@ -421,21 +437,23 @@ Definition set_named_plural :=
   set_named named_plural.
 
 Definition set_gp_sxpinfo n i_info :=
-  make_SxpInfo (type i_info) (obj i_info) (named i_info) n
+  make_SxpInfo (SExpType_restrict (type i_info))
+    (obj i_info) (named i_info) n
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
 Definition set_gp n :=
   map_sxpinfo (set_gp_sxpinfo n).
 
 Definition map_gp_sxpinfo f i_info :=
-  make_SxpInfo (type i_info) (obj i_info) (named i_info) (f (gp i_info))
+  make_SxpInfo (SExpType_restrict (type i_info))
+    (obj i_info) (named i_info) (f (gp i_info))
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
 Definition map_gp f :=
   map_sxpinfo (map_gp_sxpinfo f).
 
 Definition set_type_sxpinfo t i_info :=
-  make_SxpInfo t (obj i_info) (named i_info) (gp i_info)
+  make_SxpInfo (SExpType_restrict t) (obj i_info) (named i_info) (gp i_info)
     (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
 
 Definition set_type t :=
@@ -452,7 +470,7 @@ Definition set_tag_list tag l_list :=
 
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
-  make_SxpInfo type false named_temporary (nbits_init _).
+  make_SxpInfo (SExpType_restrict type) false named_temporary (nbits_init _).
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
  * by the garbage collector of R. We do not need them here as memory
@@ -586,5 +604,4 @@ Defined.
 Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
   prove_comparable_simple_inductive.
 Defined.
-
 
