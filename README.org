@@ -8,7 +8,7 @@ The project is divided in several passes, each providing a more typed
 version of the R programming language.
 Each pass is related to the previous by the corresponding Relation.v file.
 
-For more details, see my reports (not in this repository).
+For more details, see my report (not in this repository).
 
 * Building the Project
 
