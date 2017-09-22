@@ -212,6 +212,25 @@ Inductive context := make_context {
     conexit : SExpRec_pointer
   }.
 
+Fixpoint context_rect' (P : context -> Type) HNone HSome c : P c :=
+  match c with
+  | make_context nextcontext callflag promargs callfun sysparent call cloenv conexit =>
+    match nextcontext with
+    | None => HNone callflag promargs callfun sysparent call cloenv conexit
+    | Some c' =>
+      HSome _ (context_rect' P HNone HSome c')
+        callflag promargs callfun sysparent call cloenv conexit
+    end
+  end.
+
+Definition context_ind' (P : context -> Prop) := context_rect' P.
+
+Instance context_Comparable : Comparable context.
+  applys make_comparable. intros c1.
+  induction c1 using context_rect'; intros c2;
+    induction c2 using context_rect'; prove_decidable_eq.
+Defined.
+
 Definition context_with_conexit context conexit := {|
      nextcontext := nextcontext context ;
      callflag := callflag context ;
@@ -229,6 +248,7 @@ Definition context_with_conexit context conexit := {|
 Record state := make_state {
     state_memory :> memory ;
     state_context : context ;
+    R_ExitContext : option context ;
     R_SymbolTable : SExpRec_pointer
   }.
 
@@ -237,18 +257,28 @@ Definition R_GlobalContext := state_context.
 Definition state_with_memory S m := {|
     state_memory := m ;
     state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
     R_SymbolTable := R_SymbolTable S
   |}.
 
 Definition state_with_context S c := {|
     state_memory := state_memory S ;
     state_context := c ;
+    R_ExitContext := R_ExitContext S ;
+    R_SymbolTable := R_SymbolTable S
+  |}.
+
+Definition state_with_exit_context S c := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_ExitContext := c ;
     R_SymbolTable := R_SymbolTable S
   |}.
 
 Definition update_R_SymbolTable S p := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
     R_SymbolTable := p
   |}.
 

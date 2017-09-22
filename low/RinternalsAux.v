@@ -433,6 +433,12 @@ Definition set_named_sxpinfo n i_info :=
 Definition set_named n :=
   map_sxpinfo (set_named_sxpinfo n).
 
+Definition set_named_temporary :=
+  set_named named_temporary.
+
+Definition set_named_unique :=
+  set_named named_unique.
+
 Definition set_named_plural :=
   set_named named_plural.
 

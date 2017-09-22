@@ -201,6 +201,39 @@ Proof.
       inverts* M.
 Qed.
 
+Fixpoint nth_option A n (l : list A) {struct l} :=
+  match l with
+  | [] => None
+  | x :: l =>
+    match n with
+    | 0 => Some x
+    | S n => nth_option n l
+    end
+  end.
+
+Lemma nth_option_length : forall A n (l : list A),
+  nth_option n l = None <-> length l <= n.
+Proof.
+  introv. gen n. induction l; iff I.
+   rew_list. math.
+   reflexivity.
+   rew_list. simpl in I. destruct n; inverts I as I'. rewrite IHl in I'. math.
+   rew_list in I. destruct n.
+    false. math.
+    simpl. rewrite IHl. math.
+Qed.
+
+Lemma nth_option_defined : forall A (H : Inhab A) n (l : list A) x,
+  nth_option n l = Some x ->
+  nth n l = x.
+Proof.
+  introv E. gen n. induction l; introv E.
+   inverts E.
+   destruct n.
+    inverts E. reflexivity.
+    simpl in E. rewrite nth_succ. apply~ IHl.
+Qed.
+
 
 Lemma stream_head_nth : forall A (s : stream A),
   stream_head s = LibStream.nth 0 s.

@@ -283,55 +283,79 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
   (read_as_prom S e (fun e_ e_prom => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorChar' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorChar e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorChar A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorChar e_ using S in
-  f e_.
+  let%VectorChar e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorChar S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorLogical' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorLogical e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorLogical A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorLogical e_ using S in
-  f e_.
+  let%VectorLogical e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorLogical S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorInteger' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorInteger e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorInteger A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorInteger e_ using S in
-  f e_.
+  let%VectorInteger e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorInteger S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorComplex e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorComplex A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorComplex e_ using S in
-  f e_.
+  let%VectorComplex e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorComplex S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorReal' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorReal e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorReal A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorReal e_ using S in
-  f e_.
+  let%VectorReal e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorReal S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%VectorPointers' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorPointers e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_as_VectorPointers A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%defined e_ := get_VectorPointers e_ using S in
-  f e_.
+  let%VectorPointers e_vector := e_ using S in
+  f e_vector.
 
 Notation "'read%VectorPointers' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorPointers S e (fun e_ => cont))

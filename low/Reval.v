@@ -181,6 +181,14 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'a
    using S)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
+  (let%success _ :=
+     fold%let _ := tt along le as l, l_, l_list
+     do iterate
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success a :=
      fold%let a := e along le as l, l_, l_list
@@ -257,6 +265,14 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'a
    using S)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
+  (let%success _ :=
+     fold%let _ := tt along le as l_car, l_tag
+     do iterate
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success a :=
      fold%let a := e along le as l_car, l_tag
@@ -309,13 +325,26 @@ Definition PRINTNAME S x :=
   result_success S (sym_pname x_sym).
 
 Definition CHAR S x :=
-  read%VectorChar x_ := x using S in
-  result_success S (list_to_string x_).
+  read%VectorChar x_vector := x using S in
+  result_success S (list_to_string x_vector).
 
 Definition SET_MISSING S e (m : nat) I :=
   map%gp e with fun gp => write_nbits 0 (nat_to_nbits m I : nbits 4) gp ltac:(nbits_ok) using S in
   result_success S tt.
 Arguments SET_MISSING : clear implicits.
+
+Definition INCREMENT_NAMED S x :=
+  read%defined x_ := x using S in
+  match named x with
+  | named_temporary =>
+    map%pointer x with set_named_unique using S in
+    result_success S tt
+  | named_unique =>
+    map%pointer x with set_named_plural using S in
+    result_success S tt
+  | named_plural =>
+    result_success S tt
+  end.
 
 
 (** ** memory.c **)
@@ -336,6 +365,15 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
       CONS S R_NilValue p
     end
   in aux S n R_NilValue.
+
+Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
+  read%defined x_ := x using S in
+  ifb type x_ <> StrSxp then
+    result_error S "[STRING_ELT] Not a character vector."
+  else
+    let%VectorPointers x_vector := x_ using S in
+    let%defined r := nth_option i x_vector using S in
+    result_success S r.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
   * [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
@@ -457,7 +495,7 @@ Definition inherits S s name :=
   read%defined s_ := s using S in
   if obj s_ then
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
-    read%VectorPointers klass_ := klass using S in
+    read%VectorPointers klass_vector := klass using S in
     let%success b :=
       fold_left (fun str rb =>
         let%success b := rb using S in
@@ -466,7 +504,7 @@ Definition inherits S s name :=
         else
           let%success str_ := CHAR S str using S in
           result_success S (decide (str_ = name)))
-        (result_success S false) (VecSxp_data klass_) using S in
+        (result_success S false) (VecSxp_data klass_vector) using S in
     result_success S b
   else
     result_success S false.
@@ -540,17 +578,29 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
    |} in
   state_with_context S cptr.
 
-Definition endcontext S :=
-  let cptr := R_GlobalContext S in
+Definition endcontext S cptr :=
   let%success _ :=
     ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
       let s := conexit cptr in
+      let savecontext := R_ExitContext S in
+      let S := state_with_exit_context S (Some cptr) in
       let S := state_with_context S (context_with_conexit cptr R_NilValue) in
-      let%success _ := runs_eval runs S s (cloenv cptr) using S in
+      fold%success along s as _, _, s_list do
+        let S := state_with_context S (context_with_conexit cptr (list_cdrval s_list)) in
+        let%success _ :=
+          runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
+        result_success S tt using S in
+      let S := state_with_exit_context S savecontext in
+      result_success S tt
+    else result_success S tt using S in
+  let%success _ :=
+    ifb R_ExitContext S = Some cptr then
+      let S := state_with_exit_context S None in
       result_success S tt
     else result_success S tt using S in
   let%defined c := nextcontext cptr using S in
-  result_success (state_with_context S c) tt.
+  let S := state_with_context S c in
+  result_success S tt.
 
 
 (** ** match.c **)
@@ -1037,10 +1087,10 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
           ifb s_int then
             let%defined s_length := get_VecSxp_length s_ using S in
             ifb s_length = 2 then
-              read%VectorInteger s_ := s using S in
-              let%defined s_0 := head (VecSxp_data s_) using S in
+              let%VectorInteger s_vector := s_ using S in
+              let%defined s_0 := nth_option 0 (VecSxp_data s_vector) using S in
               ifb s_0 = R_NaInt then
-                let%defined s_1 := head (tail (VecSxp_data s_)) using S in
+                let%defined s_1 := nth_option 1 (VecSxp_data s_vector) using S in
                 let n := abs s_1 in
                 let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
                 result_success S s
@@ -1051,7 +1101,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
       in
       ifb type name_ = StrSxp then
         read%VectorPointers name_ := name using S in
-        let%defined str := head name_ using S in
+        let%success str := STRING_ELT S name 0 using S in
         let%success sym := installTrChar S str using S in
         continuation S sym
       else continuation S name.

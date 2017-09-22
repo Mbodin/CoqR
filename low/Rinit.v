@@ -2,7 +2,7 @@
  * Initialises global variables. **)
 
 Set Implicit Arguments.
-Require Export Reval.
+Require Export Rfeatures.
 
 
 (** * Initialising Functions **)
@@ -264,6 +264,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let S := {|
       state_memory := S ;
       state_context := R_Toplevel ;
+      R_ExitContext := None ;
       R_SymbolTable := R_SymbolTable S
     |} in
   (* let globals := flatten_Globals globals in (* Removing the now useless closures. *) *)
@@ -271,6 +272,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
 
 
 (** * Initial State and Memory **)
+
+(** The state defined in this section is the state of the program before running
+  [setup_Rmainloop]. **)
 
 (** An empty (and dummy) context **)
 Definition empty_context := {|
@@ -284,9 +288,11 @@ Definition empty_context := {|
      conexit := NULL
   |}.
 
+(** An empty (and dummy) state **)
 Definition empty_state := {|
     state_memory := empty_memory ;
     state_context := empty_context ;
+    R_ExitContext := None ;
     R_SymbolTable := NULL
   |}.
 
