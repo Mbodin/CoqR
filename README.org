@@ -15,23 +15,33 @@ For more details, see my reports (not in this repository).
 You need to install Coq and OCaml.
 The simplest way is using Opam.
 
+#+BEGIN_SRC bash
     sudo apt install opam
     opam install coq # TODO: Pin version?
+#+END_SRC
 
 Some tools are needed.
 
+#+BEGIN_SRC bash
     # Install coq_makefile
+#+END_SRC
 
 You need to install Flocq.
 
+#+BEGIN_SRC bash
     opam install coq-flocq
+#+END_SRC
 
 You need to compile TLC.
 
 After all this, the Makefile should work.
 
+#+BEGIN_SRC bash
     make
+#+END_SRC
 
+
+* Files Description
 
 ** low
 
@@ -55,6 +65,8 @@ This file provides a model for the C memory.
 
 This file lists all global variables used in the C source code of R,
 that are initialised, then never changed.
+
+This file can take a long time to compile.
 
 *** Monads.v
 
@@ -93,6 +105,23 @@ execution of the functions of Reval.
 
 Extract R interpreter into OCaml.
 
+*** low.ml, low.mli
+
+These files are extracted by Extraction.
+
+*** print.ml
+
+Contains various OCaml function to print Coq objects.
+
+*** runR.ml, runR.native
+
+Main interpreter file. It calls the various functions defined in low.ml.
+
+The following command provides some help about it.
+#BEGIN_SRC bash
+    low/runR.native --help
+#END_SRC
+
 ** structured
 
 A formalisation of R a little more structured and typed than the low-level
@@ -124,4 +153,13 @@ Links the high-level formalisation to the structured-level one.
 *** RReasoning.v
 
 Provides tools to reason about R programs.
+
+
+* License
+
+I have not yet put any license there, as I consider that the project first
+needs to be minimally developped before bothering adding a license.
+If you would like to use or contribute to this project and thus need to know
+its license, please tell me, and I shall look for the policy of the CMM about
+this.
 

@@ -11,7 +11,7 @@ let _ =
       ("-no-globals", Arg.Clear show_globals, "Hide the value of global variables") ;
       ("-steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ]
     (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
-    "This programs aims to mimic the core of R. Usage:"
+    "This programs aims at mimicking the core of R. Usage:"
 
 
 let _ =

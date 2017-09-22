@@ -20,6 +20,7 @@ Inductive value (base_type : Type) : Type :=
   | value_value : base_type -> value base_type
   .
 
+(* TODO
 Definition mode_to_type m : Type :=
   match m with
   | mode_numeric => (* Need Flocq *)
@@ -40,6 +41,7 @@ Record object : Type := make_object {
 
 Definition object_length (o : object) :=
   length o.
+*)
 
 (* Coercions can be extracted from https://github.com/wch/r-source/blob/trunk/src/main/coerce.c *)
 

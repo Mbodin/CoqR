@@ -1,12 +1,13 @@
-# Makefile originally taken from coq-club
 
 %: Makefile.coq phony
 	+make -f Makefile.coq $@
 
-all: Makefile.coq
+all: all_coq all_interp
+
+all_coq: Makefile.coq
 	+make -f Makefile.coq all
 
-clean: Makefile.coq
+clean: Makefile.coq clean_interp
 	+make -f Makefile.coq clean
 	rm -f Makefile.coq
 
@@ -19,4 +20,16 @@ Makefile: ;
 
 phony: ;
 
-.PHONY: all clean phony
+.PHONY: all clean phony all_interp clean_interp
+
+all_interp: low/runR.native
+
+clean_interp:
+	rm low/runR.native
+	rm -R low/_build
+
+low/runR.native: low/Extraction.vo
+	mv low.ml low/low.ml
+	mv low.mli low/low.mli
+	cd low ; ocamlbuild runR.native ; cd ..
+
