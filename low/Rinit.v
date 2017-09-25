@@ -135,7 +135,7 @@ Definition SymbolShortcuts S :=
     result_success S ((sym, p) :: L')) (result_success S nil) L.
 
 (** [InitNames], from main/names.c **)
-Definition InitNames S :=
+Definition InitNames max_step S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
@@ -149,6 +149,7 @@ Definition InitNames S :=
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in
+  let R_FunTab := R_FunTab globals runs max_step in
   (* TODO *)
   result_success S (R_UnboundValue, R_MissingArg, L).
 
@@ -246,7 +247,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
   let%success (UnboundValue, MissingArg, L) :=
-    InitNames globals (runs globals max_step) S using S in
+    InitNames globals (runs globals max_step) max_step S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg] ++ L }} in
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,

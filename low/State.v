@@ -317,3 +317,17 @@ Definition empty_memory : memory.
   - introv D. repeat rewrite all_locations_nth. math.
 Defined.
 
+
+(** * Instances **)
+
+Instance memory_Inhab : Inhab memory :=
+  prove_Inhab empty_memory.
+
+Instance context_Inhab : Inhab context.
+  apply prove_Inhab. constructors; typeclass.
+Qed.
+
+Instance state_Inhab : Inhab state.
+  apply prove_Inhab. constructors; typeclass || apply arbitrary.
+Qed.
+

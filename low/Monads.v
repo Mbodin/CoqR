@@ -38,6 +38,10 @@ Arguments result_bottom [A].
  * [e] actually maps to a valid expression), the Coq interpreter will
  * return [result_impossible]. **)
 
+Global Instance result_Inhab : forall A, Inhab (result A) :=
+  fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
+
+
 Delimit Scope monad_scope with monad.
 Open Scope monad_scope.
 
