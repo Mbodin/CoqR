@@ -6,7 +6,6 @@ Set Implicit Arguments.
 
 Require Export TLC.LibString TLC.LibInt.
 Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
-Require Export Rprimitives.
 
 
 (** * Types **)
@@ -84,7 +83,7 @@ Definition R_UnboundValue : SExpRec_pointer := NULL.
 
 (** primsxp_struct **)
 Record PrimSxp_struct := make_PrimSxp_struct {
-    prim_primitive : primitive_construction
+    prim_offset : nat
   }.
 
 (** symsxp_struct **)

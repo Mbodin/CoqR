@@ -537,12 +537,9 @@ Definition make_SExpRec_lang attrib function argumentList :=
       (make_ListSxp_struct function argumentList None)).
 
 Definition make_SExpRec_prim attrib prim :=
+  (* TODO: Check *)
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader
-        match prim with
-        | primitive_construction_primitive _ => BuiltinSxp
-        | primitive_construction_internal _ => SpecialSxp
-        end attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader BuiltinSxp attrib)
       (make_PrimSxp_struct prim)).
 
 Definition make_SExpRec_char attrib array :=

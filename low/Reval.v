@@ -559,6 +559,11 @@ Definition mkSYMSXP S (name value : SExpRec_pointer) :=
     write_nbit 0 gp ltac:(nbits_ok) i using S in
   result_success S c.
 
+(* TODO: To implement this function, I need to add some cache to the global state,
+ * because of static variables. *)
+Definition mkPRIMSXP (S : state) (offset : nat) (type : bool) : result SExpRec_pointer :=
+  result_not_implemented "[mkPRIMSXP] TODO".
+
 
 (** ** context.c **)
 

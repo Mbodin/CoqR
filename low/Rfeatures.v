@@ -45,11 +45,21 @@ Record funtab_cell := make_funtab_cell {
     fun_arity : int
   }.
 
-Definition funtab := primitive_construction -> funtab_cell.
+Definition funtab := option (list funtab_cell).
 
 Section Parameter_R_FunTab.
 
 Variable R_FunTab : funtab.
+
+Definition read_R_FunTab S n :=
+  match R_FunTab with
+  | None => result_bottom S
+  | Some f =>
+    match nth_option n f with
+    | None => result_impossible S "[read_R_FunTab] Out of bounds."
+    | Some c => result_success S c
+    end
+  end.
 
 
 (** * eval.c **)
@@ -71,7 +81,8 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       let%success rhs := runs_eval runs S (list_carval args_cdr_list) rho using S in
       let%success _ := INCREMENT_NAMED S rhs using S in
       read%prim op_, op_prim := op using S in
-      ifb fun_code (R_FunTab (prim_primitive op_prim)) = 2 then
+      let%success c := read_R_FunTab S (prim_offset op_prim) using S in
+      ifb fun_code c = 2 then
         result_not_implemented "[do_set] setVar"
       else
         let%success _ := defineVar globals runs S lhs rhs rho using S in
@@ -85,6 +96,37 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     | LangSxp => result_not_implemented "[do_set] applydefine"
     | _ => result_error S "[do_set] Invalid left-hand side to assignment."
     end.
+
+
+(** * names.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/names.c. **)
+
+(** In contrary to the original C, this function here takes as argument
+ * the structure of type [funtab_cell] in addition to its range in the
+ * array [R_FunTab]. **)
+Definition installFunTab S c offset : result unit :=
+  let%success prim := mkPRIMSXP S offset (funtab_eval_arg_eval (fun_eval c)) using S in
+  let%success p := install globals runs S (fun_name c) using S in
+  read%sym p_, p_sym := p using S in
+  let p_sym :=
+    if funtab_eval_arg_internal (fun_eval c) then {|
+        sym_pname := sym_pname p_sym ;
+        sym_value := sym_value p_sym ;
+        sym_internal := prim
+      |}
+    else {|
+        sym_pname := sym_pname p_sym ;
+        sym_value := prim ;
+        sym_internal := sym_internal p_sym
+      |} in
+  let p_ := {|
+      NonVector_SExpRec_header := NonVector_SExpRec_header p_ ;
+      NonVector_SExpRec_data := p_sym
+    |} in
+  write%defined p := p_ using S in
+  result_success S tt.
 
 End Parameter_R_FunTab.
 
@@ -113,18 +155,17 @@ Fixpoint R_FunTab max_step : funtab :=
   let eval210 := make_funtab_eval_arg true false in
   let eval211 := make_funtab_eval_arg true true in
   match max_step with
-  | O => fun _ => arbitrary
-  | S max_step => fun c =>
+  | O => None
+  | S max_step =>
     let decl name cfun code eval arity :=
       make_funtab_cell name cfun code eval arity in
     let rdecl name cfun code eval arity :=
       decl name (cfun (R_FunTab max_step)) code eval arity in
-    match c with
-    | primitive_set_1 => rdecl "<-" do_set 1 eval100 (-1)%Z
-    | primitive_set_3 => rdecl "=" do_set 3 eval100 (-1)%Z
-    | primitive_set_2 => rdecl "<<-" do_set 2 eval100 (-1)%Z
-    | _ => arbitrary
-    end%string
+    Some [
+        rdecl "<-" do_set 1 eval100 (-1)%Z ;
+        rdecl "=" do_set 3 eval100 (-1)%Z ;
+        rdecl "<<-" do_set 2 eval100 (-1)%Z
+      ]%string
   end.
 
 End Parameters.

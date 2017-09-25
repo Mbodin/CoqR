@@ -149,7 +149,14 @@ Definition InitNames max_step S :=
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in
-  let R_FunTab := R_FunTab globals runs max_step in
+  let%defined R_FunTab := R_FunTab globals runs max_step using S in
+  let FunTabSize := length R_FunTab in
+  let%success _ :=
+    fold_left (fun c r =>
+        let%success i := r using S in
+        let%success _ :=
+          installFunTab globals runs S c i using S in
+        result_success S (i - 1)) (result_success S (FunTabSize - 1)) R_FunTab using S in
   (* TODO *)
   result_success S (R_UnboundValue, R_MissingArg, L).
 
