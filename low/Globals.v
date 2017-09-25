@@ -13,7 +13,12 @@ Require Export RinternalsAux.
  * [Globals], see below) to their value, of type [SExpRec_pointer].
  * See the beginning of the files Reval.v and Rinit.v for more
  * details. **)
-Inductive GlobalVariable :=
+
+(** To ease compilation time (in particular the proof of comparability
+ * below), this definition has been arbitrarily splitted into arbitrary
+ * subtypes. **)
+
+Inductive GlobalVariable_1 :=
   | R_AsCharacterSymbol
   | R_BaseEnv
   | R_BaseNamespaceName
@@ -40,6 +45,9 @@ Inductive GlobalVariable :=
   | R_dot_Group
   | R_dot_Method
   | R_dot_Methods
+  .
+
+Inductive GlobalVariable_2 :=
   | R_dot_packageName
   | R_DotsSymbol
   | R_dot_target
@@ -66,6 +74,9 @@ Inductive GlobalVariable :=
   | R_PreviousSymbol
   | R_QuoteSymbol
   | R_RecursiveSymbol
+  .
+
+Inductive GlobalVariable_3 :=
   | R_RowNamesSymbol
   | R_SeedsSymbol
   | R_SortListSymbol
@@ -82,11 +93,33 @@ Inductive GlobalVariable :=
   | R_WholeSrcrefSymbol
   .
 
+Inductive GlobalVariable :=
+  | GlobalVariable1 : GlobalVariable_1 -> GlobalVariable
+  | GlobalVariable2 : GlobalVariable_2 -> GlobalVariable
+  | GlobalVariable3 : GlobalVariable_3 -> GlobalVariable
+  .
+Coercion GlobalVariable1 : GlobalVariable_1 >-> GlobalVariable.
+Coercion GlobalVariable2 : GlobalVariable_2 >-> GlobalVariable.
+Coercion GlobalVariable3 : GlobalVariable_3 >-> GlobalVariable.
+
 (** It is important for the following type class to only be local,
  * to avoid having a code of the form [ifb C1 = C2 then], where [C1]
  * and [C2] are two global variables, to be interpreted as the
  * syntactic equality where it should be seen as a semantic equality,
  * throught the context coercion. **)
+
+Local Instance GlobalVariable_1_Comparable : Comparable GlobalVariable_1.
+  prove_comparable_simple_inductive.
+Defined.
+
+Local Instance GlobalVariable_2_Comparable : Comparable GlobalVariable_2.
+  prove_comparable_simple_inductive.
+Defined.
+
+Local Instance GlobalVariable_3_Comparable : Comparable GlobalVariable_3.
+  prove_comparable_simple_inductive.
+Defined.
+
 Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
   prove_comparable_simple_inductive.
 Defined.

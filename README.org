@@ -34,7 +34,7 @@ You need to install Flocq.
 
 You need to compile TLC.
 
-After all this, the Makefile should work.
+After all that, the Makefile should work.
 
 #+BEGIN_SRC bash
     make
@@ -82,6 +82,13 @@ C source. See report for more details.
 *** Rinit.v
 
 Initialises global variables.
+
+*** Rprimitives.v
+
+This file lists all primitive and internal pointers of R.
+These pointers are then initialised in Rfeatures.v.
+
+This file can take a long time to compile.
 
 *** Rfeatures.v
 

@@ -6,6 +6,7 @@ Set Implicit Arguments.
 
 Require Export TLC.LibString TLC.LibInt.
 Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
+Require Export Rprimitives.
 
 
 (** * Types **)
@@ -80,21 +81,6 @@ Definition SExpRec_pointer := option defined_pointer.
 Definition NULL : SExpRec_pointer := None.
 
 Definition R_UnboundValue : SExpRec_pointer := NULL.
-
-(** One symbol for each primitive, that is, built-in functions in call-by-value. **)
-Inductive primitive :=
-  .
-
-(** One symbol for each internal, that is, internals directly manipulating the promises. **)
-Inductive internal :=
-  .
-
-Inductive primitive_construction :=
-  | primitive_construction_primitive : primitive -> primitive_construction
-  | primitive_construction_internal : internal -> primitive_construction
-  .
-Coercion primitive_construction_primitive : primitive >-> primitive_construction.
-Coercion primitive_construction_internal : internal >-> primitive_construction.
 
 (** primsxp_struct **)
 Record PrimSxp_struct := make_PrimSxp_struct {

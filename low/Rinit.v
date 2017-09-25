@@ -72,59 +72,60 @@ Definition InitBaseEnv S :=
 
 (** [SymbolShortcuts], from main/names.c **)
 Definition SymbolShortcuts S :=
+  let decl v n := (v, n) : GlobalVariable * string in
   let L := [
-      (R_Bracket2Symbol, "[[") ;
-      (R_BracketSymbol, "[") ;
-      (R_BraceSymbol, "{") ;
-      (R_ClassSymbol, "class") ;
-      (R_DeviceSymbol, ".Device") ;
-      (R_DimNamesSymbol, "dimnames") ;
-      (R_DimSymbol, "dim") ;
-      (R_DollarSymbol, "$") ;
-      (R_DotsSymbol, "...") ;
-      (R_DropSymbol, "drop") ;
-      (R_LastvalueSymbol, ".Last.value") ;
-      (R_LevelsSymbol, "levels") ;
-      (R_ModeSymbol, "mode") ;
-      (R_NameSymbol , "name") ;
-      (R_NamesSymbol, "names") ;
-      (R_NaRmSymbol, "na.rm") ;
-      (R_PackageSymbol, "package") ;
-      (R_PreviousSymbol, "previous") ;
-      (R_QuoteSymbol, "quote") ;
-      (R_RowNamesSymbol, "row.names") ;
-      (R_SeedsSymbol, ".Random.seed") ;
-      (R_SortListSymbol, "sort.list") ;
-      (R_SourceSymbol, "source") ;
-      (R_TspSymbol, "tsp") ;
-      (R_CommentSymbol, "comment") ;
-      (R_DotEnvSymbol, ".Environment") ;
-      (R_ExactSymbol, "exact") ;
-      (R_RecursiveSymbol, "recursive") ;
-      (R_SrcfileSymbol, "srcfile") ;
-      (R_SrcrefSymbol, "srcref") ;
-      (R_WholeSrcrefSymbol, "wholeSrcref") ;
-      (R_TmpvalSymbol, "*tmp*") ;
-      (R_UseNamesSymbol, "use.names") ;
-      (R_ColonSymbol, ":") ;
-      (R_DoubleColonSymbol, "::") ;
-      (R_TripleColonSymbol, ":::") ;
-      (R_ConnIdSymbol, "conn_id") ;
-      (R_DevicesSymbol, ".Devices") ;
-      (R_BaseSymbol, "base") ;
-      (R_SpecSymbol, "spec") ;
-      (R_NamespaceEnvSymbol, ".__NAMESPACE__.") ;
-      (R_AsCharacterSymbol, "as.character") ;
-      (R_dot_Generic, ".Generic") ;
-      (R_dot_Method, ".Method") ;
-      (R_dot_Methods, ".Methods") ;
-      (R_dot_defined, ".defined") ;
-      (R_dot_target, ".target") ;
-      (R_dot_Group, ".Group") ;
-      (R_dot_Class, ".Class") ;
-      (R_dot_GenericCallEnv, ".GenericCallEnv") ;
-      (R_dot_GenericDefEnv, ".GenericDefEnv") ;
-      (R_dot_packageName, ".packageName")
+      decl R_Bracket2Symbol "[[" ;
+      decl R_BracketSymbol "[" ;
+      decl R_BraceSymbol "{" ;
+      decl R_ClassSymbol "class" ;
+      decl R_DeviceSymbol ".Device" ;
+      decl R_DimNamesSymbol "dimnames" ;
+      decl R_DimSymbol "dim" ;
+      decl R_DollarSymbol "$" ;
+      decl R_DotsSymbol "..." ;
+      decl R_DropSymbol "drop" ;
+      decl R_LastvalueSymbol ".Last.value" ;
+      decl R_LevelsSymbol "levels" ;
+      decl R_ModeSymbol "mode" ;
+      decl R_NameSymbol  "name" ;
+      decl R_NamesSymbol "names" ;
+      decl R_NaRmSymbol "na.rm" ;
+      decl R_PackageSymbol "package" ;
+      decl R_PreviousSymbol "previous" ;
+      decl R_QuoteSymbol "quote" ;
+      decl R_RowNamesSymbol "row.names" ;
+      decl R_SeedsSymbol ".Random.seed" ;
+      decl R_SortListSymbol "sort.list" ;
+      decl R_SourceSymbol "source" ;
+      decl R_TspSymbol "tsp" ;
+      decl R_CommentSymbol "comment" ;
+      decl R_DotEnvSymbol ".Environment" ;
+      decl R_ExactSymbol "exact" ;
+      decl R_RecursiveSymbol "recursive" ;
+      decl R_SrcfileSymbol "srcfile" ;
+      decl R_SrcrefSymbol "srcref" ;
+      decl R_WholeSrcrefSymbol "wholeSrcref" ;
+      decl R_TmpvalSymbol "*tmp*" ;
+      decl R_UseNamesSymbol "use.names" ;
+      decl R_ColonSymbol ":" ;
+      decl R_DoubleColonSymbol "::" ;
+      decl R_TripleColonSymbol ":::" ;
+      decl R_ConnIdSymbol "conn_id" ;
+      decl R_DevicesSymbol ".Devices" ;
+      decl R_BaseSymbol "base" ;
+      decl R_SpecSymbol "spec" ;
+      decl R_NamespaceEnvSymbol ".__NAMESPACE__." ;
+      decl R_AsCharacterSymbol "as.character" ;
+      decl R_dot_Generic ".Generic" ;
+      decl R_dot_Method ".Method" ;
+      decl R_dot_Methods ".Methods" ;
+      decl R_dot_defined ".defined" ;
+      decl R_dot_target ".target" ;
+      decl R_dot_Group ".Group" ;
+      decl R_dot_Class ".Class" ;
+      decl R_dot_GenericCallEnv ".GenericCallEnv" ;
+      decl R_dot_GenericDefEnv ".GenericDefEnv" ;
+      decl R_dot_packageName ".packageName"
     ]%string in
   fold_left (fun sym_str st =>
     let%success L' := st using S in
@@ -232,30 +233,31 @@ End Globals.
   * the updated [globals]. **)
   (* TODO: This function. *)
 Definition setup_Rmainloop max_step S : result Globals :=
+  let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
   let globals := empty_globals in
   let%success (NilValue, TrueValue, FalseValue, LogicalNAValue) :=
     InitMemory globals S using S in
-  let globals := {{ globals with [(R_NilValue, NilValue) ;
-                                  (R_TrueValue, TrueValue) ;
-                                  (R_FalseValue, FalseValue) ;
-                                  (R_LogicalNAValue, LogicalNAValue)] }} in
+  let globals := {{ globals with [ decl R_NilValue NilValue ;
+                                   decl R_TrueValue TrueValue ;
+                                   decl R_FalseValue FalseValue ;
+                                   decl R_LogicalNAValue LogicalNAValue ] }} in
   let%success (EmptyEnv, BaseEnv) :=
     InitBaseEnv globals (runs globals max_step) S using S in
-  let globals := {{ globals with [(R_EmptyEnv, EmptyEnv) ;
-                                  (R_BaseEnv, BaseEnv)] }} in
+  let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
+                                   decl R_BaseEnv BaseEnv ] }} in
   let%success (UnboundValue, MissingArg, L) :=
     InitNames globals (runs globals max_step) S using S in
-  let globals := {{ globals with [(R_UnboundValue, UnboundValue) ;
-                                  (R_MissingArg, MissingArg)] ++ L }} in
+  let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
+                                   decl R_MissingArg MissingArg] ++ L }} in
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in
-  let globals := {{ globals with [(R_NamespaceSymbol, NamespaceSymbol) ;
-                                  (R_GlobalEnv, GlobalEnv) ;
-                                  (R_MethodsNamespace, MethodsNamespace) ;
-                                  (R_BaseNamespace, BaseNamespace) ;
-                                  (R_BaseNamespaceName, BaseNamespaceName) ;
-                                  (R_NamespaceRegistry, NamespaceRegistry)] }} in
+  let globals := {{ globals with [ decl R_NamespaceSymbol NamespaceSymbol ;
+                                   decl R_GlobalEnv GlobalEnv ;
+                                   decl R_MethodsNamespace MethodsNamespace ;
+                                   decl R_BaseNamespace BaseNamespace ;
+                                   decl R_BaseNamespaceName BaseNamespaceName ;
+                                   decl R_NamespaceRegistry NamespaceRegistry] }} in
   (* TODO [InitOptions] *)
   (* TODO [InitTypeTables] *)
   (* TODO [InitS3DefaulTypes] *)

@@ -335,7 +335,7 @@ Arguments SET_MISSING : clear implicits.
 
 Definition INCREMENT_NAMED S x :=
   read%defined x_ := x using S in
-  match named x with
+  match named x_ with
   | named_temporary =>
     map%pointer x with set_named_unique using S in
     result_success S tt
