@@ -159,8 +159,12 @@ Fixpoint R_FunTab max_step : funtab :=
   | S max_step =>
     let decl name cfun code eval arity :=
       make_funtab_cell name cfun code eval arity in
+    let wrap f S call op args rho :=
+      (** This function waits that all arguments are given before starting
+        * the computation of the next [R_FunTab]. **)
+      f (R_FunTab max_step) S call op args rho in
     let rdecl name cfun code eval arity :=
-      decl name (cfun (R_FunTab max_step)) code eval arity in
+      decl name (wrap cfun) code eval arity in
     Some [
         rdecl "<-" do_set 1 eval100 (-1)%Z ;
         rdecl "=" do_set 3 eval100 (-1)%Z ;
