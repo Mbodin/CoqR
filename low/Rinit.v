@@ -156,7 +156,7 @@ Definition InitNames max_step S :=
         let%success i := r using S in
         let%success _ :=
           installFunTab globals runs S c i using S in
-        result_success S (i - 1)) (result_success S (FunTabSize - 1)) R_FunTab using S in
+        result_success S (1 + i)) (result_success S 0) R_FunTab using S in
   (* TODO *)
   result_success S (R_UnboundValue, R_MissingArg, L).
 
@@ -277,7 +277,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
       R_ExitContext := None ;
       R_SymbolTable := R_SymbolTable S
     |} in
-  (* let globals := flatten_Globals globals in (* Removing the now useless closures. *) *)
+  let globals := flatten_Globals globals in (* Removing the now useless closures. *)
   result_success S globals.
 
 
