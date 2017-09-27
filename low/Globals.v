@@ -94,7 +94,9 @@ Inductive GlobalVariables_3 :=
   .
 
 Inductive StaticVariables :=
-  | mkPRIMSXP_PrimCache
+  | mkPRIMSXP_primCache
+  (* TODO: Check whether the following static variables are
+   * really initialised then never changed. *)
   | do_onexit_do_onexit_formals
   | do_attr_do_attr_formals
   .

@@ -134,8 +134,8 @@ Definition SymbolShortcuts S :=
       install globals runs S str using S in
     result_success S ((sym, p) :: L')) (result_success S nil) L.
 
-(** [InitNames], from main/names.c **)
-Definition InitNames max_step S :=
+(** The beginning of [InitNames], from main/names.c **)
+Definition InitNames_shorcuts S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
@@ -149,16 +149,28 @@ Definition InitNames max_step S :=
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in
+  result_success S (R_UnboundValue, R_MissingArg, L).
+
+(** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
+ * from main/dstruct.c called from [InitNames] from main/names.c **)
+Definition mkPRIMSXP_init max_step S :=
   let%defined R_FunTab := R_FunTab globals runs max_step using S in
   let FunTabSize := length R_FunTab in
+  let (S, primCache) :=
+    alloc_vector_vec globals S (repeat (R_NilValue : SExpRec_pointer) FunTabSize) in
+  result_success S primCache.
+
+(** The end of [InitNames], from main/names.c **)
+Definition InitNames_install max_step S :=
+  let%defined R_FunTab := R_FunTab globals runs max_step using S in
   let%success _ :=
     fold_left (fun c r =>
         let%success i := r using S in
         let%success _ :=
-          installFunTab globals runs S c i using S in
+          installFunTab globals runs (Some R_FunTab) S c i using S in
         result_success S (1 + i)) (result_success S 0) R_FunTab using S in
   (* TODO *)
-  result_success S (R_UnboundValue, R_MissingArg, L).
+  result_success S tt.
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -254,9 +266,14 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
   let%success (UnboundValue, MissingArg, L) :=
-    InitNames globals (runs globals max_step) max_step S using S in
+    InitNames_shorcuts globals (runs globals max_step) S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg] ++ L }} in
+  let%success primCache :=
+    mkPRIMSXP_init globals (runs globals max_step) max_step S using S in
+  let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
+  let%success _ :=
+    InitNames_install globals (runs globals max_step) max_step S using S in
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs globals max_step) S using S in

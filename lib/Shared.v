@@ -423,6 +423,20 @@ Instance gt_nat_Decidable : forall n1 n2,
   intros. applys Decidable_equiv (gt_Decidable n1 n2). math.
 Defined.
 
+Instance ge_nat_Decidable : forall n1 n2 : nat,
+    Decidable (@ge nat (@ge_from_le nat le_nat_inst) n1 n2).
+  intros. applys Decidable_equiv (n1 >= n2)%Z.
+   math.
+   typeclass.
+Defined.
+
+Instance le_nat_Decidable : forall n1 n2 : nat,
+    Decidable (@le nat le_nat_inst n1 n2).
+  intros. applys Decidable_equiv (n1 <= n2)%Z.
+   math.
+   typeclass.
+Defined.
+
 
 Instance Ascii_comparable : Comparable Ascii.ascii.
   apply make_comparable. intros. applys sumbool_decidable Ascii.ascii_dec.

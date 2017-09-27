@@ -409,7 +409,8 @@ Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
 (** The way the original functions [allocVector], [allocVector3], etc.
   * from R source code are defined are not compatible with the way the
   * memory of the C language has been formalised here. The functions
-  * below are thus slightly from their C counterparts. **)
+  * below are thus slightly different from their C counterparts.
+  * The [repeat] function of Coq can be used to initialise their data. **)
 
 Definition alloc_vector_char S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_char R_NilValue v_data).
@@ -425,6 +426,10 @@ Definition alloc_vector_real S v_data : state * SExpRec_pointer :=
 
 Definition alloc_vector_cplx S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_cplx R_NilValue v_data).
+
+(** The following allocators uses pointers. Note that the original
+ * [allocVector] function initialises them to [R_NilValue] (and not
+ * [NULL], for instance) by default. **)
 
 Definition alloc_vector_str S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_str R_NilValue v_data).
@@ -558,11 +563,6 @@ Definition mkSYMSXP S (name value : SExpRec_pointer) :=
   map%gp c with fun gp =>
     write_nbit 0 gp ltac:(nbits_ok) i using S in
   result_success S c.
-
-(* TODO: To implement this function, I need to add some cache to the global state,
- * because of static variables. *)
-Definition mkPRIMSXP (S : state) (offset : nat) (type : bool) : result SExpRec_pointer :=
-  result_not_implemented "[mkPRIMSXP] TODO".
 
 
 (** ** context.c **)

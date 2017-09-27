@@ -62,6 +62,29 @@ Definition read_R_FunTab S n :=
   end.
 
 
+
+(** ** dstruct.c **)
+
+Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_pointer :=
+  let type_ :=
+    ifb type_ then BuiltinSxp else SpecialSxp in
+  let%defined FunTabSize := LibOption.map length R_FunTab using S in
+  (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
+  ifb offset >= FunTabSize then
+    result_error S "[mkPRIMSXP] Offset is out of range"
+  else
+    read%VectorPointers primCache_ := mkPRIMSXP_primCache using S in
+    let%defined result := nth_option offset primCache_ using S in
+    ifb result = R_NilValue then
+      (*TODO: let (S, result) := alloc_SExp S _ in*)
+      result_not_implemented "[mkPRIMSXP] TODO"
+    else
+      read%defined result_ := result using S in
+      ifb type result_ <> type_ then
+        result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
+      else result_success S result.
+
+
 (** * eval.c **)
 
 (** The function names of this section corresponds to the function names
