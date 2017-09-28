@@ -3,9 +3,12 @@ open Low
 
 
 (** The list of all global variables and their name to be displayed.
- * Static variables are not included on purpose. **)
+ * Static variables are not included on purpose.
+ * The value [R_NilValue] should always be first to ease reading. **)
 let all_global_variables =
-  [ (GlobalVariable_1 R_AsCharacterSymbol, "R_AsCharacterSymbol") ;
+  [ (GlobalVariable_2 R_NilValue, "R_NilValue") ;
+
+    (GlobalVariable_1 R_AsCharacterSymbol, "R_AsCharacterSymbol") ;
     (GlobalVariable_1 R_BaseEnv, "R_BaseEnv") ;
     (GlobalVariable_1 R_BaseNamespaceName, "R_BaseNamespaceName") ;
     (GlobalVariable_1 R_BaseNamespace, "R_BaseNamespace") ;
@@ -52,7 +55,6 @@ let all_global_variables =
     (GlobalVariable_2 R_NamesSymbol, "R_NamesSymbol") ;
     (GlobalVariable_2 R_NameSymbol, "R_NameSymbol") ;
     (GlobalVariable_2 R_NaRmSymbol, "R_NaRmSymbol") ;
-    (GlobalVariable_2 R_NilValue, "R_NilValue") ;
     (GlobalVariable_2 R_PackageSymbol, "R_PackageSymbol") ;
     (GlobalVariable_2 R_PreviousSymbol, "R_PreviousSymbol") ;
     (GlobalVariable_2 R_QuoteSymbol, "R_QuoteSymbol") ;
@@ -119,8 +121,145 @@ let print_pointer t s g p =
         print_raw_pointer p
     else print_raw_pointer p
 
-let print_memory d s g m =
-  "TODO memory"
+let print_SExpType = function
+  | NilSxp -> "NilSxp"
+  | SymSxp -> "SymSxp"
+  | ListSxp -> "ListSxp"
+  | CloSxp -> "CloSxp"
+  | EnvSxp -> "EnvSxp"
+  | PromSxp -> "PromSxp"
+  | LangSxp -> "LangSxp"
+  | SpecialSxp -> "SpecialSxp"
+  | BuiltinSxp -> "BuiltinSxp"
+  | CharSxp -> "CharSxp"
+  | LglSxp -> "LglSxp"
+  | IntSxp -> "IntSxp"
+  | RealSxp -> "RealSxp"
+  | CplxSxp -> "CplxSxp"
+  | StrSxp -> "StrSxp"
+  | DotSxp -> "DotSxp"
+  | AnySxp -> "AnySxp"
+  | VecSxp -> "VecSxp"
+  | ExprSxp -> "ExprSxp"
+  | BcodeSxp -> "BcodeSxp"
+  | ExtptrSxp -> "ExtptrSxp"
+  | WeakrefSxp -> "WeakrefSxp"
+  | RawSxp -> "RawSxp"
+  | S4Sxp -> "S4Sxp"
+  | NewSxp -> "NewSxp"
+  | FreeSxp -> "FreeSxp"
+  | FunSxp -> "FunSxp"
+
+let print_named = function
+  | Named_temporary -> "temporary"
+  | Named_unique -> "unique"
+  | Named_plural -> "plural"
+
+let print_rComplex c =
+  "(" ^ string_of_float c.rcomplex_r ^ ", " ^ string_of_float c.rcomplex_i ^ ")"
+
+let print_character c =
+  "'" ^ String.make 1 c ^ "'"
+
+let print_gp gp_opt gp =
+  if gp_opt then
+    let print_bit b =
+      if b then "1" else "0" in
+    let (a,  (b,  (c,  (d,  (e,  (f,  (g,  (h,  (i,  (j,  (k,  (l,  (m,  (n,  (o,  (p,  ())))))))))))))))) = gp in
+    print_bit a ^
+    print_bit b ^
+    print_bit c ^
+    print_bit d ^
+    print_bit e ^
+    print_bit f ^
+    print_bit g ^
+    print_bit h ^
+    print_bit i ^
+    print_bit j ^
+    print_bit k ^
+    print_bit l ^
+    print_bit m ^
+    print_bit n ^
+    print_bit o ^
+    print_bit p
+  else string_of_int (nbits_to_nat 16 (Obj.magic gp))
+
+let is_temporary e =
+  let infos = get_SxpInfo e in
+  named infos = Named_temporary
+
+let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details) t s g e =
+  let print_basic =
+    let infos = get_SxpInfo e in
+    print_SExpType (type0 infos) ^ " " ^
+    (if obj infos then "(obj) " else "") ^
+    "(" ^ print_named (named infos) ^ ") " ^
+    (if show_gp then "gp:" ^ print_gp gp_opt (gp infos) ^ " " else "") ^
+    (if show_attrib then
+       "attrib:" ^ print_pointer t s g (attrib (get_SExpRecHeader e)) ^ " "
+     else "") in
+  let print_after =
+    let print_vector f v =
+      let v = vector_SExpRec_vecsxp v in
+      " length:" ^ string_of_int (vecSxp_length v) ^
+      if show_data then
+        String.concat "" (List.map (fun x -> indent d ^ f x) (vecSxp_data v))
+      else "" in
+    match e with
+    | SExpRec_NonVector e ->
+      if show_details then
+        match nonVector_SExpRec_data e with
+        | PrimSxp prim ->
+          indent d ^ "Prim: Offset: " ^ string_of_int (prim_offset prim)
+        | SymSxp0 sym ->
+          indent d ^ "Sym: Name: " ^ print_pointer t s g (sym_pname sym) ^
+          indent (d + 5) ^ "Value: " ^ print_pointer t s g (sym_value sym) ^
+          indent (d + 5) ^ "Internal: " ^ print_pointer t s g (sym_internal sym)
+        | ListSxp0 lis ->
+          indent d ^ "List: Car: " ^ print_pointer t s g (list_carval lis) ^
+          indent (d + 6) ^ "Cdr: " ^ print_pointer t s g (list_cdrval lis) ^
+          indent (d + 6) ^ "Tag: " ^ print_pointer t s g (list_tagval lis)
+        | EnvSxp0 env ->
+          indent d ^ "Env: Frame: " ^ print_pointer t s g (env_frame env) ^
+          indent (d + 5) ^ "Enclos: " ^ print_pointer t s g (env_enclos env)
+        | CloSxp0 clo ->
+          indent d ^ "Clo: Frame: " ^ print_pointer t s g (clo.clo_formals) ^
+          indent (d + 5) ^ "Body: " ^ print_pointer t s g (clo.clo_body) ^
+          indent (d + 5) ^ "Env: " ^ print_pointer t s g (clo.clo_env)
+        | PromSxp0 prom ->
+          indent d ^ "Prom: Value: " ^ print_pointer t s g (prom_value prom) ^
+          indent (d + 6) ^ "Expr: " ^ print_pointer t s g (prom_expr prom) ^
+          indent (d + 6) ^ "Env: " ^ print_pointer t s g (prom_env prom)
+      else ""
+    | SExpRec_VectorChar v -> "(vector char)" ^ print_vector print_character v
+    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector string_of_float v
+    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector string_of_float v
+    | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
+    | SExpRec_VectorReal v -> "(vector real)" ^ print_vector string_of_float v
+    | SExpRec_VectorPointer  v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
+  print_basic ^ print_after
+
+let remove_siblings l =
+  let l' = List.stable_sort (fun (k1, _) (k2, _) -> compare k1 k2) l in
+  let rec aux = function
+    | [] -> []
+    | (k1, v) :: (k2, _) :: l when k1 = k2 ->
+      aux ((k1, v) :: l)
+    | a :: l -> a :: aux l
+  in aux l'
+
+let heap_to_list h =
+  remove_siblings (HeapList.to_list h)
+
+let print_memory d s g t no_temporary expr_options m =
+  String.concat (indent d) (List.filter (fun str -> str <> "")
+    (List.map (fun (i, e) ->
+      if not (is_temporary e) || not no_temporary then
+        let si = print_pointer t s g (Some i) in
+        si ^ ": " ^
+        print_SExpRec (d + String.length si + 2) expr_options t s g e
+      else "")
+    (heap_to_list (state_heap_SExp m))))
 
 let rec print_context d t s g ctxt =
   "next context:" ^
@@ -135,19 +274,24 @@ let rec print_context d t s g ctxt =
   indent d ^ "cloenv: " ^ print_pointer t s g ctxt.cloenv ^
   indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit
 
-let print_state d everything t s g =
-  "Memory:" ^ indent (d + 2) ^ print_memory (d + 2) s g (state_memory s) ^
-  (if everything then
-    "\nGlobals:\n" ^
-    String.concat "\n" (
-      List.concat [
-          List.map (fun (proj, str) ->
-            indent_no_break (d + 2) ^ str ^ ": " ^ print_pointer t s g (proj s)) all_global_variables_state ;
-          List.map (fun (var, str) ->
-            indent_no_break (d + 2) ^ str ^ ": " ^ print_pointer t s g (g var)) all_global_variables
-        ])
+let print_state d memory globals initials no_temporary expr_options t s g =
+  (if memory then
+    "Memory:" ^ indent (d + 2) ^
+    print_memory (d + 2) s g t no_temporary expr_options (state_memory s) ^ "\n"
    else "") ^
-  "\nContext:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)
+  (if globals then
+    "Global variables:" ^
+    String.concat (indent (d + 2)) (
+      List.map (fun (proj, str) ->
+        str ^ ": " ^ print_pointer t s g (proj s)) all_global_variables_state) ^ "\n"
+   else "") ^
+  (if initials then
+    "Constant global variables:\n" ^
+    String.concat (indent (d + 2)) (
+      List.map (fun (var, str) ->
+        str ^ ": " ^ print_pointer t s g (g var)) all_global_variables) ^ "\n"
+   else "") ^
+  "Context:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)
 
 let print_result r cont =
   match r with

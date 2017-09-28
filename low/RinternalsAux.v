@@ -536,10 +536,11 @@ Definition make_SExpRec_lang attrib function argumentList :=
     (make_NonVector_SExpRec (build_SExpRecHeader LangSxp attrib)
       (make_ListSxp_struct function argumentList None)).
 
-Definition make_SExpRec_prim attrib prim :=
-  (* TODO: Check *)
+Definition make_SExpRec_prim attrib prim type :=
+  (** [type] is either [BuiltinSxp] or [SpecialSxp].
+   * See function [mkPRIMSXP] in Rfeatures for more details. **)
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader BuiltinSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader type attrib)
       (make_PrimSxp_struct prim)).
 
 Definition make_SExpRec_char attrib array :=

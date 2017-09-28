@@ -75,8 +75,9 @@ Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_
   else
     read%Pointer result := mkPRIMSXP_primCache at offset using S in
     ifb result = R_NilValue then
-      (*TODO: let (S, result) := alloc_SExp S _ in*)
-      result_not_implemented "[mkPRIMSXP] TODO"
+      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type_) in
+      write%Pointer mkPRIMSXP_primCache at offset := result using S in
+      result_success S result
     else
       read%defined result_ := result using S in
       ifb type result_ <> type_ then

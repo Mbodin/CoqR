@@ -28,7 +28,7 @@ clean_interp:
 	rm low/runR.native
 	rm -R low/_build
 
-low/runR.native: low/Extraction.vo
+low/runR.native: low/Extraction.vo low/print.ml low/runR.ml
 	mv low.ml low/low.ml || true
 	mv low.mli low/low.mli || true
 	cd low ; ocamlbuild runR.native ; cd ..
