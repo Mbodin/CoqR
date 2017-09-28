@@ -371,8 +371,7 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
   ifb type x_ <> StrSxp then
     result_error S "[STRING_ELT] Not a character vector."
   else
-    let%VectorPointers x_vector := x_ using S in
-    let%defined r := nth_option i x_vector using S in
+    let%Pointer r := x_ at i using S in
     result_success S r.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
@@ -500,7 +499,7 @@ Definition inherits S s name :=
   read%defined s_ := s using S in
   if obj s_ then
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
-    read%VectorPointers klass_vector := klass using S in
+    read%VectorPointer klass_vector := klass using S in
     let%success b :=
       fold_left (fun str rb =>
         let%success b := rb using S in
@@ -1092,10 +1091,9 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
           ifb s_int then
             let%defined s_length := get_VecSxp_length s_ using S in
             ifb s_length = 2 then
-              let%VectorInteger s_vector := s_ using S in
-              let%defined s_0 := nth_option 0 (VecSxp_data s_vector) using S in
+              let%Integer s_0 := s_ at 0 using S in
               ifb s_0 = R_NaInt then
-                let%defined s_1 := nth_option 1 (VecSxp_data s_vector) using S in
+                let%Integer s_1 := s_ at 1 using S in
                 let n := abs s_1 in
                 let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
                 result_success S s
@@ -1105,7 +1103,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
         else getAttrib0 S vec name
       in
       ifb type name_ = StrSxp then
-        read%VectorPointers name_ := name using S in
+        read%VectorPointer name_ := name using S in
         let%success str := STRING_ELT S name 0 using S in
         let%success sym := installTrChar S str using S in
         continuation S sym

@@ -176,43 +176,9 @@ Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-(** * Monads to View Basic Language Elements Differently **)
+(** * Monads to View Objects Differently **)
 
-Definition if_is_sym A S (e_ : SExpRec) (f : NonVector_SExpRec -> SymSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ using S in
-  let%defined e_sym := get_symSxp e_ using S in
-  f e_ e_sym.
-
-Notation "'let%sym' a_ ',' a_sym ':=' e_ 'using' S 'in' cont" :=
-  (if_is_sym S e_ (fun a_ a_sym => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition if_is_list A S (e_ : SExpRec) (f : NonVector_SExpRec -> ListSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ using S in
-  let%defined e_list := get_listSxp e_ using S in
-  f e_ e_list.
-
-Notation "'let%list' a_ ',' a_list ':=' e_ 'using' S 'in' cont" :=
-  (if_is_list S e_ (fun a_ a_list => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition if_is_clo A S (e_ : SExpRec) (f : NonVector_SExpRec -> CloSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ using S in
-  let%defined e_clo := get_cloSxp e_ using S in
-  f e_ e_clo.
-
-Notation "'let%clo' a_ ',' a_clo ':=' e_ 'using' S 'in' cont" :=
-  (if_is_clo S e_ (fun a_ a_clo => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition if_is_env A S (e_ : SExpRec) (f : NonVector_SExpRec -> EnvSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ using S in
-  let%defined e_env := get_envSxp e_ using S in
-  f e_ e_env.
-
-Notation "'let%env' a_ ',' a_env ':=' e_ 'using' S 'in' cont" :=
-  (if_is_env S e_ (fun a_ a_env => cont))
-  (at level 50, left associativity) : monad_scope.
+(** ** Basic Language Elements **)
 
 Definition if_is_prim A S (e_ : SExpRec) (f : NonVector_SExpRec -> PrimSxp_struct -> result A) : result A :=
   let%defined e_ := get_NonVector e_ using S in
@@ -223,6 +189,47 @@ Notation "'let%prim' a_ ',' a_prim ':=' e_ 'using' S 'in' cont" :=
   (if_is_prim S e_ (fun a_ a_prim => cont))
   (at level 50, left associativity) : monad_scope.
 
+
+Definition if_is_sym A S (e_ : SExpRec) (f : NonVector_SExpRec -> SymSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ using S in
+  let%defined e_sym := get_symSxp e_ using S in
+  f e_ e_sym.
+
+Notation "'let%sym' a_ ',' a_sym ':=' e_ 'using' S 'in' cont" :=
+  (if_is_sym S e_ (fun a_ a_sym => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition if_is_list A S (e_ : SExpRec) (f : NonVector_SExpRec -> ListSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ using S in
+  let%defined e_list := get_listSxp e_ using S in
+  f e_ e_list.
+
+Notation "'let%list' a_ ',' a_list ':=' e_ 'using' S 'in' cont" :=
+  (if_is_list S e_ (fun a_ a_list => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition if_is_env A S (e_ : SExpRec) (f : NonVector_SExpRec -> EnvSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ using S in
+  let%defined e_env := get_envSxp e_ using S in
+  f e_ e_env.
+
+Notation "'let%env' a_ ',' a_env ':=' e_ 'using' S 'in' cont" :=
+  (if_is_env S e_ (fun a_ a_env => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition if_is_clo A S (e_ : SExpRec) (f : NonVector_SExpRec -> CloSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ using S in
+  let%defined e_clo := get_cloSxp e_ using S in
+  f e_ e_clo.
+
+Notation "'let%clo' a_ ',' a_clo ':=' e_ 'using' S 'in' cont" :=
+  (if_is_clo S e_ (fun a_ a_clo => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
 Definition if_is_prom A S (e_ : SExpRec) (f : NonVector_SExpRec -> PromSxp_struct -> result A) : result A :=
   let%defined e_ := get_NonVector e_ using S in
   let%defined e_prom := get_promSxp e_ using S in
@@ -230,6 +237,16 @@ Definition if_is_prom A S (e_ : SExpRec) (f : NonVector_SExpRec -> PromSxp_struc
 
 Notation "'let%prom' a_ ',' a_prom ':=' e_ 'using' S 'in' cont" :=
   (if_is_prom S e_ (fun a_ a_prom => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition read_as_prim A S (e : SExpRec_pointer) f : result A :=
+  let%defined e_ := read_SExp S e using S in
+  let%prim e_, e_prim := e_ using S in
+  f e_ e_prim.
+
+Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
+  (read_as_prim S e (fun e_ e_prim => cont))
   (at level 50, left associativity) : monad_scope.
 
 
@@ -242,6 +259,7 @@ Notation "'read%sym' e_ ',' e_sym ':=' e 'using' S 'in' cont" :=
   (read_as_sym S e (fun e_ e_sym => cont))
   (at level 50, left associativity) : monad_scope.
 
+
 Definition read_as_list A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
   let%list e_, e_list := e_ using S in
@@ -251,14 +269,6 @@ Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   (read_as_list S e (fun e_ e_list => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_clo A S (e : SExpRec_pointer) f : result A :=
-  let%defined e_ := read_SExp S e using S in
-  let%clo e_, e_clo := e_ using S in
-  f e_ e_clo.
-
-Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
-  (read_as_clo S e (fun e_ e_clo => cont))
-  (at level 50, left associativity) : monad_scope.
 
 Definition read_as_env A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
@@ -269,14 +279,16 @@ Notation "'read%env' e_ ',' e_env ':=' e 'using' S 'in' cont" :=
   (read_as_env S e (fun e_ e_env => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_prim A S (e : SExpRec_pointer) f : result A :=
-  let%defined e_ := read_SExp S e using S in
-  let%prim e_, e_prim := e_ using S in
-  f e_ e_prim.
 
-Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
-  (read_as_prim S e (fun e_ e_prim => cont))
+Definition read_as_clo A S (e : SExpRec_pointer) f : result A :=
+  let%defined e_ := read_SExp S e using S in
+  let%clo e_, e_clo := e_ using S in
+  f e_ e_clo.
+
+Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
+  (read_as_clo S e (fun e_ e_clo => cont))
   (at level 50, left associativity) : monad_scope.
+
 
 Definition read_as_prom A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
@@ -286,6 +298,30 @@ Definition read_as_prom A S (e : SExpRec_pointer) f : result A :=
 Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
   (read_as_prom S e (fun e_ e_prom => cont))
   (at level 50, left associativity) : monad_scope.
+
+
+(** ** Vectors **)
+
+Definition read_cell_Vector_SExpRec A B S (v : Vector_SExpRec A) n f : result B :=
+  let%defined c := nth_option n v using S in
+  f c.
+
+Notation "'read%cell' c ':=' v 'at' n 'using' S 'in' cont" :=
+  (read_cell_Vector_SExpRec S v n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition update_Vector_SExpRec A (v : Vector_SExpRec A) n c :=
+  ifb n < length v then
+    Some {|
+        Vector_SExpRec_header := v ;
+        Vector_SExpRec_vecsxp := {|
+            VecSxp_length := VecSxp_length v ;
+            VecSxp_data := update n c v
+          |}
+      |}
+  else None.
+
 
 Notation "'let%VectorChar' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorChar e_ using S in cont)
@@ -300,6 +336,35 @@ Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorChar S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Definition read_nth_cell_VectorChar A S e_ n f : result A :=
+  let%VectorChar e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorChar S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Char A S e n f : result A :=
+  read%VectorChar e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Char' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Char S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorChar A S e n c f : result A :=
+  read%VectorChar e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorChar e_ using S in
+  f S.
+
+Notation "'write%Char' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorChar S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
 Notation "'let%VectorLogical' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorLogical e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
@@ -312,6 +377,35 @@ Definition read_as_VectorLogical A S (e : SExpRec_pointer) f : result A :=
 Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorLogical S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorLogical A S e_ n f : result A :=
+  let%VectorLogical e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorLogical S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Logical A S e n f : result A :=
+  read%VectorLogical e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Logical' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Logical S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorLogical A S e n c f : result A :=
+  read%VectorLogical e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorLogical e_ using S in
+  f S.
+
+Notation "'write%Logical' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorLogical S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
 
 Notation "'let%VectorInteger' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorInteger e_ using S in cont)
@@ -326,6 +420,35 @@ Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorInteger S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
+Definition read_nth_cell_VectorInteger A S e_ n f : result A :=
+  let%VectorInteger e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorInteger S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Integer A S e n f : result A :=
+  read%VectorInteger e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Integer' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Integer S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorInteger A S e n c f : result A :=
+  read%VectorInteger e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorInteger e_ using S in
+  f S.
+
+Notation "'write%Integer' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorInteger S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
 Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorComplex e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
@@ -338,6 +461,35 @@ Definition read_as_VectorComplex A S (e : SExpRec_pointer) f : result A :=
 Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorComplex S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorComplex A S e_ n f : result A :=
+  let%VectorComplex e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorComplex S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Complex A S e n f : result A :=
+  read%VectorComplex e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Complex' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Complex S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorComplex A S e n c f : result A :=
+  read%VectorComplex e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorComplex e_ using S in
+  f S.
+
+Notation "'write%Complex' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorComplex S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
 
 Notation "'let%VectorReal' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorReal e_ using S in cont)
@@ -352,17 +504,74 @@ Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
   (read_as_VectorReal S e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%VectorPointers' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let%defined e_vector := get_VectorPointers e_ using S in cont)
+Definition read_nth_cell_VectorReal A S e_ n f : result A :=
+  let%VectorReal e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorReal S e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorPointers A S (e : SExpRec_pointer) f : result A :=
+Definition read_nth_cell_Real A S e n f : result A :=
+  read%VectorReal e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Real' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Real S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorReal A S e n c f : result A :=
+  read%VectorReal e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorReal e_ using S in
+  f S.
+
+Notation "'write%Real' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorReal S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+Notation "'let%VectorPointer' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let%defined e_vector := get_VectorPointer e_ using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_as_VectorPointer A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in
-  let%VectorPointers e_vector := e_ using S in
+  let%VectorPointer e_vector := e_ using S in
   f e_vector.
 
-Notation "'read%VectorPointers' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorPointers S e (fun e_ => cont))
+Notation "'read%VectorPointer' e_ ':=' e 'using' S 'in' cont" :=
+  (read_as_VectorPointer S e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorPointer A S e_ n f : result A :=
+  let%VectorPointer e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorPointer S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Pointer A S e n f : result A :=
+  read%VectorPointer e_ := e using S in
+  read%cell c := e_ at n using S in
+  f c.
+
+Notation "'read%Pointer' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Pointer S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorPointer A S e n c f : result A :=
+  read%VectorPointer e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec e_ n c using S in
+  write%defined e := SExpRec_VectorPointer e_ using S in
+  f S.
+
+Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorPointer S e n c (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
 

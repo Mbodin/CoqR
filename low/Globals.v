@@ -194,18 +194,43 @@ Ltac define_flatten_function g :=
      in simpl; aux; reflexivity ]; simpl; reflexivity
   end.
 
-Definition flatten_Globals (g : Globals) : Globals.
-  intro C. destruct C as [C|C|C|C]; gen C;
-    match goal with
-    | |- ?T -> _ =>
-      define_flatten_function (fun C : T => g C) GlobalVariables_1
-    end.
+Definition flatten_Globals_1 (g : GlobalVariables_1 -> SExpRec_pointer) :
+    GlobalVariables_1 -> SExpRec_pointer.
+  define_flatten_function g.
 Defined.
+
+Definition flatten_Globals_2 (g : GlobalVariables_2 -> SExpRec_pointer) :
+    GlobalVariables_2 -> SExpRec_pointer.
+  define_flatten_function g.
+Defined.
+
+Definition flatten_Globals_3 (g : GlobalVariables_3 -> SExpRec_pointer) :
+    GlobalVariables_3 -> SExpRec_pointer.
+  define_flatten_function g.
+Defined.
+
+Definition flatten_Statics (g : StaticVariables -> SExpRec_pointer) :
+    StaticVariables -> SExpRec_pointer.
+  define_flatten_function g.
+Defined.
+
+Definition flatten_Globals (g : Globals) : Globals :=
+  let f1 := flatten_Globals_1 g in
+  let f2 := flatten_Globals_2 g in
+  let f3 := flatten_Globals_3 g in
+  let s := flatten_Statics g in
+  fun x =>
+    match x with
+    | GlobalVariable_1 x => f1 x
+    | GlobalVariable_2 x => f2 x
+    | GlobalVariable_3 x => f3 x
+    | StaticVariable x => s x
+    end.
 
 Lemma flatten_Globals_correct : forall g C,
   g C = flatten_Globals g C.
 Proof.
-  introv. unfolds flatten_Globals. destruct C;
+  introv. destruct C; simpl; unfolds;
     match goal with |- context [ proj1_sig ?s ] => sets_eq si: s end;
     apply (proj2_sig si).
 Qed.

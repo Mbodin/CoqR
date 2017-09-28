@@ -185,7 +185,7 @@ Inductive SExpRec :=
   (** | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec **)
   | SExpRec_VectorComplex : Vector_SExpRec RComplex -> SExpRec
   | SExpRec_VectorReal : Vector_SExpRec double -> SExpRec
-  | SExpRec_VectorPointers : Vector_SExpRec SExpRec_pointer -> SExpRec
+  | SExpRec_VectorPointer : Vector_SExpRec SExpRec_pointer -> SExpRec
   .
 Coercion SExpRec_NonVector : NonVector_SExpRec >-> SExpRec.
 

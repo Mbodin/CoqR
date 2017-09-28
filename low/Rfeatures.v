@@ -73,8 +73,7 @@ Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_
   ifb offset >= FunTabSize then
     result_error S "[mkPRIMSXP] Offset is out of range"
   else
-    read%VectorPointers primCache_ := mkPRIMSXP_primCache using S in
-    let%defined result := nth_option offset primCache_ using S in
+    read%Pointer result := mkPRIMSXP_primCache at offset using S in
     ifb result = R_NilValue then
       (*TODO: let (S, result) := alloc_SExp S _ in*)
       result_not_implemented "[mkPRIMSXP] TODO"

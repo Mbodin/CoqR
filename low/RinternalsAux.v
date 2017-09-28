@@ -318,9 +318,9 @@ Definition get_VectorReal e_ :=
   | _ => None
   end.
 
-Definition get_VectorPointers e_ :=
+Definition get_VectorPointer e_ :=
   match e_ with
-  | SExpRec_VectorPointers e_ => Some e_
+  | SExpRec_VectorPointer e_ => Some e_
   | _ => None
   end.
 
@@ -333,7 +333,7 @@ Definition get_SxpInfo e_ :=
   | SExpRec_VectorInteger e_ => e_
   | SExpRec_VectorComplex e_ => e_
   | SExpRec_VectorReal e_ => e_
-  | SExpRec_VectorPointers e_ => e_
+  | SExpRec_VectorPointer e_ => e_
   end.
 Coercion get_SxpInfo : SExpRec >-> SxpInfo.
 
@@ -345,7 +345,7 @@ Definition get_SExpRecHeader e_ :=
   | SExpRec_VectorInteger e_ => e_
   | SExpRec_VectorComplex e_ => e_
   | SExpRec_VectorReal e_ => e_
-  | SExpRec_VectorPointers e_ => e_
+  | SExpRec_VectorPointer e_ => e_
   end.
 Coercion get_SExpRecHeader : SExpRec >-> SExpRecHeader.
 
@@ -421,8 +421,8 @@ Definition map_sxpinfo f e_ :=
     SExpRec_VectorComplex (map_sxpinfo_Vector_SExpRec f e_)
   | SExpRec_VectorReal e_ =>
     SExpRec_VectorReal (map_sxpinfo_Vector_SExpRec f e_)
-  | SExpRec_VectorPointers e_ =>
-    SExpRec_VectorPointers (map_sxpinfo_Vector_SExpRec f e_)
+  | SExpRec_VectorPointer e_ =>
+    SExpRec_VectorPointer (map_sxpinfo_Vector_SExpRec f e_)
   end.
 
 Definition set_named_sxpinfo n i_info :=
@@ -499,7 +499,7 @@ Definition get_VecSxp_length e_ :=
     Some (VecSxp_length e_)
   | SExpRec_VectorReal e_ =>
     Some (VecSxp_length e_)
-  | SExpRec_VectorPointers e_ =>
+  | SExpRec_VectorPointer e_ =>
     Some (VecSxp_length e_)
   end.
 
@@ -573,19 +573,19 @@ Definition make_SExpRec_cplx attrib array :=
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_str attrib array :=
-  SExpRec_VectorPointers
+  SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader StrSxp attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_vec attrib array :=
-  SExpRec_VectorPointers
+  SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader VecSxp attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_expr attrib array :=
-  SExpRec_VectorPointers
+  SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader ExprSxp attrib)
       (make_VecSxp_struct (length array) array)).
