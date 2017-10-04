@@ -82,5 +82,5 @@ Extraction Inline Fappli_IEEE.Bplus Fappli_IEEE.binary_normalize Fappli_IEEE_bit
 Extraction Inline Fappli_IEEE.Bmult Fappli_IEEE.Bmult_FF Fappli_IEEE_bits.b64_mult.
 Extraction Inline Fappli_IEEE.Bdiv Fappli_IEEE_bits.b64_div.
 
-Extraction "low.ml" setup_Rmainloop empty_state.
+Extraction "low.ml" NBits setup_Rmainloop empty_state.
 

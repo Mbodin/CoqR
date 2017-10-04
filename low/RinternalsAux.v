@@ -13,6 +13,8 @@ Require Export Rinternals Shared.
 
 (** * The [nbits] Structure **)
 
+Module NBits.
+
 (** This structure formalises bit fields of a given size. **)
 
 Definition nth_bit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool.
@@ -20,7 +22,7 @@ Definition nth_bit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool.
   - exact (fst a).
   - applys IHn (snd a). math.
 Defined.
-Arguments nth_bit {m} n.
+Global Arguments nth_bit {m} n.
 
 (** A tactic to fill out the [n < m] part.
  * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. **)
@@ -266,6 +268,8 @@ Proof.
     apply* IHstart.
 Qed.
 
+End NBits.
+
 
 (** * Accessors and Smart Constructors **)
 
@@ -476,7 +480,7 @@ Definition set_tag_list tag l_list :=
 
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
-  make_SxpInfo (SExpType_restrict type) false named_temporary (nbits_init _).
+  make_SxpInfo (SExpType_restrict type) false named_temporary (NBits.nbits_init _).
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
  * by the garbage collector of R. We do not need them here as memory
@@ -601,7 +605,8 @@ Defined.
 Instance SExpRec_Inhab : Inhab SExpRec.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
-            (make_SExpRecHeader (make_SxpInfo NilSxp false named_plural (nbits_init _)) None)
+            (make_SExpRecHeader
+              (make_SxpInfo NilSxp false named_plural (NBits.nbits_init _)) None)
             (make_ListSxp_struct None None None)).
 Defined.
 

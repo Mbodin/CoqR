@@ -162,27 +162,12 @@ let print_character c =
   "'" ^ String.make 1 c ^ "'"
 
 let print_gp gp_opt gp =
+  let gp = (Obj.magic gp : nbits) in
   if gp_opt then
     let print_bit b =
       if b then "1" else "0" in
-    let (a,  (b,  (c,  (d,  (e,  (f,  (g,  (h,  (i,  (j,  (k,  (l,  (m,  (n,  (o,  (p,  ())))))))))))))))) = gp in
-    print_bit a ^
-    print_bit b ^
-    print_bit c ^
-    print_bit d ^
-    print_bit e ^
-    print_bit f ^
-    print_bit g ^
-    print_bit h ^
-    print_bit i ^
-    print_bit j ^
-    print_bit k ^
-    print_bit l ^
-    print_bit m ^
-    print_bit n ^
-    print_bit o ^
-    print_bit p
-  else string_of_int (nbits_to_nat 16 (Obj.magic gp))
+    String.concat "" (List.map print_bit (NBits.nbits_to_list 16 gp))
+  else string_of_int (NBits.nbits_to_nat 16 gp)
 
 let is_temporary e =
   let infos = get_SxpInfo e in
