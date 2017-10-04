@@ -1003,6 +1003,25 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
           continuation S
         else continuation S.
 
+Definition setVarInFrame S (rho symbol value : SExpRec_pointer) :=
+  ifb rho = R_EmptyEnv then
+    result_success S (R_NilValue : SExpRec_pointer)
+  else
+    result_not_implemented "[setVarInFrame]".
+
+Definition setVar S (symbol value rho : SExpRec_pointer) :=
+  do%success rho := rho
+  while result_success S (decide (rho <> R_EmptyEnv)) do
+    let%success vl :=
+      setVarInFrame S rho symbol value using S in
+    ifb vl <> R_NilValue then
+      result_success S (R_EmptyEnv : SExpRec_pointer)
+    else
+      read%env rho_, rho_env := rho using S in
+      result_success S (env_enclos rho_env)
+  using S in
+  defineVar S symbol value R_GlobalEnv.
+
 
 (** ** names.c **)
 

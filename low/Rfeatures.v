@@ -106,7 +106,9 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       read%prim op_, op_prim := op using S in
       let%success c := read_R_FunTab S (prim_offset op_prim) using S in
       ifb fun_code c = 2 then
-        result_not_implemented "[do_set] setVar"
+        read%env rho_, rho_env := rho using S in
+        let%success _ := setVar globals runs S lhs rhs (env_enclos rho_env) using S in
+        result_success S rhs
       else
         let%success _ := defineVar globals runs S lhs rhs rho using S in
         result_success S rhs in
