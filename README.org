@@ -20,14 +20,29 @@ If you already have some of them installed in your system, it is advised
 to use the same package manager to install all packages and libraries
 (that is either your system’s package manager or Opam, but not both).
 
-In Debian, installing Opam is done as follows.
+In Debian, installing Opam and Git can be done as follows.
+More information for other systems can be found
+[here for Opam](http://coq.io/opam/get_started.html)
+and [here for Git](https://git-scm.com/).
 #+BEGIN_SRC bash
-    sudo apt install opam git
+    sudo apt install opam aspcud git
 #+END_SRC
 
 It is advised to add the following line into your .bashrc file.
 #+BEGIN_SRC bash
     eval `opam config env`
+#+END_SRC
+
+The following line ensures that the Coq repository is known by Opam.
+#+BEGIN_SRC bash
+    opam repo add coq-released https://coq.inria.fr/opam/released
+    opam update
+#+END_SRC
+
+The version of Coq used to test this repository is the version 8.6.
+We can thus pin it in Opam.
+#+BEGIN_SRC bash
+    opam pin add coq 8.6
 #+END_SRC
 
 We can now install the required packages.
@@ -40,7 +55,7 @@ We can now clone the project.
 #+BEGIN_SRC bash
     git clone https://github.com/Mbodin/proveR.git proveR
     cd proveR
-    git submodule init
+    git submodule update --init
 #+END_SRC
 
 We need to compile TLC.
