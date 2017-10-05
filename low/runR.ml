@@ -9,6 +9,8 @@ let gp_opt = ref false
 let show_attrib = ref false
 let show_data = ref false
 let show_details = ref false
+let vector_line = ref false
+let charvec_string = ref false
 let no_temporary = ref false
 let max_steps = ref max_int
 
@@ -20,10 +22,12 @@ let _ =
       ("-hide-globals", Arg.Clear show_globals, "Hide the value of (non-constant) global variables") ;
       ("-show-initials", Arg.Set show_initials, "Show the value of constant global variables") ;
       ("-show-gp", Arg.Set show_gp, "Show the general purpose field of basic language elements") ;
-      ("-bit-gp", Arg.Set gp_opt, "Show the general purpose field as a bit field instead of a number") ;
+      ("-bit-gp", Arg.Set gp_opt, "Show the general purpose field as a bit field instead of a number (to be used in combination with -show-gp)") ;
       ("-show-attrib", Arg.Set show_attrib, "Show the attribute field of basic language elements") ;
       ("-show-data", Arg.Set show_data, "Show the data of vectors") ;
       ("-show-details", Arg.Set show_details, "Show the pointers stored in each basic language element") ;
+      ("-vector-line", Arg.Set vector_line, "Show vectors as line instead of column (to be used in combination with -show-data)") ;
+      ("-charvec-string", Arg.Set charvec_string, "Show character vectors as strings instead of a list of characters (to be used in combination with -show-data)") ;
       ("-no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
       ("-steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ]
     (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
@@ -34,5 +38,6 @@ let _ =
   Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state
     (fun s g ->
       print_endline (Print.print_state 0 !show_memory !show_globals !show_initials !no_temporary
-        (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details) !readable_pointers s g))
+        (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
+        !readable_pointers s g))
 

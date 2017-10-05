@@ -1,5 +1,6 @@
 A Coq formalisation of the R programming language
 
+
 * Overview of the Project
 
 This project is still in early development.
@@ -10,34 +11,53 @@ Each pass is related to the previous by the corresponding Relation.v file.
 
 For more details, see my report (not in this repository).
 
+
 * Building the Project
 
-You need to install Coq and OCaml.
-The simplest way is using Opam.
+You need to install Coq and OCaml as well as some libraries.
+The simplest way to do this is using Opam.
+If you already have some of them installed in your system, it is advised
+to use the same package manager to install all packages and libraries
+(that is either your system’s package manager or Opam, but not both).
 
+In Debian, installing Opam is done as follows.
 #+BEGIN_SRC bash
-    sudo apt install opam
-    opam install coq # TODO: Pin version?
+    sudo apt install opam git
 #+END_SRC
 
-Some tools are needed.
-
+It is advised to add the following line into your .bashrc file.
 #+BEGIN_SRC bash
-    # Install coq_makefile
+    eval `opam config env`
 #+END_SRC
 
-You need to install Flocq.
-
+We can now install the required packages.
 #+BEGIN_SRC bash
-    opam install coq-flocq
+    opam install ocamlbuild menhir coq coq-flocq
+    eval `opam config env`
 #+END_SRC
 
-You need to compile TLC.
+We can now clone the project.
+#+BEGIN_SRC bash
+    git clone https://github.com/Mbodin/proveR.git proveR
+    cd proveR
+    git submodule init
+#+END_SRC
+
+We need to compile TLC.
+#+BEGIN_SRC bash
+    cd lib/tlc/src
+    make
+    cd ../../..
+#+END_SRC
 
 After all that, the Makefile should work.
-
 #+BEGIN_SRC bash
     make
+#+END_SRC
+
+This should create the following program.
+#+BEGIN_SRC bash
+    low/runR.native -help
 #+END_SRC
 
 
@@ -119,7 +139,7 @@ Main interpreter file. It calls the various functions defined in low.ml.
 
 The following command provides some help about it.
 #BEGIN_SRC bash
-    low/runR.native --help
+    low/runR.native -help
 #END_SRC
 
 ** structured
@@ -160,6 +180,6 @@ Provides tools to reason about R programs.
 I have not yet put any license there, as I consider that the project first
 needs to be minimally developped before bothering adding a license.
 If you would like to use or contribute to this project and thus need to know
-its license, please tell me, and I shall look for the policy of the CMM about
-this.
+its license, please tell me, and I shall look for the policy of the CMM/DCC
+about this.
 

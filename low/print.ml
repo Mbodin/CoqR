@@ -173,7 +173,7 @@ let is_temporary e =
   let infos = get_SxpInfo e in
   named infos = Named_temporary
 
-let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details) t s g e =
+let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details, vector_line, charvec_string) t s g e =
   let print_basic =
     let infos = get_SxpInfo e in
     print_SExpType (type0 infos) ^ " " ^
@@ -188,7 +188,10 @@ let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details) t s 
       let v = vector_SExpRec_vecsxp v in
       " length:" ^ string_of_int (vecSxp_length v) ^
       if show_data then
-        String.concat "" (List.map (fun x -> indent d ^ f x) (vecSxp_data v))
+        if vector_line then
+          indent d ^ String.concat " " (List.map f (vecSxp_data v))
+        else
+          String.concat "" (List.map (fun x -> indent d ^ f x) (vecSxp_data v))
       else "" in
     match e with
     | SExpRec_NonVector e ->
@@ -216,7 +219,13 @@ let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details) t s 
           indent (d + 6) ^ "Expr: " ^ print_pointer t s g (prom_expr prom) ^
           indent (d + 6) ^ "Env: " ^ print_pointer t s g (prom_env prom)
       else ""
-    | SExpRec_VectorChar v -> "(vector char)" ^ print_vector print_character v
+    | SExpRec_VectorChar v ->
+      "(vector char)" ^
+      if charvec_string then
+        let v = vector_SExpRec_vecsxp v in
+        indent d ^ "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
+      else
+        print_vector print_character v
     | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector string_of_float v
     | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector string_of_float v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
