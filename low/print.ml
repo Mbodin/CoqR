@@ -163,7 +163,7 @@ let print_character c =
 
 let print_gp gp_opt gp =
   let gp = (Obj.magic gp : nbits) in
-  if gp_opt then
+  if not gp_opt then
     let print_bit b =
       if b then "1" else "0" in
     String.concat "" (List.map print_bit (NBits.nbits_to_list 16 gp))
