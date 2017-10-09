@@ -1,7 +1,10 @@
 {
+    (** This file mainly translates Function [yylex] from File gram.y. **)
+
+    open Low
     open Parser
 
-    (** This file mainly translates Function [yylex] from File gram.y. **)
+    exception SyntaxError of string
 }
 
 (** * Definitions **)
@@ -61,7 +64,7 @@ let reserved_keywords =
 
 (** *** Special Operators **)
 let reg_special_operator =
-  '%' [^ '%']* '%'
+  '%' ([^ '%']* as name) '%'
 
 let operator_arithmetic =
   "+" | "-" | "*" | '/' | "%%" | "^"
@@ -81,10 +84,70 @@ let operator_sequence =
 
 (** * Rules **)
 
-rule yylex_start = parse
-  | '\n'
-    { yylex_newline lexbuf }
-  | ['+' '-' '*' '/' '^'] (* What about LT, LE, GE, etc. that come afterwards? *)
-    { yylex_eatline lexbuf }
+(* TODO: Explain the change of type of the tokens. *)
 
-(* TODO: Read 10.1 “The parsing process” of R-lang.pdf *)
+rule lex = parse
+
+  (** ** Special Symbols **)
+  | "NULL"              { NULL_CONST }
+  | "NA"                { NUM_CONST mkNA }
+  | "TRUE"              { NUM_CONST mkTrue }
+  | "FALSE"             { NUM_CONST mkFalse }
+  | "Inf"               { NUM_CONST (fun s -> alloc_vector_real s [r_PosInf]) }
+  | "NaN"               { NUM_CONST (fun s -> alloc_vector_real s [r_NaN]) }
+  | "NA_integer_"       { NUM_CONST (fun s -> alloc_vector_int s [nA_INTEGER]) }
+  | "NA_real_"          { NUM_CONST (fun s -> alloc_vector_real s [nA_REAL]) }
+  | "NA_character_"     { NUM_CONST (fun s -> alloc_vector_str s [nA_STRING]) }
+  | "NA_complex_"       { NUM_CONST (fun s -> alloc_vector_cplx s [make_Rcomplex nA_REAL nA_REAL]) }
+  | "function"          { FUNCTION }
+  | "while"             { WHILE }
+  | "repeat"            { REPEAT }
+  | "for"               { FOR }
+  | "if"                { IF }
+  | "in"                { IN }
+  | "else"              { ELSE }
+  | "next"              { NEXT }
+  | "break"             { BREAK }
+  | "..."               { SYMBOL }
+
+  (** ** Operators **)
+  | "?"     { QUESTION_MARK }
+  | "<-"    { LEFT_ASSIGN }
+  | "="     { EQ_ASSIGN }
+  | "->"    { RIGHT_ASSIGN }
+  | ":="    { COLON_ASSIGN }
+  | "~"     { TILDE }
+  | "+"     { PLUS }
+  | "-"     { MINUS }
+  | "*"     { TIMES }
+  | "/"     { DIV }
+  | "^"     { EXP }
+  | "<"     { LT }
+  | "<="    { LE }
+  | ">"     { GT }
+  | ">="    { GE }
+  | "=="    { EQ }
+  | "!="    { NEQ }
+  | "!"     { NOT }
+  | "&"     { AND }
+  | "|"     { OR }
+  | "$"     { DOLLAR }
+  | "@"     { AT }
+  | ":"     { COLON }
+
+  (** ** Special Values **)
+  | reg_special_operator    { SPECIAL name }
+  | reg_string              { STR_CONST }
+  | reg_numeric             { NUM_CONST }
+  | reg_integer             { NUM_CONST }
+  | reg_imaginary           { NUM_CONST }
+
+  (** ** Miscellaneous **)
+  | '('                     { LPAR }
+  | ')'                     { RPAR }
+  | '['                     { LSQBRACKET }
+  | ']'                     { RSQBRACKET }
+  | ('#' [^ '\n']*)? '\n'   { NEW_LINE }
+  | _                       { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
+  | eof                     { EOF }
+

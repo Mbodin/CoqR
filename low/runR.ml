@@ -14,22 +14,53 @@ let charvec_string = ref false
 let no_temporary = ref false
 let max_steps = ref max_int
 
+let boolean_switches =
+  let make_boolean_switch categories verb_small_on verb_small_off verb_verbatim_on verb_verbatim_off pointer command noun =
+    (categories, verb_small_on, verb_small_off, verb_verbatim_on, verb_verbatim_off, pointer, command, noun) in
+  let print_switch categories =
+    make_boolean_switch (("show", "hide", "all", "Show", "Hide", "everything") :: categories) "show" "hide" "Show" "Hide" in [
+    print_switch [] show_memory "memory" "the state of the memory" ;
+    print_switch [] show_globals "globals" "the value of (non-constant) global variables" ;
+    print_switch [] show_initials "initials" "the value of constant global variables" ;
+    print_switch [] show_gp "gp" "the general purpose field of basic language elements" ;
+    print_switch [] show_attrib "attrib" "the attribute field of basic language elements" ;
+    print_switch [] show_data "data" "the data of vectors" ;
+    print_switch [] show_details "details" "the pointers stored in each basic language element"
+  ]
+
+let get_pointer (_, _, _, _, _, p, _, _) = p
+let get_categories (l, _, _, _, _, _, _, _) = l
+
+let all_categories =
+  let rec aux c = function
+    | x :: l ->
+      aux (c @ List.filter (fun x -> not (List.mem x c)) (get_categories x)) l
+    | [] -> c
+  in aux [] boolean_switches
+
 let _ =
-  Arg.parse [
+  Arg.parse ([
       ("-non-interactive", Arg.Clear interactive, "Non-interactive mode") ;
       ("-no-abr", Arg.Clear readable_pointers, "Do not write down pointers in a more readable way") ;
-      ("-show-memory", Arg.Set show_memory, "Show the state of the memory") ;
-      ("-hide-globals", Arg.Clear show_globals, "Hide the value of (non-constant) global variables") ;
-      ("-show-initials", Arg.Set show_initials, "Show the value of constant global variables") ;
-      ("-show-gp", Arg.Set show_gp, "Show the general purpose field of basic language elements") ;
-      ("-bit-gp", Arg.Set gp_opt, "Show the general purpose field as a bit field instead of a number (to be used in combination with -show-gp)") ;
-      ("-show-attrib", Arg.Set show_attrib, "Show the attribute field of basic language elements") ;
-      ("-show-data", Arg.Set show_data, "Show the data of vectors") ;
-      ("-show-details", Arg.Set show_details, "Show the pointers stored in each basic language element") ;
       ("-vector-line", Arg.Set vector_line, "Show vectors as line instead of column (to be used in combination with -show-data)") ;
       ("-charvec-string", Arg.Set charvec_string, "Show character vectors as strings instead of a list of characters (to be used in combination with -show-data)") ;
       ("-no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
-      ("-steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ]
+      ("-steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ;
+      ("-bit-gp", Arg.Set gp_opt, "Show the general purpose field as a bit field instead of a number (to be used in combination with -show-gp)") ]
+    @ List.concat (List.map (fun (_, vsy, vsn, vvy, vvn, p, c, n) ->
+        let default b =
+          if b then " (default)" else "" in [
+          ("-" ^ vsy ^ "-" ^ c, Arg.Set p, vvy ^ " " ^ n ^ default !p) ;
+          ("-" ^ vsn ^ "-" ^ c, Arg.Clear p, vvn ^ " " ^ n ^ default (not !p)) ]) boolean_switches)
+    @ List.concat (List.map (fun c ->
+        let this_category =
+          List.filter (fun b -> List.mem c (get_categories b)) boolean_switches in
+        let (vsy, vsn, c, vvy, vvn, e) = c in
+        let all v _ =
+          List.iter (fun b -> get_pointer b := v) this_category in [
+          ("-" ^ vsy ^ "-" ^ c, Arg.Unit (all true), vvy ^ " " ^ e) ;
+          ("-" ^ vsn ^ "-" ^ c, Arg.Unit (all false), vvn ^ " " ^ e) ;
+        ]) all_categories))
     (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
     "This programs aims at mimicking the core of R. Usage:"
 
