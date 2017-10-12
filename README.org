@@ -22,10 +22,11 @@ to use the same package manager to install all packages and libraries
 
 In Debian, installing Opam and Git can be done as follows.
 More information for other systems can be found
-[here for Opam](http://coq.io/opam/get_started.html)
-and [here for Git](https://git-scm.com/).
+[[http://coq.io/opam/get_started.html][here for Opam]]
+and [[https://git-scm.com/][here for Git]].
 #+BEGIN_SRC bash
-    sudo apt install opam aspcud git
+    sudo apt install opam aspcud m4 git
+    opam init
 #+END_SRC
 
 It is advised to add the following line into your .bashrc file.
