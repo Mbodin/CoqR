@@ -34,7 +34,7 @@ It is advised to add the following line into your .bashrc file.
     eval `opam config env`
 #+END_SRC
 
-The following line ensures that the Coq repository is known by Opam.
+The following lines ensure that the Coq repository is known by Opam.
 #+BEGIN_SRC bash
     opam repo add coq-released https://coq.inria.fr/opam/released
     opam update
@@ -66,7 +66,7 @@ We need to compile TLC.
     cd ../../..
 #+END_SRC
 
-After all that, the Makefile should work.
+The Makefile should now work.
 #+BEGIN_SRC bash
     make
 #+END_SRC
@@ -82,7 +82,7 @@ This should create the following program.
 ** low
 
 This folder is a low-level specification of R.
-It is the closest possible to the R source code (in C).
+It is the closest possible to the R reference interpreter (written in C).
 
 *** Rinternals.v
 
@@ -154,9 +154,10 @@ Contains various OCaml function to print Coq objects.
 Main interpreter file. It calls the various functions defined in low.ml.
 
 The following command provides some help about it.
-#BEGIN_SRC bash
+#+BEGIN_SRC bash
     low/runR.native -help
-#END_SRC
+#+END_SRC
+
 
 ** structured
 
@@ -173,6 +174,7 @@ these assumptions are made explicit.
 *** Relation.v
 
 Links the structured-level formalisation to the low-level one.
+
 
 ** high
 

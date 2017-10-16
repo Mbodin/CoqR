@@ -84,8 +84,6 @@ let operator_sequence =
 
 (** * Rules **)
 
-(* TODO: Explain the change of type of the tokens. *)
-
 rule lex = parse
 
   (** ** Special Symbols **)
