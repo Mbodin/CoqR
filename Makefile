@@ -1,4 +1,10 @@
 
+OCAMLFILES= \
+	low/runR.ml \
+	low/print.ml \
+	low/lexer.mll \
+	low/parser.mly
+
 %: Makefile.coq phony
 	+make -f Makefile.coq $@
 
@@ -28,7 +34,7 @@ clean_interp:
 	rm low/runR.native
 	rm -R low/_build
 
-low/runR.native: low/Extraction.vo low/print.ml low/runR.ml
+low/runR.native: low/Extraction.vo ${OCAMLFILES}
 	mv low.ml low/low.ml || true
 	mv low.mli low/low.mli || true
 	cd low ; ocamlbuild -use-menhir runR.native ; cd ..

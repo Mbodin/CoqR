@@ -1,5 +1,5 @@
 {
-    (** This file mainly translates Function [yylex] from File gram.y. **)
+    (** This file mainly translates the functions [token] and [yylex] from File gram.y. **)
 
     open Low
     open Parser
@@ -42,7 +42,7 @@ let escape_sequence =
   |['0'-'7'] (['0'-'7'] ['0'-'7']?)?
   |'x' hexadecimal_digit hexadecimal_digit?
   (** We ignore multibyte locales for now. **))
-let normal_character = [^ '\\' '\'' '"'] (* This may be ameliorable. *)
+let normal_character = [^ '\\' '\'' '"' '\x00'] (* This may be ameliorable. *)
 let character = normal_character | escape_sequence
 let reg_string =
   '\'' (character | '"')* '\'' | '"' (character | '\'')* '"'
@@ -81,6 +81,11 @@ let operator_list_indexing =
 let operator_sequence =
   ":"
 
+(** ** Miscellaneous **)
+
+(** *** Spaces **)
+let space = ' ' | '\t' | '\x0c' (** Form feed **) | '\xa0' (** Replacement character **)
+
 
 (** * Rules **)
 
@@ -88,50 +93,54 @@ rule lex = parse
 
   (** ** Special Symbols **)
   | "NULL"              { NULL_CONST }
-  | "NA"                { NUM_CONST mkNA }
-  | "TRUE"              { NUM_CONST mkTrue }
-  | "FALSE"             { NUM_CONST mkFalse }
-  | "Inf"               { NUM_CONST (fun s -> alloc_vector_real s [r_PosInf]) }
-  | "NaN"               { NUM_CONST (fun s -> alloc_vector_real s [r_NaN]) }
-  | "NA_integer_"       { NUM_CONST (fun s -> alloc_vector_int s [nA_INTEGER]) }
-  | "NA_real_"          { NUM_CONST (fun s -> alloc_vector_real s [nA_REAL]) }
-  | "NA_character_"     { NUM_CONST (fun s -> alloc_vector_str s [nA_STRING]) }
-  | "NA_complex_"       { NUM_CONST (fun s -> alloc_vector_cplx s [make_Rcomplex nA_REAL nA_REAL]) }
-  | "function"          { FUNCTION }
-  | "while"             { WHILE }
-  | "repeat"            { REPEAT }
-  | "for"               { FOR }
-  | "if"                { IF }
+  | "NA"                { NUM_CONST (wrap_no_runs mkNA) }
+  | "TRUE"              { NUM_CONST (wrap_no_runs mkTrue) }
+  | "FALSE"             { NUM_CONST (wrap_no_runs mkFalse) }
+  | "Inf"               { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [r_PosInf])) }
+  | "NaN"               { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [r_NaN])) }
+  | "NA_integer_"       { NUM_CONST (wrap_only_state (fun s -> alloc_vector_int s [nA_INTEGER])) }
+  | "NA_real_"          { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [nA_REAL])) }
+  | "NA_character_"     { NUM_CONST (wrap_only_state (fun s -> alloc_vector_str s [nA_STRING])) }
+  | "NA_complex_"       { NUM_CONST (wrap_only_state (fun s -> alloc_vector_cplx s [make_Rcomplex nA_REAL nA_REAL])) }
+  | "function"          { FUNCTION (install_and_save "function") }
+  | "while"             { WHILE (install_and_save "while") }
+  | "repeat"            { REPEAT (install_and_save "repeat") }
+  | "for"               { FOR (install_and_save "for") }
+  | "if"                { IF (install_and_save "if") }
   | "in"                { IN }
   | "else"              { ELSE }
-  | "next"              { NEXT }
-  | "break"             { BREAK }
-  | "..."               { SYMBOL }
+  | "next"              { NEXT (install_and_save "next") }
+  | "break"             { BREAK (install_and_save "break") }
+  | "..."               { SYMBOL (install_and_save "...") }
 
   (** ** Operators **)
-  | "?"     { QUESTION_MARK }
-  | "<-"    { LEFT_ASSIGN }
-  | "="     { EQ_ASSIGN }
-  | "->"    { RIGHT_ASSIGN }
-  | ":="    { COLON_ASSIGN }
-  | "~"     { TILDE }
-  | "+"     { PLUS }
-  | "-"     { MINUS }
-  | "*"     { TIMES }
-  | "/"     { DIV }
-  | "^"     { EXP }
-  | "<"     { LT }
-  | "<="    { LE }
-  | ">"     { GT }
-  | ">="    { GE }
-  | "=="    { EQ }
-  | "!="    { NEQ }
-  | "!"     { NOT }
-  | "&"     { AND }
-  | "|"     { OR }
-  | "$"     { DOLLAR }
-  | "@"     { AT }
-  | ":"     { COLON }
+  | "?"         { QUESTION_MARK (install_and_save "?") }
+  | "<-"        { LEFT_ASSIGN (install_and_save "<-") }
+  | "="         { EQ_ASSIGN (install_and_save "=") }
+  | "->"        { RIGHT_ASSIGN (install_and_save "->") }
+  | ":="        { COLON_ASSIGN (install_and_save ":=") }
+  | "~"         { TILDE (install_and_save "~") }
+  | "+"         { PLUS (install_and_save "+") }
+  | "-"         { MINUS (install_and_save "-") }
+  | "*"         { TIMES (install_and_save "*") }
+  | "/"         { DIV (install_and_save "/") }
+  | "^" | "**"  { EXP (install_and_save "^") }
+  | "<"         { LT (install_and_save "<") }
+  | "<="        { LE (install_and_save "<=") }
+  | ">"         { GT (install_and_save ">") }
+  | ">="        { GE (install_and_save ">=") }
+  | "=="        { EQ (install_and_save "==") }
+  | "!="        { NEQ (install_and_save "!=") }
+  | "!"         { NOT (install_and_save "!") }
+  | "&&"        { AND2 (install_and_save "&&") }
+  | "&"         { AND (install_and_save "&") }
+  | "||"        { OR2 (install_and_save "||") }
+  | "|"         { OR (install_and_save "|") }
+  | "$"         { DOLLAR (install_and_save "$") }
+  | "@"         { AT (install_and_save "@") }
+  | ":::"       { NS_GET_INT (install_and_save ":::") }
+  | "::"        { NS_GET (install_and_save "::") }
+  | ":"         { COLON (install_and_save ":") }
 
   (** ** Special Values **)
   | reg_special_operator    { SPECIAL name }
@@ -140,12 +149,18 @@ rule lex = parse
   | reg_integer             { NUM_CONST }
   | reg_imaginary           { NUM_CONST }
 
+  (** ** Parentheses **)
+  | '('     { LPAR (install_and_save "(") }
+  | ')'     { RPAR }
+  | '{'     { LBRACE (install_and_save "{") }
+  | '}'     { RBRACE }
+  | "[["    { LBB (install_and_save "[[") }
+  | '['     { LSQBRACKET (install_and_save "[") }
+  | ']'     { RSQBRACKET }
+
   (** ** Miscellaneous **)
-  | '('                     { LPAR }
-  | ')'                     { RPAR }
-  | '['                     { LSQBRACKET }
-  | ']'                     { RSQBRACKET }
   | ('#' [^ '\n']*)? '\n'   { NEW_LINE }
+  | space+                  { lex lexbuf }
   | _                       { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
-  | eof                     { EOF }
+  | eof                     { END_OF_INPUT }
 

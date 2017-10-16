@@ -1,51 +1,79 @@
-{
+%{
+    (** This file translates the Bison parser of R in Menhir’s syntax. **)
 
-}
+    open Low
 
-(* Raw import from gram.y *)
+    type token_type = globals -> runs_type -> state -> sExpRec_pointer result
+
+    let wrap_no_globals f : token_type = fun _ -> f
+    let wrap_no_runs f : token_type = fun g _ -> f g
+    let wrap_only_state f : token_type = fun _ _ -> f
+
+    (** This function is inspired from the [install_and_save] function
+      * of the original interpreter. It takes into advantage the fact
+      * that ocamllex is functional: its behaviour is exactly the same
+      * than the install function. It here serves as a wrapper, to
+      * change the order of the arguments of [install]. **)
+    let install_and_save str : token_type = fun g r s ->
+      install g r s (string_to_char_list str)
+%}
 
 %token-table
 
-%token		END_OF_INPUT ERROR
-%token		STR_CONST NUM_CONST NULL_CONST SYMBOL FUNCTION 
-%token		INCOMPLETE_STRING
-%token		LEFT_ASSIGN EQ_ASSIGN RIGHT_ASSIGN LBB
-%token		FOR IN IF ELSE WHILE NEXT BREAK REPEAT
-%token		GT GE LT LE EQ NE AND OR AND2 OR2
-%token		NS_GET NS_GET_INT
-%token		COMMENT LINE_DIRECTIVE
-%token		SYMBOL_FORMALS
-%token		EQ_FORMALS
-%token		EQ_SUB SYMBOL_SUB
-%token		SYMBOL_FUNCTION_CALL
-%token		SYMBOL_PACKAGE
-%token		COLON_ASSIGN
-%token		SLOT
+(** * Token Declaration **)
 
-/* This is the precedence table, low to high */
-%left		'?'
-%left		LOW WHILE FOR REPEAT
-%right		IF
-%left		ELSE
-%right		LEFT_ASSIGN
-%right		EQ_ASSIGN
-%left		RIGHT_ASSIGN
-%left		'~' TILDE
-%left		OR OR2
-%left		AND AND2
-%left		UNOT NOT
-%nonassoc   	GT GE LT LE EQ NE
-%left		'+' '-'
-%left		'*' '/'
-%left		SPECIAL
-%left		':'
-%left		UMINUS UPLUS
-%right		'^'
-%left		'$' '@'
-%left		NS_GET NS_GET_INT
-%nonassoc	'(' '[' LBB
+(** Some tokens have been commented out, as they only help report errors. **)
+
+%token                  END_OF_INPUT (*ERROR*)
+%token<token_type>      STR_CONST NUM_CONST NULL_CONST SYMBOL FUNCTION
+(*%token		        INCOMPLETE_STRING*)
+%token<token_type>      LEFT_ASSIGN EQ_ASSIGN RIGHT_ASSIGN LBB
+%token<token_type>      FOR IF WHILE NEXT BREAK REPEAT
+%token                  IN ELSE
+%token<token_type>      GT GE LT LE EQ NE AND OR AND2 OR2
+%token<token_type>      NS_GET NS_GET_INT
+%token      COMMENT LINE_DIRECTIVE
+%token      SYMBOL_FORMALS
+%token      EQ_FORMALS
+%token      EQ_SUB SYMBOL_SUB
+%token      SYMBOL_FUNCTION_CALL
+%token      SYMBOL_PACKAGE
+%token      COLON_ASSIGN
+%token      SLOT
+
+(** These are additional tokens, directly used as characters in gran.y. **)
+
+%token<token_type>      LBRACE LPAR LSQBRACKET
+%token                  RBRACE RPAR RSQBRACKET
+%token<token_type>      QUESTION_MARK TILDE PLUS MINUS TIMES DIV COLON EXP DOLLAR AT
+
+(* * Precedence Table *)
+
+%left       QUESTION_MARK
+%left       LOW WHILE FOR REPEAT
+%right      IF
+%left       ELSE
+%right      LEFT_ASSIGN
+%right      EQ_ASSIGN
+%left       RIGHT_ASSIGN
+%left       TILDE
+%left       OR OR2
+%left       AND AND2
+%left       UNOT NOT
+%nonassoc   GT GE LT LE EQ NE
+%left       PLUS MINUS
+%left       TIMES DIV
+%left       SPECIAL
+%left       COLON
+%left       UMINUS UPLUS
+%right      EXP
+%left       DOLLAR AT
+%left       NS_GET NS_GET_INT
+%nonassoc   LPAR LSQBRACKET LBB
 
 %%
+
+(* * Grammar *)
 
 prog	:	END_OF_INPUT			{ YYACCEPT; }
 	|	'\n'				{ yyresult = xxvalue(NULL,2,NULL);	goto yyreturn; }
@@ -63,7 +91,7 @@ equal_assign    :    expr EQ_ASSIGN expr_or_assign              { $$ = xxbinary(
 
 expr	: 	NUM_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	STR_CONST			{ $$ = $1;	setId( $$, @$); }
-	|	NULL_CONST			{ $$ = $1;	setId( $$, @$); }          
+	|	NULL_CONST			{ $$ = $1;	setId( $$, @$); }
 	|	SYMBOL				{ $$ = $1;	setId( $$, @$); }
 
 	|	'{' exprlist '}'		{ $$ = xxexprlist($1,&@1,$2); setId( $$, @$); }

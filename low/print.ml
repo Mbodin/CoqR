@@ -101,6 +101,12 @@ let indent d =
 let char_list_to_string str =
   String.concat "" (List.map (String.make 1) str)
 
+let string_to_char_list str =
+  let rec aux i acc =
+    if i < 0 then acc
+    else aux (i - 1) (str.[i] :: acc) in
+  aux (String.length str - 1) []
+
 let print_raw_pointer = function
   | None -> "NULL"
   | Some i -> string_of_int i
