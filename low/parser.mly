@@ -162,16 +162,16 @@ forcond:
   | LPAR; s = SYMBOL; IN; e = expr; RPAR   { lift2 xxforcond s e }
 
 exprlist:
-  |                                   { $$ = xxexprlist0(); setId( $$, @$); }
-  | expr_or_assign                    { $$ = xxexprlist1($1, &@1); }
-  | exprlist SEMICOLON expr_or_assign { $$ = xxexprlist2($1, $3, &@3); }
-  | exprlist SEMICOLON                { $$ = $1; setId( $$, @$); }
-  | exprlist NEW_LINE expr_or_assign  { $$ = xxexprlist2($1, $3, &@3); }
-  | exprlist NEW_LINE                 { $$ = $1;}
+  |                                             { wrap_only_state xxexprlist0 }
+  | e = expr_or_assign                          { lift1 xxexprlist1 e }
+  | l = exprlist; SEMICOLON; e = expr_or_assign { lift2 xxexprlist2 l e }
+  | l = exprlist; SEMICOLON                     { l }
+  | l = exprlist; NEW_LINE; e = expr_or_assign  { lift2 xxexprlist2 l e }
+  | l = exprlist; NEW_LINE                      { l }
 
 sublist:
-  | sub                    { $$ = xxsublist1($1); }
-  | sublist cr COMMA sub   { $$ = xxsublist2($1,$4); }
+  | s = sub                             { lift1 xxsublist1 s }
+  | sl = sublist; cr; COMMA; s = sub    { lift2 xxsublist2 sl s }
 
 sub:
   |                            { $$ = xxsub0(); }

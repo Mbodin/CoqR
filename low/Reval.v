@@ -696,6 +696,18 @@ Definition mkFalse S :=
 Definition mkNA S :=
   alloc_vector_lgl S [NA_LOGICAL : int].
 
+Definition NewList S :=
+  let (S, s) := CONS S R_NilValue R_NilValue in
+  set%car s := s using S in
+  result_success S s.
+
+Definition GrowList S l s :=
+  let (S, tmp) := CONS S s R_NilValue in
+  read%list _, l_list := l using S in
+  set%cdr list_carval l_list := tmp using S in
+  set%car l := tmp using S in
+  result_success S l.
+
 Definition xxunary S op arg :=
   lang2 S op arg.
 
@@ -714,6 +726,16 @@ Definition xxexprlist S a1 a2 :=
   map%pointer a2 with set_type LangSxp using S in
   set%car a2 := a1 using S in
   result_success S a2.
+
+Definition xxexprlist0 S :=
+  NewList S.
+
+Definition xxexprlist1 S expr :=
+  let%success tmp := NewList S using S in
+  GrowList S tmp expr.
+
+Definition xxexprlist2 S exprlist expr :=
+  GrowList S exprlist expr.
 
 Definition xxfuncall S expr args :=
   let%success expr :=
