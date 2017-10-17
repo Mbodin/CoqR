@@ -69,100 +69,97 @@
 (* * Grammar *)
 
 prog:
-  | END_OF_INPUT              { YYACCEPT; }
-  | NEW_LINE                  { yyresult = xxvalue(NULL,2,NULL); goto yyreturn; }
-  | expr_or_assign NEW_LINE   { yyresult = xxvalue($1,3,&@1); goto yyreturn; }
-  | expr_or_assign SEMICOLON  { yyresult = xxvalue($1,4,&@1); goto yyreturn; }
-  | error                     { YYABORT; }
+  | END_OF_INPUT                   { null }
+  | NEW_LINE                       { null }
+  | e = expr_or_assign; NEW_LINE   { e }
+  | e = expr_or_assign; SEMICOLON  { e }
+  | error                          { prerr_endline "Syntax error"; null }
 
 expr_or_assign:
-  | expr         { $$ = $1; }
-  | equal_assign { $$ = $1; }
+  | e = expr         { e }
+  | e = equal_assign { e }
 
 equal_assign:
-  | expr EQ_ASSIGN expr_or_assign { $$ = xxbinary($2,$1,$3); }
+  | e = expr; eq = EQ_ASSIGN; a = expr_or_assign { lift3 xxbinary eq e a }
 
 expr:
-  | NUM_CONST                 { $$ = $1; setId( $$, @$); }
-  | STR_CONST                 { $$ = $1; setId( $$, @$); }
-  | NULL_CONST                { $$ = $1; setId( $$, @$); }
-  | SYMBOL                    { $$ = $1; setId( $$, @$); }
+  | c = NUM_CONST                                { c }
+  | c = STR_CONST                                { c }
+  | c = NULL_CONST                               { c }
+  | c = SYMBOL                                   { c }
 
-  | LBRACE exprlist RBRACE    { $$ = xxexprlist($1,&@1,$2); setId( $$, @$); }
-  | LPAR expr_or_assign RPAR  { $$ = xxparen($1,$2); setId( $$, @$); }
+  | b = LBRACE; e = exprlist; RBRACE             { lift2 xxexprlist b e }
+  | p = LPAR; e = expr_or_assign; RPAR           { lift2 xxparen p e }
 
-  | MINUS expr %prec UMINUS   { $$ = xxunary($1,$2); setId( $$, @$); }
-  | PLUS expr %prec UMINUS    { $$ = xxunary($1,$2); setId( $$, @$); }
-  | NOT expr %prec UNOT       { $$ = xxunary($1,$2); setId( $$, @$); }
-  | TILDE expr %prec TILDE    { $$ = xxunary($1,$2); setId( $$, @$); }
-  | QUESTION_MARK expr        { $$ = xxunary($1,$2); setId( $$, @$); }
+  | s = MINUS; e = expr %prec UMINUS             { lift2 xxunary s e }
+  | s = PLUS; e = expr %prec UMINUS              { lift2 xxunary s e }
+  | s = NOT; e = expr %prec UNOT                 { lift2 xxunary s e }
+  | s = TILDE; e = expr %prec TILDE              { lift2 xxunary s e }
+  | s = QUESTION_MARK; e = expr                  { lift2 xxunary s e }
 
-  | expr COLON  expr          { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr PLUS  expr           { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr MINUS expr           { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr TIMES expr           { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr DIV expr             { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr EXP expr             { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr SPECIAL expr         { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
+  | e1 = expr; op = COLON; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = PLUS; e2 = expr              { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = MINUS; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = TIMES; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = DIV; e2 = expr               { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = EXP; e2 = expr               { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = SPECIAL; e2 = expr           { lift3 xxbinary op e1 e2 }
   (** The lexeme '%' seems not to be produced by R’s tokenizer: the following
    * (commented out) line seems to be dead code. **)
-  (*| expr '%' expr           { $$ = xxbinary($2,$1,$3); setId( $$, @$); }*)
-  | expr TILDE expr           { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr QUESTION_MARK expr   { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr LT expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr LE expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr EQ expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr NE expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr GE expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr GT expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr AND expr             { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr OR expr              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr AND2 expr            { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr OR2 expr             { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
+  (*| e1 = expr; op = '%'; e2 = expr             { lift3 xxbinary op e1 e2 }*)
+  | e1 = expr; op = TILDE; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = QUESTION_MARK; e2 = expr     { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = LT; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = LE; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = EQ; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = NE; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = GE; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = GT; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = AND; e2 = expr               { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = OR; e2 = expr                { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = AND2; e2 = expr              { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = OR2; e2 = expr               { lift3 xxbinary op e1 e2 }
 
-  | expr LEFT_ASSIGN expr     { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr RIGHT_ASSIGN expr    { $$ = xxbinary($2,$3,$1); setId( $$, @$); }
-  | FUNCTION LPAR formlist RPAR cr expr_or_assign %prec LOW
-                              { $$ = xxdefun($1,$3,$6,&@$); setId( $$, @$); }
-  | expr LPAR sublist RPAR    { $$ = xxfuncall($1,$3); setId( $$, @$); modif_token( &@1, SYMBOL_FUNCTION_CALL ) ; }
-  | IF ifcond expr_or_assign  { $$ = xxif($1,$2,$3); setId( $$, @$); }
-  | IF ifcond expr_or_assign ELSE expr_or_assign
-                              { $$ = xxifelse($1,$2,$3,$5); setId( $$, @$); }
-  | FOR forcond expr_or_assign %prec FOR
-                              { $$ = xxfor($1,$2,$3); setId( $$, @$); }
-  | WHILE cond expr_or_assign { $$ = xxwhile($1,$2,$3); setId( $$, @$); }
-  | REPEAT expr_or_assign     { $$ = xxrepeat($1,$2); setId( $$, @$); }
-  | expr LBB sublist RSQBRACKET RSQBRACKET
-                              { $$ = xxsubscript($1,$2,$3); setId( $$, @$); }
-  | expr LSQBRACKET sublist RSQBRACKET
-                              { $$ = xxsubscript($1,$2,$3); setId( $$, @$); }
-  | SYMBOL NS_GET SYMBOL      { $$ = xxbinary($2,$1,$3); setId( $$, @$); modif_token( &@1, SYMBOL_PACKAGE ) ; }
-  | SYMBOL NS_GET STR_CONST   { $$ = xxbinary($2,$1,$3); setId( $$, @$); modif_token( &@1, SYMBOL_PACKAGE ) ; }
-  | STR_CONST NS_GET SYMBOL   { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | STR_CONST NS_GET STR_CONST
-                              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | SYMBOL NS_GET_INT SYMBOL  { $$ = xxbinary($2,$1,$3); setId( $$, @$); modif_token( &@1, SYMBOL_PACKAGE ) ;}
-  | SYMBOL NS_GET_INT STR_CONST
-                              { $$ = xxbinary($2,$1,$3); setId( $$, @$); modif_token( &@1, SYMBOL_PACKAGE ) ;}
-  | STR_CONST NS_GET_INT SYMBOL
-                              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | STR_CONST NS_GET_INT STR_CONST
-                              { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr DOLLAR SYMBOL        { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr DOLLAR STR_CONST     { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | expr AT SYMBOL            { $$ = xxbinary($2,$1,$3); setId( $$, @$); modif_token( &@3, SLOT ) ; }
-  | expr AT STR_CONST         { $$ = xxbinary($2,$1,$3); setId( $$, @$); }
-  | NEXT                      { $$ = xxnxtbrk($1); setId( $$, @$); }
-  | BREAK                     { $$ = xxnxtbrk($1); setId( $$, @$); }
+  | e1 = expr; op = LEFT_ASSIGN; e2 = expr       { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = RIGHT_ASSIGN; e2 = expr      { lift3 xxbinary op e2 e1 }
+  | fname = FUNCTION; LPAR; formals = formlist; RPAR; cr; body = expr_or_assign %prec LOW
+                                                 { lift3 xxdefun fname formals body }
+  | e = expr; LPAR; l = sublist; RPAR            { lift2 xxfuncall e l }
+  | i = IF; c = ifcond; e = expr_or_assign       { lift3 xxif i c e }
+  | i = IF; c = ifcond; e1 = expr_or_assign; ELSE; e2 = expr_or_assign
+                                                 { lift4 xxifelse i c e1 e2 }
+  | f = FOR; c = forcond; e = expr_or_assign %prec FOR
+                                                 { lift3 xxfor f x e }
+  | w = WHILE; c = cond; e = expr_or_assign      { lift3 xxwhile w c e }
+  | r = REPEAT; e = expr_or_assign               { lift2 xxrepeat r e }
+  | e = expr; s = LBB; l = sublist; RSQBRACKET; RSQBRACKET
+                                                 { lift3 xxsubscript e s l }
+  | e = expr; s = LSQBRACKET; l = sublist; RSQBRACKET
+                                                 { lift3 xxsubscript e s l }
+  | s1 = SYMBOL; op = NS_GET; s2 = SYMBOL        { lift3 xxbinary op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET; s2 = STR_CONST     { lift3 xxbinary op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET; s2 = SYMBOL     { lift3 xxbinary op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET; s2 = STR_CONST  { lift3 xxbinary op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET_INT; s2 = SYMBOL    { lift3 xxbinary op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET_INT; s2 = STR_CONST { lift3 xxbinary op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET_INT; s2 = SYMBOL { lift3 xxbinary op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET_INT; s2 = STR_CONST
+                                                 { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = DOLLAR; s2 = SYMBOL          { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = DOLLAR; s2 = STR_CONST       { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = AT; s2 = SYMBOL              { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = AT; s2 = STR_CONST           { lift3 xxbinary op s1 s2 }
+  | k = NEXT                                     { lift1 xxnxtbrk k }
+  | k = BREAK                                    { lift1 xxnxtbrk k }
 
 cond:
-  | LPAR expr RPAR    { $$ = xxcond($2); }
+  | LPAR; e = expr; RPAR    { lift1 xxcond e }
 
 ifcond:
-  | LPAR expr RPAR  { $$ = xxifcond($2); }
+  | LPAR; e = expr; RPAR    { lift1 xxcond e }
 
 forcond:
-  | LPAR SYMBOL IN expr RPAR   { $$ = xxforcond($2,$4); setId( $$, @$); }
+  | LPAR; s = SYMBOL; IN; e = expr; RPAR   { lift2 xxforcond s e }
 
 exprlist:
   |                                   { $$ = xxexprlist0(); setId( $$, @$); }

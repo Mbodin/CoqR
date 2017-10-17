@@ -529,20 +529,70 @@ Definition lcons S car cdr :=
   map%pointer e with set_type LangSxp using S in
   result_success S e.
 
+Definition list1 S s :=
+  CONS S s R_NilValue.
 
-(** ** gram.y **)
+Definition list2 S s t :=
+  let (S, l) := list1 S t in
+  CONS S s l.
+
+Definition list3 S s t u :=
+  let (S, l) := list2 S t u in
+  CONS S s l.
+
+Definition list4 S s t u v :=
+  let (S, l) := list3 S t u v in
+  CONS S s l.
+
+Definition list5 S s t u v w :=
+  let (S, l) := list4 S t u v w in
+  CONS S s l.
+
+Definition list6 S s t u v w x :=
+  let (S, l) := list5 S t u v w x in
+  CONS S s l.
+
+Definition lang1 S s :=
+  lcons S s R_NilValue.
+
+Definition lang2 S s t :=
+  let (S, l) := list1 S t in
+  lcons S s l.
+
+Definition lang3 S s t u :=
+  let (S, l) := list2 S t u in
+  lcons S s l.
+
+Definition lang4 S s t u v :=
+  let (S, l) := list3 S t u v in
+  lcons S s l.
+
+Definition lang5 S s t u v w :=
+  let (S, l) := list4 S t u v w in
+  lcons S s l.
+
+Definition lang6 S s t u v w x :=
+  let (S, l) := list5 S t u v w x in
+  lcons S s l.
+
+
+(** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/gram.y. **)
+ * in the file main/envir.c. The most important functions of envir.c
+ * are shown in a later section. **)
 
-Definition mkTrue S :=
-  alloc_vector_lgl S [1 : int].
+(** The function [mkChar] from the R source code performs a lot of things.
+ * It deals with encoding, for embedded zero-characters, as well as avoid
+ * allocated twice the same string, by looking through the already
+ * allocated strings. We do none of the above. **)
+(* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
+Definition mkChar S (str : string) : state * SExpRec_pointer :=
+  alloc_vector_char S (string_to_list str).
 
-Definition mkFalse S :=
-  alloc_vector_lgl S [0 : int].
-
-Definition mkNA S :=
-  alloc_vector_lgl S [NA_LOGICAL : int].
+Definition mkString S (str : string) : state * SExpRec_pointer :=
+  let (S, c) := mkChar S str in
+  alloc_vector_str S [c].
 
 
 (** ** dstruct.c **)
@@ -567,6 +617,152 @@ Definition mkSYMSXP S (name value : SExpRec_pointer) :=
   map%gp c with fun gp =>
     NBits.write_nbit 0 gp ltac:(NBits.nbits_ok) i using S in
   result_success S c.
+
+
+(** ** names.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/names.c. **)
+
+Definition mkSymMarker S pname :=
+  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
+  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
+  result_success S ans.
+
+Definition install S name : result SExpRec_pointer :=
+  (** As said in the description of [InitNames] in Rinit.v,
+    * the hash table present in [R_SymbolTable] has not been
+    * formalised as such.
+    * Instead, it is represented as a single list, and not
+    * as [HSIZE] different lists.
+    * This approach is slower, but equivalent. **)
+  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
+    match ret with
+    | Some v =>
+      result_success S ret
+    | None =>
+      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
+      let%success str_name_ := CHAR S str_sym using S in
+      ifb name = str_name_ then
+        result_success S (Some R_SymbolTable_car)
+      else result_success S None
+    end
+    using S in
+  match ret with
+  | Some v => result_success S v
+  | None =>
+    ifb name = ""%string then
+      result_error S "[install] Attempt to use zero-length variable name."
+    else
+      let (S, str) := mkChar S name in
+      let%success sym := mkSYMSXP S str R_UnboundValue using S in
+      let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
+      let S := update_R_SymbolTable S SymbolTable in
+      result_success S sym
+  end.
+
+(** We here choose to model [installChar] as its specifation
+  * given by the associated comment in the C source file. **)
+Definition installChar S charSXP :=
+  let%success str := CHAR S charSXP using S in
+  install S str.
+
+
+(** ** sysutils.c **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/sysutils.c. **)
+
+Definition installTrChar S x :=
+  read%defined x_ := x using S in
+  ifb type x_ <> CharSxp then
+    result_error S "[installTrChar] Must be called on a [CharSxp]."
+  else
+    (** The original C program deals with encoding here. **)
+    installChar S x.
+
+
+(** ** gram.y **)
+
+(** The function names of this section corresponds to the function names
+ * in the file main/gram.y. **)
+
+Definition mkTrue S :=
+  alloc_vector_lgl S [1 : int].
+
+Definition mkFalse S :=
+  alloc_vector_lgl S [0 : int].
+
+Definition mkNA S :=
+  alloc_vector_lgl S [NA_LOGICAL : int].
+
+Definition xxunary S op arg :=
+  lang2 S op arg.
+
+Definition xxbinary S n1 n2 n3 :=
+  lang3 S n1 n2 n3.
+
+Definition xxparen S n1 n2 :=
+  lang2 S n1 n2.
+
+Definition xxdefun S fname formals body :=
+  read%list _, formals_list := formals using S in
+  let srcref := R_NilValue : SExpRec_pointer in
+  lang4 S fname (list_cdrval formals_list) body srcref.
+
+Definition xxexprlist S a1 a2 :=
+  map%pointer a2 with set_type LangSxp using S in
+  set%car a2 := a1 using S in
+  result_success S a2.
+
+Definition xxfuncall S expr args :=
+  let%success expr :=
+    read%defined expr_ := expr using S in
+    ifb type expr_ = StrSxp then
+      let%success expr_ := STRING_ELT S expr 0 using S in
+      installTrChar S expr_
+    else result_success S expr using S in
+  read%list _, args_list := args using S in
+  let args_cdr := list_cdrval args_list in
+  read%list _, args_cdr_list := args_cdr using S in
+  let%success args_len := R_length S args_cdr using S in
+  ifb args_len = 1 /\ list_carval args_cdr_list = R_MissingArg /\ list_tagval args_cdr_list = R_NilValue then
+    lang1 S expr
+  else
+    lcons S expr args_cdr.
+
+Definition xxcond S expr : result SExpRec_pointer :=
+  result_success S expr.
+
+Definition xxifcond S expr : result SExpRec_pointer :=
+  result_success S expr.
+
+Definition xxif S ifsym cond expr :=
+  lang3 S ifsym cond expr.
+
+Definition xxifelse S ifsym cond ifexpr elseexpr :=
+  lang4 S ifsym cond ifexpr elseexpr.
+
+Definition xxforcond S sym expr :=
+  lcons S sym expr.
+
+Definition xxfor S forsym forcond body :=
+  read%list _, forcond_list := forcond using S in
+  lang4 S forsym (list_carval forcond_list) (list_cdrval forcond_list) body.
+
+Definition xxwhile S whilesym cond body :=
+  lang3 S whilesym cond body.
+
+Definition xxrepeat S repeatsym body :=
+  lang2 S repeatsym body.
+
+Definition xxnxtbrk S keyword :=
+  lang1 S keyword.
+
+Definition xxsubscript S a1 a2 a3 :=
+  read%list _, a3_list := a3 using S in
+  let (S, l) := CONS S a1 (list_cdrval a3_list) in
+  lcons S a2 l.
 
 
 (** ** context.c **)
@@ -633,7 +829,8 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
     | CharSxp =>
       CHAR S str
     | StrSxp =>
-      result_not_implemented "[pmatch] translateChar(STRING_ELT(str, 0))"
+      let%success str_ := STRING_ELT S str 0 using S in
+      result_not_implemented "[pmatch] translateChar(str_)" (* TODO *)
     | _ =>
       result_error S "[pmatch] invalid partial string match."
     end in
@@ -819,19 +1016,7 @@ Definition matchArgs S
 (** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file main/envir.c. **)
-
-(** The function [mkChar] from the R source code performs a lot of things.
- * It deals with encoding, for embedded zero-characters, as well as avoid
- * allocated twice the same string, by looking through the already
- * allocated strings. We do none of the above. **)
-(* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
-Definition mkChar S (str : string) : state * SExpRec_pointer :=
-  alloc_vector_char S (string_to_list str).
-
-Definition mkString S (str : string) : state * SExpRec_pointer :=
-  let (S, c) := mkChar S str in
-  alloc_vector_str S [c].
+ * in the file main/envir.c. **)
 
 Definition IS_SPECIAL_SYMBOL S symbol :=
   read%defined symbol_ := symbol using S in
@@ -1031,73 +1216,10 @@ Definition setVar S (symbol value rho : SExpRec_pointer) :=
   defineVar S symbol value R_GlobalEnv.
 
 
-(** ** names.c **)
-
-(** The function names of this section corresponds to the function names
-* in the file main/names.c. **)
-
-Definition mkSymMarker S pname :=
-  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
-  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
-  result_success S ans.
-
-Definition install S name : result SExpRec_pointer :=
-  (** As said in the description of [InitNames] in Rinit.v,
-    * the hash table present in [R_SymbolTable] has not been
-    * formalised as such.
-    * Instead, it is represented as a single list, and not
-    * as [HSIZE] different lists.
-    * This approach is slower, but equivalent. **)
-  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
-    match ret with
-    | Some v =>
-      result_success S ret
-    | None =>
-      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
-      let%success str_name_ := CHAR S str_sym using S in
-      ifb name = str_name_ then
-        result_success S (Some R_SymbolTable_car)
-      else result_success S None
-    end
-    using S in
-  match ret with
-  | Some v => result_success S v
-  | None =>
-    ifb name = ""%string then
-      result_error S "[install] Attempt to use zero-length variable name."
-    else
-      let (S, str) := mkChar S name in
-      let%success sym := mkSYMSXP S str R_UnboundValue using S in
-      let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
-      let S := update_R_SymbolTable S SymbolTable in
-      result_success S sym
-  end.
-
-(** We here choose to model [installChar] as its specifation
-  * given by the associated comment in the C source file. **)
-Definition installChar S charSXP :=
-  let%success str := CHAR S charSXP using S in
-  install S str.
-
-
-(** ** sysutils.c **)
-
-(** The function names of this section corresponds to the function names
-* in the file main/sysutils.c. **)
-
-Definition installTrChar S x :=
-  read%defined x_ := x using S in
-  ifb type x_ <> CharSxp then
-    result_error S "[installTrChar] Must be called on a [CharSxp]."
-  else
-    (** The original C program deals with encoding here. **)
-    installChar S x.
-
-
 (** ** attrib.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file main/attrib.c. **)
+ * in the file main/attrib.c. **)
 
 Definition getAttrib0 (S : state) (vec name : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[getAttrib0] TODO".
@@ -1141,7 +1263,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
 (** ** eval.c **)
 
 (** The function names of this section corresponds to the function names
-* in the file main/eval.c. **)
+ * in the file main/eval.c. **)
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
