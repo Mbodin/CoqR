@@ -829,6 +829,10 @@ Definition matchArgs S
 Definition mkChar S (str : string) : state * SExpRec_pointer :=
   alloc_vector_char S (string_to_list str).
 
+Definition mkString S (str : string) : state * SExpRec_pointer :=
+  let (S, c) := mkChar S str in
+  alloc_vector_str S [c].
+
 Definition IS_SPECIAL_SYMBOL S symbol :=
   read%defined symbol_ := symbol using S in
   result_success S (NBits.nth_bit 12 (gp symbol_) ltac:(NBits.nbits_ok)).

@@ -32,8 +32,8 @@ let hexadecimal =
   ("0x" | "0X") hexadecimal_digit*
   (('.' hexadecimal_digit*)? ['p' 'P'] sign? digit+)?
 let reg_numeric = (floating_point | hexadecimal)
-let reg_integer = reg_numeric 'L'
-let reg_imaginary = reg_numeric 'i'
+let reg_integer = (reg_numeric as value) 'L'
+let reg_imaginary = (reg_numeric as value) 'i'
 
 (** *** String Constants **)
 let escape_sequence =
@@ -64,7 +64,7 @@ let reserved_keywords =
 
 (** *** Special Operators **)
 let reg_special_operator =
-  '%' ([^ '%']* as name) '%'
+  '%' [^ '%']* '%'
 
 let operator_arithmetic =
   "+" | "-" | "*" | '/' | "%%" | "^"
@@ -92,7 +92,7 @@ let space = ' ' | '\t' | '\x0c' (** Form feed **) | '\xa0' (** Replacement chara
 rule lex = parse
 
   (** ** Special Symbols **)
-  | "NULL"              { NULL_CONST }
+  | "NULL"              { NULL_CONST (wrap_no_runs (fun g -> g (GlobalVariable_2 (R_NilValue)))) }
   | "NA"                { NUM_CONST (wrap_no_runs mkNA) }
   | "TRUE"              { NUM_CONST (wrap_no_runs mkTrue) }
   | "FALSE"             { NUM_CONST (wrap_no_runs mkFalse) }
@@ -112,6 +112,13 @@ rule lex = parse
   | "next"              { NEXT (install_and_save "next") }
   | "break"             { BREAK (install_and_save "break") }
   | "..."               { SYMBOL (install_and_save "...") }
+
+  (** ** Special Values **)
+  | reg_special_operator as name    { SPECIAL (string_to_char_list name) }
+  | reg_string as str               { STR_CONST (wrap_only_state (fun s -> mkString s (string_to_char_list str))) }
+  | reg_integer                     { NUM_CONST (mkInt value) }
+  | reg_numeric as value            { NUM_CONST (mkFloat value) }
+  | reg_imaginary                   { NUM_CONST (mkComplex value) }
 
   (** ** Operators **)
   | "?"         { QUESTION_MARK (install_and_save "?") }
@@ -142,13 +149,6 @@ rule lex = parse
   | "::"        { NS_GET (install_and_save "::") }
   | ":"         { COLON (install_and_save ":") }
 
-  (** ** Special Values **)
-  | reg_special_operator    { SPECIAL name }
-  | reg_string              { STR_CONST }
-  | reg_numeric             { NUM_CONST }
-  | reg_integer             { NUM_CONST }
-  | reg_imaginary           { NUM_CONST }
-
   (** ** Parentheses **)
   | '('     { LPAR (install_and_save "(") }
   | ')'     { RPAR }
@@ -159,6 +159,8 @@ rule lex = parse
   | ']'     { RSQBRACKET }
 
   (** ** Miscellaneous **)
+  | ';'                     { SEMICOLON }
+  | ','                     { COMMA }
   | ('#' [^ '\n']*)? '\n'   { NEW_LINE }
   | space+                  { lex lexbuf }
   | _                       { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
