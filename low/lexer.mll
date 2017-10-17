@@ -2,6 +2,7 @@
     (** This file mainly translates the functions [token] and [yylex] from File gram.y. **)
 
     open Low
+    open ParserUtils
     open Parser
 
     exception SyntaxError of string

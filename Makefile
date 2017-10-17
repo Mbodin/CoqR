@@ -3,7 +3,8 @@ OCAMLFILES= \
 	low/runR.ml \
 	low/print.ml \
 	low/lexer.mll \
-	low/parser.mly
+	low/parser.mly \
+	low/parserUtils.ml
 
 %: Makefile.coq phony
 	+make -f Makefile.coq $@

@@ -1,3 +1,5 @@
+(** Print
+ * Contains various functions for printing values from Low. **)
 
 open Low
 

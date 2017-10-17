@@ -1,3 +1,5 @@
+(** RunR
+ * Main file. It runs the interactive Coq R interpreter. **)
 
 let interactive = ref true
 let readable_pointers = ref true
