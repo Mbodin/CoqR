@@ -174,22 +174,22 @@ sublist:
   | sl = sublist; cr; COMMA; s = sub    { lift2 xxsublist2 sl s }
 
 sub:
-  |                            { $$ = xxsub0(); }
-  | expr                       { $$ = xxsub1($1, &@1); }
-  | SYMBOL EQ_ASSIGN           { $$ = xxsymsub0($1, &@1); modif_token( &@2, EQ_SUB ) ; modif_token( &@1, SYMBOL_SUB ) ; }
-  | SYMBOL EQ_ASSIGN expr      { $$ = xxsymsub1($1,$3, &@1); modif_token( &@2, EQ_SUB ) ; modif_token( &@1, SYMBOL_SUB ) ; }
-  | STR_CONST EQ_ASSIGN        { $$ = xxsymsub0($1, &@1); modif_token( &@2, EQ_SUB ) ; }
-  | STR_CONST EQ_ASSIGN expr   { $$ = xxsymsub1($1,$3, &@1); modif_token( &@2, EQ_SUB ) ; }
-  | NULL_CONST EQ_ASSIGN       { $$ = xxnullsub0(&@1); modif_token( &@2, EQ_SUB ) ; }
-  | NULL_CONST EQ_ASSIGN expr  { $$ = xxnullsub1($3, &@1); modif_token( &@2, EQ_SUB ) ; }
+  |                                         { wrap_no_runs xxsub0 }
+  | e = expr                                { lift1 xxsub1 e }
+  | s = SYMBOL; EQ_ASSIGN                   { lift1 xxsymsub0 s }
+  | s = SYMBOL; EQ_ASSIGN; e = expr         { lift2 xxsymsub1 s e }
+  | str = STR_CONST; EQ_ASSIGN              { lift1 xxsymsub0 str }
+  | str = STR_CONST; EQ_ASSIGN; e = expr    { lift2 xxsymsub1 str e }
+  | NULL_CONST EQ_ASSIGN                    { wrap_no_runs xxnullsub0 }
+  | NULL_CONST; EQ_ASSIGN; e = expr         { lift1 xxnullsub1 e }
 
 formlist:
-  |                           { $$ = xxnullformal(); }
-  | SYMBOL                    { $$ = xxfirstformal0($1); modif_token( &@1, SYMBOL_FORMALS ) ; }
-  | SYMBOL EQ_ASSIGN expr     { $$ = xxfirstformal1($1,$3); modif_token( &@1, SYMBOL_FORMALS ) ; modif_token( &@2, EQ_FORMALS ) ; }
-  | formlist COMMA SYMBOL     { $$ = xxaddformal0($1,$3, &@3); modif_token( &@3, SYMBOL_FORMALS ) ; }
-  | formlist COMMA SYMBOL EQ_ASSIGN expr
-                              { $$ = xxaddformal1($1,$3,$5,&@3); modif_token( &@3, SYMBOL_FORMALS ) ; modif_token( &@4, EQ_FORMALS ) ;}
+  |                                 { wrap_no_runs xxnullformal }
+  | s = SYMBOL                      { lift1 xxfirstformal0 s }
+  | s = SYMBOL; EQ_ASSIGN; e = expr { lift2 xxfirstformal1 s e }
+  | l = formlist; COMMA; s = SYMBOL { lift2 xxaddformal0 l s }
+  | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; e = expr
+                                    { lift3 xxaddformal1 l s e }
 
 cr:
   |     { EatLines = 1; }

@@ -708,6 +708,45 @@ Definition GrowList S l s :=
   set%car l := tmp using S in
   result_success S l.
 
+Definition TagArg S arg tag :=
+  let%defined tag_ := tag using S in
+  let cont S := lang2 S arg tag in
+  match type tag_ with
+  | StrSxp =>
+    let%success tag_ := STRING_ELT S tag 0 using S in
+    let%success _ := installTrChar S tag_ using S in
+    cont S
+  | NilSxp
+  | SymSxp =>
+    cont S
+  | _ =>
+    result_error S "[TagArg] Incorrect tag type."
+  end.
+
+Definition FirstArg S s tag :=
+  let%success tmp := NewList S using S in
+  let%success tmp := GrowList S tmp s using S in
+  read%list _, tmp_list := tmp using S in
+  set%tag list_carval tmp := tag using S in
+  result_success S tmp.
+
+Definition NextArg S l s tag :=
+  let%success l := GrowList S l s using S in
+  read%list _, l_list := l using S in
+  set%tag list_carval l := tag using S in
+  result_success S l.
+
+Definition CheckFormalArgs S formlist new :=
+  fold%success along formlist as _, formlist_tag do
+    ifb formlist_tag = new then
+      result_error S "[CheckFormalArgs] Repeated formal argument."
+    else result_success S tt using S in
+  result_success S tt.
+
+
+(** The following functions create R expressions.
+ * They are only used in the parser. **)
+
 Definition xxunary S op arg :=
   lang2 S op arg.
 
@@ -785,6 +824,43 @@ Definition xxsubscript S a1 a2 a3 :=
   read%list _, a3_list := a3 using S in
   let (S, l) := CONS S a1 (list_cdrval a3_list) in
   lcons S a2 l.
+
+Definition xxsub0 S :=
+  lang2 S R_MissingArg R_NilValue.
+
+Definition xxsub1 S expr :=
+  TagArg S expr R_NilValue.
+
+Definition xxsymsub0 S sym :=
+  TagArg S R_MissingArg sym.
+
+Definition xxsymsub1 S sym expr :=
+  TagArg S expr sym.
+
+Definition xxnullsub0 S :=
+  let%success ans := install S "NULL" using S in
+  TagArg S R_MissingArg ans.
+
+Definition xxnullsub1 S expr :=
+  let%success ans := install S "NULL" using S in
+  TagArg S expr ans.
+
+Definition xxnullformal S :=
+  R_NilValue.
+
+Definition xxfirstformal0 S sym :=
+  FirstArg S R_MissingArg sym.
+
+Definition xxfirstformal1 S sym expr :=
+  FirstArg S expr sym.
+
+Definition xxaddformal0 S formlist sym :=
+  let%success _ := CheckFormalArgs S formlist sym using S in
+  NextArg S formlist R_MissingArg sym.
+
+Definition xxaddformal1 S formlist sym expr :=
+  let%success _ := CheckFormalArgs S formlist sym using S in
+  NextArg S formlist expr sym.
 
 
 (** ** context.c **)
@@ -1021,7 +1097,7 @@ Definition matchArgs S
   fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0) along formals as _, _ do
     let (S, actuals) := CONS S R_MissingArg actuals in
     result_success S (actuals, 1 + argi) using S in
-  fold%success _ := tt along supplied as b, _ do
+  fold%success along supplied as b, _ do
     map%pointer b with set_argused 0 ltac:(NBits.nbits_ok) using S in
     result_success S tt using S in
   let%success fargused := matchArgs_first S formals actuals supplied using S in
@@ -1079,7 +1155,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
           NonVector_SExpRec_data := env_env
         |} in
       write%defined env := env_ using S in
-      fold%let _ := tt along list_cdrval addVars_list as _, end_, end_list do
+      fold%let along list_cdrval addVars_list as _, end_, end_list do
         let end_tag := list_tagval end_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
         while result_success S (decide (s <> env)) do
