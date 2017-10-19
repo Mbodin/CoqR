@@ -68,6 +68,10 @@ Notation "'do%let' a ':=' e 'while' expr 'do' stat 'using' S" :=
   (do_while S e (fun S a => expr) (fun S a => stat))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'do%let' 'while' expr 'do' stat 'using' S" :=
+  (do%let _ := tt while expr do stat using S)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'while' expr 'do' stat 'using' S" :=
   (do%let x := a
    while let (a1, a2) := x in expr
@@ -94,6 +98,14 @@ Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' expr 'd
    while let '(a1, a2, a3, a4, a5) := x in expr
    do let '(a1, a2, a3, a4, a5) := x in stat
    using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' 'while' expr 'do' stat 'using' S 'in' cont" :=
+  (let%success _ :=
+     do%let while expr
+     do stat
+     using S using S in
+   cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%success' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
@@ -161,6 +173,12 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate '
   (fold_left_listSxp_gen S le e (fun S a l l_ l_list => iterate))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
+  (fold%let _ := tt along le as l, l_, l_list
+   do iterate
+   using S)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
   (fold%let x := e along le as l, l_, l_list
    do let (a1, a2) := x in iterate
@@ -187,11 +205,11 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'a
 
 Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success _ :=
-     fold%let _ := tt along le as l, l_, l_list
+     fold%let along le as l, l_, l_list
      do iterate
      using S using S in
    cont)
-  (at level 50, left associativity) : monad_scope.
+    (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success a :=
@@ -709,7 +727,7 @@ Definition GrowList S l s :=
   result_success S l.
 
 Definition TagArg S arg tag :=
-  let%defined tag_ := tag using S in
+  read%defined tag_ := tag using S in
   let cont S := lang2 S arg tag in
   match type tag_ with
   | StrSxp =>
@@ -727,13 +745,13 @@ Definition FirstArg S s tag :=
   let%success tmp := NewList S using S in
   let%success tmp := GrowList S tmp s using S in
   read%list _, tmp_list := tmp using S in
-  set%tag list_carval tmp := tag using S in
+  set%tag list_carval tmp_list := tag using S in
   result_success S tmp.
 
 Definition NextArg S l s tag :=
   let%success l := GrowList S l s using S in
   read%list _, l_list := l using S in
-  set%tag list_carval l := tag using S in
+  set%tag list_carval l_list := tag using S in
   result_success S l.
 
 Definition CheckFormalArgs S formlist new :=
@@ -845,7 +863,7 @@ Definition xxnullsub1 S expr :=
   let%success ans := install S "NULL" using S in
   TagArg S expr ans.
 
-Definition xxnullformal S :=
+Definition xxnullformal (S : state) :=
   R_NilValue.
 
 Definition xxfirstformal0 S sym :=
