@@ -80,7 +80,7 @@ expr_or_assign:
   | e = equal_assign { e }
 
 equal_assign:
-  | e = expr; eq = EQ_ASSIGN; a = expr_or_assign { lift3 xxbinary eq e a }
+  | e = expr; eq = EQ_ASSIGN; cr; a = expr_or_assign { lift3 xxbinary eq e a }
 
 expr:
   | c = NUM_CONST                                { c }
@@ -88,50 +88,50 @@ expr:
   | c = NULL_CONST                               { c }
   | c = SYMBOL                                   { c }
 
-  | b = LBRACE; e = exprlist; RBRACE             { lift2 xxexprlist b e }
+  | b = LBRACE; cr; e = exprlist; RBRACE         { lift2 xxexprlist b e }
   | p = LPAR; e = expr_or_assign; RPAR           { lift2 xxparen p e }
 
-  | s = MINUS; e = expr %prec UMINUS             { lift2 xxunary s e }
-  | s = PLUS; e = expr %prec UMINUS              { lift2 xxunary s e }
+  | s = MINUS; cr; e = expr %prec UMINUS         { lift2 xxunary s e }
+  | s = PLUS; cr; e = expr %prec UMINUS          { lift2 xxunary s e }
   | s = NOT; e = expr %prec UNOT                 { lift2 xxunary s e }
   | s = TILDE; e = expr %prec TILDE              { lift2 xxunary s e }
-  | s = QUESTION_MARK; e = expr                  { lift2 xxunary s e }
+  | s = QUESTION_MARK; cr; e = expr              { lift2 xxunary s e }
 
   | e1 = expr; op = COLON; e2 = expr             { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = PLUS; e2 = expr              { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = MINUS; e2 = expr             { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = TIMES; e2 = expr             { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = DIV; e2 = expr               { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = EXP; e2 = expr               { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = SPECIAL; e2 = expr           { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = PLUS; cr; e2 = expr          { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = MINUS; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = TIMES; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = DIV; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = EXP; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = SPECIAL; cr; e2 = expr       { lift3 xxbinary op e1 e2 }
   (** The lexeme '%' seems not to be produced by R’s tokenizer: the following
    * (commented out) line seems to be dead code. **)
   (*| e1 = expr; op = '%'; e2 = expr             { lift3 xxbinary op e1 e2 }*)
   | e1 = expr; op = TILDE; e2 = expr             { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = QUESTION_MARK; e2 = expr     { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = LT; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = LE; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = EQ; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = NE; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = GE; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = GT; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = AND; e2 = expr               { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = OR; e2 = expr                { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = AND2; e2 = expr              { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = OR2; e2 = expr               { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = QUESTION_MARK; cr; e2 = expr { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = LT; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = LE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = EQ; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = NE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = GE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = GT; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = AND; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = OR; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = AND2; cr; e2 = expr          { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = OR2; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
 
-  | e1 = expr; op = LEFT_ASSIGN; e2 = expr       { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = RIGHT_ASSIGN; e2 = expr      { lift3 xxbinary op e2 e1 }
-  | fname = FUNCTION; LPAR; formals = formlist; RPAR; cr; body = expr_or_assign %prec LOW
+  | e1 = expr; op = LEFT_ASSIGN; cr; e2 = expr   { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = RIGHT_ASSIGN; cr; e2 = expr  { lift3 xxbinary op e2 e1 }
+  | fname = FUNCTION; cr; LPAR; formals = formlist; RPAR; cr; body = expr_or_assign %prec LOW
                                                  { lift3 xxdefun fname formals body }
   | e = expr; LPAR; l = sublist; RPAR            { lift2 xxfuncall e l }
-  | i = IF; c = ifcond; e = expr_or_assign       { lift3 xxif i c e }
-  | i = IF; c = ifcond; e1 = expr_or_assign; ELSE; e2 = expr_or_assign
+  | i = IF; cr; c = ifcond; e = expr_or_assign   { lift3 xxif i c e }
+  | i = IF; cr; c = ifcond; e1 = expr_or_assign; ELSE; cr; e2 = expr_or_assign
                                                  { lift4 xxifelse i c e1 e2 }
-  | f = FOR; c = forcond; e = expr_or_assign %prec FOR
+  | f = FOR; cr; c = forcond; e = expr_or_assign %prec FOR
                                                  { lift3 xxfor f x e }
-  | w = WHILE; c = cond; e = expr_or_assign      { lift3 xxwhile w c e }
-  | r = REPEAT; e = expr_or_assign               { lift2 xxrepeat r e }
+  | w = WHILE; cr; c = cond; e = expr_or_assign  { lift3 xxwhile w c e }
+  | r = REPEAT; cr; e = expr_or_assign           { lift2 xxrepeat r e }
   | e = expr; s = LBB; l = sublist; RSQBRACKET; RSQBRACKET
                                                  { lift3 xxsubscript e s l }
   | e = expr; s = LSQBRACKET; l = sublist; RSQBRACKET
@@ -153,13 +153,13 @@ expr:
   | k = BREAK                                    { lift1 xxnxtbrk k }
 
 cond:
-  | LPAR; e = expr; RPAR    { lift1 xxcond e }
+  | LPAR; e = expr; RPAR; cr    { lift1 xxcond e }
 
 ifcond:
-  | LPAR; e = expr; RPAR    { lift1 xxcond e }
+  | LPAR; e = expr; RPAR; cr    { lift1 xxifcond e }
 
 forcond:
-  | LPAR; s = SYMBOL; IN; e = expr; RPAR   { lift2 xxforcond s e }
+  | LPAR; s = SYMBOL; IN; cr; e = expr; RPAR; cr   { lift2 xxforcond s e }
 
 exprlist:
   |                                             { wrap_only_state xxexprlist0 }
@@ -174,25 +174,26 @@ sublist:
   | sl = sublist; cr; COMMA; s = sub    { lift2 xxsublist2 sl s }
 
 sub:
-  |                                         { wrap_no_runs xxsub0 }
-  | e = expr                                { lift1 xxsub1 e }
-  | s = SYMBOL; EQ_ASSIGN                   { lift1 xxsymsub0 s }
-  | s = SYMBOL; EQ_ASSIGN; e = expr         { lift2 xxsymsub1 s e }
-  | str = STR_CONST; EQ_ASSIGN              { lift1 xxsymsub0 str }
-  | str = STR_CONST; EQ_ASSIGN; e = expr    { lift2 xxsymsub1 str e }
-  | NULL_CONST EQ_ASSIGN                    { wrap_no_runs xxnullsub0 }
-  | NULL_CONST; EQ_ASSIGN; e = expr         { lift1 xxnullsub1 e }
+  |                                             { wrap_no_runs xxsub0 }
+  | e = expr                                    { lift1 xxsub1 e }
+  | s = SYMBOL; EQ_ASSIGN; cr                   { lift1 xxsymsub0 s }
+  | s = SYMBOL; EQ_ASSIGN; cr; e = expr         { lift2 xxsymsub1 s e }
+  | str = STR_CONST; EQ_ASSIGN; cr              { lift1 xxsymsub0 str }
+  | str = STR_CONST; EQ_ASSIGN; cr; e = expr    { lift2 xxsymsub1 str e }
+  | NULL_CONST EQ_ASSIGN; cr                    { wrap_no_runs xxnullsub0 }
+  | NULL_CONST; EQ_ASSIGN; cr; e = expr         { lift1 xxnullsub1 e }
 
 formlist:
-  |                                 { wrap_no_runs xxnullformal }
-  | s = SYMBOL                      { lift1 xxfirstformal0 s }
-  | s = SYMBOL; EQ_ASSIGN; e = expr { lift2 xxfirstformal1 s e }
-  | l = formlist; COMMA; s = SYMBOL { lift2 xxaddformal0 l s }
-  | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; e = expr
+  |                                     { wrap_no_runs xxnullformal }
+  | s = SYMBOL                          { lift1 xxfirstformal0 s }
+  | s = SYMBOL; EQ_ASSIGN; cr; e = expr { lift2 xxfirstformal1 s e }
+  | l = formlist; COMMA; s = SYMBOL     { lift2 xxaddformal0 l s }
+  | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; cr; e = expr
                                     { lift3 xxaddformal1 l s e }
 
 cr:
-  |     { EatLines = 1; }
+  | NEW_LINE cr { }
+  |             { }
 
 %%
 
