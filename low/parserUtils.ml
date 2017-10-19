@@ -3,15 +3,17 @@
 
 open Low
 
+type 'a monad_type = globals -> runs_type -> state -> 'a
+
 (** The main type carried in the parser. **)
-type token_type = globals -> runs_type -> state -> sExpRec_pointer result
+type token_type = sExpRec_pointer result monad_type
 
 
 (** * Wrappers **)
 
-let wrap_no_globals f : token_type = fun _ -> f
-let wrap_no_runs f : token_type = fun g _ -> f g
-let wrap_only_state f : token_type = fun _ _ -> f
+let no_globals (f : runs_type -> state -> 'a) : 'a monad_type = fun _ -> f
+let no_runs (f : globals -> state -> 'a) : 'a monad_type = fun g _ -> f g
+let only_state (f : state -> 'a) : 'a monad_type = fun _ _ -> f
 
 (** This function is inspired from the [install_and_save] function
   * of the original interpreter. It takes into advantage the fact
@@ -19,44 +21,44 @@ let wrap_only_state f : token_type = fun _ _ -> f
   * than the install function. It here serves as a wrapper, to
   * change the order of the arguments of [install]. **)
 let install_and_save str : token_type = fun g r s ->
-  install g r s (string_to_char_list str)
+  install g r s (Print.string_to_char_list str)
 
-let null : token_type = fun _ _ _ -> nULL
+let null : token_type = fun _ _ s -> Result_success (s, nULL)
 
 
 (** * Composing Functions **)
 
-let bind (comp : token_type) cont g r s =
-  if_success (comp g r s) (fun s res -> cont res g r s)
+let bind (comp : token_type) (cont : (sExpRec_pointer -> 'a result) monad_type) : 'a result monad_type =
+  fun g r s -> if_success (comp g r s) (cont g r)
 
-let seq (comp : token_type) cont =
-  bind comp (fun _ -> cont)
+let shift (f : 'a -> 'b monad_type) : ('a -> 'b) monad_type =
+  fun g r s x -> f x g r s
 
 (** Compose a [token_type] function to a simple function which
  * only cares about its return value. **)
-let lift1 f (comp : token_type) : token_type =
-  bind comp (wrap_only_state f)
-let lift2 f (comp1 comp2 : token_type) : token_type =
-  bind comp1 (wrap_only_state (fun s res1 ->
-    bind comp2 (wrap_only_state (fun s res2 ->
+let lift1 f comp : token_type =
+  bind comp (only_state f)
+let lift2 f comp1 comp2 : token_type =
+  bind comp1 (shift (fun res1 ->
+    bind comp2 (only_state (fun s res2 ->
       f s res1 res2))))
-let lift3 f (comp1 comp2 comp3 : token_type) : token_type =
-  bind comp1 (wrap_only_state (fun s res1 ->
-    bind comp2 (wrap_only_state (fun s res2 ->
-      bind comp3 (wrap_only_state (fun s res3 ->
+let lift3 f comp1 comp2 comp3 : token_type =
+  bind comp1 (shift (fun res1 ->
+    bind comp2 (shift (fun res2 ->
+      bind comp3 (only_state (fun s res3 ->
         f s res1 res2 res3))))))
-let lift4 f (comp1 comp2 comp3 comp4 : token_type) : token_type =
-  bind comp1 (wrap_only_state (fun s res1 ->
-    bind comp2 (wrap_only_state (fun s res2 ->
-      bind comp3 (wrap_only_state (fun s res3 ->
-        bind comp4 (wrap_only_state (fun s res4 ->
+let lift4 f comp1 comp2 comp3 comp4 : token_type =
+  bind comp1 (shift (fun res1 ->
+    bind comp2 (shift (fun res2 ->
+      bind comp3 (shift (fun res3 ->
+        bind comp4 (only_state (fun s res4 ->
           f s res1 res2 res3 res4))))))))
-let lift5 f (comp1 comp2 comp3 comp4 comp5 : token_type) : token_type =
-  bind comp1 (wrap_only_state (fun s res1 ->
-    bind comp2 (wrap_only_state (fun s res2 ->
-      bind comp3 (wrap_only_state (fun s res3 ->
-        bind comp4 (wrap_only_state (fun s res4 ->
-          bind comp5 (wrap_only_state (fun s res5 ->
+let lift5 f comp1 comp2 comp3 comp4 comp5 : token_type =
+  bind comp1 (shift (fun res1 ->
+    bind comp2 (shift (fun res2 ->
+      bind comp3 (shift (fun res3 ->
+        bind comp4 (shift (fun res4 ->
+          bind comp5 (only_state (fun s res5 ->
             f s res1 res2 res3 res4 res5))))))))))
 
 

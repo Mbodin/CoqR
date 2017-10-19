@@ -4,8 +4,6 @@
     open ParserUtils
 %}
 
-%token-table
-
 (** * Token Declaration **)
 
 (** Some tokens have been commented out, as they only help report errors. **)
@@ -34,7 +32,7 @@
 
 %token<ParserUtils.token_type>      LBRACE LPAR LSQBRACKET
 %token                              RBRACE RPAR RSQBRACKET
-%token<ParserUtils.token_type>      QUESTION_MARK TILDE PLUS MINUS TIMES DIV COLON EXP DOLLAR AT
+%token<ParserUtils.token_type>      QUESTION_MARK TILDE PLUS MINUS TIMES DIV COLON EXP NOT DOLLAR AT
 %token<char list>                   SPECIAL
 %token                              COMMA SEMICOLON NEW_LINE
 
@@ -56,7 +54,7 @@
 %left       TIMES DIV
 %left       SPECIAL
 %left       COLON
-%left       UMINUS UPLUS
+%left       UMINUS (*UPLUS*)
 %right      EXP
 %left       DOLLAR AT
 %left       NS_GET NS_GET_INT
@@ -162,7 +160,7 @@ forcond:
   | LPAR; s = SYMBOL; IN; cr; e = expr; RPAR; cr   { lift2 xxforcond s e }
 
 exprlist:
-  |                                             { wrap_only_state xxexprlist0 }
+  |                                             { only_state xxexprlist0 }
   | e = expr_or_assign                          { lift1 xxexprlist1 e }
   | l = exprlist; SEMICOLON; e = expr_or_assign { lift2 xxexprlist2 l e }
   | l = exprlist; SEMICOLON                     { l }
@@ -174,17 +172,17 @@ sublist:
   | sl = sublist; cr; COMMA; s = sub    { lift2 xxsublist2 sl s }
 
 sub:
-  |                                             { wrap_no_runs xxsub0 }
+  |                                             { no_runs xxsub0 }
   | e = expr                                    { lift1 xxsub1 e }
   | s = SYMBOL; EQ_ASSIGN; cr                   { lift1 xxsymsub0 s }
   | s = SYMBOL; EQ_ASSIGN; cr; e = expr         { lift2 xxsymsub1 s e }
   | str = STR_CONST; EQ_ASSIGN; cr              { lift1 xxsymsub0 str }
   | str = STR_CONST; EQ_ASSIGN; cr; e = expr    { lift2 xxsymsub1 str e }
-  | NULL_CONST EQ_ASSIGN; cr                    { wrap_no_runs xxnullsub0 }
+  | NULL_CONST EQ_ASSIGN; cr                    { no_runs xxnullsub0 }
   | NULL_CONST; EQ_ASSIGN; cr; e = expr         { lift1 xxnullsub1 e }
 
 formlist:
-  |                                     { wrap_no_runs xxnullformal }
+  |                                     { no_runs xxnullformal }
   | s = SYMBOL                          { lift1 xxfirstformal0 s }
   | s = SYMBOL; EQ_ASSIGN; cr; e = expr { lift2 xxfirstformal1 s e }
   | l = formlist; COMMA; s = SYMBOL     { lift2 xxaddformal0 l s }
