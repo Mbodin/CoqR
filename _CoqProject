@@ -18,6 +18,7 @@
 ./low/Reval.v
 ./low/Rfeatures.v
 ./low/Rinit.v
+./low/Rparsing.v
 ./low/Rinvariants.v
 ./low/Relation.v
 ./low/Extraction.v

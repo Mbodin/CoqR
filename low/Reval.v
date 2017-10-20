@@ -714,6 +714,7 @@ Definition mkFalse S :=
 Definition mkNA S :=
   alloc_vector_lgl S [NA_LOGICAL : int].
 
+
 Definition NewList S :=
   let (S, s) := CONS S R_NilValue R_NilValue in
   set%car s := s using S in
@@ -760,125 +761,6 @@ Definition CheckFormalArgs S formlist new :=
       result_error S "[CheckFormalArgs] Repeated formal argument."
     else result_success S tt using S in
   result_success S tt.
-
-
-(** The following functions create R expressions.
- * They are only used in the parser. **)
-
-Definition xxunary S op arg :=
-  lang2 S op arg.
-
-Definition xxbinary S n1 n2 n3 :=
-  lang3 S n1 n2 n3.
-
-Definition xxparen S n1 n2 :=
-  lang2 S n1 n2.
-
-Definition xxdefun S fname formals body :=
-  read%list _, formals_list := formals using S in
-  let srcref := R_NilValue : SExpRec_pointer in
-  lang4 S fname (list_cdrval formals_list) body srcref.
-
-Definition xxexprlist S a1 a2 :=
-  map%pointer a2 with set_type LangSxp using S in
-  set%car a2 := a1 using S in
-  result_success S a2.
-
-Definition xxexprlist0 S :=
-  NewList S.
-
-Definition xxexprlist1 S expr :=
-  let%success tmp := NewList S using S in
-  GrowList S tmp expr.
-
-Definition xxexprlist2 S exprlist expr :=
-  GrowList S exprlist expr.
-
-Definition xxfuncall S expr args :=
-  let%success expr :=
-    read%defined expr_ := expr using S in
-    ifb type expr_ = StrSxp then
-      let%success expr_ := STRING_ELT S expr 0 using S in
-      installTrChar S expr_
-    else result_success S expr using S in
-  read%list _, args_list := args using S in
-  let args_cdr := list_cdrval args_list in
-  read%list _, args_cdr_list := args_cdr using S in
-  let%success args_len := R_length S args_cdr using S in
-  ifb args_len = 1 /\ list_carval args_cdr_list = R_MissingArg /\ list_tagval args_cdr_list = R_NilValue then
-    lang1 S expr
-  else
-    lcons S expr args_cdr.
-
-Definition xxcond S expr : result SExpRec_pointer :=
-  result_success S expr.
-
-Definition xxifcond S expr : result SExpRec_pointer :=
-  result_success S expr.
-
-Definition xxif S ifsym cond expr :=
-  lang3 S ifsym cond expr.
-
-Definition xxifelse S ifsym cond ifexpr elseexpr :=
-  lang4 S ifsym cond ifexpr elseexpr.
-
-Definition xxforcond S sym expr :=
-  lcons S sym expr.
-
-Definition xxfor S forsym forcond body :=
-  read%list _, forcond_list := forcond using S in
-  lang4 S forsym (list_carval forcond_list) (list_cdrval forcond_list) body.
-
-Definition xxwhile S whilesym cond body :=
-  lang3 S whilesym cond body.
-
-Definition xxrepeat S repeatsym body :=
-  lang2 S repeatsym body.
-
-Definition xxnxtbrk S keyword :=
-  lang1 S keyword.
-
-Definition xxsubscript S a1 a2 a3 :=
-  read%list _, a3_list := a3 using S in
-  let (S, l) := CONS S a1 (list_cdrval a3_list) in
-  lcons S a2 l.
-
-Definition xxsub0 S :=
-  lang2 S R_MissingArg R_NilValue.
-
-Definition xxsub1 S expr :=
-  TagArg S expr R_NilValue.
-
-Definition xxsymsub0 S sym :=
-  TagArg S R_MissingArg sym.
-
-Definition xxsymsub1 S sym expr :=
-  TagArg S expr sym.
-
-Definition xxnullsub0 S :=
-  let%success ans := install S "NULL" using S in
-  TagArg S R_MissingArg ans.
-
-Definition xxnullsub1 S expr :=
-  let%success ans := install S "NULL" using S in
-  TagArg S expr ans.
-
-Definition xxnullformal (S : state) :=
-  R_NilValue.
-
-Definition xxfirstformal0 S sym :=
-  FirstArg S R_MissingArg sym.
-
-Definition xxfirstformal1 S sym expr :=
-  FirstArg S expr sym.
-
-Definition xxaddformal0 S formlist sym :=
-  let%success _ := CheckFormalArgs S formlist sym using S in
-  NextArg S formlist R_MissingArg sym.
-
-Definition xxaddformal1 S formlist sym expr :=
-  let%success _ := CheckFormalArgs S formlist sym using S in
-  NextArg S formlist expr sym.
 
 
 (** ** context.c **)

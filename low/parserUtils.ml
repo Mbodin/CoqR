@@ -65,18 +65,18 @@ let lift5 f comp1 comp2 comp3 comp4 comp5 : token_type =
 (** * Functions from gram.y **)
 
 (** The function [R_atof] has not been formalised. We instead rely
- * on the OCaml functions [*_of_string]. **)
-let mkFloat str : token_type = fun _ _ s ->
-  let (s, e) = scalarReal s (float_of_string str) in
+ * on the OCaml function [float_of_string]. **)
+let mkFloat str : token_type = fun g _ s ->
+  let (s, e) = scalarReal g s (float_of_string str) in
   Result_success (s, e)
-let mkInt str : token_type = fun _ _ s ->
-  let (s, e) = scalarInteger s (int_of_string str) in
+let mkInt str : token_type = fun g _ s ->
+  let (s, e) = scalarInteger g s (float_of_string str) in
   Result_success (s, e)
-let mkComplex str : token_type = fun _ _ s ->
+let mkComplex str : token_type = fun g _ s ->
   let c = {
       rcomplex_r = 0. ;
       rcomplex_i = float_of_string str
     } in
-  let (s, e) = alloc_vector_cplx s c in
+  let (s, e) = alloc_vector_cplx g s [c] in
   Result_success (s, e)
 

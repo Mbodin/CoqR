@@ -2,6 +2,7 @@
     (** This file translates the Bison parser of R in Menhir’s syntax. **)
 
     open ParserUtils
+    open Low.Parsing
 %}
 
 (** * Token Declaration **)
@@ -91,11 +92,11 @@ expr:
 
   | s = MINUS; cr; e = expr %prec UMINUS         { lift2 xxunary s e }
   | s = PLUS; cr; e = expr %prec UMINUS          { lift2 xxunary s e }
-  | s = NOT; e = expr %prec UNOT                 { lift2 xxunary s e }
-  | s = TILDE; e = expr %prec TILDE              { lift2 xxunary s e }
+  | s = NOT; cr; e = expr %prec UNOT             { lift2 xxunary s e }
+  | s = TILDE; cr; e = expr %prec TILDE          { lift2 xxunary s e }
   | s = QUESTION_MARK; cr; e = expr              { lift2 xxunary s e }
 
-  | e1 = expr; op = COLON; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = COLON; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = PLUS; cr; e2 = expr          { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = MINUS; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = TIMES; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
@@ -105,7 +106,7 @@ expr:
   (** The lexeme '%' seems not to be produced by R’s tokenizer: the following
    * (commented out) line seems to be dead code. **)
   (*| e1 = expr; op = '%'; e2 = expr             { lift3 xxbinary op e1 e2 }*)
-  | e1 = expr; op = TILDE; e2 = expr             { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = TILDE; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = QUESTION_MARK; cr; e2 = expr { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = LT; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
   | e1 = expr; op = LE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
@@ -143,10 +144,10 @@ expr:
   | s1 = STR_CONST; op = NS_GET_INT; s2 = SYMBOL { lift3 xxbinary op s1 s2 }
   | s1 = STR_CONST; op = NS_GET_INT; s2 = STR_CONST
                                                  { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = DOLLAR; s2 = SYMBOL          { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = DOLLAR; s2 = STR_CONST       { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = AT; s2 = SYMBOL              { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = AT; s2 = STR_CONST           { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = DOLLAR; cr; s2 = SYMBOL      { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = DOLLAR; cr; s2 = STR_CONST   { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = AT; cr; s2 = SYMBOL          { lift3 xxbinary op s1 s2 }
+  | s1 = expr; op = AT; cr; s2 = STR_CONST       { lift3 xxbinary op s1 s2 }
   | k = NEXT                                     { lift1 xxnxtbrk k }
   | k = BREAK                                    { lift1 xxnxtbrk k }
 
@@ -187,7 +188,7 @@ formlist:
   | s = SYMBOL; EQ_ASSIGN; cr; e = expr { lift2 xxfirstformal1 s e }
   | l = formlist; COMMA; s = SYMBOL     { lift2 xxaddformal0 l s }
   | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; cr; e = expr
-                                    { lift3 xxaddformal1 l s e }
+                                        { lift3 xxaddformal1 l s e }
 
 cr:
   | NEW_LINE cr { }
