@@ -93,16 +93,16 @@ let space = ' ' | '\t' | '\x0c' (** Form feed **) | '\xa0' (** Replacement chara
 rule lex = parse
 
   (** ** Special Symbols **)
-  | "NULL"              { NULL_CONST (wrap_no_runs (fun g -> g (GlobalVariable_2 (R_NilValue)))) }
-  | "NA"                { NUM_CONST (wrap_no_runs mkNA) }
-  | "TRUE"              { NUM_CONST (wrap_no_runs mkTrue) }
-  | "FALSE"             { NUM_CONST (wrap_no_runs mkFalse) }
-  | "Inf"               { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [r_PosInf])) }
-  | "NaN"               { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [r_NaN])) }
-  | "NA_integer_"       { NUM_CONST (wrap_only_state (fun s -> alloc_vector_int s [nA_INTEGER])) }
-  | "NA_real_"          { NUM_CONST (wrap_only_state (fun s -> alloc_vector_real s [nA_REAL])) }
-  | "NA_character_"     { NUM_CONST (wrap_only_state (fun s -> alloc_vector_str s [nA_STRING])) }
-  | "NA_complex_"       { NUM_CONST (wrap_only_state (fun s -> alloc_vector_cplx s [make_Rcomplex nA_REAL nA_REAL])) }
+  | "NULL"              { NULL_CONST nilValue }
+  | "NA"                { NUM_CONST (tuple_to_result (no_runs mkNA)) }
+  | "TRUE"              { NUM_CONST (tuple_to_result (no_runs mkTrue)) }
+  | "FALSE"             { NUM_CONST (tuple_to_result (no_runs mkFalse)) }
+  | "Inf"               { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_PosInf]))) }
+  | "NaN"               { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_NaN]))) }
+  | "NA_integer_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_int g s [nA_INTEGER]))) }
+  | "NA_real_"          { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [nA_REAL]))) }
+  | "NA_character_"     { NUM_CONST (no_runs (fun g s -> Result_not_implemented (Print.string_to_char_list "[NA_STRING] TODO") (*alloc_vector_str g s [nA_STRING]*))) }
+  | "NA_complex_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_cplx g s [make_Rcomplex nA_REAL nA_REAL]))) }
   | "function"          { FUNCTION (install_and_save "function") }
   | "while"             { WHILE (install_and_save "while") }
   | "repeat"            { REPEAT (install_and_save "repeat") }
@@ -115,8 +115,8 @@ rule lex = parse
   | "..."               { SYMBOL (install_and_save "...") }
 
   (** ** Special Values **)
-  | reg_special_operator as name    { SPECIAL (string_to_char_list name) }
-  | reg_string as str               { STR_CONST (wrap_only_state (fun s -> mkString s (string_to_char_list str))) }
+  | reg_special_operator as name    { SPECIAL (install_and_save name) }
+  | reg_string as str               { STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list str)))) }
   | reg_integer                     { NUM_CONST (mkInt value) }
   | reg_numeric as value            { NUM_CONST (mkFloat value) }
   | reg_imaginary                   { NUM_CONST (mkComplex value) }
@@ -124,9 +124,10 @@ rule lex = parse
   (** ** Operators **)
   | "?"         { QUESTION_MARK (install_and_save "?") }
   | "<-"        { LEFT_ASSIGN (install_and_save "<-") }
+  | "<<-"       { LEFT_ASSIGN (install_and_save "<<-") }
+  | ":="        { LEFT_ASSIGN (install_and_save ":=") }
   | "="         { EQ_ASSIGN (install_and_save "=") }
   | "->"        { RIGHT_ASSIGN (install_and_save "->") }
-  | ":="        { COLON_ASSIGN (install_and_save ":=") }
   | "~"         { TILDE (install_and_save "~") }
   | "+"         { PLUS (install_and_save "+") }
   | "-"         { MINUS (install_and_save "-") }
@@ -138,7 +139,7 @@ rule lex = parse
   | ">"         { GT (install_and_save ">") }
   | ">="        { GE (install_and_save ">=") }
   | "=="        { EQ (install_and_save "==") }
-  | "!="        { NEQ (install_and_save "!=") }
+  | "!="        { NE (install_and_save "!=") }
   | "!"         { NOT (install_and_save "!") }
   | "&&"        { AND2 (install_and_save "&&") }
   | "&"         { AND (install_and_save "&") }

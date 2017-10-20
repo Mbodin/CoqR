@@ -140,12 +140,9 @@ Definition InitNames_shorcuts S :=
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
   (* Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
-   * [R_CurrentExpression], [NA_STRING], [R_BlankString], [R_BlankScalarString]. *)
-  let R_SymbolTable :=
-    (** We do not model the full hash table for symbols.
-      * Instead, we consider that it spans over only one
-      * cell. **) (* TODO: Write about this in the report. *)
-    R_NilValue in
+   * [R_CurrentExpression] *)
+  (* TODO: [NA_STRING], [R_BlankString], [R_BlankScalarString]. *)
+  let R_SymbolTable := R_NilValue in
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in

@@ -34,7 +34,7 @@
 %token<ParserUtils.token_type>      LBRACE LPAR LSQBRACKET
 %token                              RBRACE RPAR RSQBRACKET
 %token<ParserUtils.token_type>      QUESTION_MARK TILDE PLUS MINUS TIMES DIV COLON EXP NOT DOLLAR AT
-%token<char list>                   SPECIAL
+%token<ParserUtils.token_type>      SPECIAL
 %token                              COMMA SEMICOLON NEW_LINE
 
 (* * Precedence Table *)
@@ -79,7 +79,7 @@ expr_or_assign:
   | e = equal_assign { e }
 
 equal_assign:
-  | e = expr; eq = EQ_ASSIGN; cr; a = expr_or_assign { lift3 xxbinary eq e a }
+  | e = expr; eq = EQ_ASSIGN; cr; a = expr_or_assign { lift3 (no_runs xxbinary) eq e a }
 
 expr:
   | c = NUM_CONST                                { c }
@@ -87,90 +87,90 @@ expr:
   | c = NULL_CONST                               { c }
   | c = SYMBOL                                   { c }
 
-  | b = LBRACE; cr; e = exprlist; RBRACE         { lift2 xxexprlist b e }
-  | p = LPAR; e = expr_or_assign; RPAR           { lift2 xxparen p e }
+  | b = LBRACE; cr; e = exprlist; RBRACE         { lift2 (only_state xxexprlist) b e }
+  | p = LPAR; e = expr_or_assign; RPAR           { lift2 (no_runs xxparen) p e }
 
-  | s = MINUS; cr; e = expr %prec UMINUS         { lift2 xxunary s e }
-  | s = PLUS; cr; e = expr %prec UMINUS          { lift2 xxunary s e }
-  | s = NOT; cr; e = expr %prec UNOT             { lift2 xxunary s e }
-  | s = TILDE; cr; e = expr %prec TILDE          { lift2 xxunary s e }
-  | s = QUESTION_MARK; cr; e = expr              { lift2 xxunary s e }
+  | s = MINUS; cr; e = expr %prec UMINUS         { lift2 (no_runs xxunary) s e }
+  | s = PLUS; cr; e = expr %prec UMINUS          { lift2 (no_runs xxunary) s e }
+  | s = NOT; cr; e = expr %prec UNOT             { lift2 (no_runs xxunary) s e }
+  | s = TILDE; cr; e = expr %prec TILDE          { lift2 (no_runs xxunary) s e }
+  | s = QUESTION_MARK; cr; e = expr              { lift2 (no_runs xxunary) s e }
 
-  | e1 = expr; op = COLON; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = PLUS; cr; e2 = expr          { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = MINUS; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = TIMES; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = DIV; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = EXP; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = SPECIAL; cr; e2 = expr       { lift3 xxbinary op e1 e2 }
+  | e1 = expr; op = COLON; cr; e2 = expr         { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = PLUS; cr; e2 = expr          { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = MINUS; cr; e2 = expr         { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = TIMES; cr; e2 = expr         { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = DIV; cr; e2 = expr           { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = EXP; cr; e2 = expr           { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = SPECIAL; cr; e2 = expr       { lift3 (no_runs xxbinary) op e1 e2 }
   (** The lexeme '%' seems not to be produced by R’s tokenizer: the following
    * (commented out) line seems to be dead code. **)
-  (*| e1 = expr; op = '%'; e2 = expr             { lift3 xxbinary op e1 e2 }*)
-  | e1 = expr; op = TILDE; cr; e2 = expr         { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = QUESTION_MARK; cr; e2 = expr { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = LT; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = LE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = EQ; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = NE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = GE; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = GT; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = AND; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = OR; cr; e2 = expr            { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = AND2; cr; e2 = expr          { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = OR2; cr; e2 = expr           { lift3 xxbinary op e1 e2 }
+  (*| e1 = expr; op = '%'; e2 = expr             { lift3 (no_runs xxbinary) op e1 e2 }*)
+  | e1 = expr; op = TILDE; cr; e2 = expr         { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = QUESTION_MARK; cr; e2 = expr { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = LT; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = LE; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = EQ; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = NE; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = GE; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = GT; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = AND; cr; e2 = expr           { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = OR; cr; e2 = expr            { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = AND2; cr; e2 = expr          { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = OR2; cr; e2 = expr           { lift3 (no_runs xxbinary) op e1 e2 }
 
-  | e1 = expr; op = LEFT_ASSIGN; cr; e2 = expr   { lift3 xxbinary op e1 e2 }
-  | e1 = expr; op = RIGHT_ASSIGN; cr; e2 = expr  { lift3 xxbinary op e2 e1 }
+  | e1 = expr; op = LEFT_ASSIGN; cr; e2 = expr   { lift3 (no_runs xxbinary) op e1 e2 }
+  | e1 = expr; op = RIGHT_ASSIGN; cr; e2 = expr  { lift3 (no_runs xxbinary) op e2 e1 }
   | fname = FUNCTION; cr; LPAR; formals = formlist; RPAR; cr; body = expr_or_assign %prec LOW
-                                                 { lift3 xxdefun fname formals body }
+                                                 { lift3 (no_runs xxdefun) fname formals body }
   | e = expr; LPAR; l = sublist; RPAR            { lift2 xxfuncall e l }
-  | i = IF; cr; c = ifcond; e = expr_or_assign   { lift3 xxif i c e }
+  | i = IF; cr; c = ifcond; e = expr_or_assign   { lift3 (no_runs xxif) i c e }
   | i = IF; cr; c = ifcond; e1 = expr_or_assign; ELSE; cr; e2 = expr_or_assign
-                                                 { lift4 xxifelse i c e1 e2 }
+                                                 { lift4 (no_runs xxifelse) i c e1 e2 }
   | f = FOR; cr; c = forcond; e = expr_or_assign %prec FOR
-                                                 { lift3 xxfor f x e }
-  | w = WHILE; cr; c = cond; e = expr_or_assign  { lift3 xxwhile w c e }
-  | r = REPEAT; cr; e = expr_or_assign           { lift2 xxrepeat r e }
+                                                 { lift3 (no_runs xxfor) f c e }
+  | w = WHILE; cr; c = cond; e = expr_or_assign  { lift3 (no_runs xxwhile) w c e }
+  | r = REPEAT; cr; e = expr_or_assign           { lift2 (no_runs xxrepeat) r e }
   | e = expr; s = LBB; l = sublist; RSQBRACKET; RSQBRACKET
-                                                 { lift3 xxsubscript e s l }
+                                                 { lift3 (no_runs xxsubscript) e s l }
   | e = expr; s = LSQBRACKET; l = sublist; RSQBRACKET
-                                                 { lift3 xxsubscript e s l }
-  | s1 = SYMBOL; op = NS_GET; s2 = SYMBOL        { lift3 xxbinary op s1 s2 }
-  | s1 = SYMBOL; op = NS_GET; s2 = STR_CONST     { lift3 xxbinary op s1 s2 }
-  | s1 = STR_CONST; op = NS_GET; s2 = SYMBOL     { lift3 xxbinary op s1 s2 }
-  | s1 = STR_CONST; op = NS_GET; s2 = STR_CONST  { lift3 xxbinary op s1 s2 }
-  | s1 = SYMBOL; op = NS_GET_INT; s2 = SYMBOL    { lift3 xxbinary op s1 s2 }
-  | s1 = SYMBOL; op = NS_GET_INT; s2 = STR_CONST { lift3 xxbinary op s1 s2 }
-  | s1 = STR_CONST; op = NS_GET_INT; s2 = SYMBOL { lift3 xxbinary op s1 s2 }
+                                                 { lift3 (no_runs xxsubscript) e s l }
+  | s1 = SYMBOL; op = NS_GET; s2 = SYMBOL        { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET; s2 = STR_CONST     { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET; s2 = SYMBOL     { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET; s2 = STR_CONST  { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET_INT; s2 = SYMBOL    { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = SYMBOL; op = NS_GET_INT; s2 = STR_CONST { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = STR_CONST; op = NS_GET_INT; s2 = SYMBOL { lift3 (no_runs xxbinary) op s1 s2 }
   | s1 = STR_CONST; op = NS_GET_INT; s2 = STR_CONST
-                                                 { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = DOLLAR; cr; s2 = SYMBOL      { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = DOLLAR; cr; s2 = STR_CONST   { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = AT; cr; s2 = SYMBOL          { lift3 xxbinary op s1 s2 }
-  | s1 = expr; op = AT; cr; s2 = STR_CONST       { lift3 xxbinary op s1 s2 }
-  | k = NEXT                                     { lift1 xxnxtbrk k }
-  | k = BREAK                                    { lift1 xxnxtbrk k }
+                                                 { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = expr; op = DOLLAR; cr; s2 = SYMBOL      { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = expr; op = DOLLAR; cr; s2 = STR_CONST   { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = expr; op = AT; cr; s2 = SYMBOL          { lift3 (no_runs xxbinary) op s1 s2 }
+  | s1 = expr; op = AT; cr; s2 = STR_CONST       { lift3 (no_runs xxbinary) op s1 s2 }
+  | k = NEXT                                     { lift1 (no_runs xxnxtbrk) k }
+  | k = BREAK                                    { lift1 (no_runs xxnxtbrk) k }
 
 cond:
-  | LPAR; e = expr; RPAR; cr    { lift1 xxcond e }
+  | LPAR; e = expr; RPAR; cr    { lift1 (only_state xxcond) e }
 
 ifcond:
-  | LPAR; e = expr; RPAR; cr    { lift1 xxifcond e }
+  | LPAR; e = expr; RPAR; cr    { lift1 (only_state xxifcond) e }
 
 forcond:
-  | LPAR; s = SYMBOL; IN; cr; e = expr; RPAR; cr   { lift2 xxforcond s e }
+  | LPAR; s = SYMBOL; IN; cr; e = expr; RPAR; cr   { lift2 (no_runs xxforcond) s e }
 
 exprlist:
-  |                                             { only_state xxexprlist0 }
-  | e = expr_or_assign                          { lift1 xxexprlist1 e }
-  | l = exprlist; SEMICOLON; e = expr_or_assign { lift2 xxexprlist2 l e }
+  |                                             { no_runs xxexprlist0 }
+  | e = expr_or_assign                          { lift1 (no_runs xxexprlist1) e }
+  | l = exprlist; SEMICOLON; e = expr_or_assign { lift2 (no_runs xxexprlist2) l e }
   | l = exprlist; SEMICOLON                     { l }
-  | l = exprlist; NEW_LINE; e = expr_or_assign  { lift2 xxexprlist2 l e }
+  | l = exprlist; NEW_LINE; e = expr_or_assign  { lift2 (no_runs xxexprlist2) l e }
   | l = exprlist; NEW_LINE                      { l }
 
 sublist:
-  | s = sub                             { lift1 xxsublist1 s }
-  | sl = sublist; cr; COMMA; s = sub    { lift2 xxsublist2 sl s }
+  | s = sub                             { lift1 (no_runs xxsublist1) s }
+  | sl = sublist; cr; COMMA; s = sub    { lift2 (no_runs xxsublist2) sl s }
 
 sub:
   |                                             { no_runs xxsub0 }
@@ -179,13 +179,13 @@ sub:
   | s = SYMBOL; EQ_ASSIGN; cr; e = expr         { lift2 xxsymsub1 s e }
   | str = STR_CONST; EQ_ASSIGN; cr              { lift1 xxsymsub0 str }
   | str = STR_CONST; EQ_ASSIGN; cr; e = expr    { lift2 xxsymsub1 str e }
-  | NULL_CONST EQ_ASSIGN; cr                    { no_runs xxnullsub0 }
+  | NULL_CONST EQ_ASSIGN; cr                    { xxnullsub0 }
   | NULL_CONST; EQ_ASSIGN; cr; e = expr         { lift1 xxnullsub1 e }
 
 formlist:
   |                                     { no_runs xxnullformal }
-  | s = SYMBOL                          { lift1 xxfirstformal0 s }
-  | s = SYMBOL; EQ_ASSIGN; cr; e = expr { lift2 xxfirstformal1 s e }
+  | s = SYMBOL                          { lift1 (no_runs xxfirstformal0) s }
+  | s = SYMBOL; EQ_ASSIGN; cr; e = expr { lift2 (no_runs xxfirstformal1) s e }
   | l = formlist; COMMA; s = SYMBOL     { lift2 xxaddformal0 l s }
   | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; cr; e = expr
                                         { lift3 xxaddformal1 l s e }

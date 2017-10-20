@@ -15,6 +15,11 @@ let no_globals (f : runs_type -> state -> 'a) : 'a monad_type = fun _ -> f
 let no_runs (f : globals -> state -> 'a) : 'a monad_type = fun g _ -> f g
 let only_state (f : state -> 'a) : 'a monad_type = fun _ _ -> f
 
+let tuple_to_result (f : (state * 'a) monad_type) : 'a result monad_type =
+  fun g r s ->
+    let (s, v) = f g r s in
+    Result_success (s, v)
+
 (** This function is inspired from the [install_and_save] function
   * of the original interpreter. It takes into advantage the fact
   * that ocamllex is functional: its behaviour is exactly the same
@@ -24,6 +29,10 @@ let install_and_save str : token_type = fun g r s ->
   install g r s (Print.string_to_char_list str)
 
 let null : token_type = fun _ _ s -> Result_success (s, nULL)
+let nilValue : token_type = fun g _ s -> Result_success (s, g (GlobalVariable_2 (R_NilValue)))
+
+(* This looks like a bug: this function should have been extracted. *)
+let make_Rcomplex r i = { rcomplex_r = r; rcomplex_i = i }
 
 
 (** * Composing Functions **)
@@ -37,29 +46,29 @@ let shift (f : 'a -> 'b monad_type) : ('a -> 'b) monad_type =
 (** Compose a [token_type] function to a simple function which
  * only cares about its return value. **)
 let lift1 f comp : token_type =
-  bind comp (only_state f)
+  bind comp f
 let lift2 f comp1 comp2 : token_type =
   bind comp1 (shift (fun res1 ->
-    bind comp2 (only_state (fun s res2 ->
-      f s res1 res2))))
+    bind comp2 (fun g r s res2 ->
+      f g r s res1 res2)))
 let lift3 f comp1 comp2 comp3 : token_type =
   bind comp1 (shift (fun res1 ->
     bind comp2 (shift (fun res2 ->
-      bind comp3 (only_state (fun s res3 ->
-        f s res1 res2 res3))))))
+      bind comp3 (fun g r s res3 ->
+        f g r s res1 res2 res3)))))
 let lift4 f comp1 comp2 comp3 comp4 : token_type =
   bind comp1 (shift (fun res1 ->
     bind comp2 (shift (fun res2 ->
       bind comp3 (shift (fun res3 ->
-        bind comp4 (only_state (fun s res4 ->
-          f s res1 res2 res3 res4))))))))
+        bind comp4 (fun g r s res4 ->
+          f g r s res1 res2 res3 res4)))))))
 let lift5 f comp1 comp2 comp3 comp4 comp5 : token_type =
   bind comp1 (shift (fun res1 ->
     bind comp2 (shift (fun res2 ->
       bind comp3 (shift (fun res3 ->
         bind comp4 (shift (fun res4 ->
-          bind comp5 (only_state (fun s res5 ->
-            f s res1 res2 res3 res4 res5))))))))))
+          bind comp5 (fun g r s res5 ->
+            f g r s res1 res2 res3 res4 res5)))))))))
 
 
 (** * Functions from gram.y **)

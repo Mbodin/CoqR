@@ -27,8 +27,8 @@ Section ParameterisedGlobals.
 Definition INT_MIN : int := - 2 ^ 31. (* We may want to make this a parameter. *)
 
 Definition R_NaInt := INT_MIN.
-Definition R_PosInf := NULL (* TODO *).
-Definition R_NaN := NULL (* TODO *).
+Definition R_PosInf := 0 : int (* TODO *).
+Definition R_NaN := 0 : int (* TODO *).
 Definition NA_INTEGER := R_NaInt.
 Definition NA_LOGICAL := R_NaInt.
 Definition NA_REAL := R_NaInt (* TODO: CHECK *).
