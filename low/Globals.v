@@ -3,7 +3,7 @@
   * that are initialised, then never changed. **)
 
 
-Require Export RinternalsAux.
+Require Export Rinternals Shared.
 
 
 (** Global variables that are initialised once, then treated as
@@ -15,11 +15,14 @@ Require Export RinternalsAux.
  * details. **)
 
 Inductive GlobalVariable :=
+  | NA_STRING
   | R_AsCharacterSymbol
   | R_BaseEnv
   | R_BaseNamespaceName
   | R_BaseNamespace
   | R_BaseSymbol
+  | R_BlankScalarString
+  | R_BlankString
   | R_BraceSymbol
   | R_Bracket2Symbol
   | R_BracketSymbol

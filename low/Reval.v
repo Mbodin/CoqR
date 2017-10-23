@@ -351,8 +351,7 @@ Definition CHAR S x :=
   result_success S (list_to_string x_vector).
 
 Definition SET_MISSING S e (m : nat) I :=
-  map%gp e with fun gp =>
-    NBits.write_nbits 0 (NBits.nat_to_nbits m I : nbits 4) gp ltac:(NBits.nbits_ok) using S in
+  map%gp e with @NBits.write_nbits 16 4 0 (NBits.nat_to_nbits m I) ltac:(NBits.nbits_ok) using S in
   result_success S tt.
 Arguments SET_MISSING : clear implicits.
 
@@ -606,6 +605,7 @@ Definition lang6 S s t u v w x :=
  * allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
 Definition mkChar S (str : string) : state * SExpRec_pointer :=
+  (* TODO: Caching values using R_StringHash. *)
   alloc_vector_char S (string_to_list str).
 
 Definition mkString S (str : string) : state * SExpRec_pointer :=
@@ -632,8 +632,7 @@ Definition iSDDName S (name : SExpRec_pointer) :=
 Definition mkSYMSXP S (name value : SExpRec_pointer) :=
   let%success i := iSDDName S name using S in
   let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
-  map%gp c with fun gp =>
-    NBits.write_nbit 0 gp ltac:(NBits.nbits_ok) i using S in
+  map%gp c with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) i using S in
   result_success S c.
 
 
@@ -1021,7 +1020,7 @@ Definition IS_SPECIAL_SYMBOL S symbol :=
   result_success S (NBits.nth_bit 12 (gp symbol_) ltac:(NBits.nbits_ok)).
 
 Definition SET_SPECIAL_SYMBOL S x v :=
-  map%gp x with fun gp => NBits.write_nbit 12 gp ltac:(NBits.nbits_ok) v using S in
+  map%gp x with @NBits.write_nbit 16 12 ltac:(NBits.nbits_ok) v using S in
   result_success S tt.
 
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=

@@ -10,11 +10,14 @@ open Low
 let all_global_variables =
   [ (R_NilValue, "R_NilValue") ;
 
+    (NA_STRING, "NA_STRING") ;
     (R_AsCharacterSymbol, "R_AsCharacterSymbol") ;
     (R_BaseEnv, "R_BaseEnv") ;
     (R_BaseNamespaceName, "R_BaseNamespaceName") ;
     (R_BaseNamespace, "R_BaseNamespace") ;
     (R_BaseSymbol, "R_BaseSymbol") ;
+    (R_BlankScalarString, "R_BlankScalarString") ;
+    (R_BlankString, "R_BlankString") ;
     (R_BraceSymbol, "R_BraceSymbol") ;
     (R_Bracket2Symbol, "R_Bracket2Symbol") ;
     (R_BracketSymbol, "R_BracketSymbol") ;
@@ -279,6 +282,16 @@ let print_memory d s g t no_temporary expr_options m =
       else "")
     (heap_to_list (state_heap_SExp m))))
 
+let get_memory_cell s = function
+  | None -> None
+  | Some p ->
+    HeapList.read_option nat_comparable (state_heap_SExp (state_memory s)) p
+
+let print_pointed_value d expr_options t s g p =
+  match get_memory_cell s p with
+  | None -> "(Invalid pointer)"
+  | Some e -> print_SExpRec d expr_options t s g e
+
 let rec print_context d t s g ctxt =
   "next context:" ^
   (match ctxt.nextcontext with
@@ -292,22 +305,33 @@ let rec print_context d t s g ctxt =
   indent d ^ "cloenv: " ^ print_pointer t s g ctxt.cloenv ^
   indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit
 
-let print_state d context memory globals initials no_temporary expr_options t s g =
+let print_state d (context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
   (if memory then
     "Memory:" ^ indent (d + 2) ^
-    print_memory (d + 2) s g t no_temporary expr_options (state_memory s) ^ "\n"
+    print_memory (d + 2) s g t no_temporary expr_options (state_memory s)
+    ^ (if globals || initials || context then indent d else "")
    else "") ^
   (if globals then
-    "Global variables:\n" ^
+    "Global variables:" ^ indent (d + 2) ^
     String.concat (indent (d + 2)) (
       List.map (fun (proj, str) ->
-        str ^ ": " ^ print_pointer t s g (proj s)) all_global_variables_state) ^ "\n"
+        str ^ ": " ^ print_pointer t s g (proj s) ^
+        if fetch_global then
+          indent (String.length str + d + 4) ^ "Pointer value: " ^
+          print_pointed_value (String.length str + d + 19) expr_options t s g (proj s)
+        else "") all_global_variables_state)
+    ^ (if initials || context then indent d else "")
    else "") ^
   (if initials then
-    "Constant global variables:\n" ^
+    "Constant global variables:" ^ indent (d + 2) ^
     String.concat (indent (d + 2)) (
       List.map (fun (var, str) ->
-        str ^ ": " ^ print_pointer t s g (g var)) all_global_variables) ^ "\n"
+        str ^ ": " ^ print_pointer t s g (g var) ^
+        if fetch_global then
+          indent (String.length str + d + 4) ^ "Pointer value: " ^
+          print_pointed_value (String.length str + d + 19) expr_options t s g (g var)
+        else "") all_global_variables)
+    ^ (if context then indent d else "")
    else "") ^
   if context then
     "Context:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)

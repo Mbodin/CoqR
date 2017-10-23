@@ -49,23 +49,23 @@ Lemma rewrite_S_nth_bit : forall n m (a : nbits (S m)) (I : (S n < S m)%nat) (I'
   nth_bit (S n) a I = nth_bit n (snd a) I'.
 Proof. introv. erewrite rewrite_nth_bit with (n := n). simpl. reflexivity. Qed.
 
-Definition write_nbit {m : nat} (n : nat) : nbits m -> (n < m)%nat -> bool -> nbits m.
-  introv a I b. gen m. induction n as [|n]; introv a I; destruct m; try solve [ false; math ].
+Definition write_nbit {m : nat} (n : nat) : (n < m)%nat -> bool -> nbits m -> nbits m.
+  introv I b a. gen m. induction n as [|n]; introv I a; destruct m; try solve [ false; math ].
   - exact (b, snd a).
-  - refine (fst a, IHn _ (snd a) _). math.
+  - refine (fst a, IHn _ _ (snd a)). math.
 Defined.
 Arguments write_nbit {m} n.
 
 Lemma rewrite_write_nbit : forall n m (a : nbits m) (I I' : (n < m)%nat) b,
-  write_nbit n a I b = write_nbit n a I' b.
+  write_nbit n I b a = write_nbit n I' b a.
 Proof. introv. fequals. Qed.
 
 Lemma rewrite_S_write_nbit : forall n m (a : nbits (S m)) (I : (S n < S m)%nat) (I' : (n < m)%nat) b,
-  write_nbit (S n) a I b = (fst a, write_nbit n (snd a) I' b).
+  write_nbit (S n) I b a = (fst a, write_nbit n I' b (snd a)).
 Proof. introv. erewrite rewrite_write_nbit with (n := n). simpl. reflexivity. Qed.
 
-Lemma write_nth_bit : forall n m (I : (n < m)%nat) (a : nbits m) b,
-  nth_bit n (write_nbit n a I b) I = b.
+Lemma write_nth_bit : forall n m (I : (n < m)%nat) b (a : nbits m),
+  nth_bit n (write_nbit n I b a) I = b.
 Proof.
   induction n; introv; destruct m; try solve [ false; math ].
   - reflexivity.
@@ -228,7 +228,7 @@ Lemma rewrite_sub_nbits_zero : forall n length (a : nbits n) I I',
   sub_nbits 0 length a I = nth_first_nbits length a I'.
 Proof. introv. simpl. fequals. Qed.
 
-Definition write_nbits {n m : nat} start (v : nbits m) (a : nbits n) (I : (start + m < n)%nat) : nbits n.
+Definition write_nbits {n m : nat} start (v : nbits m) (I : (start + m < n)%nat) (a : nbits n) : nbits n.
   gen n a. induction start; introv I a.
   - gen n a v. induction m; introv I a v.
     + exact a.
@@ -237,19 +237,19 @@ Definition write_nbits {n m : nat} start (v : nbits m) (a : nbits n) (I : (start
 Defined.
 
 Lemma rewrite_write_nbits : forall n m start (v : nbits m) (a : nbits n) I I',
-  write_nbits start v a I = write_nbits start v a I'.
+  write_nbits start v I a = write_nbits start v I' a.
 Proof. introv. fequals. Qed.
 
 Lemma rewrite_write_nbits_cons : forall n m start (v : nbits m) (a : nbits (S n)) I I',
-  write_nbits (S start) v a I = (fst a, write_nbits start v (snd a) I').
+  write_nbits (S start) v I a = (fst a, write_nbits start v I' (snd a)).
 Proof. introv. simpl. erewrite rewrite_write_nbits. reflexivity. Qed.
 
 Lemma rewrite_write_nbits_zero_cons : forall n m (v : nbits (S m)) (a : nbits (S n)) I I',
-  write_nbits 0 v a I = (fst v, write_nbits 0 (snd v) (snd a) I').
+  write_nbits 0 v I a = (fst v, write_nbits 0 (snd v) I' (snd a)).
 Proof. introv. simpl. repeat fequals. Qed.
 
 Lemma sub_write_nbits : forall n m start (v : nbits m) (a : nbits n) I,
-  sub_nbits start m (write_nbits start v a I) I = v.
+  sub_nbits start m (write_nbits start v I a) I = v.
 Proof.
   introv. gen n m. induction start; introv.
   - asserts I': (m < n)%nat. { math. }

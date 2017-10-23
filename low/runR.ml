@@ -19,11 +19,13 @@ let vector_line = ref false
 let charvec_string = ref false
 let no_temporary = ref false
 let show_context = ref true
+let fetch_global = ref false
 
 let show_globals_initial = ref false
 let show_result_after_computation = ref true
 let show_state_after_computation = ref false
 let only_parsing = ref false
+let fetch_result = ref true
 
 (** * Generating List of Options **)
 
@@ -39,13 +41,22 @@ let boolean_switches =
     make_boolean_switch (category_read :: categories) dep "use" "no" "Write" "Do not write" in
   let computation_switch categories dep =
     make_boolean_switch (category_computation :: categories) dep "show" "hide" "Show" "Do not show" in
-  let show_data_switch = print_switch [] [] show_data "data" "the data of vectors" in
-  let show_gp_switch = print_switch [] [] show_gp "gp" "the general purpose field of basic language elements" in
+  let print_globals =
+    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" in
+  let print_initials =
+    print_switch [] [] show_initials "initials" "the value of constant global variables" in
+  let show_data_switch =
+    print_switch [] [] show_data "data" "the data of vectors" in
+  let show_gp_switch =
+    print_switch [] [] show_gp "gp" "the general purpose field of basic language elements" in
+  let show_result =
+    computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" in
   [
     print_switch [] [] show_memory "memory" "the state of the memory" ;
     print_switch [] [] show_context "context" "the execution context" ;
-    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" ;
-    print_switch [] [] show_initials "initials" "the value of constant global variables" ;
+    print_globals ;
+    print_initials ;
+    print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" ;
     show_gp_switch ;
     print_switch [] [] show_attrib "attrib" "the attribute field of basic language elements" ;
     show_data_switch ;
@@ -54,7 +65,8 @@ let boolean_switches =
     write_switch [] [show_data_switch] vector_line "inline-vector" "vectors as line instead of column" ;
     write_switch [] [show_data_switch] charvec_string "string" "character vectors as strings instead of a list of characters" ;
     write_switch [] [show_gp_switch] gp_opt "num-gp" "the general purpose field as a number instead of a bit vector" ;
-    computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" ;
+    show_result ;
+    computation_switch [] [show_result] fetch_result "result-value" "the value of pointed by the current computation" ;
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" ;
     computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" ;
     make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions"
@@ -78,7 +90,7 @@ let all_categories =
     | [] -> c
   in aux [] boolean_switches
 
-let make_options prefix =
+let make_options prefix default =
   let name_switch v b = prefix ^ name_switch v b in
   let name_switch_base v b = prefix ^ name_switch_base v b in
   [(prefix ^ "no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
@@ -89,7 +101,7 @@ let make_options prefix =
       let print_dep =
         " (to be used in combination with " ^ deps ^ ")" in
       let default b =
-        if b then " (default)" else "" in
+        if b then " (" ^ default ^ ")" else "" in
       let ret dep_text print_dep = [
           (name_switch true b ^ dep_text, Arg.Set p, vvy ^ " " ^ n ^ print_dep ^ default !p) ;
           (name_switch false b ^ dep_text, Arg.Clear p, vvn ^ " " ^ n ^ print_dep ^ default (not !p))
@@ -122,11 +134,14 @@ let make_options prefix =
 
 let _ =
     Arg.parse
-      (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-")
+      (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-" "default")
       (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
       "This programs aims at mimicking the core of R. Usage:\n\trunR.native [OPTIONS]\nCommands are parsed from left to right.\nDuring interactive mode, type “#help” to get some help."
 
 (** * Main Loop **)
+
+let run_options _ =
+  (!show_context, !show_memory, !show_globals, !show_initials, !no_temporary, !fetch_global, !readable_pointers)
 
 let expr_options _ =
   (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
@@ -135,8 +150,7 @@ let print_and_continue g r s pr cont =
   Print.print_defined r s (fun s r ->
     if !show_state_after_computation then (
       print_endline "State:" ;
-      print_endline (Print.print_state 2 !show_context !show_memory !show_globals !show_initials !no_temporary
-        (expr_options ()) !readable_pointers s g)) ;
+      print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s g)) ;
     if !show_result_after_computation then
       print_endline ("Result: " ^ pr 8 g s r)) cont
 
@@ -148,22 +162,25 @@ let _ =
   print_endline "Initialising…" ;
   Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state (fun s globals ->
     if !show_globals_initial then
-      print_endline (Print.print_state 2 !show_context !show_memory!show_globals !show_initials !no_temporary
-        (expr_options ()) !readable_pointers s globals)) (fun s globals ->
+      print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
     | None -> print_endline "Initialisation of constant global variables failed. Halting"
     | Some globals ->
       (** Initialing the read-eval-print-loop **)
       let buf = Lexing.from_channel stdin in
       let rec loop s =
-        print_string "> "; flush stdout;
+        print_string "> " ; flush stdout ;
         let success f =
           let f =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
               Low.eval_global g r s p) in
-          print_and_continue globals (f globals (Low.runs globals !max_steps) s) s (fun n globals s ->
-            Print.print_pointer !readable_pointers s globals) (fun s _ -> loop s) in try
+          print_and_continue globals (f globals (Low.runs globals !max_steps) s) s (fun n globals s p ->
+            Print.print_pointer !readable_pointers s globals p ^
+            if !fetch_result then (
+              Print.indent n ^ "Pointer value: " ^
+              Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
+            ) else "") (fun s _ -> loop s) in try
           match Parser.main Lexer.lex buf with
           | ParserUtils.Success f ->
             success f
@@ -174,16 +191,15 @@ let _ =
                 List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
               let print_state _ =
                 print_endline "State:" ;
-                print_endline (Print.print_state 2 !show_context !show_memory !show_globals !show_initials !no_temporary
-                  (expr_options ()) !readable_pointers s globals) in
+                print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals) in
               ("#help", Arg.Unit print_help, "Print this list of command") ::
               ("#quit", Arg.Unit (fun _ -> ()), "Exit the interpreter") ::
               ("#state", Arg.Unit print_state, "Print the current state") ::
-              make_options "#" in
+              make_options "#" "current" in
             let exact c cont =
               if c = cmd then (
-                cont ();
-                print_endline "Done.";
+                cont () ;
+                print_endline "Done." ;
                 loop s)
               else success ParserUtils.null in
             match find_opt (fun (c, _, _) -> Print.is_prefix c cmd) interactive_options with

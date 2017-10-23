@@ -64,12 +64,6 @@ Definition InitBaseEnv S :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_EmptyEnv using S in
   result_success S (R_EmptyEnv, R_BaseEnv).
 
-(* TODO: Explain in the report that in R, to speed up calculus, symbols are
- * represented by unique pointers. This means that comparison is simple: it
- * is just comparing the pointers. But this means that each pointer needs
- * to be installed using the [install] function, and that parsing must look
- * in the symbol table. *)
-
 (** [SymbolShortcuts], from main/names.c **)
 Definition SymbolShortcuts S :=
   let decl v n := (v, n) : GlobalVariable * string in
@@ -141,12 +135,15 @@ Definition InitNames_shorcuts S :=
   let%success R_MissingArg := mkSymMarker globals S str using S in
   (* Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
    * [R_CurrentExpression] *)
-  (* TODO: [NA_STRING], [R_BlankString], [R_BlankScalarString]. *)
+  let (S, NA_STRING) := alloc_vector_char globals S (string_to_list "NA") in
+  map%gp NA_STRING with @NBits.write_nbit 16 5 ltac:(NBits.nbits_ok) true using S in
+  let (S, R_BlankString) := mkChar globals S "" in
+  let%success R_BlankScalarString := ScalarString globals S R_BlankString using S in
   let R_SymbolTable := R_NilValue in
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in
-  result_success S (R_UnboundValue, R_MissingArg, L).
+  result_success S (R_UnboundValue, R_MissingArg, NA_STRING, R_BlankString, R_BlankScalarString, L).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
  * from main/dstruct.c called from [InitNames] from main/names.c **)
@@ -248,7 +245,6 @@ End Globals.
   * value depends on global variables. We are thus taking as argument the
   * [max_step] argument from [runs], and recomputing it at each step with
   * the updated [globals]. **)
-  (* TODO: This function. *)
 Definition setup_Rmainloop max_step S : result Globals :=
   let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
   let globals := empty_globals in
@@ -262,10 +258,13 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitBaseEnv globals (runs globals max_step) S using S in
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
-  let%success (UnboundValue, MissingArg, L) :=
+  let%success (UnboundValue, MissingArg, NA_string, BlankString, BlankScalarString, L) :=
     InitNames_shorcuts globals (runs globals max_step) S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
-                                   decl R_MissingArg MissingArg] ++ L }} in
+                                   decl R_MissingArg MissingArg ;
+                                   decl NA_STRING NA_string ;
+                                   decl R_BlankString BlankString ;
+                                   decl R_BlankScalarString BlankScalarString ] ++ L }} in
   let%success primCache :=
     mkPRIMSXP_init globals (runs globals max_step) max_step S using S in
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in

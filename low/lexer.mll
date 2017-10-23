@@ -101,7 +101,7 @@ rule lex = parse
   | "NaN"               { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_NaN]))) }
   | "NA_integer_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_int g s [nA_INTEGER]))) }
   | "NA_real_"          { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [nA_REAL]))) }
-  | "NA_character_"     { NUM_CONST (no_runs (fun g s -> Result_not_implemented (Print.string_to_char_list "[NA_STRING] TODO") (*alloc_vector_str g s [nA_STRING]*))) }
+  | "NA_character_"     { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_str g s [g NA_STRING]))) }
   | "NA_complex_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_cplx g s [make_Rcomplex nA_REAL nA_REAL]))) }
   | "function"          { FUNCTION (install_and_save "function") }
   | "while"             { WHILE (install_and_save "while") }

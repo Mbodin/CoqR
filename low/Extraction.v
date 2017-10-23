@@ -16,6 +16,7 @@ Set Extraction AccessOpaque.
    (otherwise, useless errors will be launched). *)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
+(* FIXME: Maybe [int] would be a better output than [float]. *)
 Extract Inductive positive => float
 [ "(fun p -> 1. +. (2. *. p))"
   "(fun p -> 2. *. p)"
