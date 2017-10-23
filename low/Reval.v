@@ -1019,6 +1019,11 @@ Definition IS_SPECIAL_SYMBOL S symbol :=
   read%defined symbol_ := symbol using S in
   result_success S (NBits.nth_bit 12 (gp symbol_) ltac:(NBits.nbits_ok)).
 
+(** This macro definition was already redundant in C. **)
+Definition NO_SPECIAL_SYMBOLS S x :=
+  read%defined x_ := x using S in
+  result_success S (NBits.nth_bit 12 (gp x_) ltac:(NBits.nbits_ok)).
+
 Definition SET_SPECIAL_SYMBOL S x v :=
   map%gp x with @NBits.write_nbit 16 12 ltac:(NBits.nbits_ok) v using S in
   result_success S tt.
@@ -1212,6 +1217,29 @@ Definition setVar S (symbol value rho : SExpRec_pointer) :=
   using S in
   defineVar S symbol value R_GlobalEnv.
 
+Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
+  let cont S (rho : SExpRec_pointer) :=
+    do%success (ret, rho) := (None, rho)
+    while result_success S (decide (rho <> R_EmptyEnv)) do
+      ifb ret = None then
+        result_not_implemented "[findVarInFrame3] TODO"
+      else result_success S (ret, rho)
+    using S in
+    match ret with
+    | None => result_error S "[findFun3] Could not find function"
+    | Some r => result_success S r
+    end in
+  let%success special := IS_SPECIAL_SYMBOL S symbol using S in
+  ifb special then
+    do%success rho := rho
+    while let%success special := NO_SPECIAL_SYMBOLS S rho using S in
+          result_success S (decide (rho <> R_EmptyEnv /\ special)) do
+      read%env _, rho_env := rho using S in
+      result_success S (env_enclos rho_env)
+    using S in
+    cont S rho
+  else cont S rho.
+
 
 (** ** attrib.c **)
 
@@ -1331,6 +1359,9 @@ Definition applyClosure S
        else rho)
       rho arglist op.
 
+Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[promiseArgs] TODO".
+
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) :=
@@ -1387,13 +1418,16 @@ Definition eval S (e rho : SExpRec_pointer) :=
           else result_success S e
         | LangSxp =>
           let%list e_, e_list := e_ using S in
-          let car := list_carval e_list in
-          read%defined car_ := car using S in
+          let e_car := list_carval e_list in
+          read%defined e_car_ := e_car using S in
           let%success op :=
-            ifb type car_ = SymSxp then
-              (* TODO: findFun3 — in essence, this is just a variable look-up. *)
-              result_not_implemented "[eval] findFun3 (TODO)"
-            else runs_eval runs S car rho using S in
+            ifb type e_car_ = SymSxp then
+              let%success ecall :=
+                ifb callflag (R_GlobalContext S) = Ctxt_CCode then
+                  result_success S (call (R_GlobalContext S))
+                else result_success S e using S in
+              findFun3 S e_car rho ecall
+            else runs_eval runs S e_car rho using S in
           read%defined op_ := op using S in
             match type op_ with
             | SpecialSxp =>
@@ -1403,10 +1437,8 @@ Definition eval S (e rho : SExpRec_pointer) :=
               (* TODO: This is basically a call to PRIMFUN after evaluating the argument list. *)
               result_not_implemented "[eval] PRIMFUN after argument evaluation (TODO)"
             | CloSxp =>
-              (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c
-                 applyClosure(e, op, promiseArgs(CDR(e), rho), rho, R_NilValue);
-               *)
-              result_not_implemented "[eval] applyClosure (TODO)"
+              let%success prom := promiseArgs S (list_cdrval e_list) rho using S in
+              applyClosure S e op prom rho R_NilValue
             | _ => result_error S "[eval] Attempt to apply non-function."
             end
         | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
