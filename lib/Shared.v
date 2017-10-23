@@ -513,13 +513,31 @@ Ltac prove_comparable_simple_inductive :=
   apply make_comparable; intros x y; destruct x; destruct y;
   prove_decidable_eq.
 
+Ltac prove_comparable_trivial_inductive :=
+  match goal with
+  | |- Comparable ?T =>
+    let f := fresh T "_compare" in
+    refine (let f : (T -> T -> bool) :=
+      ltac:(intros t1 t2; remember t1 as t1' eqn: E1; remember t2 as t2' eqn: E2; destruct t1, t2;
+            let t1 := type of E1 in let t2 := type of E2 in clear E1 E2;
+            match t1 with
+            | _ = ?t =>
+              match t2 with
+              | _ = t => exact true
+              | _ => exact false
+              end
+            end) in _);
+    let I := fresh "I" in
+    constructors; intros t1 t2; applys Decidable_equiv (f t1 t2); [| apply bool_decidable ];
+    destruct t1, t2; simpl; iff I; (inversion I || reflexivity)
+  end.
 
 Global Instance unit_comparable : Comparable unit.
-  prove_comparable_simple_inductive.
+  prove_comparable_trivial_inductive.
 Defined.
 
 Global Instance False_comparable : Comparable False.
-  prove_comparable_simple_inductive.
+  prove_comparable_trivial_inductive.
 Defined.
 
 

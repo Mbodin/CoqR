@@ -599,7 +599,7 @@ Definition make_SExpRec_expr attrib array :=
 (** * Instances **)
 
 Instance SExpType_Comparable : Comparable SExpType.
-  prove_comparable_simple_inductive.
+  prove_comparable_trivial_inductive.
 Defined.
 
 Instance SExpRec_Inhab : Inhab SExpRec.

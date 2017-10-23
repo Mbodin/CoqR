@@ -83,7 +83,7 @@ Extraction Inline Fappli_IEEE.Bmult Fappli_IEEE.Bmult_FF Fappli_IEEE_bits.b64_mu
 Extraction Inline Fappli_IEEE.Bdiv Fappli_IEEE_bits.b64_div.
 
 (* LATER: When the parser will be in Coq, most of what is forcely being extracted here will be useless. *)
-Extraction "low.ml" NBits
+Extraction "low.ml" NBits all_GlobalVariables
   Parsing ScalarReal ScalarInteger mkNA alloc_vector_cplx R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString
   setup_Rmainloop empty_state eval_global.
 

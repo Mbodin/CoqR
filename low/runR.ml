@@ -183,6 +183,7 @@ let _ =
             let exact c cont =
               if c = cmd then (
                 cont ();
+                print_endline "Done.";
                 loop s)
               else success ParserUtils.null in
             match find_opt (fun (c, _, _) -> Print.is_prefix c cmd) interactive_options with

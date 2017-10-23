@@ -14,11 +14,7 @@ Require Export RinternalsAux.
  * See the beginning of the files Reval.v and Rinit.v for more
  * details. **)
 
-(** To ease compilation time (in particular the proof of comparability
- * below), this definition has been arbitrarily splitted into arbitrary
- * subtypes. **)
-
-Inductive GlobalVariables_1 :=
+Inductive GlobalVariable :=
   | R_AsCharacterSymbol
   | R_BaseEnv
   | R_BaseNamespaceName
@@ -45,9 +41,6 @@ Inductive GlobalVariables_1 :=
   | R_dot_Group
   | R_dot_Method
   | R_dot_Methods
-  .
-
-Inductive GlobalVariables_2 :=
   | R_dot_packageName
   | R_DotsSymbol
   | R_dot_target
@@ -74,9 +67,6 @@ Inductive GlobalVariables_2 :=
   | R_PreviousSymbol
   | R_QuoteSymbol
   | R_RecursiveSymbol
-  .
-
-Inductive GlobalVariables_3 :=
   | R_RowNamesSymbol
   | R_SeedsSymbol
   | R_SortListSymbol
@@ -91,51 +81,29 @@ Inductive GlobalVariables_3 :=
   | R_UnboundValue
   | R_UseNamesSymbol
   | R_WholeSrcrefSymbol
-  .
-
-Inductive StaticVariables :=
+  (** The following global variables are [static] variables of functions **)
   | mkPRIMSXP_primCache
-  (* TODO: Check whether the following static variables are
-   * really initialised then never changed. *)
-  | do_onexit_do_onexit_formals
-  | do_attr_do_attr_formals
   .
 
-Inductive GlobalVariable :=
-  | GlobalVariable_1 : GlobalVariables_1 -> GlobalVariable
-  | GlobalVariable_2 : GlobalVariables_2 -> GlobalVariable
-  | GlobalVariable_3 : GlobalVariables_3 -> GlobalVariable
-  | StaticVariable : StaticVariables -> GlobalVariable
-  .
-Coercion GlobalVariable_1 : GlobalVariables_1 >-> GlobalVariable.
-Coercion GlobalVariable_2 : GlobalVariables_2 >-> GlobalVariable.
-Coercion GlobalVariable_3 : GlobalVariables_3 >-> GlobalVariable.
-Coercion StaticVariable : StaticVariables >-> GlobalVariable.
-
-(** It is important for the following type class to only be local,
- * to avoid having a code of the form [ifb C1 = C2 then], where [C1]
- * and [C2] are two global variables, to be interpreted as the
- * syntactic equality where it should be seen as a semantic equality,
- * throught the context coercion. **)
-
-Local Instance GlobalVariables_1_Comparable : Comparable GlobalVariables_1.
-  prove_comparable_simple_inductive.
-Defined.
-
-Local Instance GlobalVariables_2_Comparable : Comparable GlobalVariables_2.
-  prove_comparable_simple_inductive.
-Defined.
-
-Local Instance GlobalVariables_3_Comparable : Comparable GlobalVariables_3.
-  prove_comparable_simple_inductive.
-Defined.
-
-Local Instance StaticVariables_Comparable : Comparable StaticVariables.
-  prove_comparable_simple_inductive.
+Definition all_GlobalVariables : list GlobalVariable.
+  let rec aux t :=
+    match t with
+    | ?C = _ -> ?t =>
+      let l := aux t in
+      constr:(C :: l)
+    | _ ?C -> ?t =>
+      let l := aux t in
+      constr:(C :: l)
+    | _ => constr:(@nil GlobalVariable)
+    end in
+  let ind := constr:(GlobalVariable_ind (fun x => x = R_NilValue)) in
+  let t := type of ind in
+  let l := aux t in
+  exact l.
 Defined.
 
 Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
-  prove_comparable_simple_inductive.
+  prove_comparable_trivial_inductive.
 Defined.
 
 Definition Globals : Type := GlobalVariable -> SExpRec_pointer.
@@ -161,6 +129,7 @@ Definition GlobalsWith_list :=
 Notation "'{{' g 'with' L '}}'" :=
   (GlobalsWith_list g L) : globals_scope.
 
+
 (** Each application of [GlobalsWith] adds a closure in the built context.
  * To avoid too many closures (which may lead to slowness or stack overflow),
  * we propose the following definition.
@@ -173,66 +142,26 @@ Notation "'{{' g 'with' L '}}'" :=
  * quite slow (as they proof its correctness at the same time as defining it).
  * Its computation is thus disabled by default. **)
 
-Ltac define_flatten_function g :=
-  match goal with
-  | |- ?T -> SExpRec_pointer =>
-    refine (proj1_sig (_ : { g' | forall C, g C = g' C }));
-    let arg := fresh "arg" in
-    refine (exist _ (let args := _ in fun C : T =>
-                     ltac:(destruct C;
-                           repeat (exact arg
-                               || refine (let (arg, args) := args : _ * _ in _)))) _);
-    let C := fresh "C" in
-    intro C; destruct C; [ > .. |
-     let rec aux :=
-       match goal with |- ?g = let (arg, args) := ?y in _ =>
-         let E := fresh "E" in
-         asserts E: (y = (g, tt)) || (
-           let ya := fresh "arg" in let yb := fresh "args" in
-           match type of y with (?A * ?B)%type => evar (ya : A); evar (yb : B) end;
-           asserts E: (y = (ya, yb)); [| unfolds yb; try rewrite E; (reflexivity || aux) ]) end
-     in simpl; aux; reflexivity ]; simpl; reflexivity
-  end.
-
-Definition flatten_Globals_1 (g : GlobalVariables_1 -> SExpRec_pointer) :
-    GlobalVariables_1 -> SExpRec_pointer.
-  define_flatten_function g.
+Definition flatten_Globals (g : Globals) : Globals.
+  let rec build_let l t :=
+    match t with
+    | @nil _ =>
+      let rec build_match l :=
+        match l with
+        | @nil _ => exact (GlobalVariable_rect (fun _ => SExpRec_pointer))
+        | ?x :: ?l => exact (ltac:(build_match l) x)
+        end in
+      build_match l
+    | ?C :: ?t =>
+      let a := fresh "g_" C in
+      exact (let a := g C in ltac:(build_let (a :: l) t))
+    end in
+  let l := eval unfold all_GlobalVariables in all_GlobalVariables in
+  build_let (@nil SExpRec_pointer) l.
 Defined.
-
-Definition flatten_Globals_2 (g : GlobalVariables_2 -> SExpRec_pointer) :
-    GlobalVariables_2 -> SExpRec_pointer.
-  define_flatten_function g.
-Defined.
-
-Definition flatten_Globals_3 (g : GlobalVariables_3 -> SExpRec_pointer) :
-    GlobalVariables_3 -> SExpRec_pointer.
-  define_flatten_function g.
-Defined.
-
-Definition flatten_Statics (g : StaticVariables -> SExpRec_pointer) :
-    StaticVariables -> SExpRec_pointer.
-  define_flatten_function g.
-Defined.
-
-Definition flatten_Globals (g : Globals) : Globals :=
-  let f1 := flatten_Globals_1 g in
-  let f2 := flatten_Globals_2 g in
-  let f3 := flatten_Globals_3 g in
-  let s := flatten_Statics g in
-  fun x =>
-    match x with
-    | GlobalVariable_1 x => f1 x
-    | GlobalVariable_2 x => f2 x
-    | GlobalVariable_3 x => f3 x
-    | StaticVariable x => s x
-    end.
 
 Lemma flatten_Globals_correct : forall g C,
   g C = flatten_Globals g C.
 Proof.
-  introv. destruct C; simpl; unfolds;
-    match goal with |- context [ proj1_sig ?s ] => sets_eq si: s end;
-    apply (proj2_sig si).
+  introv. destruct C; reflexivity.
 Qed.
-
-
