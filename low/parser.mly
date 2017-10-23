@@ -73,11 +73,12 @@
 main:
   | cmd = NEW_LINE      { Command cmd }
   | p = prog            { Success p }
+  | END_OF_INPUT        { Command "#quit" }
 
 (** ** R Grammar **)
 
 prog:
-  | END_OF_INPUT                   { null }
+  (*| END_OF_INPUT                 { null }*)
   (*| NEW_LINE                     { null }*)
   | e = expr_or_assign; NEW_LINE   { e }
   | e = expr_or_assign; SEMICOLON  { e }

@@ -23,6 +23,7 @@ let show_context = ref true
 let show_globals_initial = ref false
 let show_result_after_computation = ref true
 let show_state_after_computation = ref false
+let only_parsing = ref false
 
 (** * Generating List of Options **)
 
@@ -55,7 +56,8 @@ let boolean_switches =
     write_switch [] [show_gp_switch] gp_opt "num-gp" "the general purpose field as a number instead of a bit vector" ;
     computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" ;
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" ;
-    computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning"
+    computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" ;
+    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions"
   ]
 
 let get_pointer (_, _, _, _, _, _, p, _, _) = p
@@ -143,6 +145,7 @@ let find_opt f l =
   | Not_found -> None
 
 let _ =
+  print_endline "Initialising…" ;
   Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state (fun s globals ->
     if !show_globals_initial then
       print_endline (Print.print_state 2 !show_context !show_memory!show_globals !show_initials !no_temporary
@@ -155,6 +158,10 @@ let _ =
       let rec loop s =
         print_string "> "; flush stdout;
         let success f =
+          let f =
+            if !only_parsing then f
+            else ParserUtils.bind f (fun g r s p ->
+              Low.eval_global g r s p) in
           print_and_continue globals (f globals (Low.runs globals !max_steps) s) s (fun n globals s ->
             Print.print_pointer !readable_pointers s globals) (fun s _ -> loop s) in try
           match Parser.main Lexer.lex buf with
@@ -179,7 +186,7 @@ let _ =
                 loop s)
               else success ParserUtils.null in
             match find_opt (fun (c, _, _) -> Print.is_prefix c cmd) interactive_options with
-            | None -> success ParserUtils.null
+            | None -> loop s (*success ParserUtils.null*)
             (*| Some (c, Arg.Set_int f, _) -> ()*)
             | Some (c, Arg.Set p, _) -> exact c (fun _ -> p := true)
             | Some (c, Arg.Clear p, _) -> exact c (fun _ -> p := false)

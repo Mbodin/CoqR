@@ -1334,7 +1334,7 @@ Definition applyClosure S
 
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
-Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition eval S (e rho : SExpRec_pointer) :=
   read%defined e_ := e using S in
     match type e_ with
     | NilSxp
@@ -1415,6 +1415,9 @@ Definition eval S (e rho : SExpRec_pointer) : result SExpRec_pointer :=
         end
     end.
 
+(** Evaluates the expression in the global environment. **)
+Definition eval_global S e :=
+  eval S e R_GlobalEnv.
 
 End ParameterisedRuns.
 
