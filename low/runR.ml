@@ -76,11 +76,11 @@ let all_categories =
     | [] -> c
   in aux [] boolean_switches
 
-let make_options prefix switch_on switch_off set_int as_function =
+let make_options prefix =
   let name_switch v b = prefix ^ name_switch v b in
   let name_switch_base v b = prefix ^ name_switch_base v b in
-  [(prefix ^ "no-temporary", switch_on no_temporary, "Do not show basic element with a temporary named field") ;
-   (prefix ^ "steps", set_int max_steps, "Set the maximum number of steps of the interpreter") ]
+  [(prefix ^ "no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
+   (prefix ^ "steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ]
   @ List.concat (List.map (fun b ->
       let (_, d, vsy, vsn, vvy, vvn, p, c, n) = b in
       let deps = String.concat " " (List.map (name_switch true) d) in
@@ -89,8 +89,8 @@ let make_options prefix switch_on switch_off set_int as_function =
       let default b =
         if b then " (default)" else "" in
       let ret dep_text print_dep = [
-          (name_switch true b ^ dep_text, switch_on p, vvy ^ " " ^ n ^ print_dep ^ default !p) ;
-          (name_switch false b ^ dep_text, switch_off p, vvn ^ " " ^ n ^ print_dep ^ default (not !p))
+          (name_switch true b ^ dep_text, Arg.Set p, vvy ^ " " ^ n ^ print_dep ^ default !p) ;
+          (name_switch false b ^ dep_text, Arg.Clear p, vvn ^ " " ^ n ^ print_dep ^ default (not !p))
         ] in
       let set_with_dep v _ =
         List.iter (fun b -> get_pointer b := true) d ;
@@ -99,9 +99,9 @@ let make_options prefix switch_on switch_off set_int as_function =
         ret "" ""
       else
         ret base_suffix print_dep @ [
-            (name_switch true b, as_function (set_with_dep true),
+            (name_switch true b, Arg.Unit (set_with_dep true),
               vvy ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base true b ^ ")") ;
-            (name_switch false b, as_function (set_with_dep false),
+            (name_switch false b, Arg.Unit (set_with_dep false),
               vvn ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base false b ^ ")")
           ]) boolean_switches)
   @ List.concat (List.map (fun c ->
@@ -112,43 +112,81 @@ let make_options prefix switch_on switch_off set_int as_function =
         " (equivalent to " ^ String.concat " " (List.map (name_switch_base v) this_category) ^ ")" in
       let all v _ =
         List.iter (fun b -> get_pointer b := v) this_category in [
-        (prefix ^ vsy ^ "-" ^ c, as_function (all true), (if r then e ^ " " ^ vvy else vvy ^ " " ^ e) ^ equivalent true) ;
-        (prefix ^ vsn ^ "-" ^ c, as_function (all false), (if r then e ^ " " ^ vvn else vvn ^ " " ^ e) ^ equivalent false) ;
+        (prefix ^ vsy ^ "-" ^ c, Arg.Unit (all true), (if r then e ^ " " ^ vvy else vvy ^ " " ^ e) ^ equivalent true) ;
+        (prefix ^ vsn ^ "-" ^ c, Arg.Unit (all false), (if r then e ^ " " ^ vvn else vvn ^ " " ^ e) ^ equivalent false) ;
       ]) all_categories)
 
 (** * Reading Arguments **)
 
 let _ =
     Arg.parse
-      (("-non-interactive", Arg.Clear interactive, "Non-interactive mode")
-        :: make_options "-" (fun p -> Arg.Set p) (fun p -> Arg.Clear p) (fun p -> Arg.Set_int p) (fun f -> Arg.Unit f))
+      (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-")
       (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
       "This programs aims at mimicking the core of R. Usage:\n\trunR.native [OPTIONS]\nCommands are parsed from left to right.\nDuring interactive mode, type “#help” to get some help."
 
 (** * Main Loop **)
+
+let expr_options _ =
+  (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
 
 let print_and_continue g r s pr cont =
   Print.print_defined r s (fun s r ->
     if !show_state_after_computation then (
       print_endline "State:" ;
       print_endline (Print.print_state 2 !show_context !show_memory !show_globals !show_initials !no_temporary
-        (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
-        !readable_pointers s g)) ;
+        (expr_options ()) !readable_pointers s g)) ;
     if !show_result_after_computation then
-      print_endline ("Result: " ^ pr 8)) cont
+      print_endline ("Result: " ^ pr 8 g s r)) cont
+
+let find_opt f l =
+  try Some (List.find f l) with
+  | Not_found -> None
 
 let _ =
-  Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state (fun s g ->
+  Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state (fun s globals ->
     if !show_globals_initial then
       print_endline (Print.print_state 2 !show_context !show_memory!show_globals !show_initials !no_temporary
-        (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
-        !readable_pointers s g)) (fun s g ->
-    (** Initialing the read-eval-print-loop **)
-    let buf = Lexing.from_channel stdin in
-    print_string "> "; flush stdout;
-    try
-        let _ = Parser.main Lexer.lex buf in ()
-    with
-    | Parser.Error ->
-      print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ "."))
+        (expr_options ()) !readable_pointers s globals)) (fun s globals ->
+    match globals with
+    | None -> print_endline "Initialisation of constant global variables failed. Halting"
+    | Some globals ->
+      (** Initialing the read-eval-print-loop **)
+      let buf = Lexing.from_channel stdin in
+      let rec loop s =
+        print_string "> "; flush stdout;
+        let success f =
+          print_and_continue globals (f globals (Low.runs globals !max_steps) s) s (fun n globals s ->
+            Print.print_pointer !readable_pointers s globals) (fun s _ -> loop s) in try
+          match Parser.main Lexer.lex buf with
+          | ParserUtils.Success f ->
+            success f
+          | ParserUtils.Command "#quit" -> ()
+          | ParserUtils.Command cmd ->
+            let rec interactive_options =
+              let print_help _ =
+                List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
+              let print_state _ =
+                print_endline "State:" ;
+                print_endline (Print.print_state 2 !show_context !show_memory !show_globals !show_initials !no_temporary
+                  (expr_options ()) !readable_pointers s globals) in
+              ("#help", Arg.Unit print_help, "Print this list of command") ::
+              ("#quit", Arg.Unit (fun _ -> ()), "Exit the interpreter") ::
+              ("#state", Arg.Unit print_state, "Print the current state") ::
+              make_options "#" in
+            let exact c cont =
+              if c = cmd then (
+                cont ();
+                loop s)
+              else success ParserUtils.null in
+            match find_opt (fun (c, _, _) -> Print.is_prefix c cmd) interactive_options with
+            | None -> success ParserUtils.null
+            (*| Some (c, Arg.Set_int f, _) -> ()*)
+            | Some (c, Arg.Set p, _) -> exact c (fun _ -> p := true)
+            | Some (c, Arg.Clear p, _) -> exact c (fun _ -> p := false)
+            | Some (c, Arg.Unit f, _) -> exact c f
+            | Some (c, _, _) -> prerr_endline ("Uncaught command: " ^ c)
+        with
+        | Parser.Error ->
+          print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".")
+      in loop s)
 

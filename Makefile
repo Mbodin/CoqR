@@ -38,5 +38,5 @@ clean_interp:
 low/runR.native: low/Extraction.vo ${OCAMLFILES}
 	mv low.ml low/low.ml || true
 	mv low.mli low/low.mli || true
-	cd low ; ocamlbuild -use-menhir runR.native ; cd ..
+	cd low ; ocamlbuild -use-menhir -menhir "menhir --explain" runR.native ; cd ..
 

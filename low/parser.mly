@@ -68,7 +68,7 @@
 
 (* * Grammar *)
 
-(** ** **)
+(** ** Some Interface **)
 
 main:
   | cmd = NEW_LINE      { Command cmd }

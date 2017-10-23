@@ -46,7 +46,7 @@ let escape_sequence =
 let normal_character = [^ '\\' '\'' '"' '\x00'] (* This may be ameliorable. *)
 let character = normal_character | escape_sequence
 let reg_string =
-  '\'' (character | '"')* '\'' | '"' (character | '\'')* '"'
+  '\'' ((character | '"')* as str) '\'' | '"' ((character | '\'')* as str) '"'
 
 
 (** ** Language Features **)
@@ -116,7 +116,7 @@ rule lex = parse
 
   (** ** Special Values **)
   | reg_special_operator as name    { SPECIAL (install_and_save name) }
-  | reg_string as str               { STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list str)))) }
+  | reg_string                      { STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list str)))) }
   | reg_integer                     { NUM_CONST (mkInt value) }
   | reg_numeric as value            { NUM_CONST (mkFloat value) }
   | reg_imaginary                   { NUM_CONST (mkComplex value) }
@@ -163,7 +163,7 @@ rule lex = parse
   (** ** Miscellaneous **)
   | ';'                              { SEMICOLON }
   | ','                              { COMMA }
-  | ('#' ([^ '\n']* as cmd))? '\n'   { NEW_LINE (match cmd with Some s -> s | None -> "") }
+  | ('#' [^ '\n']* as cmd)? '\n'   { NEW_LINE (match cmd with Some s -> s | None -> "") }
   | space+                           { lex lexbuf }
   | _                                { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof                              { END_OF_INPUT }

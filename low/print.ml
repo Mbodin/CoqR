@@ -109,6 +109,13 @@ let string_to_char_list str =
     else aux (i - 1) (str.[i] :: acc) in
   aux (String.length str - 1) []
 
+let is_prefix str1 str2 =
+  let l1 = String.length str1 in
+  let l2 = String.length str2 in
+  if l1 > l2 then false
+  else str1 = String.sub str2 0 l1
+
+
 let print_raw_pointer = function
   | None -> "NULL"
   | Some i -> string_of_int i
@@ -325,9 +332,9 @@ let print_continue r s cont =
 let print_defined r s pr cont =
   print_continue r s (fun s -> function
     | None ->
-      print_endline "An error lead to an undefined result." ;
+      print_endline "An error yielded an undefined result." ;
       cont s None
-    | Some g ->
-      pr s g ;
-      cont s (Some g))
+    | Some r ->
+      pr s r ;
+      cont s (Some r))
 
