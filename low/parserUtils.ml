@@ -8,6 +8,10 @@ type 'a monad_type = globals -> runs_type -> state -> 'a
 (** The main type carried in the parser. **)
 type token_type = sExpRec_pointer result monad_type
 
+type parser_result =
+  | Success of token_type
+  | Command of string
+
 
 (** * Wrappers **)
 

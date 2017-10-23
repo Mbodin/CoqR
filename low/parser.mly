@@ -35,7 +35,8 @@
 %token                              RBRACE RPAR RSQBRACKET
 %token<ParserUtils.token_type>      QUESTION_MARK TILDE PLUS MINUS TIMES DIV COLON EXP NOT DOLLAR AT
 %token<ParserUtils.token_type>      SPECIAL
-%token                              COMMA SEMICOLON NEW_LINE
+%token                              COMMA SEMICOLON
+%token<string>                      NEW_LINE
 
 (* * Precedence Table *)
 
@@ -61,15 +62,23 @@
 %left       NS_GET NS_GET_INT
 %nonassoc   LPAR LSQBRACKET LBB
 
-%start<ParserUtils.token_type>  prog
+%start<ParserUtils.parser_result>  main
 
 %%
 
 (* * Grammar *)
 
+(** ** **)
+
+main:
+  | cmd = NEW_LINE      { Command cmd }
+  | p = prog            { Success p }
+
+(** ** R Grammar **)
+
 prog:
   | END_OF_INPUT                   { null }
-  | NEW_LINE                       { null }
+  (*| NEW_LINE                     { null }*)
   | e = expr_or_assign; NEW_LINE   { e }
   | e = expr_or_assign; SEMICOLON  { e }
   | error                          { prerr_endline "Syntax error"; null }

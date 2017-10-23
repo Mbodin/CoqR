@@ -116,10 +116,10 @@ let print_raw_pointer = function
 
 let pointer_exceptions s g =
   List.concat [
-      List.map (fun (proj, str) ->
-        (proj s, str)) all_global_variables_state ;
       List.map (fun (var, str) ->
-        (g var, str)) all_global_variables
+        (g var, str)) all_global_variables ;
+      List.map (fun (proj, str) ->
+        (proj s, str)) all_global_variables_state
     ]
 
 let print_pointer t s g p =
@@ -276,13 +276,13 @@ let rec print_context d t s g ctxt =
   indent d ^ "cloenv: " ^ print_pointer t s g ctxt.cloenv ^
   indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit
 
-let print_state d memory globals initials no_temporary expr_options t s g =
+let print_state d context memory globals initials no_temporary expr_options t s g =
   (if memory then
     "Memory:" ^ indent (d + 2) ^
     print_memory (d + 2) s g t no_temporary expr_options (state_memory s) ^ "\n"
    else "") ^
   (if globals then
-    "Global variables:" ^
+    "Global variables:\n" ^
     String.concat (indent (d + 2)) (
       List.map (fun (proj, str) ->
         str ^ ": " ^ print_pointer t s g (proj s)) all_global_variables_state) ^ "\n"
@@ -293,7 +293,9 @@ let print_state d memory globals initials no_temporary expr_options t s g =
       List.map (fun (var, str) ->
         str ^ ": " ^ print_pointer t s g (g var)) all_global_variables) ^ "\n"
    else "") ^
-  "Context:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)
+  if context then
+    "Context:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)
+  else ""
 
 let print_result r cont =
   match r with
@@ -320,9 +322,12 @@ let print_continue r s cont =
       cont s
     | Some s -> cont s)
 
-let print_defined r s cont =
+let print_defined r s pr cont =
   print_continue r s (fun s -> function
     | None ->
-      print_endline "An error lead to an undefined result. Halting"
-    | Some g -> cont s g)
+      print_endline "An error lead to an undefined result." ;
+      cont s None
+    | Some g ->
+      pr s g ;
+      cont s (Some g))
 
