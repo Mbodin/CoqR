@@ -161,9 +161,10 @@ rule lex = parse
   | ']'     { RSQBRACKET }
 
   (** ** Miscellaneous **)
+  | reg_identifier as str            { SYMBOL (install_and_save str) }
   | ';'                              { SEMICOLON }
   | ','                              { COMMA }
-  | ('#' [^ '\n']* as cmd)? '\n'   { NEW_LINE (match cmd with Some s -> s | None -> "") }
+  | ('#' [^ '\n']* as cmd)? '\n'     { NEW_LINE (match cmd with Some s -> s | None -> "") }
   | space+                           { lex lexbuf }
   | _                                { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof                              { END_OF_INPUT }

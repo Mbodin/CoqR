@@ -532,6 +532,78 @@ Ltac prove_comparable_trivial_inductive :=
     destruct t1, t2; simpl; iff I; (inversion I || reflexivity)
   end.
 
+(* The next two tactics are inspired from the message of Pierre Courtieu:
+  [Coq-Club] using Ltac to retrieve the name of an induction principle from the type. *)
+Ltac hd_of_app t :=
+  match t with
+  | (?f _) => hd_of_app f
+  | _ => t
+  end.
+
+Ltac find_elem typ :=
+  constr:(ltac:(constructor):typ).
+
+Ltac find_rec typ :=
+  let X := constr:(fun x : typ => ltac:(induction x; exact I) : True) in
+  let h := find_elem typ in
+  let app := eval lazy beta in (X h) in
+  let hd := hd_of_app app in
+  hd.
+
+Ltac find_rect t typ :=
+  let T := type of t in
+  let X := constr:(fun x : typ => ltac:(induction x; exact t) : T) in
+  let h := find_elem typ in
+  let app := eval lazy beta in (X h) in
+  let hd := hd_of_app app in
+  hd.
+
+Ltac list_all_constructors :=
+  match goal with
+  | |- list ?T =>
+    let rec aux t :=
+      match t with
+      | ?C = _ -> ?t =>
+        let l := aux t in
+        constr:(C :: l)
+      | _ ?C -> ?t =>
+        let l := aux t in
+        constr:(C :: l)
+      | _ => constr:(@nil T)
+      end in
+    let h := find_elem T in
+    let ind_princip := find_rec T in
+    let ind := constr:(ind_princip (fun x => x = h)) in
+    let t := type of ind in
+    let l := aux t in
+    exact l
+  end.
+
+Ltac prove_comparable_trivial_inductive_faster :=
+  match goal with
+  | |- Comparable ?T =>
+    let f := fresh T "_to_nat" in
+    refine (let f : (T -> nat) := ltac:(
+      match goal with
+      | |- ?T -> _ =>
+        let rec aux i t b :=
+          match t with
+          | ?C -> ?t =>
+            let f := aux (S i) t b in
+            constr:(f i)
+          | _ => constr:(b)
+          end in
+        let ind_princip := find_rect O T in
+        let ind := constr:(ind_princip (fun _ => nat)) in
+        let t := type of ind in
+        let f := aux O t ind in
+        exact f
+      end) in _);
+    let I := fresh "I" in
+    constructors; intros t1 t2; applys Decidable_equiv (f t1 = f t2); [| typeclass ];
+    iff I; [ destruct t1, t2; (reflexivity || inversion I) | rewrite~ I ]
+  end.
+
 Global Instance unit_comparable : Comparable unit.
   prove_comparable_trivial_inductive.
 Defined.

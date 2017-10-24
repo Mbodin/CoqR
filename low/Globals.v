@@ -89,24 +89,11 @@ Inductive GlobalVariable :=
   .
 
 Definition all_GlobalVariables : list GlobalVariable.
-  let rec aux t :=
-    match t with
-    | ?C = _ -> ?t =>
-      let l := aux t in
-      constr:(C :: l)
-    | _ ?C -> ?t =>
-      let l := aux t in
-      constr:(C :: l)
-    | _ => constr:(@nil GlobalVariable)
-    end in
-  let ind := constr:(GlobalVariable_ind (fun x => x = R_NilValue)) in
-  let t := type of ind in
-  let l := aux t in
-  exact l.
+  list_all_constructors.
 Defined.
 
 Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
-  prove_comparable_trivial_inductive.
+  prove_comparable_trivial_inductive_faster.
 Defined.
 
 Definition Globals : Type := GlobalVariable -> SExpRec_pointer.

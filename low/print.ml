@@ -365,7 +365,7 @@ let print_continue r s cont =
 let print_defined r s pr cont =
   print_continue r s (fun s -> function
     | None ->
-      print_endline "An error yielded an undefined result." ;
+      print_endline "An error lead to an undefined result." ;
       cont s None
     | Some r ->
       pr s r ;
