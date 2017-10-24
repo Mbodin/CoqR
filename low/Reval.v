@@ -1095,6 +1095,17 @@ Definition IS_ACTIVE_BINDING S symbol :=
   read%defined symbol_ := symbol using S in
   result_success S (NBits.nth_bit 15 (gp symbol_) ltac:(NBits.nbits_ok)).
 
+Definition getActiveValue S f :=
+  let%success expr := lcons S f R_NilValue using S in
+  runs_eval runs S expr R_GlobalEnv.
+
+Definition SYMBOL_BINDING_VALUE S s :=
+  let%success active := IS_ACTIVE_BINDING S s using S in
+  read%sym _, s_sym := s using S in
+  ifb active then
+    getActiveValue S (sym_value s_sym)
+  else result_success S (sym_value s_sym).
+
 Definition setActiveValue S (f v : SExpRec_pointer) :=
   let%success arg_tail := lcons S v R_NilValue using S in
   let%success arg := lcons S R_QuoteSymbol arg_tail using S in
@@ -1115,6 +1126,18 @@ Definition SET_BINDING_VALUE S b val :=
     else
       set%car b := val using S in
     result_success S tt.
+
+Definition BINDING_VALUE S b :=
+  let%success active := IS_ACTIVE_BINDING S b using S in
+  read%list b_, b_list := b using S in
+  ifb active then
+    getActiveValue S (list_carval b_list)
+  else result_success S (list_carval b_list).
+
+Definition IS_USER_DATABASE S rho :=
+  read%defined rho_ := rho using S in
+  let%success inh := inherits S rho "UserDefinedDatabase" using S in
+  result_success S (obj rho_ && inh).
 
 Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
   let%success locked := FRAME_IS_LOCKED S rho using S in
@@ -1151,9 +1174,8 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
   ifb rho = R_EmptyEnv then
     result_error S "[defineVar] Can not assign values in the empty environment."
   else
-    read%defined rho_ := rho using S in
-    let%success inh := inherits S rho "UserDefinedDatabase" using S in
-    if obj rho_ && inh then
+    let%success user_database := IS_USER_DATABASE S rho using S in
+    if user_database then
       result_not_implemented "[defineVar] [R_ObjectTable]"
     else
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
@@ -1161,7 +1183,7 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
       else
         let continuation S :=
           (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-          let%env rho_, rho_env := rho_ using S in
+          read%env rho_, rho_env := rho using S in
           fold%success ret := false along env_frame rho_env as frame, frame_, frame_list do
             if ret then
               result_success S true
@@ -1217,12 +1239,60 @@ Definition setVar S (symbol value rho : SExpRec_pointer) :=
   using S in
   defineVar S symbol value R_GlobalEnv.
 
+Definition findVarInFrame3 S rho symbol (doGet : bool) :=
+  read%defined rho_ := rho using S in
+  ifb type rho_ = NilSxp then
+    result_error S "[findVarInFrame3] Use of NULL environment is defunct."
+  else
+    ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
+      SYMBOL_BINDING_VALUE S symbol
+    else ifb rho = R_EmptyEnv then
+      result_success S (R_UnboundValue : SExpRec_pointer)
+    else
+      let%success user_database := IS_USER_DATABASE S rho using S in
+      ifb user_database then
+        result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
+      else
+        (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+        let%env rho_, rho_env := rho_ using S in
+        fold%success ret := None along env_frame rho_env as frame, frame_, frame_list do
+          ifb ret = None then
+            ifb list_tagval frame_list = symbol then
+              let%success r := BINDING_VALUE S frame using S in
+              result_success S (Some r)
+            else result_success S None
+          else result_success S ret using S in
+        match ret with
+        | Some r =>
+          result_success S r
+        | None =>
+          result_success S (R_UnboundValue : SExpRec_pointer)
+        end.
+
+
 Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
   let cont S (rho : SExpRec_pointer) :=
     do%success (ret, rho) := (None, rho)
-    while result_success S (decide (rho <> R_EmptyEnv)) do
+    while result_success S (decide (ret = None /\ rho <> R_EmptyEnv)) do
+      let cont S :=
+        read%env _, rho_env := rho using S in
+        result_success S (None, env_enclos rho_env) in
       ifb ret = None then
-        result_not_implemented "[findVarInFrame3] TODO"
+        let%success vl := findVarInFrame3 S rho symbol true using S in
+        ifb vl <> R_UnboundValue then
+          let cont' S vl :=
+            read%defined vl_ := vl using S in
+            ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
+              result_success S (Some vl, rho)
+            else ifb vl = R_MissingArg then
+              result_error S "[findFun3] Missing argument, with no default."
+            else cont S in
+          read%defined vl_ := vl using S in
+          ifb type vl_ = PromSxp then
+            let%success vl := runs_eval runs S vl rho using S in
+            cont' S vl
+          else cont' S vl
+        else cont S
       else result_success S (ret, rho)
     using S in
     match ret with
