@@ -82,7 +82,7 @@ prog:
   (*| NEW_LINE                     { null }*)
   | e = expr_or_assign; NEW_LINE   { e }
   | e = expr_or_assign; SEMICOLON  { e }
-  | error                          { prerr_endline "Syntax error"; null }
+  (*| error                        { prerr_endline "Syntax error"; null }*)
 
 expr_or_assign:
   | e = expr         { e }

@@ -127,6 +127,17 @@ let is_prefix str1 str2 =
   if l1 > l2 then false
   else str1 = String.sub str2 0 l1
 
+let split_on_char c str =
+  let len = String.length str in
+  let sub start end_excl =
+    String.sub str start (end_excl - start) in
+  let rec search start current =
+    if current = len then [sub start current]
+    else if str.[current] = c then
+      sub start current :: search (1 + current) (1 + current)
+    else search start (1 + current)
+  in search 0 0
+
 
 let print_raw_pointer = function
   | None -> "NULL"

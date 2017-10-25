@@ -815,7 +815,7 @@ Definition mkSymMarker S pname :=
   write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
   result_success S ans.
 
-Definition install S name : result SExpRec_pointer :=
+Definition install S name_ : result SExpRec_pointer :=
   (** As said in the description of [InitNames] in Rinit.v,
     * the hash table present in [R_SymbolTable] has not been
     * formalised as such.
@@ -824,16 +824,16 @@ Definition install S name : result SExpRec_pointer :=
     * This approach is slower, but equivalent. **)
   fold%return
   along R_SymbolTable S
-  as R_SymbolTable_car, _ do
-    let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
+  as sym_car, _ do
+    let%success str_sym := PRINTNAME S sym_car using S in
     let%success str_name_ := CHAR S str_sym using S in
-    ifb name = str_name_ then
-      result_rreturn S R_SymbolTable_car
+    ifb name_ = str_name_ then
+      result_rreturn S sym_car
     else result_rskip S using S in
-  ifb name = ""%string then
+  ifb name_ = ""%string then
     result_error S "[install] Attempt to use zero-length variable name."
   else
-    let (S, str) := mkChar S name in
+    let (S, str) := mkChar S name_ in
     let%success sym := mkSYMSXP S str R_UnboundValue using S in
     let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
     let S := update_R_SymbolTable S SymbolTable in

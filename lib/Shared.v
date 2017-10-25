@@ -283,8 +283,8 @@ Proof.
 Qed.
 
 
-Definition list_to_string :=
-  fold_left (fun c str => String c str) EmptyString.
+Definition list_to_string l :=
+  fold_left (fun c str => String c str) EmptyString (rev l).
 
 Fixpoint string_to_list (str : string) :=
   match str with
