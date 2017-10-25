@@ -55,6 +55,8 @@ Variable runs : runs_type.
 (** The functions presented here are not from R source code, but
  * represent frequent programming pattern in its source code. **)
 
+(** *** While **)
+
 (** A basic C-like loop **)
 Definition do_while A S (a : A) expr stat : result A :=
   let%success b := expr S a using S in
@@ -153,7 +155,76 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' exp
    cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The following notations deal with loops that may return.
+ * In these cases, one can use the definitions [result_rsuccess],
+ * or [result_rskip] for a normal ending of the loop, and
+ * [result_return] for a breaking return. Note that this only
+ * breaks the current loop, not the whole function. **)
 
+Definition result_rsuccess {A B} S r : result (A + B) :=
+  result_success S (inl r).
+
+Definition result_rskip {B} S : result (_ + B) :=
+  result_rsuccess S tt.
+
+Definition result_rbreak {A B} S r : result (A + B) :=
+  result_success S (inr r).
+
+Definition match_rresult {A B C} (r : result (A + B)) cont : result (C + B) :=
+  let%success res := r using S in
+  match res with
+  | inl r => cont S r
+  | inr r => result_rbreak S r
+  end.
+
+Notation "'let%return' a ':=' e 'using' S 'in' cont" :=
+  (match_rresult e (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'run%return' c 'using' S 'in' cont" :=
+  (let%return _ := c using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** Exit the return-monad. **)
+Definition exit_rresult {A B} (r : result (A + B)) cont :=
+  let%success res := r using S in
+  match res with
+  | inl r => cont S r
+  | inr r => result_success S r
+  end.
+
+Definition continue_and_condition {A B} S (r : A + B) cond :=
+  match r with
+  | inl r => cond S r
+  | inr r => result_success S false
+  end.
+
+Definition get_success {A B} S (r : A + B) cont : result (A + B) :=
+  match r with
+  | inl r => cont S r
+  | inr r => result_rbreak S r
+  end.
+
+Notation "'do%return' 'while' expr 'do' stat 'using' S 'in' cont" :=
+  (exit_rresult
+     (do%let ret := inl tt
+      while continue_and_condition S ret (fun S _ => expr)
+      do stat
+      using S)
+     (fun S _ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
+  (exit_rresult
+     (do%let a := inl e
+      while continue_and_condition S a (fun S a => expr)
+      do get_success S a (fun S a => stat)
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+(** *** Fold **)
 
 (** Looping through a list is a frequent pattern in R source code.
  * [fold_left_listSxp_gen] corresponds to the C code
@@ -1279,37 +1350,28 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
       using S in
       result_success S rho
     else result_success S rho using S in
-  do%success (ret, rho) := (None, rho)
-  while result_success S (decide (ret = None /\ rho <> R_EmptyEnv)) do
-    ifb ret = None then
-      let%success vl := findVarInFrame3 S rho symbol true using S in
-      let%success ret :=
-        ifb vl <> R_UnboundValue then
-          read%defined vl_ := vl using S in
-          let%success vl :=
-            ifb type vl_ = PromSxp then
-              let%success vl := runs_eval runs S vl rho using S in
-              result_success S vl
-            else result_success S vl using S in
-          read%defined vl_ := vl using S in
-          ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
-            result_success S (Some vl)
-          else ifb vl = R_MissingArg then
-            result_error S "[findFun3] Missing argument, with no default."
-          else result_success S None
-        else result_success S None using S in
-      match ret with
-      | None =>
-        read%env _, rho_env := rho using S in
-        result_success S (None, env_enclos rho_env)
-      | Some r => result_success S (Some r, rho)
-      end
-    else result_success S (ret, rho)
+  do%return rho := rho
+  while result_success S (decide (rho <> R_EmptyEnv)) do
+    let%success vl := findVarInFrame3 S rho symbol true using S in
+    run%return
+      ifb vl <> R_UnboundValue then
+        read%defined vl_ := vl using S in
+        let%success vl :=
+          ifb type vl_ = PromSxp then
+            let%success vl := runs_eval runs S vl rho using S in
+            result_success S vl
+          else result_success S vl using S in
+        read%defined vl_ := vl using S in
+        ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
+          result_rbreak S vl
+        else ifb vl = R_MissingArg then
+          result_error S "[findFun3] Missing argument, with no default."
+        else result_rskip S
+      else result_rskip S using S in
+    read%env _, rho_env := rho using S in
+    result_rsuccess S (env_enclos rho_env)
   using S in
-  match ret with
-  | None => result_error S "[findFun3] Could not find function"
-  | Some r => result_success S r
-  end.
+  result_error S "[findFun3] Could not find function".
 
 
 (** ** attrib.c **)
