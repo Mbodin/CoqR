@@ -58,6 +58,8 @@ Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) :
   | result_bottom S0 => result_bottom S0
   end.
 
+(** ** [let]-monads **)
+
 Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
   (if_success r (fun S a => cont))
   (at level 50, left associativity) : monad_scope.
@@ -112,6 +114,27 @@ Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
   (let%defined p_ := read_SExp S p using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+
+(** ** Flow-control Monads **)
+
+Notation "'run%success' c 'using' S 'in' cont" :=
+  (let%success _ := c using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition result_skip S :=
+  result_success S tt.
+
+Notation "'if%success' b 'then' c 'using' S 'in' cont" :=
+  (run%success
+     ifb b then
+       run%success c using S in
+       result_skip S
+     else result_skip S
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** [map]-monads **)
 
 (** Mapping onplace the content of a pointer is a frequent scheme.
  * Here is a monad for it. **)

@@ -101,7 +101,7 @@ Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' expr 'd
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%success' 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success _ :=
+  (run%success
      do%let while expr
      do stat
      using S using S in
@@ -204,7 +204,7 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'a
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success _ :=
+  (run%success
      fold%let along le as l, l_, l_list
      do iterate
      using S using S in
@@ -288,7 +288,7 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'a
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success _ :=
+  (run%success
      fold%let _ := tt along le as l_car, l_tag
      do iterate
      using S using S in
@@ -352,7 +352,7 @@ Definition CHAR S x :=
 
 Definition SET_MISSING S e (m : nat) I :=
   map%gp e with @NBits.write_nbits 16 4 0 (NBits.nat_to_nbits m I) ltac:(NBits.nbits_ok) using S in
-  result_success S tt.
+  result_skip S.
 Arguments SET_MISSING : clear implicits.
 
 Definition INCREMENT_NAMED S x :=
@@ -360,12 +360,12 @@ Definition INCREMENT_NAMED S x :=
   match named x_ with
   | named_temporary =>
     map%pointer x with set_named_unique using S in
-    result_success S tt
+    result_skip S
   | named_unique =>
     map%pointer x with set_named_plural using S in
-    result_success S tt
+    result_skip S
   | named_plural =>
-    result_success S tt
+    result_skip S
   end.
 
 
@@ -728,18 +728,19 @@ Definition GrowList S l s :=
 
 Definition TagArg S arg tag :=
   read%defined tag_ := tag using S in
-  let cont S := lang2 S arg tag in
-  match type tag_ with
-  | StrSxp =>
-    let%success tag_ := STRING_ELT S tag 0 using S in
-    let%success _ := installTrChar S tag_ using S in
-    cont S
-  | NilSxp
-  | SymSxp =>
-    cont S
-  | _ =>
-    result_error S "[TagArg] Incorrect tag type."
-  end.
+  run%success
+    match type tag_ with
+    | StrSxp =>
+      let%success tag_ := STRING_ELT S tag 0 using S in
+      run%success installTrChar S tag_ using S in
+      result_skip S
+    | NilSxp
+    | SymSxp =>
+      result_skip S
+    | _ =>
+      result_error S "[TagArg] Incorrect tag type."
+    end using S in
+  lang2 S arg tag.
 
 Definition FirstArg S s tag :=
   let%success tmp := NewList S using S in
@@ -758,8 +759,8 @@ Definition CheckFormalArgs S formlist new :=
   fold%success along formlist as _, formlist_tag do
     ifb formlist_tag = new then
       result_error S "[CheckFormalArgs] Repeated formal argument."
-    else result_success S tt using S in
-  result_success S tt.
+    else result_skip S using S in
+  result_skip S.
 
 
 (** ** context.c **)
@@ -781,7 +782,7 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
   state_with_context S cptr.
 
 Definition endcontext S cptr :=
-  let%success _ :=
+  run%success
     ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
       let s := conexit cptr in
       let savecontext := R_ExitContext S in
@@ -789,20 +790,20 @@ Definition endcontext S cptr :=
       let S := state_with_context S (context_with_conexit cptr R_NilValue) in
       fold%success along s as _, _, s_list do
         let S := state_with_context S (context_with_conexit cptr (list_cdrval s_list)) in
-        let%success _ :=
+        run%success
           runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
-        result_success S tt using S in
+        result_skip S using S in
       let S := state_with_exit_context S savecontext in
-      result_success S tt
-    else result_success S tt using S in
-  let%success _ :=
+      result_skip S
+    else result_skip S using S in
+  run%success
     ifb R_ExitContext S = Some cptr then
       let S := state_with_exit_context S None in
-      result_success S tt
-    else result_success S tt using S in
+      result_skip S
+    else result_skip S using S in
   let%defined c := nextcontext cptr using S in
   let S := state_with_context S c in
-  result_success S tt.
+  result_skip S.
 
 
 (** ** match.c **)
@@ -857,37 +858,34 @@ Arguments set_argused : clear implicits.
 Definition missing e_ :=
   NBits.sub_nbits 0 4 (gp e_) ltac:(NBits.nbits_ok).
 
-Definition matchArgs_first S
-    (formals actuals supplied : SExpRec_pointer) : result (list nat) :=
+Definition matchArgs_first S formals actuals supplied : result (list nat) :=
   fold%success (a, fargusedrev) := (actuals, nil) along formals as _, f_tag do
     let%success f_tag_sym_name := PRINTNAME S f_tag using S in
     let%success ftag_name := CHAR S f_tag_sym_name using S in
-    let continuation S fargusedi :=
-      read%list a_, a_list := a using S in
-      result_success S (list_cdrval a_list, fargusedi :: fargusedrev) in
-    ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-      if_success (fold%let fargusedi := 0 along supplied as b, b_, b_list do
-        let b_tag := list_tagval b_list in
-        let%success b_tag_sym_name := PRINTNAME S b_tag using S in
-        let%success btag_name := CHAR S b_tag_sym_name using S in
-        ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
-          ifb fargusedi = 2 then
-            result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
-          else ifb argused b_ = 2 then
-            result_error S "[matchArgs_first] actual argument matches several formal arguments."
-          else
-            set%car a := list_carval b_list using S in
-            let%success _ :=
-              ifb list_carval b_list <> R_MissingArg then
-                let%success _ := SET_MISSING S a 1 ltac:(NBits.nbits_ok) using S in
-                result_success S tt
-              else result_success S tt using S in
-            map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
-            result_success S 2
-        else
-          result_success S fargusedi using S)
-        continuation
-    else continuation S 0 using S in
+    let%success fargusedi :=
+      ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
+        fold%let fargusedi := 0 along supplied as b, b_, b_list do
+          let b_tag := list_tagval b_list in
+          let%success b_tag_sym_name := PRINTNAME S b_tag using S in
+          let%success btag_name := CHAR S b_tag_sym_name using S in
+          ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
+            ifb fargusedi = 2 then
+              result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
+            else ifb argused b_ = 2 then
+              result_error S "[matchArgs_first] actual argument matches several formal arguments."
+            else
+              set%car a := list_carval b_list using S in
+              run%success
+                ifb list_carval b_list <> R_MissingArg then
+                  run%success SET_MISSING S a 1 ltac:(NBits.nbits_ok) using S in
+                  result_skip S
+                else result_skip S using S in
+              map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
+              result_success S 2
+          else result_success S fargusedi using S
+      else result_success S 0 using S in
+    read%list a_, a_list := a using S in
+    result_success S (list_cdrval a_list, fargusedi :: fargusedrev) using S in
   result_success S (List.rev fargusedrev).
 
 Definition matchArgs_second S
@@ -898,36 +896,36 @@ Definition matchArgs_second S
       match fargused with
       | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
       | fargusedi :: fargused =>
-        let continuation S dots seendots :=
-          read%list a_, a_list := a using S in
-          result_success S (list_cdrval a_list, fargused, dots, seendots) in
-        ifb fargusedi = 0 then
-          ifb f_tag = R_DotsSymbol /\ ~ seendots then
-            continuation S a true
-          else
-            fold%success fargusedi := fargusedi along supplied as b, b_, b_list do
-              let b_tag := list_tagval b_list in
-              ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
-                let%success pmatch := pmatch S f_tag b_tag seendots using S in
-                if pmatch then
-                  ifb argused b_ <> 0 then
-                    result_error S "[matchArgs_second] actual argument matches several formal arguments."
-                  else ifb fargusedi = 1 then
-                    result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
-                  else
-                    (** Warning about partial arguments: should we ignore this part? **)
-                    set%car a := list_carval b_list using S in
-                    let%success _ :=
-                      ifb list_carval b_list <> R_MissingArg then
-                        let%success _ := SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-                        result_success S tt
-                      else result_success S tt using S in
-                    map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
-                    result_success S 1
-                else result_success S fargusedi
-              else result_success S fargusedi using S in
-            continuation S dots seendots
-        else continuation S dots seendots
+        let%success (dots, seendots) :=
+          ifb fargusedi = 0 then
+            ifb f_tag = R_DotsSymbol /\ ~ seendots then
+              result_success S (a, true)
+            else
+              fold%success fargusedi := fargusedi along supplied as b, b_, b_list do
+                let b_tag := list_tagval b_list in
+                ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
+                  let%success pmatch := pmatch S f_tag b_tag seendots using S in
+                  if pmatch then
+                    ifb argused b_ <> 0 then
+                      result_error S "[matchArgs_second] actual argument matches several formal arguments."
+                    else ifb fargusedi = 1 then
+                      result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
+                    else
+                      (** Warning about partial arguments: should we ignore this part? **)
+                      set%car a := list_carval b_list using S in
+                      run%success
+                        ifb list_carval b_list <> R_MissingArg then
+                          run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
+                          result_skip S
+                        else result_skip S using S in
+                      map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
+                      result_success S 1
+                  else result_success S fargusedi
+                else result_success S fargusedi using S in
+              result_success S (dots, seendots)
+          else result_success S (dots, seendots) using S in
+        read%list a_, a_list := a using S in
+        result_success S (list_cdrval a_list, fargused, dots, seendots)
       end using S in
   result_success S dots.
 
@@ -947,18 +945,18 @@ Definition matchArgs_third S
         result_success S (f, a, list_cdrval b_list, seendots)
       else
         set%car a := list_carval b_list using S in
-        let%success _ :=
+        run%success
           ifb list_carval b_list <> R_MissingArg then
-            let%success _ := SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-            result_success S tt
-          else result_success S tt using S in
+            run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
+            result_skip S
+          else result_skip S using S in
         result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)
   using S in
-  result_success S tt.
+  result_skip S.
 
 Definition matchArgs_dots S
     (dots supplied : SExpRec_pointer) : result unit :=
-  let%success _ := SET_MISSING S dots 0 ltac:(NBits.nbits_ok) using S in
+  run%success SET_MISSING S dots 0 ltac:(NBits.nbits_ok) using S in
   fold%success i := 0 along supplied as a, _ do
     read%defined a_ := a using S in
     ifb argused a_ = 0 then
@@ -966,7 +964,7 @@ Definition matchArgs_dots S
     else
       result_success S i using S in
   ifb i = 0 then
-    result_success S tt
+    result_skip S
   else
     let (S, a) := allocList S i in
     map%pointer a with set_type DotSxp using S in
@@ -979,7 +977,7 @@ Definition matchArgs_dots S
         read%list f_, f_list := f using S in
         result_success S (list_cdrval f_list) using S in
     set%car dots := a using S in
-    result_success S tt.
+    result_skip S.
 
 Definition matchArgs_check S
     (supplied : SExpRec_pointer) : result unit :=
@@ -988,7 +986,7 @@ Definition matchArgs_check S
   if acc : bool then
     result_error S "[matchArgs_check] Unused argument(s)."
   else
-    result_success S tt.
+    result_skip S.
 
 
 Definition matchArgs S
@@ -998,15 +996,15 @@ Definition matchArgs S
     result_success S (actuals, 1 + argi) using S in
   fold%success along supplied as b, _ do
     map%pointer b with set_argused 0 ltac:(NBits.nbits_ok) using S in
-    result_success S tt using S in
+    result_skip S using S in
   let%success fargused := matchArgs_first S formals actuals supplied using S in
   let%success dots := matchArgs_second S actuals formals supplied fargused using S in
-  let%success _ := matchArgs_third S formals actuals supplied using S in
+  run%success matchArgs_third S formals actuals supplied using S in
   ifb dots <> R_NilValue then
-    let%success _ := matchArgs_dots S dots supplied using S in
+    run%success matchArgs_dots S dots supplied using S in
     result_success S actuals
   else
-    let%success _ := matchArgs_check S supplied using S in
+    run%success matchArgs_check S supplied using S in
     result_success S actuals.
 
 
@@ -1026,7 +1024,7 @@ Definition NO_SPECIAL_SYMBOLS S x :=
 
 Definition SET_SPECIAL_SYMBOL S x v :=
   map%gp x with @NBits.write_nbit 16 12 ltac:(NBits.nbits_ok) v using S in
-  result_success S tt.
+  result_skip S.
 
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
@@ -1039,7 +1037,7 @@ Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
 
 Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result unit :=
   ifb addVars = R_NilValue then
-    result_success S tt
+    result_skip S
   else
     read%defined addVars_ := addVars using S in
     ifb type addVars_ = EnvSxp then
@@ -1081,7 +1079,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
                   result_success S (addVars, list_cdrval s_list, sprev))
             else result_success S (addVars, list_cdrval s_list, s)
         using S in
-        result_success S tt using S.
+        result_skip S using S.
 
 Definition FRAME_IS_LOCKED S rho :=
   read%defined rho_ := rho using S in
@@ -1111,8 +1109,8 @@ Definition setActiveValue S (f v : SExpRec_pointer) :=
   let%success arg := lcons S R_QuoteSymbol arg_tail using S in
   let%success expr_tail := lcons S arg R_NilValue using S in
   let%success expr := lcons S f expr_tail using S in
-  let%success _ := runs_eval runs S expr R_GlobalEnv using S in
-  result_success S tt.
+  run%success runs_eval runs S expr R_GlobalEnv using S in
+  result_skip S.
 
 Definition SET_BINDING_VALUE S b val :=
   let%success locked := BINDING_IS_LOCKED S b using S in
@@ -1125,7 +1123,7 @@ Definition SET_BINDING_VALUE S b val :=
       setActiveValue S (list_carval b_list) val
     else
       set%car b := val using S in
-    result_success S tt.
+    result_skip S.
 
 Definition BINDING_VALUE S b :=
   let%success active := IS_ACTIVE_BINDING S b using S in
@@ -1141,34 +1139,33 @@ Definition IS_USER_DATABASE S rho :=
 
 Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
   let%success locked := FRAME_IS_LOCKED S rho using S in
-  let continuation S :=
-    let%success locked := BINDING_IS_LOCKED S symbol using S in
-    ifb locked then
-      result_error S "[gsetVar] Can not change value of locked biding."
-    else
-      let%success active := IS_ACTIVE_BINDING S symbol using S in
+  run%success
+    if locked then
       read%sym symbol_, symbol_sym := symbol using S in
-      ifb active then
-        setActiveValue S (sym_value symbol_sym) value
-      else
-        let symbol_sym := {|
-            sym_pname := sym_pname symbol_sym ;
-            sym_value := value ;
-            sym_internal := sym_internal symbol_sym
-          |} in
-        let symbol_ := {|
-            NonVector_SExpRec_header := NonVector_SExpRec_header symbol_ ;
-            NonVector_SExpRec_data := symbol_sym
-          |} in
-        write%defined symbol := symbol_ using S in
-        result_success S tt
-    in
-  if locked then
+      ifb sym_value symbol_sym = R_UnboundValue then
+        result_error S "[gsetVar] Can not add such a bidding to the base environment."
+      else result_skip S
+    else result_skip S using S in
+  let%success locked := BINDING_IS_LOCKED S symbol using S in
+  ifb locked then
+    result_error S "[gsetVar] Can not change value of locked biding."
+  else
+    let%success active := IS_ACTIVE_BINDING S symbol using S in
     read%sym symbol_, symbol_sym := symbol using S in
-    ifb sym_value symbol_sym = R_UnboundValue then
-      result_error S "[gsetVar] Can not add such a bidding to the base environment."
-    else continuation S
-  else continuation S.
+    ifb active then
+      setActiveValue S (sym_value symbol_sym) value
+    else
+      let symbol_sym := {|
+          sym_pname := sym_pname symbol_sym ;
+          sym_value := value ;
+          sym_internal := sym_internal symbol_sym
+        |} in
+      let symbol_ := {|
+          NonVector_SExpRec_header := NonVector_SExpRec_header symbol_ ;
+          NonVector_SExpRec_data := symbol_sym
+        |} in
+      write%defined symbol := symbol_ using S in
+      result_skip S.
 
 Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
   ifb rho = R_EmptyEnv then
@@ -1181,44 +1178,44 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
         gsetVar S symbol value rho
       else
-        let continuation S :=
-          (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-          read%env rho_, rho_env := rho using S in
-          fold%success ret := false along env_frame rho_env as frame, frame_, frame_list do
-            if ret then
+        let%success special := IS_SPECIAL_SYMBOL S symbol using S in
+        run%success
+          if special then
+            run%success SET_SPECIAL_SYMBOL S rho false using S in
+            result_skip S
+          else result_skip S using S in
+        (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+        read%env rho_, rho_env := rho using S in
+        fold%success ret := false along env_frame rho_env as frame, frame_, frame_list do
+          if ret then
+            result_success S true
+          else
+            ifb list_tagval frame_list = symbol then
+              run%success SET_BINDING_VALUE S frame value using S in
+              run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
               result_success S true
             else
-              ifb list_tagval frame_list = symbol then
-                let%success _ := SET_BINDING_VALUE S frame value using S in
-                let%success _ := SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
-                result_success S true
-              else
-                result_success S false
-            using S in
-          if ret then
-            result_success S tt
+              result_success S false
+          using S in
+        if ret then
+          result_skip S
+        else
+          let%success locked := FRAME_IS_LOCKED S rho using S in
+          ifb locked then
+            result_error S "[defineVar] Can not add a binding to a locked environment."
           else
-            let%success locked := FRAME_IS_LOCKED S rho using S in
-            ifb locked then
-              result_error S "[defineVar] Can not add a binding to a locked environment."
-            else
-              let (S, l) := CONS S value (env_frame rho_env) in
-              let rho_env := {|
-                  env_frame := l ;
-                  env_enclos := env_enclos rho_env
-                |} in
-              let rho_ := {|
-                  NonVector_SExpRec_header := rho_ ;
-                  NonVector_SExpRec_data := rho_env
-                |} in
-              write%defined rho := rho_ using S in
-              set%tag env_frame rho_env := symbol using S in
-              result_success S tt in
-        let%success special := IS_SPECIAL_SYMBOL S symbol using S in
-        if special then
-          let%success _ := SET_SPECIAL_SYMBOL S rho false using S in
-          continuation S
-        else continuation S.
+            let (S, l) := CONS S value (env_frame rho_env) in
+            let rho_env := {|
+                env_frame := l ;
+                env_enclos := env_enclos rho_env
+              |} in
+            let rho_ := {|
+                NonVector_SExpRec_header := rho_ ;
+                NonVector_SExpRec_data := rho_env
+              |} in
+            write%defined rho := rho_ using S in
+            set%tag env_frame rho_env := symbol using S in
+            result_skip S.
 
 Definition setVarInFrame S (rho symbol value : SExpRec_pointer) :=
   ifb rho = R_EmptyEnv then
@@ -1271,44 +1268,48 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
 
 
 Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
-  let cont S (rho : SExpRec_pointer) :=
-    do%success (ret, rho) := (None, rho)
-    while result_success S (decide (ret = None /\ rho <> R_EmptyEnv)) do
-      let cont S :=
-        read%env _, rho_env := rho using S in
-        result_success S (None, env_enclos rho_env) in
-      ifb ret = None then
-        let%success vl := findVarInFrame3 S rho symbol true using S in
-        ifb vl <> R_UnboundValue then
-          let cont' S vl :=
-            read%defined vl_ := vl using S in
-            ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
-              result_success S (Some vl, rho)
-            else ifb vl = R_MissingArg then
-              result_error S "[findFun3] Missing argument, with no default."
-            else cont S in
-          read%defined vl_ := vl using S in
-          ifb type vl_ = PromSxp then
-            let%success vl := runs_eval runs S vl rho using S in
-            cont' S vl
-          else cont' S vl
-        else cont S
-      else result_success S (ret, rho)
-    using S in
-    match ret with
-    | None => result_error S "[findFun3] Could not find function"
-    | Some r => result_success S r
-    end in
   let%success special := IS_SPECIAL_SYMBOL S symbol using S in
-  ifb special then
-    do%success rho := rho
-    while let%success special := NO_SPECIAL_SYMBOLS S rho using S in
-          result_success S (decide (rho <> R_EmptyEnv /\ special)) do
-      read%env _, rho_env := rho using S in
-      result_success S (env_enclos rho_env)
-    using S in
-    cont S rho
-  else cont S rho.
+  let%success rho :=
+    ifb special then
+      do%success rho := rho
+      while let%success special := NO_SPECIAL_SYMBOLS S rho using S in
+            result_success S (decide (rho <> R_EmptyEnv /\ special)) do
+        read%env _, rho_env := rho using S in
+        result_success S (env_enclos rho_env)
+      using S in
+      result_success S rho
+    else result_success S rho using S in
+  do%success (ret, rho) := (None, rho)
+  while result_success S (decide (ret = None /\ rho <> R_EmptyEnv)) do
+    ifb ret = None then
+      let%success vl := findVarInFrame3 S rho symbol true using S in
+      let%success ret :=
+        ifb vl <> R_UnboundValue then
+          read%defined vl_ := vl using S in
+          let%success vl :=
+            ifb type vl_ = PromSxp then
+              let%success vl := runs_eval runs S vl rho using S in
+              result_success S vl
+            else result_success S vl using S in
+          read%defined vl_ := vl using S in
+          ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
+            result_success S (Some vl)
+          else ifb vl = R_MissingArg then
+            result_error S "[findFun3] Missing argument, with no default."
+          else result_success S None
+        else result_success S None using S in
+      match ret with
+      | None =>
+        read%env _, rho_env := rho using S in
+        result_success S (None, env_enclos rho_env)
+      | Some r => result_success S (Some r, rho)
+      end
+    else result_success S (ret, rho)
+  using S in
+  match ret with
+  | None => result_error S "[findFun3] Could not find function"
+  | Some r => result_success S r
+  end.
 
 
 (** ** attrib.c **)
@@ -1328,31 +1329,30 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
       result_success S (R_NilValue : SExpRec_pointer)
     else
       read%defined name_ := name using S in
-      let continuation S (name : SExpRec_pointer) :=
-        ifb name = R_RowNamesSymbol then
-          let%success s := getAttrib0 S vec name using S in
-          read%defined s_ := s using S in
-          let%success s_int := isInteger S s using S in
-          ifb s_int then
-            let%defined s_length := get_VecSxp_length s_ using S in
-            ifb s_length = 2 then
-              let%Integer s_0 := s_ at 0 using S in
-              ifb s_0 = R_NaInt then
-                let%Integer s_1 := s_ at 1 using S in
-                let n := abs s_1 in
-                let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
-                result_success S s
-              else result_success S s
+      let%success name :=
+        ifb type name_ = StrSxp then
+          read%VectorPointer name_ := name using S in
+          let%success str := STRING_ELT S name 0 using S in
+          let%success sym := installTrChar S str using S in
+          result_success S sym
+        else result_success S name using S in
+      ifb name = R_RowNamesSymbol then
+        let%success s := getAttrib0 S vec name using S in
+        read%defined s_ := s using S in
+        let%success s_int := isInteger S s using S in
+        ifb s_int then
+          let%defined s_length := get_VecSxp_length s_ using S in
+          ifb s_length = 2 then
+            let%Integer s_0 := s_ at 0 using S in
+            ifb s_0 = R_NaInt then
+              let%Integer s_1 := s_ at 1 using S in
+              let n := abs s_1 in
+              let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
+              result_success S s
             else result_success S s
           else result_success S s
-        else getAttrib0 S vec name
-      in
-      ifb type name_ = StrSxp then
-        read%VectorPointer name_ := name using S in
-        let%success str := STRING_ELT S name 0 using S in
-        let%success sym := installTrChar S str using S in
-        continuation S sym
-      else continuation S name.
+        else result_success S s
+      else getAttrib0 S vec name.
 
 
 (** ** eval.c **)
@@ -1364,30 +1364,30 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
   read%prom e_, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
-    let continuation S :=
-      set%gp e with @NBits.nat_to_nbits 16 1 ltac:(NBits.nbits_ok) using S in
-      let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
-      set%gp e with @NBits.nat_to_nbits 16 0 ltac:(NBits.nbits_ok) using S in
-      map%pointer val with set_named_plural using S in
-      read%prom e_, e_prom := e using S in
-      let e_prom := {|
-          prom_value := val ;
-          prom_expr := prom_expr e_prom ;
-          prom_env := R_NilValue
-        |} in
-      let e_ := {|
-          NonVector_SExpRec_header := e_ ;
-          NonVector_SExpRec_data := e_prom
-        |} in
-      write%defined e := e_ using S in
-      result_success S val in
-    ifb NBits.nbits_to_nat (gp e_) <> 0 then
-      ifb NBits.nbits_to_nat (gp e_) = 1 then
-        result_error S "[forcePromise] Promise already under evaluation."
-      else
-        (* Warning: restarting interrupted promise evaluation. *)
-        continuation S
-    else continuation S
+    run%success
+      ifb NBits.nbits_to_nat (gp e_) <> 0 then
+        ifb NBits.nbits_to_nat (gp e_) = 1 then
+          result_error S "[forcePromise] Promise already under evaluation."
+        else
+          (* Warning: restarting interrupted promise evaluation. *)
+          result_skip S
+      else result_skip S using S in
+    set%gp e with @NBits.nat_to_nbits 16 1 ltac:(NBits.nbits_ok) using S in
+    let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
+    set%gp e with @NBits.nat_to_nbits 16 0 ltac:(NBits.nbits_ok) using S in
+    map%pointer val with set_named_plural using S in
+    read%prom e_, e_prom := e using S in
+    let e_prom := {|
+        prom_value := val ;
+        prom_expr := prom_expr e_prom ;
+        prom_env := R_NilValue
+      |} in
+    let e_ := {|
+        NonVector_SExpRec_header := e_ ;
+        NonVector_SExpRec_data := e_prom
+      |} in
+    write%defined e := e_ using S in
+    result_success S val
   else result_success S (prom_value e_prom).
 
 Definition R_execClosure (S : state)
@@ -1410,19 +1410,19 @@ Definition applyClosure S
       ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
         let%success newprom := mkPromise S f_car newrho using S in
         set%car a := newprom using S in
-        let%success _ := SET_MISSING S a 2 ltac:(NBits.nbits_ok) using S in
+        run%success SET_MISSING S a 2 ltac:(NBits.nbits_ok) using S in
         result_success S (list_cdrval a_list)
       else result_success S (list_cdrval a_list) using S in
-    let%success _ :=
+    run%success
       ifb suppliedvars <> R_NilValue then
          addMissingVarsToNewEnv S newrho suppliedvars
-       else result_success S tt using S in
-    let%success _ :=
+       else result_skip S using S in
+    run%success
       let%success b := R_envHasNoSpecialSymbols S newrho using S in
       if b then
-        let%success _ := SET_SPECIAL_SYMBOL S newrho false using S in
-        result_success S tt
-      else result_success S tt using S in
+        run%success SET_SPECIAL_SYMBOL S newrho false using S in
+        result_skip S
+      else result_skip S using S in
     R_execClosure S call newrho
       (ifb callflag (R_GlobalContext S) = Ctxt_Generic then
          sysparent (R_GlobalContext S)
