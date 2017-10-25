@@ -463,16 +463,6 @@ Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
      (fun S a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (exit_rresult
-     (fold%let ret := normal_result tt
-      along le
-      as l, l_, l_list
-      do iterate
-      using S)
-     (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
 Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (exit_rresult
      (fold%let a := normal_result e
@@ -483,14 +473,12 @@ Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterat
      (fun S a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (exit_rresult
-     (fold%let ret := normal_result tt
-      along le
-      as l_car, l_tag
-      do iterate
-      using S)
-     (fun S a => cont))
+Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
+  (fold%return ret := tt
+   along le
+   as l, l_, l_list
+   do iterate
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
@@ -501,6 +489,14 @@ Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'u
       do get_success S a (fun S a => iterate)
       using S)
      (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
+  (fold%return ret := tt
+   along le
+   as l_car, l_tag
+   do iterate
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 
@@ -839,7 +835,7 @@ Definition install S name_ : result SExpRec_pointer :=
     let S := update_R_SymbolTable S SymbolTable in
     result_success S sym.
 
-(** We here choose to model [installChar] as its specifation
+(** We here choose to model [installChar] as its specification
   * given by the associated comment in the C source file. **)
 Definition installChar S charSXP :=
   let%success str := CHAR S charSXP using S in
