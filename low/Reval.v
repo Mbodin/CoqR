@@ -155,74 +155,6 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' exp
    cont)
   (at level 50, left associativity) : monad_scope.
 
-(** The following notations deal with loops that may return.
- * In these cases, one can use the definitions [result_rsuccess],
- * or [result_rskip] for a normal ending of the loop, and
- * [result_return] for a breaking return. Note that this only
- * breaks the current loop, not the whole function. **)
-
-Definition result_rsuccess {A B} S r : result (A + B) :=
-  result_success S (inl r).
-
-Definition result_rskip {B} S : result (_ + B) :=
-  result_rsuccess S tt.
-
-Definition result_rbreak {A B} S r : result (A + B) :=
-  result_success S (inr r).
-
-Definition match_rresult {A B C} (r : result (A + B)) cont : result (C + B) :=
-  let%success res := r using S in
-  match res with
-  | inl r => cont S r
-  | inr r => result_rbreak S r
-  end.
-
-Notation "'let%return' a ':=' e 'using' S 'in' cont" :=
-  (match_rresult e (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'run%return' c 'using' S 'in' cont" :=
-  (let%return _ := c using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** Exit the return-monad. **)
-Definition exit_rresult {A B} (r : result (A + B)) cont :=
-  let%success res := r using S in
-  match res with
-  | inl r => cont S r
-  | inr r => result_success S r
-  end.
-
-Definition continue_and_condition {A B} S (r : A + B) cond :=
-  match r with
-  | inl r => cond S r
-  | inr r => result_success S false
-  end.
-
-Definition get_success {A B} S (r : A + B) cont : result (A + B) :=
-  match r with
-  | inl r => cont S r
-  | inr r => result_rbreak S r
-  end.
-
-Notation "'do%return' 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (exit_rresult
-     (do%let ret := inl tt
-      while continue_and_condition S ret (fun S _ => expr)
-      do stat
-      using S)
-     (fun S _ => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (exit_rresult
-     (do%let a := inl e
-      while continue_and_condition S a (fun S a => expr)
-      do get_success S a (fun S a => stat)
-      using S)
-     (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
 
 (** *** Fold **)
 
@@ -245,38 +177,50 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate '
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let _ := tt along le as l, l_, l_list
+  (fold%let _ := tt
+   along le
+   as l, l_, l_list
    do iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l, l_, l_list
+  (fold%let x := e
+   along le
+   as l, l_, l_list
    do let (a1, a2) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l, l_, l_list
+  (fold%let x := e
+   along le
+   as l, l_, l_list
    do let '(a1, a2, a3) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l, l_, l_list
+  (fold%let x := e
+   along le
+   as l, l_, l_list
    do let '(a1, a2, a3, a4) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l, l_, l_list
+  (fold%let x := e
+   along le
+   as l, l_, l_list
    do let '(a1, a2, a3, a4, a5) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (run%success
-     fold%let along le as l, l_, l_list
+     fold%let
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -284,7 +228,9 @@ Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using
 
 Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success a :=
-     fold%let a := e along le as l, l_, l_list
+     fold%let a := e
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -292,7 +238,9 @@ Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' itera
 
 Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2) :=
-     fold%let (a1, a2) := e along le as l, l_, l_list
+     fold%let (a1, a2) := e
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -300,7 +248,9 @@ Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3) :=
-     fold%let (a1, a2, a3) := e along le as l, l_, l_list
+     fold%let (a1, a2, a3) := e
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -308,7 +258,9 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3, a4) :=
-     fold%let (a1, a2, a3, a4) := e along le as l, l_, l_list
+     fold%let (a1, a2, a3, a4) := e
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -316,7 +268,9 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' 
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5) :=
-     fold%let (a1, a2, a3, a4, a5) := e along le as l, l_, l_list
+     fold%let (a1, a2, a3, a4, a5) := e
+     along le
+     as l, l_, l_list
      do iterate
      using S using S in
    cont)
@@ -327,7 +281,9 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' l
  * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
 Definition fold_left_listSxp A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
-  fold%let a := a along l as _, _, l_list
+  fold%let a := a
+  along l
+  as _, _, l_list
   do iterate S a (list_carval l_list) (list_tagval l_list) using S.
 
 Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
@@ -335,32 +291,42 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'usin
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l_car, l_tag
+  (fold%let x := e
+   along le
+   as l_car, l_tag
    do let (a1, a2) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l_car, l_tag
+  (fold%let x := e
+   along le
+   as l_car, l_tag
    do let '(a1, a2, a3) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l_car, l_tag
+  (fold%let x := e
+   along le
+   as l_car, l_tag
    do let '(a1, a2, a3, a4) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e along le as l_car, l_tag
+  (fold%let x := e
+   along le
+   as l_car, l_tag
    do let '(a1, a2, a3, a4, a5) := x in iterate
    using S)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (run%success
-     fold%let _ := tt along le as l_car, l_tag
+     fold%let _ := tt
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
@@ -368,7 +334,9 @@ Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 
 
 Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success a :=
-     fold%let a := e along le as l_car, l_tag
+     fold%let a := e
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
@@ -376,7 +344,9 @@ Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate '
 
 Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2) :=
-     fold%let (a1, a2) := e along le as l_car, l_tag
+     fold%let (a1, a2) := e
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
@@ -384,7 +354,9 @@ Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_ta
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3) :=
-     fold%let (a1, a2, a3) := e along le as l_car, l_tag
+     fold%let (a1, a2, a3) := e
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
@@ -392,7 +364,9 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car '
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3, a4) :=
-     fold%let (a1, a2, a3, a4) := e along le as l_car, l_tag
+     fold%let (a1, a2, a3, a4) := e
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
@@ -400,11 +374,135 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' 
 
 Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5) :=
-     fold%let (a1, a2, a3, a4, a5) := e along le as l_car, l_tag
+     fold%let (a1, a2, a3, a4, a5) := e
+     along le
+     as l_car, l_tag
      do iterate
      using S using S in
    cont)
   (at level 50, left associativity) : monad_scope.
+
+
+(** *** Return **)
+
+(** The following notations deal with loops that may return.
+ * In these cases, one can use the definitions [result_rsuccess],
+ * or [result_rskip] for a normal ending of the loop, and
+ * [result_rreturn] for a breaking return. Note that this only
+ * breaks the current loop and its continuation, not the whole
+ * function. **)
+
+Inductive normal_return A B :=
+  | normal_result : A -> normal_return A B
+  | return_result : B -> normal_return A B
+  .
+Arguments normal_result {A B}.
+Arguments return_result {A B}.
+
+Definition result_rsuccess {A B} S r : result (normal_return A B) :=
+  result_success S (normal_result r).
+
+Definition result_rskip {B} S : result (normal_return _ B) :=
+  result_rsuccess S tt.
+
+Definition result_rreturn {A B} S r : result (normal_return A B) :=
+  result_success S (return_result r).
+
+Definition match_rresult {A B C} (r : result (normal_return A B)) cont
+    : result (normal_return C B) :=
+  let%success res := r using S in
+  match res with
+  | normal_result r => cont S r
+  | return_result r => result_rreturn S r
+  end.
+
+Notation "'let%return' a ':=' e 'using' S 'in' cont" :=
+  (match_rresult e (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'run%return' c 'using' S 'in' cont" :=
+  (let%return _ := c using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** Exiting the return-monad. **)
+Definition exit_rresult {A B} (r : result (normal_return A B)) cont :=
+  let%success res := r using S in
+  match res with
+  | normal_result r => cont S r
+  | return_result r => result_success S r
+  end.
+
+Definition continue_and_condition {A B} S (r : normal_return A B) cond :=
+  match r with
+  | normal_result r => cond S r
+  | return_result r => result_success S false
+  end.
+
+Definition get_success {A B} S (r : normal_return A B) cont
+    : result (normal_return A B) :=
+  match r with
+  | normal_result r => cont S r
+  | return_result r => result_rreturn S r
+  end.
+
+Notation "'do%return' 'while' expr 'do' stat 'using' S 'in' cont" :=
+  (exit_rresult
+     (do%let ret := normal_result tt
+      while continue_and_condition S ret (fun S _ => expr)
+      do stat
+      using S)
+     (fun S _ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
+  (exit_rresult
+     (do%let a := normal_result e
+      while continue_and_condition S a (fun S a => expr)
+      do get_success S a (fun S a => stat)
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
+  (exit_rresult
+     (fold%let ret := normal_result tt
+      along le
+      as l, l_, l_list
+      do iterate
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
+  (exit_rresult
+     (fold%let a := normal_result e
+      along le
+      as l, l_, l_list
+      do get_success S a (fun S a => iterate)
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
+  (exit_rresult
+     (fold%let ret := normal_result tt
+      along le
+      as l_car, l_tag
+      do iterate
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
+  (exit_rresult
+     (fold%let a := normal_result e
+      along le
+      as l_car, l_tag
+      do get_success S a (fun S a => iterate)
+      using S)
+     (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
 
 
 (** ** Rinternals.h **)
@@ -724,30 +822,22 @@ Definition install S name : result SExpRec_pointer :=
     * Instead, it is represented as a single list, and not
     * as [HSIZE] different lists.
     * This approach is slower, but equivalent. **)
-  fold%success ret := None along R_SymbolTable S as R_SymbolTable_car, _ do
-    match ret with
-    | Some v =>
-      result_success S ret
-    | None =>
-      let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
-      let%success str_name_ := CHAR S str_sym using S in
-      ifb name = str_name_ then
-        result_success S (Some R_SymbolTable_car)
-      else result_success S None
-    end
-    using S in
-  match ret with
-  | Some v => result_success S v
-  | None =>
-    ifb name = ""%string then
-      result_error S "[install] Attempt to use zero-length variable name."
-    else
-      let (S, str) := mkChar S name in
-      let%success sym := mkSYMSXP S str R_UnboundValue using S in
-      let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
-      let S := update_R_SymbolTable S SymbolTable in
-      result_success S sym
-  end.
+  fold%return
+  along R_SymbolTable S
+  as R_SymbolTable_car, _ do
+    let%success str_sym := PRINTNAME S R_SymbolTable_car using S in
+    let%success str_name_ := CHAR S str_sym using S in
+    ifb name = str_name_ then
+      result_rreturn S R_SymbolTable_car
+    else result_rskip S using S in
+  ifb name = ""%string then
+    result_error S "[install] Attempt to use zero-length variable name."
+  else
+    let (S, str) := mkChar S name in
+    let%success sym := mkSYMSXP S str R_UnboundValue using S in
+    let (S, SymbolTable) := CONS S sym (R_SymbolTable S) in
+    let S := update_R_SymbolTable S SymbolTable in
+    result_success S sym.
 
 (** We here choose to model [installChar] as its specifation
   * given by the associated comment in the C source file. **)
@@ -827,7 +917,9 @@ Definition NextArg S l s tag :=
   result_success S l.
 
 Definition CheckFormalArgs S formlist new :=
-  fold%success along formlist as _, formlist_tag do
+  fold%success
+  along formlist
+  as _, formlist_tag do
     ifb formlist_tag = new then
       result_error S "[CheckFormalArgs] Repeated formal argument."
     else result_skip S using S in
@@ -859,7 +951,9 @@ Definition endcontext S cptr :=
       let savecontext := R_ExitContext S in
       let S := state_with_exit_context S (Some cptr) in
       let S := state_with_context S (context_with_conexit cptr R_NilValue) in
-      fold%success along s as _, _, s_list do
+      fold%success
+      along s
+      as _, _, s_list do
         let S := state_with_context S (context_with_conexit cptr (list_cdrval s_list)) in
         run%success
           runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
@@ -930,12 +1024,16 @@ Definition missing e_ :=
   NBits.sub_nbits 0 4 (gp e_) ltac:(NBits.nbits_ok).
 
 Definition matchArgs_first S formals actuals supplied : result (list nat) :=
-  fold%success (a, fargusedrev) := (actuals, nil) along formals as _, f_tag do
+  fold%success (a, fargusedrev) := (actuals, nil)
+  along formals
+  as _, f_tag do
     let%success f_tag_sym_name := PRINTNAME S f_tag using S in
     let%success ftag_name := CHAR S f_tag_sym_name using S in
     let%success fargusedi :=
       ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-        fold%let fargusedi := 0 along supplied as b, b_, b_list do
+        fold%let fargusedi := 0
+        along supplied
+        as b, b_, b_list do
           let b_tag := list_tagval b_list in
           let%success b_tag_sym_name := PRINTNAME S b_tag using S in
           let%success btag_name := CHAR S b_tag_sym_name using S in
@@ -963,7 +1061,8 @@ Definition matchArgs_second S
     (actuals formals supplied : SExpRec_pointer) fargused : result SExpRec_pointer :=
   fold%success (a, fargused, dots, seendots) :=
     (actuals, fargused, R_NilValue : SExpRec_pointer, false)
-  along formals as _, f_tag do
+  along formals
+  as _, f_tag do
       match fargused with
       | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
       | fargusedi :: fargused =>
@@ -972,7 +1071,9 @@ Definition matchArgs_second S
             ifb f_tag = R_DotsSymbol /\ ~ seendots then
               result_success S (a, true)
             else
-              fold%success fargusedi := fargusedi along supplied as b, b_, b_list do
+              fold%success fargusedi := fargusedi
+              along supplied
+              as b, b_, b_list do
                 let b_tag := list_tagval b_list in
                 ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
                   let%success pmatch := pmatch S f_tag b_tag seendots using S in
@@ -1028,7 +1129,9 @@ Definition matchArgs_third S
 Definition matchArgs_dots S
     (dots supplied : SExpRec_pointer) : result unit :=
   run%success SET_MISSING S dots 0 ltac:(NBits.nbits_ok) using S in
-  fold%success i := 0 along supplied as a, _ do
+  fold%success i := 0
+  along supplied
+  as a, _ do
     read%defined a_ := a using S in
     ifb argused a_ = 0 then
       result_success S (1 + i)
@@ -1039,7 +1142,9 @@ Definition matchArgs_dots S
   else
     let (S, a) := allocList S i in
     map%pointer a with set_type DotSxp using S in
-    fold%success f := a along supplied as b, b_, b_list do
+    fold%success f := a
+    along supplied
+    as b, b_, b_list do
       ifb argused b_ <> 0 then
         result_success S f
       else
@@ -1052,7 +1157,9 @@ Definition matchArgs_dots S
 
 Definition matchArgs_check S
     (supplied : SExpRec_pointer) : result unit :=
-  fold%success acc := false along supplied as b, b_, b_list do
+  fold%success acc := false
+  along supplied
+  as b, b_, b_list do
     result_success S (decide (acc \/ argused b_ <> 0)) using S in
   if acc : bool then
     result_error S "[matchArgs_check] Unused argument(s)."
@@ -1062,10 +1169,14 @@ Definition matchArgs_check S
 
 Definition matchArgs S
     (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
-  fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0) along formals as _, _ do
+  fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0)
+  along formals
+  as _, _ do
     let (S, actuals) := CONS S R_MissingArg actuals in
     result_success S (actuals, 1 + argi) using S in
-  fold%success along supplied as b, _ do
+  fold%success
+  along supplied
+  as b, _ do
     map%pointer b with set_argused 0 ltac:(NBits.nbits_ok) using S in
     result_skip S using S in
   let%success fargused := matchArgs_first S formals actuals supplied using S in
@@ -1100,7 +1211,9 @@ Definition SET_SPECIAL_SYMBOL S x v :=
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
   (* A note about hashtabs commented out. *)
-  fold%let b := true along env_frame env_env as frame_car, frame_tag do
+  fold%let b := true
+  along env_frame env_env
+  as frame_car, frame_tag do
     let%success special := IS_SPECIAL_SYMBOL S frame_tag using S in
     if special then
       result_success S false
@@ -1115,7 +1228,9 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
       result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
     else
       let%list addVars_, addVars_list := addVars_ using S in
-      fold%success aprev := addVars along list_cdrval addVars_list as a, _, _ do
+      fold%success aprev := addVars
+      along list_cdrval addVars_list
+      as a, _, _ do
         result_success S a using S in
       read%env env_, env_env := env using S in
       set%cdr aprev := env_frame env_env using S in
@@ -1128,7 +1243,9 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
           NonVector_SExpRec_data := env_env
         |} in
       write%defined env := env_ using S in
-      fold%let along list_cdrval addVars_list as _, end_, end_list do
+      fold%let
+      along list_cdrval addVars_list
+      as _, end_, end_list do
         let end_tag := list_tagval end_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
         while result_success S (decide (s <> env)) do
@@ -1257,36 +1374,31 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
           else result_skip S using S in
         (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
         read%env rho_, rho_env := rho using S in
-        fold%success ret := false along env_frame rho_env as frame, frame_, frame_list do
-          if ret then
-            result_success S true
+        fold%return
+        along env_frame rho_env
+        as frame, frame_, frame_list do
+          ifb list_tagval frame_list = symbol then
+            run%success SET_BINDING_VALUE S frame value using S in
+            run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
+            result_rreturn S tt
           else
-            ifb list_tagval frame_list = symbol then
-              run%success SET_BINDING_VALUE S frame value using S in
-              run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
-              result_success S true
-            else
-              result_success S false
-          using S in
-        if ret then
-          result_skip S
+            result_rskip S using S in
+        let%success locked := FRAME_IS_LOCKED S rho using S in
+        ifb locked then
+          result_error S "[defineVar] Can not add a binding to a locked environment."
         else
-          let%success locked := FRAME_IS_LOCKED S rho using S in
-          ifb locked then
-            result_error S "[defineVar] Can not add a binding to a locked environment."
-          else
-            let (S, l) := CONS S value (env_frame rho_env) in
-            let rho_env := {|
-                env_frame := l ;
-                env_enclos := env_enclos rho_env
-              |} in
-            let rho_ := {|
-                NonVector_SExpRec_header := rho_ ;
-                NonVector_SExpRec_data := rho_env
-              |} in
-            write%defined rho := rho_ using S in
-            set%tag env_frame rho_env := symbol using S in
-            result_skip S.
+          let (S, l) := CONS S value (env_frame rho_env) in
+          let rho_env := {|
+              env_frame := l ;
+              env_enclos := env_enclos rho_env
+            |} in
+          let rho_ := {|
+              NonVector_SExpRec_header := rho_ ;
+              NonVector_SExpRec_data := rho_env
+            |} in
+          write%defined rho := rho_ using S in
+          set%tag env_frame rho_env := symbol using S in
+          result_skip S.
 
 Definition setVarInFrame S (rho symbol value : SExpRec_pointer) :=
   ifb rho = R_EmptyEnv then
@@ -1323,19 +1435,14 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
       else
         (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
         let%env rho_, rho_env := rho_ using S in
-        fold%success ret := None along env_frame rho_env as frame, frame_, frame_list do
-          ifb ret = None then
-            ifb list_tagval frame_list = symbol then
-              let%success r := BINDING_VALUE S frame using S in
-              result_success S (Some r)
-            else result_success S None
-          else result_success S ret using S in
-        match ret with
-        | Some r =>
-          result_success S r
-        | None =>
-          result_success S (R_UnboundValue : SExpRec_pointer)
-        end.
+        fold%return
+        along env_frame rho_env
+        as frame, frame_, frame_list do
+          ifb list_tagval frame_list = symbol then
+            let%success r := BINDING_VALUE S frame using S in
+            result_rreturn S r
+          else result_rskip S using S in
+        result_success S (R_UnboundValue : SExpRec_pointer).
 
 
 Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
@@ -1363,7 +1470,7 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
           else result_success S vl using S in
         read%defined vl_ := vl using S in
         ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
-          result_rbreak S vl
+          result_rreturn S vl
         else ifb vl = R_MissingArg then
           result_error S "[findFun3] Missing argument, with no default."
         else result_rskip S
@@ -1467,7 +1574,9 @@ Definition applyClosure S
     let savedrho := clo_env op_clo in
     let%success actuals := matchArgs S formals arglist call using S in
     let%success newrho := NewEnvironment S formals actuals savedrho using S in
-    fold%success a := actuals along formals as f_car, f_tag do
+    fold%success a := actuals
+    along formals
+    as f_car, f_tag do
       read%list a_, a_list := a using S in
       ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
         let%success newprom := mkPromise S f_car newrho using S in
