@@ -1,5 +1,5 @@
 (** Rparsing.
- * This file contains functions for parsing R expressions. **)
+  This file formalises functions for parsing R expressions. **)
 
 Set Implicit Arguments.
 Require Export Reval.
@@ -7,14 +7,14 @@ Require Export Reval.
 (** * gram.y **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/gram.y. **)
+  in the file main/gram.y. **)
 
 (** This modules corresponds to all functions used in the grammar of the file main/gram.y. **)
 
 Module Parsing.
 
 (** The following functions create R expressions.
- * They are only used in the parser. **)
+  They are only used in the parser. **)
 
 Section Parameters.
 

@@ -1,6 +1,6 @@
 (** Rinternals.
- * The types of this file exactly correspond to the types defined
- * in the R source file src/include/internals.h **)
+  The types of this file exactly correspond to the types defined
+  in the R source file src/include/internals.h **)
 
 Set Implicit Arguments.
 
@@ -73,8 +73,8 @@ Definition defined_pointer := nat.
 
 (** SEXP, *SEXPREC **)
 (** We chose to represent pointers as an option type.
- * [None] means NULL (it is very rarely used in the R source code).
- * [Some p] yields that the pointer [p] points to something. **)
+  [None] means NULL (it is very rarely used in the R source code).
+  [Some p] yields that the pointer [p] points to something. **)
 Definition SExpRec_pointer := option defined_pointer.
 
 Definition NULL : SExpRec_pointer := None.
@@ -140,8 +140,8 @@ Coercion promSxp : PromSxp_struct >-> SExpRec_union.
 Record SExpRecHeader := make_SExpRecHeader {
     sxpinfo :> SxpInfo ;
     attrib : SExpRec_pointer
-    (** gengc_next_node : SExpRec_pointer ; **)
-    (** gengc_prev_node : SExpRec_pointer **)
+    (* gengc_next_node : SExpRec_pointer ; *)
+    (* gengc_prev_node : SExpRec_pointer *)
   }.
 
 (** SEXPREC **)
@@ -153,9 +153,9 @@ Record NonVector_SExpRec := make_NonVector_SExpRec {
 (** vecsxp_struct **)
 Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     VecSxp_length : nat ;
-    (** VecSxp_truelength : nat ; **)
+    (* VecSxp_truelength : nat ; *)
     (** As stated in the R-ints documentation, such a structure is
-     * followed by an array. We represent this as a list in Coq. **)
+      followed by an array. We represent this as a list in Coq. **)
     VecSxp_data :> list A
   }.
 
@@ -175,14 +175,14 @@ Record RComplex := make_Rcomplex {
   }.
 
 (** Whilst in C, a pointer can point to any of the two
- * structures SEXPREC and VECTOR_SEXPREC above, this is
- * not the case in Coq. We thus provide this inductive. **)
+ structures SEXPREC and VECTOR_SEXPREC above, this is
+ not the case in Coq. We thus provide this inductive. **)
 Inductive SExpRec :=
   | SExpRec_NonVector : NonVector_SExpRec -> SExpRec
   | SExpRec_VectorChar : Vector_SExpRec character -> SExpRec
   | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec (* FIXME: As for the field [named], we may want to declare a special type for this. *)
   | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
-  (** | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec **)
+  (* | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec *)
   | SExpRec_VectorComplex : Vector_SExpRec RComplex -> SExpRec
   | SExpRec_VectorReal : Vector_SExpRec double -> SExpRec
   | SExpRec_VectorPointer : Vector_SExpRec SExpRec_pointer -> SExpRec

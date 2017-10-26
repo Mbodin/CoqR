@@ -1,5 +1,5 @@
 (** Monads.
- * Provides monads to manipulate R objects easily. **)
+  Provides monads to manipulate R objects easily. **)
 
 Set Implicit Arguments.
 Require Export State.
@@ -21,22 +21,22 @@ Arguments result_not_implemented [A].
 Arguments result_bottom [A].
 
 (** A precision about [result_not_implemented] and [result_error]:
- * if the C source code of R throw a not-implemented error, we consider
- * this as an error thrown in the original interpreter and use the
- * constructor [result_error].
- * We only throw [result_not_implemented] when our Coq code has not
- * implemented a behaviour of R. **)
+  if the C source code of R throw a not-implemented error, we consider
+  this as an error thrown in the original interpreter and use the
+  constructor [result_error].
+  We only throw [result_not_implemented] when our Coq code has not
+  implemented a behaviour of R. **)
 (** The difference between [result_error] and [result_impossible] is
- * that [result_error] is thrown when the R interpreter throws an error
- * (usally using the [error] C function), and [result_impossible] is
- * thrown when R does not throw an error, but we know for sure that such
- * a case can never happen. Typically because the C program accepts an
- * impossible case to be missing, but that Coq does not recognise this
- * case to be impossible. So if there is a possible case in which Coq
- * must return something, but that the R interpreter in C does not cover
- * this case (for instance by writting [e->type] usingout checking whether
- * [e] actually maps to a valid expression), the Coq interpreter will
- * return [result_impossible]. **)
+  that [result_error] is thrown when the R interpreter throws an error
+  (usally using the [error] C function), and [result_impossible] is
+  thrown when R does not throw an error, but we know for sure that such
+  a case can never happen. Typically because the C program accepts an
+  impossible case to be missing, but that Coq does not recognise this
+  case to be impossible. So if there is a possible case in which Coq
+  must return something, but that the R interpreter in C does not cover
+  this case (for instance by writting [e->type] usingout checking whether
+  [e] actually maps to a valid expression), the Coq interpreter will
+  return [result_impossible]. **)
 
 Global Instance result_Inhab : forall A, Inhab (result A) :=
   fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
@@ -137,7 +137,7 @@ Notation "'if%success' b 'then' c 'using' S 'in' cont" :=
 (** ** [map]-monads **)
 
 (** Mapping onplace the content of a pointer is a frequent scheme.
- * Here is a monad for it. **)
+  Here is a monad for it. **)
 Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
     (f : state -> result A) : result A :=
   let%defined p_ := read_SExp S p using S in

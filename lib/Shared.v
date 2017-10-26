@@ -1,8 +1,8 @@
 (** General lemmae.
-  * This file contains all the constructs that I consider should be in my libraries by are not.
-  * It can be seen as a personnal library.
-  * Note that as TLC is changing, some of these lemmae already have been added to it:
-  * this file may need some cleanup to update to fresher versions of TLC. **)
+  This file contains all the constructs that I consider should be in my libraries by are not.
+  It can be seen as a personnal library.
+  Note that as TLC is changing, some of these lemmae already have been added to it:
+  this file may need some cleanup to update to fresher versions of TLC. **)
 
 Require Import TLC.LibStream TLC.LibHeap TLC.LibString TLC.LibNat TLC.LibInt.
 Require Export TLC.LibTactics TLC.LibReflect TLC.LibLogic TLC.LibList TLC.LibBool.
@@ -501,7 +501,7 @@ Ltac prove_decidable_eq :=
             ]) ] ]
     | _ =>
       (** Nothing intelligent to do, let us nevertheless simplify the
-        task of the user to know what is the context. **)
+         task of the user to know what is the context. **)
       let TR := fresh "tr" in set (TR := tr)
     end in
   match goal with

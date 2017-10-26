@@ -1,5 +1,5 @@
 (** Rinit.
- * Initialises global variables. **)
+  Initialises global variables. **)
 
 Set Implicit Arguments.
 Require Export Rfeatures.
@@ -21,8 +21,8 @@ Variable runs : runs_type.
 (** ** Functions **)
 
 (** All the functions of this section are called from [setup_Rmainloop].
- * Each sets some global variables. We implement these functions by
- * returning the corresponding values. **)
+  Each sets some global variables. We implement these functions by
+  returning the corresponding values. **)
 
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
 Definition init_R_NilValue S :=
@@ -133,8 +133,8 @@ Definition InitNames_shorcuts S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
-  (* Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
-   * [R_CurrentExpression] *)
+  (** Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
+    [R_CurrentExpression] **)
   let (S, NA_STRING) := alloc_vector_char globals S (string_to_list "NA") in
   map%gp NA_STRING with @NBits.write_nbit 16 5 ltac:(NBits.nbits_ok) true using S in
   let (S, R_BlankString) := mkChar globals S "" in
@@ -146,7 +146,7 @@ Definition InitNames_shorcuts S :=
   result_success S (R_UnboundValue, R_MissingArg, NA_STRING, R_BlankString, R_BlankScalarString, L).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
- * from main/dstruct.c called from [InitNames] from main/names.c **)
+  from main/dstruct.c called from [InitNames] from main/names.c **)
 Definition mkPRIMSXP_init max_step S :=
   let%defined R_FunTab := R_FunTab globals runs max_step using S in
   let FunTabSize := length R_FunTab in
@@ -237,14 +237,14 @@ End Globals.
 (** This section concludes the initialisation. **)
 
 (** The functions above are all called in the C version of [setup_Rmainloop],
-  * in main/main.c.
-  * In C, each of these functions modify some global variables.
-  * In Coq, we have to build intermediate [Globals] structures,
-  * accounting for the various changes.
-  * The definition of this function is tricky, as we are using [runs], whose
-  * value depends on global variables. We are thus taking as argument the
-  * [max_step] argument from [runs], and recomputing it at each step with
-  * the updated [globals]. **)
+  in main/main.c.
+  In C, each of these functions modify some global variables.
+  In Coq, we have to build intermediate [Globals] structures,
+  accounting for the various changes.
+  The definition of this function is tricky, as we are using [runs], whose
+  value depends on global variables. We are thus taking as argument the
+  [max_step] argument from [runs], and recomputing it at each step with
+  the updated [globals]. **)
 Definition setup_Rmainloop max_step S : result Globals :=
   let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
   let globals := empty_globals in
@@ -290,7 +290,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
       R_ExitContext := None ;
       R_SymbolTable := R_SymbolTable S
     |} in
-  let globals := flatten_Globals globals in (* Removing the now useless closures. *)
+  let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 
 

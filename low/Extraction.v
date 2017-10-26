@@ -1,5 +1,5 @@
 (** Extraction.
- * Extract R interpreter into OCaml. **)
+  Extract R interpreter into OCaml. **)
 
 Require Export Rinit Rparsing.
 

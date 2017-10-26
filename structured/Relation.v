@@ -1,5 +1,5 @@
 (** Relation.
- * Links the structured-level formalisation to the low-level one. **)
+  Links the structured-level formalisation to the low-level one. **)
 
 (* TODO *)
 

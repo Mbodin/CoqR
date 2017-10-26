@@ -1,5 +1,5 @@
 (** State.
- * Provides a model for the C memory. **)
+  Provides a model for the C memory. **)
 
 Set Implicit Arguments.
 Require Export String.
@@ -10,7 +10,7 @@ Require Import TLC.LibStream.
 (** * A Model for the C Memory **)
 
 (** The global state of the C memory. In particular, it maps SEXP
- * pointers to their corresponding expressions. **)
+  pointers to their corresponding expressions. **)
 Record memory := make_memory {
     state_heap_SExp :> heap nat SExpRec ;
     state_fresh_locations : stream nat ;
@@ -177,9 +177,9 @@ Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E
 (** Contexts are defined in the file main/context.c of R source code. **)
 
 (* FIXME: According to the C comments, these types can be mixed (as in
- * a [nbits 6]), but the C code rarely does this. I am putting this as
- * a simple inductive for now, but this may move later to a lower level
- * formalisation, if it is needed. *)
+  a [nbits 6]), but the C code rarely does this. I am putting this as
+  a simple inductive for now, but this may move later to a lower level
+  formalisation, if it is needed. *)
 Inductive context_type :=
   | Ctxt_TopLevel
   | Ctxt_Next
@@ -199,7 +199,7 @@ Instance context_type_Comparable : Comparable context_type.
 Defined.
 
 (** Note: not all fields have been modeled. See the report or the
- * original definition in the file include/Defn.h for more details. **)
+  original definition in the file include/Defn.h for more details. **)
 (** RCNTXT, *context **)
 Inductive context := make_context {
     nextcontext : option context ;

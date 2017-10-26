@@ -1,7 +1,7 @@
 (* TODO: Clean this file, or merge it with Rstructures.v *)
 
 (** Rbasic.v
- * This file provides a higher level view from the types defined in the file Rinternals.v. **)
+  This file provides a higher level view from the types defined in the file Rinternals.v. **)
 
 (** This document might be of interest to write this file: http://adv-r.had.co.nz/Data-structures.html **)
 

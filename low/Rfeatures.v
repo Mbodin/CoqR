@@ -1,5 +1,5 @@
 (** Rfeatures.
- * A Coq formalisation of additionnal functions of R from its C code. **)
+  A Coq formalisation of additionnal functions of R from its C code. **)
 
 Set Implicit Arguments.
 Require Export Reval.
@@ -30,7 +30,7 @@ Definition function_code :=
   result SExpRec_pointer.
 
 (** The following type is represented in C as an integer, each of its figure
- * (in base 10) representing a different bit of information. **)
+  (in base 10) representing a different bit of information. **)
 Record funtab_eval_arg := make_funtab_eval_arg {
     funtab_eval_arg_internal : bool ; (** Is it stored in the array [.Internals] or directly visible? **)
     funtab_eval_arg_eval : bool (** Should we evaluate arguments before calling? **)
@@ -88,7 +88,7 @@ Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_
 (** * eval.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/eval.c. **)
+  in the file main/eval.c. **)
 
 Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   let wrong S := result_error S "[do_set] Wrong argument count." in
@@ -126,11 +126,11 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 (** * names.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/names.c. **)
+  in the file main/names.c. **)
 
 (** In contrary to the original C, this function here takes as argument
- * the structure of type [funtab_cell] in addition to its range in the
- * array [R_FunTab]. **)
+  the structure of type [funtab_cell] in addition to its range in the
+  array [R_FunTab]. **)
 Definition installFunTab S c offset : result unit :=
   let%success prim := mkPRIMSXP S offset (funtab_eval_arg_eval (fun_eval c)) using S in
   let%success p := install globals runs S (fun_name c) using S in
@@ -159,8 +159,8 @@ End Parameter_R_FunTab.
 (** * Closing the Loop: [R_FunTab] **)
 
 (** In R source code, [R_FunTab] is an array accessed by offset. We
- * here make the choice to define it as a function accessed by
- * [primitive_construction]. See report for more details. **)
+  here make the choice to define it as a function accessed by
+  [primitive_construction]. See report for more details. **)
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; try typeclass; constructors; typeclass.
@@ -186,7 +186,7 @@ Fixpoint R_FunTab max_step : funtab :=
       make_funtab_cell name cfun code eval arity in
     let wrap f S call op args rho :=
       (** This function waits that all arguments are given before starting
-        * the computation of the next [R_FunTab]. **)
+        the computation of the next [R_FunTab]. **)
       f (R_FunTab max_step) S call op args rho in
     let rdecl name cfun code eval arity :=
       decl name (wrap cfun) code eval arity in

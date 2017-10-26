@@ -9,10 +9,13 @@ OCAMLFILES= \
 %: Makefile.coq phony
 	+make -f Makefile.coq $@
 
-all: all_coq all_interp
+all: all_coq all_interp all_html
 
 all_coq: Makefile.coq
 	+make -f Makefile.coq all
+
+all_html: Makefile.coq
+	+make -f Makefile.coq html
 
 clean: Makefile.coq clean_interp
 	+make -f Makefile.coq clean

@@ -1,14 +1,14 @@
 (** RinternalsAux.
- * Auxiliary definitions for the data structures defined in Rinternals. **)
+  Auxiliary definitions for the data structures defined in Rinternals. **)
 
 Set Implicit Arguments.
 Require Export Rinternals Shared.
 
 
 (** The C language performs a lot of pointer deferentiation. As a
- * convention, we write [p_] for the object referenced by the pointer [p]
- * (that is, [p_] stands for [*p] in C), and [p_f] for its field [f]—for
- * instance [p_sym] for its [symSxp_struct] part—, that is [p->f] in C. **)
+  convention, we write [p_] for the object referenced by the pointer [p]
+  (that is, [p_] stands for [*p] in C), and [p_f] for its field [f]—for
+  instance [p_sym] for its [symSxp_struct] part—, that is [p->f] in C. **)
 
 
 (** * The [nbits] Structure **)
@@ -25,13 +25,13 @@ Defined.
 Global Arguments nth_bit {m} n.
 
 (** A tactic to fill out the [n < m] part.
- * The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. **)
+  The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. **)
 Ltac nbits_ok :=
   clear; abstract
     match goal with
     | [ |- (_ < _)%nat ] =>
       (* The [math] tactic does not work with the [^] operator.
-       * We thus first eliminate it. *)
+        We thus first eliminate it. *)
       repeat rewrite Nat.pow_succ_r;
       repeat rewrite Nat.pow_0_r;
       math
@@ -274,11 +274,11 @@ End NBits.
 (** * Accessors and Smart Constructors **)
 
 (** In some place in the R source code, only five digits are used to store
- * the type of basic language element. This is an issue as [FunSxp] is
- * associated with the value 99, which is greater than 2^5.
- * The following function maps [FunSxp] to [CloSxp], effectivelly mapping
- * a general [SExpType] to a [SExpType] stored in only five bits.
- * We have indeed 99 mod 2^5 = 3. **)
+  the type of basic language element. This is an issue as [FunSxp] is
+  associated with the value 99, which is greater than 2^5.
+  The following function maps [FunSxp] to [CloSxp], effectivelly mapping
+  a general [SExpType] to a [SExpType] stored in only five bits.
+  We have indeed 99 mod 2^5 = 3. **)
 Definition SExpType_restrict t :=
   match t with
   | FunSxp => CloSxp
@@ -397,8 +397,8 @@ Definition map_sxpinfo_NonVector_SExpRec f e_ :=
      make_SExpRecHeader
        (f (sxpinfo h))
        (attrib h)
-       (**gengc_prev_node h**)
-       (**gengc_next_node h**))
+       (*gengc_prev_node h*)
+       (*gengc_next_node h*))
     (NonVector_SExpRec_data e_).
 
 Definition map_sxpinfo_Vector_SExpRec T f (e_ : Vector_SExpRec T) :=
@@ -407,8 +407,8 @@ Definition map_sxpinfo_Vector_SExpRec T f (e_ : Vector_SExpRec T) :=
      make_SExpRecHeader
        (f (sxpinfo h))
        (attrib h)
-       (**gengc_prev_node h**)
-       (**gengc_next_node h**))
+       (*gengc_prev_node h*)
+       (*gengc_next_node h*))
     (Vector_SExpRec_vecsxp e_).
 
 Definition map_sxpinfo f e_ :=
@@ -432,7 +432,7 @@ Definition map_sxpinfo f e_ :=
 Definition set_named_sxpinfo n i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
     (obj i_info) n (gp i_info)
-    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
 
 Definition set_named n :=
   map_sxpinfo (set_named_sxpinfo n).
@@ -449,7 +449,7 @@ Definition set_named_plural :=
 Definition set_gp_sxpinfo n i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
     (obj i_info) (named i_info) n
-    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
 
 Definition set_gp n :=
   map_sxpinfo (set_gp_sxpinfo n).
@@ -457,14 +457,14 @@ Definition set_gp n :=
 Definition map_gp_sxpinfo f i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
     (obj i_info) (named i_info) (f (gp i_info))
-    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
 
 Definition map_gp f :=
   map_sxpinfo (map_gp_sxpinfo f).
 
 Definition set_type_sxpinfo t i_info :=
   make_SxpInfo (SExpType_restrict t) (obj i_info) (named i_info) (gp i_info)
-    (**mark i_info**) (**debug i_info**) (**trace i_info**) (**spare i_info**) (**gcgen i_info**).
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
 
 Definition set_type t :=
   map_sxpinfo (set_type_sxpinfo t).
@@ -483,11 +483,11 @@ Definition build_SxpInfo type : SxpInfo :=
   make_SxpInfo (SExpType_restrict type) false named_temporary (NBits.nbits_init _).
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
- * by the garbage collector of R. We do not need them here as memory
- * allocation is not targetted by this formalisation. We thus offer the
- * following smart constructor for the type [SExpRecHeader]. **)
+  by the garbage collector of R. We do not need them here as memory
+  allocation is not targetted by this formalisation. We thus offer the
+  following smart constructor for the type [SExpRecHeader]. **)
 Definition build_SExpRecHeader type attrib : SExpRecHeader :=
-  make_SExpRecHeader (build_SxpInfo type) attrib (**None**) (**None**).
+  make_SExpRecHeader (build_SxpInfo type) attrib (*None*) (*None*).
 
 Definition get_VecSxp_length e_ :=
   match e_ with
@@ -525,7 +525,7 @@ Definition make_SExpRec_clo attrib formals body env :=
     (make_NonVector_SExpRec (build_SExpRecHeader CloSxp attrib)
       (make_CloSxp_struct formals body env)).
 
-Definition make_SExpRec_env attrib frame enclos (** hashtab **) :=
+Definition make_SExpRec_env attrib frame enclos (* hashtab *) :=
   SExpRec_NonVector
     (make_NonVector_SExpRec (build_SExpRecHeader EnvSxp attrib)
       (make_EnvSxp_struct frame enclos)).
@@ -542,7 +542,7 @@ Definition make_SExpRec_lang attrib function argumentList :=
 
 Definition make_SExpRec_prim attrib prim type :=
   (** [type] is either [BuiltinSxp] or [SpecialSxp].
-   * See function [mkPRIMSXP] in Rfeatures for more details. **)
+    See function [mkPRIMSXP] in Rfeatures for more details. **)
   SExpRec_NonVector
     (make_NonVector_SExpRec (build_SExpRecHeader type attrib)
       (make_PrimSxp_struct prim)).

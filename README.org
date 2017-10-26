@@ -123,6 +123,10 @@ Initialises global variables.
 
 A Coq formalisation of additionnal functions of R from its C code.
 
+*** Rparsing.v
+
+This file formalises functions for parsing R expressions.
+
 *** Rinvariants.v
 
 Proofs of some invariants respected by the functions defined in Reval.v,

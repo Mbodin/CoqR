@@ -1,18 +1,18 @@
 (** Globals.
-  * Lists all global variables used in the C source code of R,
-  * that are initialised, then never changed. **)
+  Lists all global variables used in the C source code of R,
+  that are initialised, then never changed. **)
 
 
 Require Export Rinternals Shared.
 
 
 (** Global variables that are initialised once, then treated as
- * constants.  They are initialised in the file Rinit.v.
- * Each of these syntactic global variables are then associated
- * with the natural coercion (using the current context of type
- * [Globals], see below) to their value, of type [SExpRec_pointer].
- * See the beginning of the files Reval.v and Rinit.v for more
- * details. **)
+  constants.  They are initialised in the file Rinit.v.
+  Each of these syntactic global variables are then associated
+  with the natural coercion (using the current context of type
+  [Globals], see below) to their value, of type [SExpRec_pointer].
+  See the beginning of the files Reval.v and Rinit.v for more
+  details. **)
 
 Inductive GlobalVariable :=
   | NA_STRING
@@ -121,16 +121,16 @@ Notation "'{{' g 'with' L '}}'" :=
 
 
 (** Each application of [GlobalsWith] adds a closure in the built context.
- * To avoid too many closures (which may lead to slowness or stack overflow),
- * we propose the following definition.
- * It computes once and for all the value of [g] for all possible global
- * variable, then waits for an argument, which is matched, looking for the
- * right precomputed value.
- * There is thus only one (used) closure at the end, and a fairly reasonnable
- * compiler should optimise out the [g] argument, unused after the precomputation.
- * The definition of [flatten_Globals] is however done using tactics, which are
- * quite slow (as they proof its correctness at the same time as defining it).
- * Its computation is thus disabled by default. **)
+  To avoid too many closures (which may lead to slowness or stack overflow),
+  we propose the following definition.
+  It computes once and for all the value of [g] for all possible global
+  variable, then waits for an argument, which is matched, looking for the
+  right precomputed value.
+  There is thus only one (used) closure at the end, and a fairly reasonnable
+  compiler should optimise out the [g] argument, unused after the precomputation.
+  The definition of [flatten_Globals] is however done using tactics, which are
+  quite slow (as they proof its correctness at the same time as defining it).
+  Its computation is thus disabled by default. **)
 
 Definition flatten_Globals (g : Globals) : Globals.
   let rec build_let l t :=

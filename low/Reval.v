@@ -1,9 +1,9 @@
 (** Reval.
- * Describes how R evaluates expressions.
- * The content of this file is the Coq equivalent of functions from R source code.
- * Note that only relevant definitions are translated here. Some are just
- * reinterpreted in Coq without following the original algorithm of the
- * C source. See report for more details. **)
+  Describes how R evaluates expressions.
+  The content of this file is the Coq equivalent of functions from R source code.
+  Note that only relevant definitions are translated here. Some are just
+  reinterpreted in Coq without following the original algorithm of the
+  C source. See report for more details. **)
 
 Set Implicit Arguments.
 Require Import Ascii.
@@ -48,12 +48,12 @@ Variable runs : runs_type.
 (** * Interpreter functions **)
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
- * referenced by the pointer [p], and [p_f] for the field [f] or it **)
+  referenced by the pointer [p], and [p_f] for the field [f] or it **)
 
 (** ** Frequent Patterns **)
 
 (** The functions presented here are not from R source code, but
- * represent frequent programming pattern in its source code. **)
+  represent frequent programming pattern in its source code. **)
 
 (** *** While **)
 
@@ -159,8 +159,8 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' exp
 (** *** Fold **)
 
 (** Looping through a list is a frequent pattern in R source code.
- * [fold_left_listSxp_gen] corresponds to the C code
- * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
+  [fold_left_listSxp_gen] corresponds to the C code
+  [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
 Definition fold_left_listSxp_gen A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
   do%success (l, a) := (l, a)
@@ -277,8 +277,8 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' l
   (at level 50, left associativity) : monad_scope.
 
 
-(* [fold_left_listSxp] corresponds to the C code
- * [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
+(** [fold_left_listSxp] corresponds to the C code
+  [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
 Definition fold_left_listSxp A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
   fold%let a := a
@@ -386,11 +386,11 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' l
 (** *** Return **)
 
 (** The following notations deal with loops that may return.
- * In these cases, one can use the definitions [result_rsuccess],
- * or [result_rskip] for a normal ending of the loop, and
- * [result_rreturn] for a breaking return. Note that this only
- * breaks the current loop and its continuation, not the whole
- * function. **)
+  In these cases, one can use the definitions [result_rsuccess],
+  or [result_rskip] for a normal ending of the loop, and
+  [result_rreturn] for a breaking return. Note that this only
+  breaks the current loop and its continuation, not the whole
+  function. **)
 
 Inductive normal_return A B :=
   | normal_result : A -> normal_return A B
@@ -504,7 +504,7 @@ Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S '
 (** ** Rinternals.h **)
 
 (** The function names of this section corresponds to the macro names
- * in the file include/Rinternals.h. **)
+  in the file include/Rinternals.h. **)
 
 Definition PRINTNAME S x :=
   read%defined x_ := x using S in
@@ -537,7 +537,7 @@ Definition INCREMENT_NAMED S x :=
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/memory.c. **)
+  in the file main/memory.c. **)
 
 Definition CONS S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
@@ -562,9 +562,9 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
     result_success S r.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
-  * [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
-  * the compiled C files references [Rf_NewEnvironment] and not
-  * [NewEnvironment]. These two functions are exactly the same. **)
+  [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
+  the compiled C files references [Rf_NewEnvironment] and not
+  [NewEnvironment]. These two functions are exactly the same. **)
 Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
@@ -590,13 +590,13 @@ Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
 (** ** Rinlinedfuns.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file include/Rinlinedfuns.c. **)
+  in the file include/Rinlinedfuns.c. **)
 
 (** The way the original functions [allocVector], [allocVector3], etc.
-  * from R source code are defined are not compatible with the way the
-  * memory of the C language has been formalised here. The functions
-  * below are thus slightly different from their C counterparts.
-  * The [repeat] function of Coq can be used to initialise their data. **)
+  from R source code are defined are not compatible with the way the
+  memory of the C language has been formalised here. The functions
+  below are thus slightly different from their C counterparts.
+  The [repeat] function of Coq can be used to initialise their data. **)
 
 Definition alloc_vector_char S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_char R_NilValue v_data).
@@ -614,8 +614,8 @@ Definition alloc_vector_cplx S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_cplx R_NilValue v_data).
 
 (** The following allocators uses pointers. Note that the original
- * [allocVector] function initialises them to [R_NilValue] (and not
- * [NULL], for instance) by default. **)
+  [allocVector] function initialises them to [R_NilValue] (and not
+  [NULL], for instance) by default. **)
 
 Definition alloc_vector_str S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_str R_NilValue v_data).
@@ -761,13 +761,13 @@ Definition lang6 S s t u v w x :=
 (** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/envir.c. The most important functions of envir.c
- * are shown in a later section. **)
+  in the file main/envir.c. The most important functions of envir.c
+  are shown in a later section. **)
 
 (** The function [mkChar] from the R source code performs a lot of things.
- * It deals with encoding, for embedded zero-characters, as well as avoid
- * allocated twice the same string, by looking through the already
- * allocated strings. We do none of the above. **)
+  It deals with encoding, for embedded zero-characters, as well as avoid
+  allocated twice the same string, by looking through the already
+  allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
 Definition mkChar S (str : string) : state * SExpRec_pointer :=
   (* TODO: Caching values using R_StringHash. *)
@@ -781,13 +781,13 @@ Definition mkString S (str : string) : state * SExpRec_pointer :=
 (** ** dstruct.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/dstruct.c. **)
+  in the file main/dstruct.c. **)
 
 Definition iSDDName S (name : SExpRec_pointer) :=
   let%success buf := CHAR S name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf) buf in
-    (* I am simplifying the C code here. *)
+    (** I am simplifying the C code here. **)
     result_success S (decide (Forall (fun c : Ascii.ascii =>
         Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
       (string_to_list buf)))
@@ -804,7 +804,7 @@ Definition mkSYMSXP S (name value : SExpRec_pointer) :=
 (** ** names.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/names.c. **)
+  in the file main/names.c. **)
 
 Definition mkSymMarker S pname :=
   let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
@@ -813,11 +813,11 @@ Definition mkSymMarker S pname :=
 
 Definition install S name_ : result SExpRec_pointer :=
   (** As said in the description of [InitNames] in Rinit.v,
-    * the hash table present in [R_SymbolTable] has not been
-    * formalised as such.
-    * Instead, it is represented as a single list, and not
-    * as [HSIZE] different lists.
-    * This approach is slower, but equivalent. **)
+    the hash table present in [R_SymbolTable] has not been
+    formalised as such.
+    Instead, it is represented as a single list, and not
+    as [HSIZE] different lists.
+    This approach is slower, but equivalent. **)
   fold%return
   along R_SymbolTable S
   as sym_car, _ do
@@ -836,7 +836,7 @@ Definition install S name_ : result SExpRec_pointer :=
     result_success S sym.
 
 (** We here choose to model [installChar] as its specification
-  * given by the associated comment in the C source file. **)
+  given by the associated comment in the C source file. **)
 Definition installChar S charSXP :=
   let%success str := CHAR S charSXP using S in
   install S str.
@@ -845,7 +845,7 @@ Definition installChar S charSXP :=
 (** ** sysutils.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/sysutils.c. **)
+  in the file main/sysutils.c. **)
 
 Definition installTrChar S x :=
   read%defined x_ := x using S in
@@ -859,7 +859,7 @@ Definition installTrChar S x :=
 (** ** gram.y **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/gram.y. **)
+  in the file main/gram.y. **)
 
 Definition mkTrue S :=
   alloc_vector_lgl S [1 : int].
@@ -925,7 +925,7 @@ Definition CheckFormalArgs S formlist new :=
 (** ** context.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/context.c. **)
+  in the file main/context.c. **)
 
 Definition begincontext S flags syscall env sysp promargs callfun :=
   let cptr := {|
@@ -970,7 +970,7 @@ Definition endcontext S cptr :=
 (** ** match.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/match.c. **)
+  in the file main/match.c. **)
 
 Definition psmatch s1 s2 exact :=
   if exact : bool then
@@ -998,16 +998,16 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   result_success S (psmatch f t exact).
 
 (** The function [matchArgs] matches the arguments supplied to a given
- * call with the formal, expected arguments.
- * This is more complex as it may seem as arguments in R can be named
- * (and thus provided in any order), or can be ‘...’.
- * The algorithm presented in this function is thus crucial to understand
- * the semantics of function calls in R.
- * It is furthermore rather complicated.
- * This is a large function and is divided into all its passes. **)
+  call with the formal, expected arguments.
+  This is more complex as it may seem as arguments in R can be named
+  (and thus provided in any order), or can be ‘...’.
+  The algorithm presented in this function is thus crucial to understand
+  the semantics of function calls in R.
+  It is furthermore rather complicated.
+  This is a large function and is divided into all its passes. **)
 
 (** The function makes use of some bits from the general purpose pool
- * to mark some arguments as being used or missing. **)
+  to mark some arguments as being used or missing. **)
 
 Definition argused e_ :=
   NBits.nbits_to_nat (gp e_).
@@ -1079,7 +1079,8 @@ Definition matchArgs_second S
                     else ifb fargusedi = 1 then
                       result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
                     else
-                      (** Warning about partial arguments: should we ignore this part? **)
+                      (** The C code emits a warning about partial arguments here.
+                        This may be a sign that this part should be actually ignored. **)
                       set%car a := list_carval b_list using S in
                       run%success
                         ifb list_carval b_list <> R_MissingArg then
@@ -1189,7 +1190,7 @@ Definition matchArgs S
 (** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/envir.c. **)
+  in the file main/envir.c. **)
 
 Definition IS_SPECIAL_SYMBOL S symbol :=
   read%defined symbol_ := symbol using S in
@@ -1206,7 +1207,7 @@ Definition SET_SPECIAL_SYMBOL S x v :=
 
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
-  (* A note about hashtabs commented out. *)
+  (** A note about hashtabs has been commented out. **)
   fold%let b := true
   along env_frame env_env
   as frame_car, frame_tag do
@@ -1480,7 +1481,7 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
 (** ** attrib.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/attrib.c. **)
+  in the file main/attrib.c. **)
 
 Definition getAttrib0 (S : state) (vec name : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[getAttrib0] TODO".
@@ -1523,7 +1524,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
 (** ** eval.c **)
 
 (** The function names of this section corresponds to the function names
- * in the file main/eval.c. **)
+  in the file main/eval.c. **)
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
@@ -1534,7 +1535,8 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
         ifb NBits.nbits_to_nat (gp e_) = 1 then
           result_error S "[forcePromise] Promise already under evaluation."
         else
-          (* Warning: restarting interrupted promise evaluation. *)
+          (** The C code emitted a warning here: restarting interrupted promise evaluation.
+            This may be a sign that this part should be ignored. *)
           result_skip S
       else result_skip S using S in
     set%gp e with @NBits.nat_to_nbits 16 1 ltac:(NBits.nbits_ok) using S in
@@ -1599,6 +1601,12 @@ Definition applyClosure S
 Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[promiseArgs] TODO".
 
+(* TODO
+(* To do this, we need to merge Rfeatures and Reval *)
+(* R_FunTab[(x)->u.primsxp.offset].cfun *)
+Definition PRIMFUN S
+  R_FunTab
+*)
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) :=
@@ -1630,22 +1638,20 @@ Definition eval S (e rho : SExpRec_pointer) :=
       else
         match type e_ with
         | BcodeSxp =>
-          (** See https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L3543
-           * for a definition of this bytecode, and
-           * https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L5966
-           * for the evaluator.
-           * We do not consider byte code for now in this formalisation. **)
+          (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
+            Line 5966 of the same file for the evaluator.
+            We do not consider byte code for now in this formalisation. **)
           result_not_implemented "[eval] byte code"
         | SymSxp =>
           ifb e = R_DotsSymbol then
             result_error S "[eval] ‘...’ used in an incorrect context."
           else
             (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
-             * I think that in essence, we are fetching the value of the symbol in the
-             * environment, then evaluating it if we get a promise. **)
-            (** There is just a story about ddfindVar vs findVar which I don’t yet
-             * understand (depending on the general purpose field). I need to investigate
-             * about these two functions. **)
+              I think that in essence, we are fetching the value of the symbol in the
+              environment, then evaluating it if we get a promise. *)
+            (* There is just a story about [ddfindVar] vs [findVar] which I don’t yet
+              understand (depending on the general purpose field). I need to investigate
+              about these two functions. *)
             result_not_implemented "[eval] Symbols (TODO)"
         | PromSxp =>
           let%prom e_, e_prom := e_ using S in
@@ -1703,9 +1709,9 @@ Fixpoint runs max_step : runs_type :=
   | S max_step =>
     let wrap {A B : Type} (f : runs_type -> B -> A) (x : B) : A :=
       (** It is important to take this additional parameter [x] as a parameter,
-        * to defer the computation of [runs max_step] when it is indeed needed.
-        * Without this, the application of [runs max_int] would overflow the
-        * stack. **)
+        to defer the computation of [runs max_step] when it is indeed needed.
+        Without this, the application of [runs max_int] would overflow the
+        stack. **)
       f (runs max_step) x in
     let wrap_dep {A : Type -> Type} (f : runs_type -> forall B, A B) (T : Type) : A T :=
       (** A dependent version of [wrap]. **)
