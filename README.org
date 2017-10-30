@@ -108,7 +108,13 @@ This file can take a long time to compile.
 
 This file provides monads to manipulate R objects easily.
 
-*** Reval.v
+*** Loops.v
+
+This file provides looping monads to easily manipulate R objects.
+It also defines the structure used in the interpreter to deal with
+infinite execution.
+
+*** Rcore.v
 
 A Coq formalisation of the evaluation functions of R from its C code.
 Note that only relevant definitions are translated here. Some are just
@@ -122,6 +128,7 @@ Initialises global variables.
 *** Rfeatures.v
 
 A Coq formalisation of additionnal functions of R from its C code.
+This file also contains the final interpreter.
 
 *** Rparsing.v
 
@@ -129,7 +136,7 @@ This file formalises functions for parsing R expressions.
 
 *** Rinvariants.v
 
-Proofs of some invariants respected by the functions defined in Reval.v,
+Proofs of some invariants respected by the functions defined in Rcore.v,
 Rinit.v, and Rfeatures.v.
 
 *** Relation.v
@@ -139,7 +146,7 @@ Links the low-level formalisation to the C source code of R.
 *** RelationCorrect.v
 
 Proof that the relation defined in Module Relation holds along the
-execution of the functions of Reval.
+execution of the functions of Rcore.
 
 *** Extraction.v
 

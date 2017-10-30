@@ -15,7 +15,8 @@
 ./low/State.v
 ./low/Globals.v
 ./low/Monads.v
-./low/Reval.v
+./low/Loops.v
+./low/Rcore.v
 ./low/Rfeatures.v
 ./low/Rinit.v
 ./low/Rparsing.v

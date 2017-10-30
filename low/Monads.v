@@ -9,11 +9,11 @@ Require Export State.
 
 (** A monad type for results. **)
 Inductive result (A : Type) :=
-  | result_success : state -> A -> result A (** The program terminated in this state using this result. **)
+  | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
   | result_error : state -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
   | result_impossible : state -> string -> result A (** This result should never happen. We provide a string to help debugging. **)
-  | result_not_implemented : string -> result A (** This result relies on a feature not yet implemented. **)
-  | result_bottom : state -> result A (** We are out of fuel to compute anything. **)
+  | result_not_implemented : string -> result A (** The result relies on a feature not yet implemented. **)
+  | result_bottom : state -> result A (** We went out of fuel during the computation. **)
   .
 Arguments result_error [A].
 Arguments result_impossible [A].
@@ -25,16 +25,20 @@ Arguments result_bottom [A].
   this as an error thrown in the original interpreter and use the
   constructor [result_error].
   We only throw [result_not_implemented] when our Coq code has not
-  implemented a behaviour of R. **)
+  implemented a behaviour of R.
+  The construct [result_error] thus models the errors thrown by the
+  R program. **)
+
 (** The difference between [result_error] and [result_impossible] is
   that [result_error] is thrown when the R interpreter throws an error
   (usally using the [error] C function), and [result_impossible] is
   thrown when R does not throw an error, but we know for sure that such
-  a case can never happen. Typically because the C program accepts an
-  impossible case to be missing, but that Coq does not recognise this
+  a case can never happen, or such a case would lead an undefined
+  behaviour in the original program. Typically because the C program accepts
+  an impossible case to be missing, but that Coq does not recognise this
   case to be impossible. So if there is a possible case in which Coq
   must return something, but that the R interpreter in C does not cover
-  this case (for instance by writting [e->type] usingout checking whether
+  this case (for instance by writting [e->type] without checking whether
   [e] actually maps to a valid expression), the Coq interpreter will
   return [result_impossible]. **)
 
@@ -95,7 +99,7 @@ Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ')' ':=
   (at level 50, left associativity) : monad_scope.
 
 
-(** As for [if_success], but from an option type. We suppose that the option type is defined. **)
+(** Similar to [if_success], but from an option type. We suppose that the option type is defined. **)
 Definition if_defined (A B : Type) S (o : option A) (f : A -> result B) : result B :=
   match o with
   | Some x => f x
@@ -136,7 +140,7 @@ Notation "'if%success' b 'then' c 'using' S 'in' cont" :=
 
 (** ** [map]-monads **)
 
-(** Mapping onplace the content of a pointer is a frequent scheme.
+(** Mapping on-place the content of a pointer is a frequent scheme.
   Here is a monad for it. **)
 Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
     (f : state -> result A) : result A :=

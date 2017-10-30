@@ -275,10 +275,10 @@ End NBits.
 
 (** In some place in the R source code, only five digits are used to store
   the type of basic language element. This is an issue as [FunSxp] is
-  associated with the value 99, which is greater than 2^5.
+  associated with the value 99, which is greater than $2^5$ #2<sup>5</sup>#.
   The following function maps [FunSxp] to [CloSxp], effectivelly mapping
   a general [SExpType] to a [SExpType] stored in only five bits.
-  We have indeed 99 mod 2^5 = 3. **)
+  We have indeed $99 \bmod 2^5 = 3$ #99 mod 2<sup>5</sup> = 3#. **)
 Definition SExpType_restrict t :=
   match t with
   | FunSxp => CloSxp

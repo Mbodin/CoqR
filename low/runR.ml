@@ -175,7 +175,7 @@ let _ =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
               Low.eval_global g r s p) in
-          print_and_continue globals (f globals (Low.runs globals !max_steps) s) s (fun n globals s p ->
+          print_and_continue globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
             Print.print_pointer !readable_pointers s globals p ^
             if !fetch_result then (
               Print.indent n ^ "Pointer value: " ^

@@ -2,7 +2,7 @@
   A Coq formalisation of additionnal functions of R from its C code. **)
 
 Set Implicit Arguments.
-Require Export Reval.
+Require Export Rcore.
 
 
 Section Parameters.
@@ -15,44 +15,8 @@ Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Variable runs : runs_type.
 
-(** * Defn.h **)
-
-(** This section defines the FUNTAB structure, which is used to store primitive
-  and internal functions, as well as some constructs to evaluate it. **)
-
-(** All function in the array [R_FunTab] have the same type. **)
-Definition function_code :=
-  state ->
-  SExpRec_pointer -> (** call **)
-  SExpRec_pointer -> (** op **)
-  SExpRec_pointer -> (** args **)
-  SExpRec_pointer -> (** rho **)
-  result SExpRec_pointer.
-
-(** The following type is represented in C as an integer, each of its figure
-  (in base 10) representing a different bit of information. **)
-Record funtab_eval_arg := make_funtab_eval_arg {
-    funtab_eval_arg_internal : bool ; (** Is it stored in the array [.Internals] or directly visible? **)
-    funtab_eval_arg_eval : bool (** Should we evaluate arguments before calling? **)
-  }.
-
-(** FUNTAB **)
-Record funtab_cell := make_funtab_cell {
-    fun_name : string ;
-    fun_cfun : function_code ;
-    fun_code : nat ;
-    fun_eval : funtab_eval_arg ;
-    fun_arity : int
-  }.
-
-Definition funtab := option (list funtab_cell).
-
-Section Parameter_R_FunTab.
-
-Variable R_FunTab : funtab.
-
-Definition read_R_FunTab S n :=
-  match R_FunTab with
+Definition read_R_FunTab runs S n :=
+  match runs_R_FunTab runs with
   | None => result_bottom S
   | Some f =>
     match nth_option n f with
@@ -62,13 +26,15 @@ Definition read_R_FunTab S n :=
   end.
 
 
+(** * dstruct.c **)
 
-(** ** dstruct.c **)
+(** The function names of this section corresponds to the function names
+  in the file main/dstruct.c. **)
 
 Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_pointer :=
   let type_ :=
     ifb type_ then BuiltinSxp else SpecialSxp in
-  let%defined FunTabSize := LibOption.map length R_FunTab using S in
+  let%defined FunTabSize := LibOption.map length (runs_R_FunTab runs) using S in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
   ifb offset >= FunTabSize then
     result_error S "[mkPRIMSXP] Offset is out of range"
@@ -104,7 +70,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       let%success rhs := runs_eval runs S (list_carval args_cdr_list) rho using S in
       let%success _ := INCREMENT_NAMED S rhs using S in
       read%prim op_, op_prim := op using S in
-      let%success c := read_R_FunTab S (prim_offset op_prim) using S in
+      let%success c := read_R_FunTab runs S (prim_offset op_prim) using S in
       ifb fun_code c = 2 then
         read%env rho_, rho_env := rho using S in
         let%success _ := setVar globals runs S lhs rhs (env_enclos rho_env) using S in
@@ -153,49 +119,67 @@ Definition installFunTab S c offset : result unit :=
   write%defined p := p_ using S in
   result_success S tt.
 
-End Parameter_R_FunTab.
+End Parameters.
 
 
-(** * Closing the Loop: [R_FunTab] **)
-
-(** In R source code, [R_FunTab] is an array accessed by offset. We
-  here make the choice to define it as a function accessed by
-  [primitive_construction]. See report for more details. **)
+(** * Closing the Loop **)
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; try typeclass; constructors; typeclass.
-Qed.
+Defined.
 
-Fixpoint R_FunTab max_step : funtab :=
-  let eval0 := make_funtab_eval_arg false false in
-  let eval1 := make_funtab_eval_arg false true in
-  let eval10 := make_funtab_eval_arg true false in
-  let eval11 := make_funtab_eval_arg true true in
-  let eval100 := make_funtab_eval_arg false false in
-  let eval101 := make_funtab_eval_arg false true in
-  let eval110 := make_funtab_eval_arg true false in
-  let eval111 := make_funtab_eval_arg true true in
-  let eval200 := make_funtab_eval_arg false false in
-  let eval201 := make_funtab_eval_arg false true in
-  let eval210 := make_funtab_eval_arg true false in
-  let eval211 := make_funtab_eval_arg true true in
+Fixpoint runs max_step globals : runs_type :=
   match max_step with
-  | O => None
+  | O => {|
+      runs_do_while := fun _ S _ _ _ => result_bottom S ;
+      runs_eval := fun S _ _ => result_bottom S ;
+      runs_inherits := fun S _ _ => result_bottom S ;
+      runs_getAttrib := fun S _ _ => result_bottom S ;
+      runs_R_FunTab := None
+    |}
   | S max_step =>
-    let decl name cfun code eval arity :=
-      make_funtab_cell name cfun code eval arity in
-    let wrap f S call op args rho :=
-      (** This function waits that all arguments are given before starting
-        the computation of the next [R_FunTab]. **)
-      f (R_FunTab max_step) S call op args rho in
-    let rdecl name cfun code eval arity :=
-      decl name (wrap cfun) code eval arity in
-    Some [
-        rdecl "<-" do_set 1 eval100 (-1)%Z ;
-        rdecl "=" do_set 3 eval100 (-1)%Z ;
-        rdecl "<<-" do_set 2 eval100 (-1)%Z
-      ]%string
+    let wrap {A B : Type} (f : Globals -> runs_type -> B -> A) (x : B) : A :=
+      (** It is important to take this additional parameter [x] as a parameter,
+        to defer the computation of [runs max_step] when it is indeed needed.
+        Without this, the application of [runs max_int] would overflow the
+        stack. **)
+      f globals (runs max_step globals) x in
+    let wrap_dep {A : Type -> Type} (f : Globals -> runs_type -> forall B, A B) (T : Type) : A T :=
+      (** A dependent version of [wrap]. **)
+      f globals (runs max_step globals) T in {|
+      runs_do_while := wrap_dep (fun _ => do_while) ;
+      runs_eval := wrap eval ;
+      runs_inherits := wrap inherits ;
+      runs_getAttrib := wrap getAttrib ;
+      runs_R_FunTab :=
+        let eval0 := make_funtab_eval_arg false false in
+        let eval1 := make_funtab_eval_arg false true in
+        let eval10 := make_funtab_eval_arg true false in
+        let eval11 := make_funtab_eval_arg true true in
+        let eval100 := make_funtab_eval_arg false false in
+        let eval101 := make_funtab_eval_arg false true in
+        let eval110 := make_funtab_eval_arg true false in
+        let eval111 := make_funtab_eval_arg true true in
+        let eval200 := make_funtab_eval_arg false false in
+        let eval201 := make_funtab_eval_arg false true in
+        let eval210 := make_funtab_eval_arg true false in
+        let eval211 := make_funtab_eval_arg true true in
+        match max_step with
+        | O => None
+        | S max_step =>
+          let decl name cfun code eval arity :=
+            make_funtab_cell name cfun code eval arity in
+          let wrap f S call op args rho :=
+            (** This function waits that all arguments are given before starting
+              the computation of the next [R_FunTab]. **)
+            f globals (runs max_step globals) S call op args rho in
+          let rdecl name cfun code eval arity :=
+            decl name (wrap cfun) code eval arity in
+          Some [
+              rdecl "<-" do_set 1 eval100 (-1)%Z ;
+              rdecl "=" do_set 3 eval100 (-1)%Z ;
+              rdecl "<<-" do_set 2 eval100 (-1)%Z
+            ]%string
+        end
+    |}
   end.
-
-End Parameters.
-

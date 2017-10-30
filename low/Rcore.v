@@ -1,4 +1,4 @@
-(** Reval.
+(** Rcore.
   Describes how R evaluates expressions.
   The content of this file is the Coq equivalent of functions from R source code.
   Note that only relevant definitions are translated here. Some are just
@@ -7,24 +7,15 @@
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Export Monads Globals.
-
-(** * Global structure of the interpreter **)
-
-(** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
-Record runs_type : Type := runs_type_intro {
-    runs_do_while : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
-    runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
-    runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
-    runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer
-  }.
+Require Export Loops.
 
 
-Section ParameterisedGlobals.
+Section Parameterised.
 
-(** * Global Definitions **)
+(** * Global Variables **)
 
-Definition INT_MIN : int := - 2 ^ 31. (* We may want to make this a parameter. *)
+(* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
+Definition INT_MIN : int := - 2 ^ 31.
 
 Definition R_NaInt := INT_MIN.
 Definition R_PosInf := 0 : int (* TODO *).
@@ -40,8 +31,6 @@ Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
 
 Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
-Section ParameterisedRuns.
-
 Variable runs : runs_type.
 
 
@@ -49,457 +38,6 @@ Variable runs : runs_type.
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
   referenced by the pointer [p], and [p_f] for the field [f] or it **)
-
-(** ** Frequent Patterns **)
-
-(** The functions presented here are not from R source code, but
-  represent frequent programming pattern in its source code. **)
-
-(** *** While **)
-
-(** A basic C-like loop **)
-Definition do_while A S (a : A) expr stat : result A :=
-  let%success b := expr S a using S in
-  if b : bool then
-    let%success a := stat S a using S in
-    runs_do_while runs S a expr stat
-  else
-    result_success S a.
-
-Notation "'do%let' a ':=' e 'while' expr 'do' stat 'using' S" :=
-  (do_while S e (fun S a => expr) (fun S a => stat))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%let' 'while' expr 'do' stat 'using' S" :=
-  (do%let _ := tt while expr do stat using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'while' expr 'do' stat 'using' S" :=
-  (do%let x := a
-   while let (a1, a2) := x in expr
-   do let (a1, a2) := x in stat
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'while' expr 'do' stat 'using' S" :=
-  (do%let x := a
-   while let '(a1, a2, a3) := x in expr
-   do let '(a1, a2, a3) := x in stat
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'while' expr 'do' stat 'using' S" :=
-  (do%let x := a
-   while let '(a1, a2, a3, a4) := x in expr
-   do let '(a1, a2, a3, a4) := x in stat
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' expr 'do' stat 'using' S" :=
-  (do%let x := a
-   while let '(a1, a2, a3, a4, a5) := x in expr
-   do let '(a1, a2, a3, a4, a5) := x in stat
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (run%success
-     do%let while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success a :=
-     do%let a := e
-     while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' '(' a1 ',' a2 ')' ':=' a 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success (a1, a2) :=
-     do%let (a1, a2) := a
-     while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' a 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3) :=
-     do%let (a1, a2, a3) := a
-     while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4) :=
-     do%let (a1, a2, a3, a4) := a
-     while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4, a5) :=
-     do%let (a1, a2, a3, a4, a5) := a
-     while expr
-     do stat
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-
-(** *** Fold **)
-
-(** Looping through a list is a frequent pattern in R source code.
-  [fold_left_listSxp_gen] corresponds to the C code
-  [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen A S (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
-  do%success (l, a) := (l, a)
-  while result_success S (decide (l <> R_NilValue))
-  do
-    read%list l_, l_list := l using S in
-    let%success a := iterate S a l l_ l_list using S in
-    result_success S (list_cdrval l_list, a)
-  using S in
-  result_success S a.
-
-Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold_left_listSxp_gen S le e (fun S a l l_ l_list => iterate))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let _ := tt
-   along le
-   as l, l_, l_list
-   do iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l, l_, l_list
-   do let (a1, a2) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l, l_, l_list
-   do let '(a1, a2, a3) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l, l_, l_list
-   do let '(a1, a2, a3, a4) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l, l_, l_list
-   do let '(a1, a2, a3, a4, a5) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (run%success
-     fold%let
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-    (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success a :=
-     fold%let a := e
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2) :=
-     fold%let (a1, a2) := e
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3) :=
-     fold%let (a1, a2, a3) := e
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4) :=
-     fold%let (a1, a2, a3, a4) := e
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4, a5) :=
-     fold%let (a1, a2, a3, a4, a5) := e
-     along le
-     as l, l_, l_list
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-
-(** [fold_left_listSxp] corresponds to the C code
-  [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp A S (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
-  fold%let a := a
-  along l
-  as _, _, l_list
-  do iterate S a (list_carval l_list) (list_tagval l_list) using S.
-
-Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold_left_listSxp S le e (fun S a l_car l_tag => iterate))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l_car, l_tag
-   do let (a1, a2) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l_car, l_tag
-   do let '(a1, a2, a3) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l_car, l_tag
-   do let '(a1, a2, a3, a4) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S" :=
-  (fold%let x := e
-   along le
-   as l_car, l_tag
-   do let '(a1, a2, a3, a4, a5) := x in iterate
-   using S)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (run%success
-     fold%let _ := tt
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success a :=
-     fold%let a := e
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2) :=
-     fold%let (a1, a2) := e
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3) :=
-     fold%let (a1, a2, a3) := e
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4) :=
-     fold%let (a1, a2, a3, a4) := e
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (let%success (a1, a2, a3, a4, a5) :=
-     fold%let (a1, a2, a3, a4, a5) := e
-     along le
-     as l_car, l_tag
-     do iterate
-     using S using S in
-   cont)
-  (at level 50, left associativity) : monad_scope.
-
-
-(** *** Return **)
-
-(** The following notations deal with loops that may return.
-  In these cases, one can use the definitions [result_rsuccess],
-  or [result_rskip] for a normal ending of the loop, and
-  [result_rreturn] for a breaking return. Note that this only
-  breaks the current loop and its continuation, not the whole
-  function. **)
-
-Inductive normal_return A B :=
-  | normal_result : A -> normal_return A B
-  | return_result : B -> normal_return A B
-  .
-Arguments normal_result {A B}.
-Arguments return_result {A B}.
-
-Definition result_rsuccess {A B} S r : result (normal_return A B) :=
-  result_success S (normal_result r).
-
-Definition result_rskip {B} S : result (normal_return _ B) :=
-  result_rsuccess S tt.
-
-Definition result_rreturn {A B} S r : result (normal_return A B) :=
-  result_success S (return_result r).
-
-Definition match_rresult {A B C} (r : result (normal_return A B)) cont
-    : result (normal_return C B) :=
-  let%success res := r using S in
-  match res with
-  | normal_result r => cont S r
-  | return_result r => result_rreturn S r
-  end.
-
-Notation "'let%return' a ':=' e 'using' S 'in' cont" :=
-  (match_rresult e (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'run%return' c 'using' S 'in' cont" :=
-  (let%return _ := c using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** Exiting the return-monad. **)
-Definition exit_rresult {A B} (r : result (normal_return A B)) cont :=
-  let%success res := r using S in
-  match res with
-  | normal_result r => cont S r
-  | return_result r => result_success S r
-  end.
-
-Definition continue_and_condition {A B} S (r : normal_return A B) cond :=
-  match r with
-  | normal_result r => cond S r
-  | return_result r => result_success S false
-  end.
-
-Definition get_success {A B} S (r : normal_return A B) cont
-    : result (normal_return A B) :=
-  match r with
-  | normal_result r => cont S r
-  | return_result r => result_rreturn S r
-  end.
-
-Notation "'do%return' 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (exit_rresult
-     (do%let ret := normal_result tt
-      while continue_and_condition S ret (fun S _ => expr)
-      do stat
-      using S)
-     (fun S _ => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S 'in' cont" :=
-  (exit_rresult
-     (do%let a := normal_result e
-      while continue_and_condition S a (fun S a => expr)
-      do get_success S a (fun S a => stat)
-      using S)
-     (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (exit_rresult
-     (fold%let a := normal_result e
-      along le
-      as l, l_, l_list
-      do get_success S a (fun S a => iterate)
-      using S)
-     (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S 'in' cont" :=
-  (fold%return ret := tt
-   along le
-   as l, l_, l_list
-   do iterate
-   using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (exit_rresult
-     (fold%let a := normal_result e
-      along le
-      as l_car, l_tag
-      do get_success S a (fun S a => iterate)
-      using S)
-     (fun S a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S 'in' cont" :=
-  (fold%return ret := tt
-   along le
-   as l_car, l_tag
-   do iterate
-   using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-
 
 (** ** Rinternals.h **)
 
@@ -564,7 +102,8 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
   the compiled C files references [Rf_NewEnvironment] and not
-  [NewEnvironment]. These two functions are exactly the same. **)
+  [NewEnvironment]. These two functions are exactly the same.
+  This is a relatively frequent scheme in R source code. **)
 Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
@@ -577,7 +116,7 @@ Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result 
         NonVector_SExpRec_data := v_list
       |} in
     write%defined v := v_ using S in
-    result_success S (list_cdrval v_list, list_cdrval n_list) using S in
+    result_success S (list_cdrval v_list, list_cdrval n_list) using S, runs in
   result_success S newrho.
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
@@ -674,7 +213,7 @@ Definition R_length S s :=
     do
       read%list s_, s_list := s using S in
       result_success S (list_cdrval s_list, 1 + i)
-    using S in
+    using S, runs in
     result_success S i
   | EnvSxp =>
     result_not_implemented "[R_length] Rf_envlength"
@@ -825,7 +364,7 @@ Definition install S name_ : result SExpRec_pointer :=
     let%success str_name_ := CHAR S str_sym using S in
     ifb name_ = str_name_ then
       result_rreturn S sym_car
-    else result_rskip S using S in
+    else result_rskip S using S, runs, globals in
   ifb name_ = ""%string then
     result_error S "[install] Attempt to use zero-length variable name."
   else
@@ -918,7 +457,7 @@ Definition CheckFormalArgs S formlist new :=
   as _, formlist_tag do
     ifb formlist_tag = new then
       result_error S "[CheckFormalArgs] Repeated formal argument."
-    else result_skip S using S in
+    else result_skip S using S, runs, globals in
   result_skip S.
 
 
@@ -953,7 +492,7 @@ Definition endcontext S cptr :=
         let S := state_with_context S (context_with_conexit cptr (list_cdrval s_list)) in
         run%success
           runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
-        result_skip S using S in
+        result_skip S using S, runs, globals in
       let S := state_with_exit_context S savecontext in
       result_skip S
     else result_skip S using S in
@@ -1004,7 +543,8 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   The algorithm presented in this function is thus crucial to understand
   the semantics of function calls in R.
   It is furthermore rather complicated.
-  This is a large function and is divided into all its passes. **)
+  This is a large function and is divided into all its three passes for
+  readability purposes. **)
 
 (** The function makes use of some bits from the general purpose pool
   to mark some arguments as being used or missing. **)
@@ -1047,10 +587,10 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
                 else result_skip S using S in
               map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
               result_success S 2
-          else result_success S fargusedi using S
+          else result_success S fargusedi using S, runs, globals
       else result_success S 0 using S in
     read%list a_, a_list := a using S in
-    result_success S (list_cdrval a_list, fargusedi :: fargusedrev) using S in
+    result_success S (list_cdrval a_list, fargusedi :: fargusedrev) using S, runs, globals in
   result_success S (List.rev fargusedrev).
 
 Definition matchArgs_second S
@@ -1090,12 +630,12 @@ Definition matchArgs_second S
                       map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
                       result_success S 1
                   else result_success S fargusedi
-                else result_success S fargusedi using S in
+                else result_success S fargusedi using S, runs, globals in
               result_success S (dots, seendots)
           else result_success S (dots, seendots) using S in
         read%list a_, a_list := a using S in
         result_success S (list_cdrval a_list, fargused, dots, seendots)
-      end using S in
+      end using S, runs, globals in
   result_success S dots.
 
 Definition matchArgs_third S
@@ -1120,7 +660,7 @@ Definition matchArgs_third S
             result_skip S
           else result_skip S using S in
         result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)
-  using S in
+  using S, runs in
   result_skip S.
 
 Definition matchArgs_dots S
@@ -1133,7 +673,7 @@ Definition matchArgs_dots S
     ifb argused a_ = 0 then
       result_success S (1 + i)
     else
-      result_success S i using S in
+      result_success S i using S, runs, globals in
   ifb i = 0 then
     result_skip S
   else
@@ -1148,7 +688,7 @@ Definition matchArgs_dots S
         set%car f := list_carval b_list using S in
         set%tag f := list_tagval b_list using S in
         read%list f_, f_list := f using S in
-        result_success S (list_cdrval f_list) using S in
+        result_success S (list_cdrval f_list) using S, runs, globals in
     set%car dots := a using S in
     result_skip S.
 
@@ -1157,7 +697,7 @@ Definition matchArgs_check S
   fold%success acc := false
   along supplied
   as b, b_, b_list do
-    result_success S (decide (acc \/ argused b_ <> 0)) using S in
+    result_success S (decide (acc \/ argused b_ <> 0)) using S, runs, globals in
   if acc : bool then
     result_error S "[matchArgs_check] Unused argument(s)."
   else
@@ -1170,12 +710,12 @@ Definition matchArgs S
   along formals
   as _, _ do
     let (S, actuals) := CONS S R_MissingArg actuals in
-    result_success S (actuals, 1 + argi) using S in
+    result_success S (actuals, 1 + argi) using S, runs, globals in
   fold%success
   along supplied
   as b, _ do
     map%pointer b with set_argused 0 ltac:(NBits.nbits_ok) using S in
-    result_skip S using S in
+    result_skip S using S, runs, globals in
   let%success fargused := matchArgs_first S formals actuals supplied using S in
   let%success dots := matchArgs_second S actuals formals supplied fargused using S in
   run%success matchArgs_third S formals actuals supplied using S in
@@ -1214,7 +754,7 @@ Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
     let%success special := IS_SPECIAL_SYMBOL S frame_tag using S in
     if special then
       result_success S false
-    else result_success S b using S.
+    else result_success S b using S, runs, globals.
 
 Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result unit :=
   ifb addVars = R_NilValue then
@@ -1228,7 +768,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
       fold%success aprev := addVars
       along list_cdrval addVars_list
       as a, _, _ do
-        result_success S a using S in
+        result_success S a using S, runs, globals in
       read%env env_, env_env := env using S in
       set%cdr aprev := env_frame env_env using S in
       let env_env := {|
@@ -1263,8 +803,8 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
                 set_cdr S (list_cdrval s_list) sprev (fun S =>
                   result_success S (addVars, list_cdrval s_list, sprev))
             else result_success S (addVars, list_cdrval s_list, s)
-        using S in
-        result_skip S using S.
+        using S, runs in
+        result_skip S using S, runs, globals.
 
 Definition FRAME_IS_LOCKED S rho :=
   read%defined rho_ := rho using S in
@@ -1379,7 +919,7 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
             run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
             result_rreturn S tt
           else
-            result_rskip S using S in
+            result_rskip S using S, runs, globals in
         let%success locked := FRAME_IS_LOCKED S rho using S in
         ifb locked then
           result_error S "[defineVar] Can not add a binding to a locked environment."
@@ -1413,7 +953,7 @@ Definition setVar S (symbol value rho : SExpRec_pointer) :=
     else
       read%env rho_, rho_env := rho using S in
       result_success S (env_enclos rho_env)
-  using S in
+  using S, runs in
   defineVar S symbol value R_GlobalEnv.
 
 Definition findVarInFrame3 S rho symbol (doGet : bool) :=
@@ -1438,7 +978,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
           ifb list_tagval frame_list = symbol then
             let%success r := BINDING_VALUE S frame using S in
             result_rreturn S r
-          else result_rskip S using S in
+          else result_rskip S using S, runs, globals in
         result_success S (R_UnboundValue : SExpRec_pointer).
 
 
@@ -1451,7 +991,7 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
             result_success S (decide (rho <> R_EmptyEnv /\ special)) do
         read%env _, rho_env := rho using S in
         result_success S (env_enclos rho_env)
-      using S in
+      using S, runs in
       result_success S rho
     else result_success S rho using S in
   do%return rho := rho
@@ -1474,7 +1014,7 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
       else result_rskip S using S in
     read%env _, rho_env := rho using S in
     result_rsuccess S (env_enclos rho_env)
-  using S in
+  using S, runs in
   result_error S "[findFun3] Could not find function".
 
 
@@ -1581,7 +1121,7 @@ Definition applyClosure S
         set%car a := newprom using S in
         run%success SET_MISSING S a 2 ltac:(NBits.nbits_ok) using S in
         result_success S (list_cdrval a_list)
-      else result_success S (list_cdrval a_list) using S in
+      else result_success S (list_cdrval a_list) using S, runs, globals in
     run%success
       ifb suppliedvars <> R_NilValue then
          addMissingVarsToNewEnv S newrho suppliedvars
@@ -1602,7 +1142,7 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
   result_not_implemented "[promiseArgs] TODO".
 
 (* TODO
-(* To do this, we need to merge Rfeatures and Reval *)
+(* Now this should be feasable. *)
 (* R_FunTab[(x)->u.primsxp.offset].cfun *)
 Definition PRIMFUN S
   R_FunTab
@@ -1693,35 +1233,5 @@ Definition eval S (e rho : SExpRec_pointer) :=
 Definition eval_global S e :=
   eval S e R_GlobalEnv.
 
-End ParameterisedRuns.
-
-
-(** * Closing the Loop **)
-
-Fixpoint runs max_step : runs_type :=
-  match max_step with
-  | O => {|
-      runs_do_while := fun _ S _ _ _ => result_bottom S ;
-      runs_eval := fun S _ _ => result_bottom S ;
-      runs_inherits := fun S _ _ => result_bottom S ;
-      runs_getAttrib := fun S _ _ => result_bottom S
-    |}
-  | S max_step =>
-    let wrap {A B : Type} (f : runs_type -> B -> A) (x : B) : A :=
-      (** It is important to take this additional parameter [x] as a parameter,
-        to defer the computation of [runs max_step] when it is indeed needed.
-        Without this, the application of [runs max_int] would overflow the
-        stack. **)
-      f (runs max_step) x in
-    let wrap_dep {A : Type -> Type} (f : runs_type -> forall B, A B) (T : Type) : A T :=
-      (** A dependent version of [wrap]. **)
-      f (runs max_step) T in {|
-      runs_do_while := wrap_dep do_while ;
-      runs_eval := wrap eval ;
-      runs_inherits := wrap inherits ;
-      runs_getAttrib := wrap getAttrib
-    |}
-  end.
-
-End ParameterisedGlobals.
+End Parameterised.
 

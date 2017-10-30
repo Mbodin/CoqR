@@ -2,7 +2,7 @@
   This file formalises functions for parsing R expressions. **)
 
 Set Implicit Arguments.
-Require Export Reval.
+Require Export Rcore.
 
 (** * gram.y **)
 

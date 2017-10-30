@@ -147,21 +147,21 @@ Definition InitNames_shorcuts S :=
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
-Definition mkPRIMSXP_init max_step S :=
-  let%defined R_FunTab := R_FunTab globals runs max_step using S in
+Definition mkPRIMSXP_init S :=
+  let%defined R_FunTab := runs_R_FunTab runs using S in
   let FunTabSize := length R_FunTab in
   let (S, primCache) :=
     alloc_vector_vec globals S (repeat (R_NilValue : SExpRec_pointer) FunTabSize) in
   result_success S primCache.
 
 (** The end of [InitNames], from main/names.c **)
-Definition InitNames_install max_step S :=
-  let%defined R_FunTab := R_FunTab globals runs max_step using S in
+Definition InitNames_install S :=
+  let%defined R_FunTab := runs_R_FunTab runs using S in
   let%success _ :=
     fold_left (fun c r =>
         let%success i := r using S in
         let%success _ :=
-          installFunTab globals runs (Some R_FunTab) S c i using S in
+          installFunTab globals runs S c i using S in
         result_success S (1 + i)) (result_success S 0) R_FunTab using S in
   (* TODO *)
   result_success S tt.
@@ -255,24 +255,24 @@ Definition setup_Rmainloop max_step S : result Globals :=
                                    decl R_FalseValue FalseValue ;
                                    decl R_LogicalNAValue LogicalNAValue ] }} in
   let%success (EmptyEnv, BaseEnv) :=
-    InitBaseEnv globals (runs globals max_step) S using S in
+    InitBaseEnv globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
   let%success (UnboundValue, MissingArg, NA_string, BlankString, BlankScalarString, L) :=
-    InitNames_shorcuts globals (runs globals max_step) S using S in
+    InitNames_shorcuts globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg ;
                                    decl NA_STRING NA_string ;
                                    decl R_BlankString BlankString ;
                                    decl R_BlankScalarString BlankScalarString ] ++ L }} in
   let%success primCache :=
-    mkPRIMSXP_init globals (runs globals max_step) max_step S using S in
+    mkPRIMSXP_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
   let%success _ :=
-    InitNames_install globals (runs globals max_step) max_step S using S in
+    InitNames_install globals (runs max_step globals) S using S in
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
-    InitGlobalEnv globals (runs globals max_step) S using S in
+    InitGlobalEnv globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_NamespaceSymbol NamespaceSymbol ;
                                    decl R_GlobalEnv GlobalEnv ;
                                    decl R_MethodsNamespace MethodsNamespace ;
@@ -283,7 +283,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
   (* TODO [InitTypeTables] *)
   (* TODO [InitS3DefaulTypes] *)
   let%success R_Toplevel :=
-    init_R_Toplevel globals (runs globals max_step) S using S in
+    init_R_Toplevel globals (runs max_step globals) S using S in
   let S := {|
       state_memory := S ;
       state_context := R_Toplevel ;

@@ -11,8 +11,8 @@ Require Export Rinternals Shared.
   Each of these syntactic global variables are then associated
   with the natural coercion (using the current context of type
   [Globals], see below) to their value, of type [SExpRec_pointer].
-  See the beginning of the files Reval.v and Rinit.v for more
-  details. **)
+  See the beginning of the files Rcore.v, Rinit.v or Rfeatures.v
+  for more details. **)
 
 Inductive GlobalVariable :=
   | NA_STRING

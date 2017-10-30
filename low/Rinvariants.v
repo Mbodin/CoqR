@@ -1,6 +1,6 @@
 (** Rinvariants.
   Contains the proofs of some invariants respected by the functions
-  defined in Reval, Rinit, and Rfeatures. **)
+  defined in Rcore, Rinit, and Rfeatures. **)
 
 Set Implicit Arguments.
 Require Export Rinit Rfeatures.
