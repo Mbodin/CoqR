@@ -15,15 +15,15 @@ Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Variable runs : runs_type.
 
-Definition read_R_FunTab runs S n :=
-  match runs_R_FunTab runs with
-  | None => result_bottom S
-  | Some f =>
-    match nth_option n f with
-    | None => result_impossible S "[read_R_FunTab] Out of bounds."
-    | Some c => result_success S c
-    end
-  end.
+
+(** * errors.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/errors.c. **)
+
+Definition WrongArgCount A S s : result A :=
+  result_error S ("[WrongArgCount] Incorrect number of arguments to " ++ s ++ ".").
+Arguments WrongArgCount [A].
 
 
 (** * dstruct.c **)
@@ -56,13 +56,25 @@ Definition mkPRIMSXP (S : state) (offset : nat) (type_ : bool) : result SExpRec_
 (** The function names of this section corresponds to the function names
   in the file main/eval.c. **)
 
+Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
+
+Definition PRIMVAL S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
+  result_success S (fun_code x_fun).
+
 Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
-  let wrong S := result_error S "[do_set] Wrong argument count." in
+  let wrong S :=
+    let%success v := PRIMVAL S op using S in
+    match nth_option v asym with
+    | None => result_error S "[do_set] [PRIMVAL] out of bound in [asym]."
+    | Some n => WrongArgCount S n
+    end in
   ifb args = R_NilValue then wrong S
   else read%list args_, args_list := args using S in
   ifb list_cdrval args_list = R_NilValue then wrong S
   else read%list args_cdr_, args_cdr_list := list_cdrval args_list using S in
-  ifb list_cdrval args_cdr_list = R_NilValue then wrong S
+  ifb list_cdrval args_cdr_list <> R_NilValue then wrong S
   else
     let lhs := list_carval args_list in
     read%defined lhs_ := lhs using S in
@@ -173,12 +185,12 @@ Fixpoint runs max_step globals : runs_type :=
             (** This function waits that all arguments are given before starting
               the computation of the next [R_FunTab]. **)
             f globals (runs max_step globals) S call op args rho in
-          let rdecl name cfun code eval arity :=
-            decl name (wrap cfun) code eval arity in
+          let rdecl name cfun code eval arity kind prec rightassoc :=
+            decl name (wrap cfun) code eval arity (make_PPinfo kind prec rightassoc) in
           Some [
-              rdecl "<-" do_set 1 eval100 (-1)%Z ;
-              rdecl "=" do_set 3 eval100 (-1)%Z ;
-              rdecl "<<-" do_set 2 eval100 (-1)%Z
+              rdecl "<-" do_set 1 eval100 (-1)%Z PP_ASSIGN PREC_LEFT true ;
+              rdecl "=" do_set 3 eval100 (-1)%Z PP_ASSIGN PREC_EQ true ;
+              rdecl "<<-" do_set 2 eval100 (-1)%Z PP_ASSIGN2 PREC_LEFT true
             ]%string
         end
     |}

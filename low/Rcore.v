@@ -33,6 +33,16 @@ Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Variable runs : runs_type.
 
+Definition read_R_FunTab S n :=
+  match runs_R_FunTab runs with
+  | None => result_bottom S
+  | Some f =>
+    match nth_option n f with
+    | None => result_impossible S "[read_R_FunTab] Out of bounds."
+    | Some c => result_success S c
+    end
+  end.
+
 
 (** * Interpreter functions **)
 
@@ -80,6 +90,8 @@ Definition INCREMENT_NAMED S x :=
 Definition CONS S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
   alloc_SExp S e_.
+
+Definition CONS_NR := CONS.
 
 Definition allocList S (n : nat) : state * SExpRec_pointer :=
   let fix aux S n p :=
@@ -466,6 +478,7 @@ Definition CheckFormalArgs S formlist new :=
 (** The function names of this section corresponds to the function names
   in the file main/context.c. **)
 
+(** Instead of updating a context given as its first argument, it returns it. **)
 Definition begincontext S flags syscall env sysp promargs callfun :=
   let cptr := {|
      nextcontext := Some (R_GlobalContext S) ;
@@ -477,7 +490,8 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
      cloenv := env ;
      conexit := R_NilValue
    |} in
-  state_with_context S cptr.
+  let S := state_with_context S cptr in
+  result_success S cptr.
 
 Definition endcontext S cptr :=
   run%success
@@ -1141,12 +1155,71 @@ Definition applyClosure S
 Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[promiseArgs] TODO".
 
-(* TODO
-(* Now this should be feasable. *)
-(* R_FunTab[(x)->u.primsxp.offset].cfun *)
-Definition PRIMFUN S
-  R_FunTab
-*)
+Definition PRIMFUN S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  result_success S (fun_cfun x_fun).
+
+Definition PPINFO S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  result_success S (fun_gram x_fun).
+
+Definition findVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[findVar]".
+
+Definition evalList S el rho n :=
+  fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
+  along el
+  as el_car, el_tag
+    do
+    let n := n + 1 in
+    ifb el_car = R_DotsSymbol then
+      let%success h := findVar S el_car rho using S in
+      read%defined h_ := h using S in
+      ifb type h_ = DotSxp \/ h = R_NilValue then
+        fold%success tail := tail
+        along h
+        as h_car, h_tag
+        do
+          let%success ev := runs_eval runs S h_car rho using S in
+          let (S, ev) := CONS_NR S ev R_NilValue in
+          let%success head :=
+            ifb head = R_NilValue then
+              result_success S ev
+            else
+              set%cdr tail := ev using S in
+              result_success S head using S in
+          run%success
+            ifb h_tag <> R_NilValue then
+              set%tag ev := h_tag using S in
+              result_skip S
+            else result_skip S using S in
+          result_success S ev
+        using S, runs, globals in
+        result_success S (n, head, tail)
+      else ifb h <> R_MissingArg then
+        result_error S "[evalList] ‘...’ used in an incorrect context."
+      else result_success S (n, head, tail)
+    else ifb el_car = R_MissingArg then
+      result_error S "[evalList] argument is empty."
+    else
+      let%success ev := runs_eval runs S el_car rho using S in
+      let (S, ev) := CONS_NR S ev R_NilValue in
+      let%success head :=
+        ifb head = R_NilValue then
+          result_success S ev
+        else
+          set%cdr tail := ev using S in
+          result_success S head using S in
+      run%success
+        ifb el_tag <> R_NilValue then
+          set%tag ev := el_tag using S in
+          result_skip S
+        else result_skip S using S in
+      result_success S (n, head, ev)
+  using S, runs, globals in
+  result_success S head.
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) :=
@@ -1214,11 +1287,20 @@ Definition eval S (e rho : SExpRec_pointer) :=
           read%defined op_ := op using S in
             match type op_ with
             | SpecialSxp =>
-              (* TODO: This is basically a direct call to PRIMFUN. *)
-              result_not_implemented "[eval] PRIMFUN (TODO)"
+              let%success f := PRIMFUN S op using S in
+              f S e op (list_cdrval e_list) rho
             | BuiltinSxp =>
-              (* TODO: This is basically a call to PRIMFUN after evaluating the argument list. *)
-              result_not_implemented "[eval] PRIMFUN after argument evaluation (TODO)"
+              let%success tmp := evalList S (list_cdrval e_list) rho 0 using S in
+              let%success infos := PPINFO S op using S in
+              ifb PPinfo_kind infos = PP_FOREIGN then
+                let%success cntxt :=
+                  begincontext S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+                let%success f := PRIMFUN S op using S in
+                let%success tmp := f S e op tmp rho using S in
+                run%success endcontext S cntxt using S in
+                result_success S tmp
+              else
+                result_success S tmp
             | CloSxp =>
               let%success prom := promiseArgs S (list_cdrval e_list) rho using S in
               applyClosure S e op prom rho R_NilValue

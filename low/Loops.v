@@ -25,13 +25,76 @@ Record funtab_eval_arg := make_funtab_eval_arg {
     funtab_eval_arg_eval : bool (** Whether its arguments should be evaluated before calling. **)
   }.
 
+(** PPkind **)
+Inductive PPkind :=
+  | PP_INVALID
+  | PP_ASSIGN
+  | PP_ASSIGN2
+  | PP_BINARY
+  | PP_BINARY2
+  | PP_BREAK
+  | PP_CURLY
+  | PP_FOR
+  | PP_FUNCALL
+  | PP_FUNCTION
+  | PP_IF
+  | PP_NEXT
+  | PP_PAREN
+  | PP_RETURN
+  | PP_SUBASS
+  | PP_SUBSET
+  | PP_WHILE
+  | PP_UNARY
+  | PP_DOLLAR
+  | PP_FOREIGN
+  | PP_REPEAT
+  .
+
+Instance PPkind_Comparable : Comparable PPkind.
+  prove_comparable_trivial_inductive.
+Defined.
+
+(** PPprec **)
+Inductive PPprec :=
+  | PREC_FN
+  | PREC_EQ
+  | PREC_LEFT
+  | PREC_RIGHT
+  | PREC_TILDE
+  | PREC_OR
+  | PREC_AND
+  | PREC_NOT
+  | PREC_COMPARE
+  | PREC_SUM
+  | PREC_PROD
+  | PREC_PERCENT
+  | PREC_COLON
+  | PREC_SIGN
+  | PREC_POWER
+  | PREC_SUBSET
+  | PREC_DOLLAR
+  | PREC_NS
+  .
+
+Instance PPprec_Comparable : Comparable PPprec.
+  prove_comparable_trivial_inductive.
+Defined.
+
+(** PPinfo **)
+Record PPinfo := make_PPinfo {
+    PPinfo_kind : PPkind ;
+    PPinfo_precedence : PPprec ;
+    PPinfo_rightassoc : bool
+  }.
+
 (** FUNTAB **)
 Record funtab_cell := make_funtab_cell {
     fun_name : string ;
     fun_cfun : function_code ;
     fun_code : nat ;
     fun_eval : funtab_eval_arg ;
-    fun_arity : int
+    fun_arity : int ;
+    fun_gram : PPinfo
   }.
 
 Definition funtab := option (list funtab_cell).
