@@ -81,6 +81,23 @@ Definition INCREMENT_NAMED S x :=
     result_skip S
   end.
 
+Definition SET_NAMED S x n :=
+  read%defined x_ := x using S in
+  map%pointer x with set_named n using S in
+  result_skip S.
+
+Definition DDVAL S x :=
+  read%defined x_ := x using S in
+  result_success S (NBits.nth_bit 0 (gp x_) ltac:(NBits.nbits_ok)).
+
+Definition SET_DDVAL_BIT S x :=
+  map%gp x with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) true using S in
+  result_skip S.
+
+Definition UNSET_DDVAL_BIT S x :=
+  map%gp x with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) false using S in
+  result_skip S.
+
 
 (** ** memory.c **)
 
@@ -995,6 +1012,26 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
           else result_rskip S using S, runs, globals in
         result_success S (R_UnboundValue : SExpRec_pointer).
 
+Definition findVar S symbol rho :=
+  read%defined rho_ := rho using S in
+  ifb type rho_ = NilSxp then
+    result_error S "[findVar] Use of NULL environment is defunct."
+  else ifb type rho_ <> EnvSxp then
+    result_error S "[findVar] Argument ‘rho’ is not an environment."
+  else
+    do%return rho := rho
+    while result_success S (decide (rho <> R_EmptyEnv)) do
+      let%success vl := findVarInFrame3 S rho symbol true using S in
+      ifb vl <> R_UnboundValue then
+        result_rreturn S vl
+      else
+        read%env _, rho_env := rho using S in
+        result_rsuccess S (env_enclos rho_env) using S, runs in
+    result_success S (R_UnboundValue : SExpRec_pointer).
+
+Definition ddfindVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[ddfindVar]".
+
 
 Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
   let%success special := IS_SPECIAL_SYMBOL S symbol using S in
@@ -1165,9 +1202,6 @@ Definition PPINFO S x :=
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_gram x_fun).
 
-Definition findVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[findVar]".
-
 Definition evalList S el rho n :=
   fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along el
@@ -1259,13 +1293,32 @@ Definition eval S (e rho : SExpRec_pointer) :=
           ifb e = R_DotsSymbol then
             result_error S "[eval] ‘...’ used in an incorrect context."
           else
-            (* TODO: https://github.com/wch/r-source/blob/trunk/src/main/eval.c#L626
-              I think that in essence, we are fetching the value of the symbol in the
-              environment, then evaluating it if we get a promise. *)
-            (* There is just a story about [ddfindVar] vs [findVar] which I don’t yet
-              understand (depending on the general purpose field). I need to investigate
-              about these two functions. *)
-            result_not_implemented "[eval] Symbols (TODO)"
+            let%success ddval := DDVAL S e using S in
+            let%success tmp :=
+              if ddval then
+                ddfindVar S e rho
+              else
+                findVar S e rho using S in
+            ifb tmp = R_UnboundValue then
+              result_error S "[eval] object not found."
+            else ifb tmp = R_MissingArg /\ ~ ddval then
+              result_error S "[eval] Argument is missing, with no default."
+            else
+              read%defined tmp_ := tmp using S in
+              ifb type tmp_ = PromSxp then
+                read%prom tmp_, tmp_prom := tmp using S in
+                let%success tmp :=
+                  ifb prom_value tmp_prom = R_UnboundValue then
+                    forcePromise S tmp
+                  else result_success S (prom_value tmp_prom) using S in
+                run%success SET_NAMED S tmp named_plural using S in
+                result_success S tmp
+              else
+                run%success
+                  ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
+                    SET_NAMED S tmp named_unique
+                  else result_skip S using S in
+                result_success S tmp
         | PromSxp =>
           let%prom e_, e_prom := e_ using S in
           ifb prom_value e_prom = R_UnboundValue then

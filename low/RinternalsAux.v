@@ -602,6 +602,10 @@ Instance SExpType_Comparable : Comparable SExpType.
   prove_comparable_trivial_inductive.
 Defined.
 
+Instance SExpType_named_field : Comparable named_field.
+  prove_comparable_trivial_inductive.
+Defined.
+
 Instance SExpRec_Inhab : Inhab SExpRec.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
