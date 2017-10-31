@@ -4,7 +4,10 @@ OCAMLFILES= \
 	low/print.ml \
 	low/lexer.mll \
 	low/parser.mly \
-	low/parserUtils.ml
+	low/parserUtils.ml \
+	low/debug.ml \
+	low/debugType.ml \
+	low/funlist.mli
 
 %: Makefile.coq phony
 	+make -f Makefile.coq $@
@@ -35,8 +38,9 @@ phony: ;
 all_interp: low/runR.native
 
 clean_interp:
-	rm low/runR.native
-	rm -R low/_build
+	rm low/runR.native || true
+	rm -R low/_build || true
+	rm -f low/funlist.ml || true
 
 low/funlist.ml: low/Extraction.vo low/gen-funlist.pl
 	low/gen-funlist.pl

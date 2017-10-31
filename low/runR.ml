@@ -189,16 +189,21 @@ let _ =
           let rec interactive_options =
             let print_help _ =
               List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
+            let dummy _ = () in
             let print_state _ =
               print_endline "State:" ;
               print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals) in
             let get_and_print_memory_cell str =
-              let p = Print.read_pointer s globals str in
+              let p = Debug.read_pointer s globals str in
               print_endline (Print.print_pointed_value 2 (expr_options ()) !readable_pointers s globals p) in
+            let print_list_fun _ =
+              print_endline (Debug.list_all_fun 2) in
             ("#help", Arg.Unit print_help, "Print this list of command") ::
-            ("#quit", Arg.Unit (fun _ -> ()), "Exit the interpreter") ::
+            ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
             ("#state", Arg.Unit print_state, "Print the current state") ::
             ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
+            ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes") ::
+            ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
             make_options "#" "current" in
           let rec parse_args at_leat_one cont = function
             | [] ->
@@ -207,6 +212,7 @@ let _ =
                 print_endline "Done." ;
               loop s
             | "#quit" :: l -> cont ()
+            | "#execute" :: l -> () (* TODO *)
             | cmd :: l ->
               let continue l cont' =
                 parse_args true (fun _ -> cont () ; cont' ()) l in

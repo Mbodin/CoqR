@@ -42,7 +42,7 @@ open (my $mlStream, '>', $mlFile) or die "Could not create file $mlFile for some
 print $mlStream "(* This file has been automatically generated. *)\n" ;
 print $mlStream "(* This file is meant to be rewritten at each compilation: save your changes elsewhere if you really want to edit it. *)\n" ;
 print $mlStream "open Low\n" ;
-print $mlStream "open Debug\n" ;
+print $mlStream "open DebugType\n" ;
 print $mlStream "let funlist =\n" ;
 
 my $acc = "" ;
@@ -82,43 +82,66 @@ while (my $row = <PIPE>){
                 $acc =~ s/^ runs_type ->// ;
             }
 
-            my $endFunction = "(fun " ;
-            if ($useGlobals) { $endFunction .= "g " ; } else { $endFunction .= "_ " ; }
-            if ($useRuns) { $endFunction .= "r " ; } else { $endFunction .= "_ " ; }
-            $endFunction .= "s " ;
-            $endFunction .= $funName ;
-            if ($useGlobals) { $endFunction .= " g" ; }
-            if ($useRuns) { $endFunction .= " r" ; }
-            $endFunction .= " s)" ;
+            my $beginFunction = "(fun " ;
+            if ($useGlobals) { $beginFunction .= "g " ; } else { $beginFunction .= "_ " ; }
+            if ($useRuns) { $beginFunction .= "r " ; } else { $beginFunction .= "_ " ; }
+            $beginFunction .= "s -> " ;
+            $beginFunction .= $funName ;
+            if ($useGlobals) { $beginFunction .= " g" ; }
+            if ($useRuns) { $beginFunction .= " r" ; }
+            $beginFunction .= " s" ;
 
-            if ($acc =~ / state ->( (nat|int|unit|SExpRec_pointer) ->)* result (nat|int|unit|SExpRec_pointer)/){
+            my $endFunction = ")" ;
+
+            if ($acc =~ / state ->( (unit|bool|nat|int|float|SExpRec_pointer) ->)* result (unit|bool|nat|int|float|string|SExpRec_pointer)/){
                 # This function is of interest for us.
                 $acc =~ s/ state ->// ;
 
                 # Checking that it has indeed been extracted.
                 if (check ($funName)) {
-                    $acc =~ /result (nat|int|unit|SExpRec_pointer)$/ ;
+                    $acc =~ /result (unit|bool|nat|int|float|string|SExpRec_pointer)$/ ;
                     my $endType = $1 ;
                     $acc =~ s/result .*//g ;
 
-                    if ($endType eq "nat") { $endFunction = "Result_int " . $endFunction ; }
-                    elsif ($endType eq "int") { $endFunction = "Result_float " . $endFunction ; }
-                    elsif ($endType eq "unit") { $endFunction = "Result_unit " . $endFunction ; }
-                    elsif ($endType eq "SExpRec_pointer") { $endFunction = "Result_pointer " . $endFunction ; }
+                    if ($endType eq "unit") { $beginFunction = "Result_unit " . $beginFunction ; }
+                    elsif ($endType eq "bool") { $beginFunction = "Result_bool " . $beginFunction ; }
+                    elsif ($endType eq "nat") { $beginFunction = "Result_int " . $beginFunction ; }
+                    elsif ($endType eq "int" or $endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
+                    elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
+                    elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
                     else { die "Should not happen." ; }
 
-                    while ($acc =~ /(nat|int|unit|SExpRec_pointer) -> $/){
-                        my $argType = $1 ;
-                        $acc =~ s/(nat|int|unit|SExpRec_pointer) -> $// ;
+                    my $argNum = 0 ;
 
-                        if ($argType eq "nat") { $endFunction = "Argument_int (" . $endFunction . ")" ; }
-                        elsif ($argType eq "int") { $endFunction = "Argument_float (" . $endFunction . ")" ; }
-                        elsif ($argType eq "unit") { $endFunction = "Argument_unit (" . $endFunction . ")" ; }
-                        elsif ($argType eq "SExpRec_pointer") { $endFunction = "Argument_pointer (" . $endFunction . ")" ; }
-                        else { die "Should not happen." ; }
+                    while ($acc =~ /(unit|bool|nat|int|float|SExpRec_pointer) -> $/){
+                        my $argType = $1 ;
+                        $acc =~ s/(unit|bool|nat|int|float|SExpRec_pointer) -> $// ;
+                        $argNum += 1 ;
+
+                        if ($argType eq "unit") {
+                            $beginFunction = "Argument_unit (fun _ -> " . $beginFunction ;
+                            $endFunction = " ()" . $endFunction ;
+                        } elsif ($argType eq "bool") {
+                            $beginFunction = "Argument_bool (fun b" . $argNum . " -> " . $beginFunction ;
+                            $endFunction = " b" . $argNum . $endFunction ;
+                        } elsif ($argType eq "nat") {
+                            $beginFunction = "Argument_int (fun n" . $argNum . " -> " . $beginFunction ;
+                            $endFunction = " n" . $argNum . $endFunction ;
+                        } elsif ($argType eq "int") {
+                            $beginFunction = "Argument_float (fun i" . $argNum . " -> " . $beginFunction ;
+                            $endFunction = " i" . $argNum . $endFunction ;
+                        } elsif ($argType eq "float") {
+                            $beginFunction = "Argument_float (fun f" . $argNum . " -> " . $beginFunction ;
+                            $endFunction = " f" . $argNum . $endFunction ;
+                        } elsif ($argType eq "SExpRec_pointer") {
+                            $beginFunction = "Argument_pointer (fun p" . $argNum . " -> " . $beginFunction ;
+                            $endFunction = " p" . $argNum . $endFunction ;
+                        } else { die "Should not happen." ; }
+
+                        $endFunction .= ")" ;
                     }
 
-                    print $mlStream "(\"" . $funName . "\", " . $endFunction . ") ::\n" ;
+                    print $mlStream "(\"" . $funName . "\", " . $beginFunction . $endFunction . ") ::\n" ;
                 }
             }
         }

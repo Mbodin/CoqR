@@ -159,17 +159,6 @@ let print_pointer t s g p =
         print_raw_pointer p
     else print_raw_pointer p
 
-let swap (a, b) = (b, a)
-
-let read_pointer s g str =
-  let l = ("NULL", None) :: List.map swap (pointer_exceptions s g) in
-  try List.assoc str l
-  with Not_found ->
-    try Some (int_of_string str)
-    with Failure _ ->
-      prerr_endline ("Impossible to parse “" ^ str ^ "” as a pointer. Assuming R_NilValue.") ;
-      g R_NilValue
-
 let print_SExpType = function
   | NilSxp -> "NilSxp"
   | SymSxp -> "SymSxp"
