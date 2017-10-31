@@ -1,5 +1,5 @@
 (** ParserUtils
- * Types and useful functions to be used in the parser. **)
+  Types and useful functions to be used in the parser. **)
 
 open Low
 
@@ -25,10 +25,10 @@ let tuple_to_result (f : (state * 'a) monad_type) : 'a result monad_type =
     Result_success (s, v)
 
 (** This function is inspired from the [install_and_save] function
-  * of the original interpreter. It takes into advantage the fact
-  * that ocamllex is functional: its behaviour is exactly the same
-  * than the install function. It here serves as a wrapper, to
-  * change the order of the arguments of [install]. **)
+  of the original interpreter. It takes into advantage the fact
+  that ocamllex is functional: its behaviour is exactly the same
+  than the install function. It here serves as a wrapper, to
+  change the order of the arguments of [install]. **)
 let install_and_save str : token_type = fun g r s ->
   install g r s (Print.string_to_char_list str)
 
@@ -48,7 +48,7 @@ let shift (f : 'a -> 'b monad_type) : ('a -> 'b) monad_type =
   fun g r s x -> f x g r s
 
 (** Compose a [token_type] function to a simple function which
- * only cares about its return value. **)
+  only cares about its return value. **)
 let lift1 f comp : token_type =
   bind comp f
 let lift2 f comp1 comp2 : token_type =
@@ -78,7 +78,7 @@ let lift5 f comp1 comp2 comp3 comp4 comp5 : token_type =
 (** * Functions from gram.y **)
 
 (** The function [R_atof] has not been formalised. We instead rely
- * on the OCaml function [float_of_string]. **)
+  on the OCaml function [float_of_string]. **)
 let mkFloat str : token_type = fun g _ s ->
   let (s, e) = scalarReal g s (float_of_string str) in
   Result_success (s, e)

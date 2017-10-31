@@ -1,5 +1,5 @@
 (** RunR
- * Main file. It runs the interactive Coq R interpreter. **)
+  Main file. It runs the interactive Coq R interpreter. **)
 
 (** * References to Options **)
 

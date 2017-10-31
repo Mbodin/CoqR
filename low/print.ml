@@ -1,12 +1,12 @@
 (** Print
- * Contains various functions for printing values from Low. **)
+  Contains various functions for printing values from Low. **)
 
 open Low
 
 
 (** The list of all global variables and their name to be displayed.
- * Static variables are not included on purpose.
- * The value [R_NilValue] should always be first to ease reading. **)
+  Static variables are not included on purpose.
+  The value [R_NilValue] should always be first to ease reading. **)
 let all_global_variables =
   [ (R_NilValue, "R_NilValue") ;
 

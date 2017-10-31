@@ -18,8 +18,8 @@
 %token<ParserUtils.token_type>      GT GE LT LE EQ NE AND OR AND2 OR2
 %token<ParserUtils.token_type>      NS_GET NS_GET_INT
 (** The following commented lines are tokens never produced by the lexer,
- * but changed in the parser when in a special position. We do not update
- * lexemes depending in their context here. **)
+  but changed in the parser when in a special position. We do not update
+  lexemes depending in their context here. **)
 (*%token                            COMMENT LINE_DIRECTIVE*)
 (*%token                            SYMBOL_FORMALS*)
 (*%token                            EQ_FORMALS*)
@@ -114,7 +114,7 @@ expr:
   | e1 = expr; op = EXP; cr; e2 = expr           { lift3 (no_runs xxbinary) op e1 e2 }
   | e1 = expr; op = SPECIAL; cr; e2 = expr       { lift3 (no_runs xxbinary) op e1 e2 }
   (** The lexeme '%' seems not to be produced by R’s tokenizer: the following
-   * (commented out) line seems to be dead code. **)
+    (commented out) line seems to be dead code. **)
   (*| e1 = expr; op = '%'; e2 = expr             { lift3 (no_runs xxbinary) op e1 e2 }*)
   | e1 = expr; op = TILDE; cr; e2 = expr         { lift3 (no_runs xxbinary) op e1 e2 }
   | e1 = expr; op = QUESTION_MARK; cr; e2 = expr { lift3 (no_runs xxbinary) op e1 e2 }

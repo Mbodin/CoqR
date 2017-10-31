@@ -113,7 +113,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 Definition installFunTab S c offset : result unit :=
   let%success prim := mkPRIMSXP S offset (funtab_eval_arg_eval (fun_eval c)) using S in
   let%success p := install globals runs S (fun_name c) using S in
-  read%sym _, p_sym := p using S in
+  read%sym p_, p_sym := p using S in
   let p_sym :=
     if funtab_eval_arg_internal (fun_eval c) then {|
         sym_pname := sym_pname p_sym ;

@@ -2,6 +2,8 @@
 low.ml
 low.mli
 
+funlist.ml
+
 _build
 
 *.native
