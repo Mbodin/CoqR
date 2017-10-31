@@ -180,59 +180,69 @@ let _ =
             if !fetch_result then (
               Print.indent n ^ "Pointer value: " ^
               Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
-            ) else "") (fun s _ -> loop s) in try
-          match Parser.main Lexer.lex buf with
-          | ParserUtils.Success f ->
-            success f
-          | ParserUtils.Command cmd ->
-            (** Parsing commands **)
-            let rec interactive_options =
-              let print_help _ =
-                List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
-              let print_state _ =
-                print_endline "State:" ;
-                print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals) in
-              ("#help", Arg.Unit print_help, "Print this list of command") ::
-              ("#quit", Arg.Unit (fun _ -> ()), "Exit the interpreter") ::
-              ("#state", Arg.Unit print_state, "Print the current state") ::
-              make_options "#" "current" in
-            let rec parse_args at_leat_one cont = function
-              | [] ->
-                cont () ;
-                if at_leat_one then
-                  print_endline "Done." ;
+            ) else "") (fun s _ -> loop s) in
+        try match Parser.main Lexer.lex buf with
+        | ParserUtils.Success f ->
+          success f
+        | ParserUtils.Command cmd ->
+          (** Parsing commands **)
+          let rec interactive_options =
+            let print_help _ =
+              List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
+            let print_state _ =
+              print_endline "State:" ;
+              print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals) in
+            let get_and_print_memory_cell str =
+              let p = Print.read_pointer s globals str in
+              print_endline (Print.print_pointed_value 2 (expr_options ()) !readable_pointers s globals p) in
+            ("#help", Arg.Unit print_help, "Print this list of command") ::
+            ("#quit", Arg.Unit (fun _ -> ()), "Exit the interpreter") ::
+            ("#state", Arg.Unit print_state, "Print the current state") ::
+            ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
+            make_options "#" "current" in
+          let rec parse_args at_leat_one cont = function
+            | [] ->
+              cont () ;
+              if at_leat_one then
+                print_endline "Done." ;
+              loop s
+            | "#quit" :: l -> cont ()
+            | cmd :: l ->
+              let continue l cont' =
+                parse_args true (fun _ -> cont () ; cont' ()) l in
+              match find_opt (fun (c, _, _) -> c = cmd) interactive_options with
+              | None ->
+                if at_leat_one && cmd.[0] = '#' then
+                  prerr_endline ("Unknow option: " ^ cmd) ;
                 loop s
-              | "#quit" :: l -> cont ()
-              | cmd :: l ->
-                let continue l cont' =
-                  parse_args true (fun _ -> cont () ; cont' ()) l in
-                match find_opt (fun (c, _, _) -> c = cmd) interactive_options with
-                | None ->
-                  if at_leat_one && cmd.[0] = '#' then
-                    prerr_endline ("Unknow option: " ^ cmd) ;
-                  loop s
-                | Some (c, Arg.Set_int p, _) ->
-                  (match l with
-                   | [] ->
-                     prerr_endline ("Missing operand for command " ^ c ^ ". Assuming 0.") ;
-                     continue [] (fun _ -> p := 0)
-                   | i :: l ->
-                     let i =
-                       try int_of_string i
-                       with
-                       | Failure _ ->
-                         prerr_endline ("Impossible to parse “" ^ i ^ "” as a number. Assuming 0.") ;
-                         0
-                     in continue l (fun _ -> p := i))
-                | Some (c, Arg.Set p, _) -> continue l (fun _ -> p := true)
-                | Some (c, Arg.Clear p, _) -> continue l (fun _ -> p := false)
-                | Some (c, Arg.Unit f, _) -> continue l f
-                | Some (c, _, _) ->
-                  prerr_endline ("Uncaught command: " ^ c) ;
-                  loop s
-            in parse_args false (fun _ -> ()) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
-        with
-        | Parser.Error ->
+              | Some (c, Arg.Set_int p, _) ->
+                (match l with
+                 | [] ->
+                   prerr_endline ("Missing operand for command " ^ c ^ ". Assuming 0.") ;
+                   continue [] (fun _ -> p := 0)
+                 | i :: l ->
+                   let i =
+                     try int_of_string i
+                     with
+                     | Failure _ ->
+                       prerr_endline ("Impossible to parse “" ^ i ^ "” as a number. Assuming 0.") ;
+                       0
+                   in continue l (fun _ -> p := i))
+              | Some (c, Arg.String f, _) ->
+                (match l with
+                 | [] ->
+                   prerr_endline ("Missing operand for command " ^ c ^ ". Assuming the empty string.") ;
+                   continue [] (fun _ -> f "")
+                 | str :: l ->
+                   continue l (fun _ -> f str))
+              | Some (c, Arg.Set p, _) -> continue l (fun _ -> p := true)
+              | Some (c, Arg.Clear p, _) -> continue l (fun _ -> p := false)
+              | Some (c, Arg.Unit f, _) -> continue l f
+              | Some (c, _, _) ->
+                prerr_endline ("Uncaught command: " ^ c) ;
+                loop s
+          in parse_args false (fun _ -> ()) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
+        with Parser.Error ->
           print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".") ;
           loop s in
       if !interactive then loop s

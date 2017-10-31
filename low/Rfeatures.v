@@ -78,24 +78,25 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
   else
     let lhs := list_carval args_list in
     read%defined lhs_ := lhs using S in
-    let symcase S :=
+    match type lhs_ with
+    | StrSxp
+    | SymSxp =>
+      let%success lhs :=
+        ifb type lhs_ = StrSxp then
+          let%success lhs_char := STRING_ELT S lhs 0 using S in
+          installTrChar globals runs S lhs_char
+        else result_success S lhs using S in
       let%success rhs := runs_eval runs S (list_carval args_cdr_list) rho using S in
-      let%success _ := INCREMENT_NAMED S rhs using S in
-      read%prim op_, op_prim := op using S in
+      run%success INCREMENT_NAMED S rhs using S in
+      read%prim _, op_prim := op using S in
       let%success c := read_R_FunTab runs S (prim_offset op_prim) using S in
       ifb fun_code c = 2 then
-        read%env rho_, rho_env := rho using S in
-        let%success _ := setVar globals runs S lhs rhs (env_enclos rho_env) using S in
+        read%env _, rho_env := rho using S in
+        run%success setVar globals runs S lhs rhs (env_enclos rho_env) using S in
         result_success S rhs
       else
-        let%success _ := defineVar globals runs S lhs rhs rho using S in
-        result_success S rhs in
-    match type lhs_ with
-    | StrSxp =>
-      let%success lhs_char := STRING_ELT S lhs 0 using S in
-      let%success lhs := installTrChar globals runs S lhs_char using S in
-      symcase S
-    | SymSxp => symcase S
+        run%success defineVar globals runs S lhs rhs rho using S in
+        result_success S rhs
     | LangSxp => result_not_implemented "[do_set] applydefine"
     | _ => result_error S "[do_set] Invalid left-hand side to assignment."
     end.
@@ -112,7 +113,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 Definition installFunTab S c offset : result unit :=
   let%success prim := mkPRIMSXP S offset (funtab_eval_arg_eval (fun_eval c)) using S in
   let%success p := install globals runs S (fun_name c) using S in
-  read%sym p_, p_sym := p using S in
+  read%sym _, p_sym := p using S in
   let p_sym :=
     if funtab_eval_arg_internal (fun_eval c) then {|
         sym_pname := sym_pname p_sym ;

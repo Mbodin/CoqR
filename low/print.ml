@@ -159,6 +159,17 @@ let print_pointer t s g p =
         print_raw_pointer p
     else print_raw_pointer p
 
+let swap (a, b) = (b, a)
+
+let read_pointer s g str =
+  let l = ("NULL", None) :: List.map swap (pointer_exceptions s g) in
+  try List.assoc str l
+  with Not_found ->
+    try Some (int_of_string str)
+    with Failure _ ->
+      prerr_endline ("Impossible to parse “" ^ str ^ "” as a pointer. Assuming R_NilValue.") ;
+      g R_NilValue
+
 let print_SExpType = function
   | NilSxp -> "NilSxp"
   | SymSxp -> "SymSxp"
@@ -283,13 +294,16 @@ let remove_siblings l =
 let heap_to_list h =
   remove_siblings (HeapList.to_list h)
 
+let print_memory_cell_expr d s g expr_options t i e =
+  let si = print_pointer t s g (Some i) in
+  si ^ ": " ^
+  print_SExpRec (d + String.length si + 2) expr_options t s g e
+
 let print_memory d s g t no_temporary expr_options m =
   String.concat (indent d) (List.filter (fun str -> str <> "")
     (List.map (fun (i, e) ->
-      if not (is_temporary e) || not no_temporary then
-        let si = print_pointer t s g (Some i) in
-        si ^ ": " ^
-        print_SExpRec (d + String.length si + 2) expr_options t s g e
+      if not (is_temporary e && no_temporary) then
+        print_memory_cell_expr d s g expr_options t i e
       else "")
     (heap_to_list (state_heap_SExp m))))
 
@@ -326,7 +340,7 @@ let print_state d (context, memory, globals, initials, no_temporary, fetch_globa
     "Global variables:" ^ indent (d + 2) ^
     String.concat (indent (d + 2)) (
       List.map (fun (proj, str) ->
-        str ^ ": " ^ print_pointer t s g (proj s) ^
+        str ^ ": " ^ print_raw_pointer (proj s) ^
         if fetch_global then
           indent (String.length str + d + 4) ^ "Pointer value: " ^
           print_pointed_value (String.length str + d + 19) expr_options t s g (proj s)
@@ -337,7 +351,7 @@ let print_state d (context, memory, globals, initials, no_temporary, fetch_globa
     "Constant global variables:" ^ indent (d + 2) ^
     String.concat (indent (d + 2)) (
       List.map (fun (var, str) ->
-        str ^ ": " ^ print_pointer t s g (g var) ^
+        str ^ ": " ^ print_raw_pointer (g var) ^
         if fetch_global then
           indent (String.length str + d + 4) ^ "Pointer value: " ^
           print_pointed_value (String.length str + d + 19) expr_options t s g (g var)

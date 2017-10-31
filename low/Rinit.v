@@ -195,7 +195,7 @@ Definition InitGlobalEnv S :=
     ScalarString globals S str using S in
   let%success R_NamespaceRegistry :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
-  let%success _ :=
+  run%success
     defineVar globals runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
   result_success S (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
 
