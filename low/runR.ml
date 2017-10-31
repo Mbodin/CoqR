@@ -146,14 +146,6 @@ let run_options _ =
 let expr_options _ =
   (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
 
-let print_and_continue g r s pr cont =
-  Print.print_defined r s (fun s r ->
-    if !show_state_after_computation then (
-      print_endline "State:" ;
-      print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s g)) ;
-    if !show_result_after_computation then
-      print_endline ("Result: " ^ pr 8 g s r)) cont
-
 let find_opt f l =
   try Some (List.find f l) with
   | Not_found -> None
@@ -175,12 +167,14 @@ let _ =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
               Low.eval_global g r s p) in
-          print_and_continue globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
-            Print.print_pointer !readable_pointers s globals p ^
-            if !fetch_result then (
-              Print.indent n ^ "Pointer value: " ^
-              Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
-            ) else "") (fun s _ -> loop s) in
+          Print.print_and_continue
+            (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
+            globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
+              Print.print_pointer !readable_pointers s globals p ^
+              if !fetch_result then (
+                Print.indent n ^ "Pointer value: " ^
+                Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
+              ) else "") (fun s _ -> loop s) in
         try match Parser.main Lexer.lex buf with
         | ParserUtils.Success f ->
           success f
@@ -202,30 +196,37 @@ let _ =
             ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
             ("#state", Arg.Unit print_state, "Print the current state") ::
             ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
-            ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes") ::
+            ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
             ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
             make_options "#" "current" in
           let rec parse_args at_leat_one cont = function
             | [] ->
-              cont () ;
+              let s = cont s in
               if at_leat_one then
                 print_endline "Done." ;
               loop s
-            | "#quit" :: l -> cont ()
-            | "#execute" :: l -> () (* TODO *)
+            | "#quit" :: l -> ignore (cont s)
+            | "#execute" :: l ->
+              Debug.parse_arg_fun
+                (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
+                !readable_pointers !fetch_result s globals (Low.runs !max_steps globals)
+                (fun l f ->
+                  let s = cont s in
+                  f (fun s -> parse_args true (fun _ -> s) l) s)
+                (fun _ -> parse_args true cont l) l
             | cmd :: l ->
               let continue l cont' =
-                parse_args true (fun _ -> cont () ; cont' ()) l in
+                parse_args true (fun s -> cont' (cont s)) l in
               match find_opt (fun (c, _, _) -> c = cmd) interactive_options with
               | None ->
                 if at_leat_one && cmd.[0] = '#' then
-                  prerr_endline ("Unknow option: " ^ cmd) ;
+                  prerr_endline ("Unknown option: " ^ cmd) ;
                 loop s
               | Some (c, Arg.Set_int p, _) ->
                 (match l with
                  | [] ->
                    prerr_endline ("Missing operand for command " ^ c ^ ". Assuming 0.") ;
-                   continue [] (fun _ -> p := 0)
+                   continue [] (fun s -> p := 0 ; s)
                  | i :: l ->
                    let i =
                      try int_of_string i
@@ -233,21 +234,21 @@ let _ =
                      | Failure _ ->
                        prerr_endline ("Impossible to parse “" ^ i ^ "” as a number. Assuming 0.") ;
                        0
-                   in continue l (fun _ -> p := i))
+                   in continue l (fun s -> p := i ; s))
               | Some (c, Arg.String f, _) ->
                 (match l with
                  | [] ->
                    prerr_endline ("Missing operand for command " ^ c ^ ". Assuming the empty string.") ;
-                   continue [] (fun _ -> f "")
+                   continue [] (fun s -> f "" ; s)
                  | str :: l ->
-                   continue l (fun _ -> f str))
-              | Some (c, Arg.Set p, _) -> continue l (fun _ -> p := true)
-              | Some (c, Arg.Clear p, _) -> continue l (fun _ -> p := false)
-              | Some (c, Arg.Unit f, _) -> continue l f
+                   continue l (fun s -> f str ; s))
+              | Some (c, Arg.Set p, _) -> continue l (fun s -> p := true ; s)
+              | Some (c, Arg.Clear p, _) -> continue l (fun s -> p := false ; s)
+              | Some (c, Arg.Unit f, _) -> continue l (fun s -> f () ; s)
               | Some (c, _, _) ->
                 prerr_endline ("Uncaught command: " ^ c) ;
                 loop s
-          in parse_args false (fun _ -> ()) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
+          in parse_args false (fun s -> s) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
         with Parser.Error ->
           print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".") ;
           loop s in

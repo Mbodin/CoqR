@@ -139,6 +139,11 @@ let split_on_char c str =
   in search 0 0
 
 
+let print_unit () = "tt"
+let print_bool b = if b then "true" else "false"
+let print_string str = "\"" ^ str ^ "\""
+
+
 let print_raw_pointer = function
   | None -> "NULL"
   | Some i -> string_of_int i
@@ -384,4 +389,13 @@ let print_defined r s pr cont =
     | Some r ->
       pr s r ;
       cont s (Some r))
+
+let print_and_continue (show_state_after_computation, show_result_after_computation, run_options, expr_options)
+    g r s pr cont =
+  print_defined r s (fun s r ->
+    if show_state_after_computation then (
+      print_endline "State:" ;
+      print_endline (print_state 2 run_options expr_options s g)) ;
+    if show_result_after_computation then
+      print_endline ("Result: " ^ pr 8 g s r)) cont
 
