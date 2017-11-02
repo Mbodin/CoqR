@@ -23,7 +23,7 @@ if ($fileExist) {
 } else {
     open (my $outStream, '>', $coqFile) or die "Could not create file $coqFile for some reason." ;
     print $outStream "(* This file has been automatically generated. *)\n" ;
-    print $outStream "Require Import Rinit.\n" ;
+    print $outStream "Require Import Rinit Rparsing.\n" ;
     print $outStream "SearchAbout result.\n" ;
     close $outStream ;
 }

@@ -69,7 +69,7 @@ let boolean_switches =
     computation_switch [] [show_result] fetch_result "result-value" "the value of pointed by the current computation" ;
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" ;
     computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" ;
-    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions"
+    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input"
   ]
 
 let get_pointer (_, _, _, _, _, _, p, _, _) = p
@@ -94,7 +94,8 @@ let make_options prefix default =
   let name_switch v b = prefix ^ name_switch v b in
   let name_switch_base v b = prefix ^ name_switch_base v b in
   [(prefix ^ "no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
-   (prefix ^ "steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ]
+   (prefix ^ "steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ;
+   (prefix ^ "only-parsing", Arg.Set only_parsing, "Synonym of " ^ prefix ^ "disable-evaluation") ]
   @ List.concat (List.map (fun b ->
       let (_, d, vsy, vsn, vvy, vvn, p, c, n) = b in
       let deps = String.concat " " (List.map (name_switch true) d) in
@@ -130,11 +131,15 @@ let make_options prefix default =
         (prefix ^ vsn ^ "-" ^ c, Arg.Unit (all false), (if r then e ^ " " ^ vvn else vvn ^ " " ^ e) ^ equivalent false) ;
       ]) all_categories)
 
+let sort_commands =
+  List.sort (fun (s1, _, _) (s2, _, _) -> compare s1 s2)
+
+
 (** * Reading Arguments **)
 
 let _ =
     Arg.parse
-      (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-" "default")
+      (sort_commands (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-" "default"))
       (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
       "This programs aims at mimicking the core of R. Usage:\n\trunR.native [OPTIONS]\nCommands are parsed from left to right.\nDuring interactive mode, type “#help” to get some help."
 
@@ -180,9 +185,9 @@ let _ =
           success f
         | ParserUtils.Command cmd ->
           (** Parsing commands **)
-          let rec interactive_options =
+          let rec interactive_options _ =
             let print_help _ =
-              List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) interactive_options in
+              List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) (interactive_options ()) in
             let dummy _ = () in
             let print_state _ =
               print_endline "State:" ;
@@ -192,35 +197,50 @@ let _ =
               print_endline (Print.print_pointed_value 2 (expr_options ()) !readable_pointers s globals p) in
             let print_list_fun _ =
               print_endline (Debug.list_all_fun 2) in
-            ("#help", Arg.Unit print_help, "Print this list of command") ::
-            ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
-            ("#state", Arg.Unit print_state, "Print the current state") ::
-            ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
-            ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
-            ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
-            make_options "#" "current" in
-          let rec parse_args at_leat_one cont = function
+            sort_commands (
+              ("#help", Arg.Unit print_help, "Print this list of command") ::
+              ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
+              ("#state", Arg.Unit print_state, "Print the current state") ::
+              ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
+              ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
+              ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
+              make_options "#" "current") in
+          let interactive_options = interactive_options () in
+          let check_change_state seen_state_change = function
+            | "#execute" | "#show" ->
+              if seen_state_change then
+                prerr_endline "Warning: pointers are parsed before the first state change. Possible inconsistency." ;
+            | _ -> () in
+          let rec parse_args at_leat_one seen_state_change cont = function
             | [] ->
               let s = cont s in
               if at_leat_one then
                 print_endline "Done." ;
               loop s
             | "#quit" :: l -> ignore (cont s)
-            | "#execute" :: l ->
+            | "#execute" as cmd :: l ->
+              check_change_state seen_state_change cmd ;
               Debug.parse_arg_fun
                 (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
                 !readable_pointers !fetch_result s globals (Low.runs !max_steps globals)
                 (fun l f ->
-                  let s = cont s in
-                  f (fun s -> parse_args true (fun _ -> s) l) s)
-                (fun _ -> parse_args true cont l) l
+                  parse_args true true (fun s ->
+                    let s = cont s in
+                    f (fun s -> s) s) l)
+                (fun _ ->
+                  prerr_endline "A failure occurred during argument parsing. Ignoring this command." ;
+                  parse_args at_leat_one seen_state_change cont l) l
             | cmd :: l ->
+              check_change_state seen_state_change cmd ;
               let continue l cont' =
-                parse_args true (fun s -> cont' (cont s)) l in
+                parse_args true seen_state_change (fun s -> cont' (cont s)) l in
               match find_opt (fun (c, _, _) -> c = cmd) interactive_options with
               | None ->
-                if at_leat_one && cmd.[0] = '#' then
-                  prerr_endline ("Unknown option: " ^ cmd) ;
+                if at_leat_one then (
+                  if cmd.[0] = '#' then
+                    prerr_endline ("Unknown option: " ^ cmd ^ ".\nNo command has been run.")
+                  else
+                    prerr_endline ("Don’t know what to do with “" ^ cmd ^ "”.\nNo command has been run.")) ;
                 loop s
               | Some (c, Arg.Set_int p, _) ->
                 (match l with
@@ -248,7 +268,7 @@ let _ =
               | Some (c, _, _) ->
                 prerr_endline ("Uncaught command: " ^ c) ;
                 loop s
-          in parse_args false (fun s -> s) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
+          in parse_args false false (fun s -> s) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
         with Parser.Error ->
           print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".") ;
           loop s in
