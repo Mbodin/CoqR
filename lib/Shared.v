@@ -603,7 +603,7 @@ Ltac prove_comparable_trivial_inductive_faster :=
       end) in _);
     let I := fresh "I" in
     constructors; intros t1 t2; applys Decidable_equiv (f t1 = f t2); [| typeclass ];
-    iff I; [ destruct t1, t2; (reflexivity || inversion I) | rewrite~ I ]
+    iff I; [ destruct t1; abstract (destruct t2; solve [ inversion I | reflexivity ]) | rewrite~ I ]
   end.
 
 Global Instance unit_comparable : Comparable unit.

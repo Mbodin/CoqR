@@ -71,9 +71,9 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     | Some n => WrongArgCount S n
     end in
   ifb args = R_NilValue then wrong S
-  else read%list args_, args_list := args using S in
+  else read%list _, args_list := args using S in
   ifb list_cdrval args_list = R_NilValue then wrong S
-  else read%list args_cdr_, args_cdr_list := list_cdrval args_list using S in
+  else read%list _, args_cdr_list := list_cdrval args_list using S in
   ifb list_cdrval args_cdr_list <> R_NilValue then wrong S
   else
     let lhs := list_carval args_list in
@@ -86,7 +86,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
           let%success lhs_char := STRING_ELT S lhs 0 using S in
           installTrChar globals runs S lhs_char
         else result_success S lhs using S in
-      let%success rhs := runs_eval runs S (list_carval args_cdr_list) rho using S in
+      let%success rhs := eval globals runs S (list_carval args_cdr_list) rho using S in
       run%success INCREMENT_NAMED S rhs using S in
       read%prim _, op_prim := op using S in
       let%success c := read_R_FunTab runs S (prim_offset op_prim) using S in
@@ -196,3 +196,4 @@ Fixpoint runs max_step globals : runs_type :=
         end
     |}
   end.
+

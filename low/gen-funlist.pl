@@ -145,7 +145,7 @@ while (my $row = <PIPE>){
                 }
             }
         }
-        # THe next line will be checked in the next iteration.
+        # The next line will be checked in the next iteration.
         $acc = $row ;
     } else {
         # The previous line was not complete.

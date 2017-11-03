@@ -787,6 +787,19 @@ Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
       result_success S false
     else result_success S b using S, runs, globals.
 
+Definition SET_FRAME S x v :=
+  read%env x_, x_env := x using S in
+  let x_env := {|
+      env_frame := v ;
+      env_enclos := env_enclos x_env
+    |} in
+  let x_ := {|
+      NonVector_SExpRec_header := x_ ;
+      NonVector_SExpRec_data := x_env
+    |} in
+  write%defined x := x_ using S in
+  result_success S tt.
+
 Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result unit :=
   ifb addVars = R_NilValue then
     result_skip S
@@ -800,36 +813,21 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
       along list_cdrval addVars_list
       as a, _, _ do
         result_success S a using S, runs, globals in
-      read%env env_, env_env := env using S in
+      read%env _, env_env := env using S in
       set%cdr aprev := env_frame env_env using S in
-      let env_env := {|
-          env_frame := addVars ;
-          env_enclos := env_enclos env_env
-        |} in
-      let env_ := {|
-          NonVector_SExpRec_header := env_ ;
-          NonVector_SExpRec_data := env_env
-        |} in
-      write%defined env := env_ using S in
+      run%success SET_FRAME S env addVars using S in
       fold%let
       along list_cdrval addVars_list
-      as _, end_, end_list do
-        let end_tag := list_tagval end_list in
+      as endp, _, endp_list do
+        let endTag := list_tagval endp_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
-        while result_success S (decide (s <> env)) do
+        while result_success S (decide (s <> endp)) do
           read%list s_, s_list := s using S in
-            ifb list_tagval s_list = end_tag then
+            ifb list_tagval s_list = endTag then
               ifb sprev = R_NilValue then
-                let env_env := {|
-                    env_frame := addVars ;
-                    env_enclos := env_enclos env_env
-                  |} in
-                let env_ := {|
-                    NonVector_SExpRec_header := env_ ;
-                    NonVector_SExpRec_data := env_env
-                  |} in
-                write%defined env := env_ using S in
-                result_success S (list_cdrval s_list, list_cdrval s_list, sprev)
+                let addVars := list_cdrval s_list in
+                run%success SET_FRAME S env addVars using S in
+                result_success S (addVars, list_cdrval s_list, sprev)
               else
                 set_cdr S (list_cdrval s_list) sprev (fun S =>
                   result_success S (addVars, list_cdrval s_list, sprev))
@@ -874,7 +872,7 @@ Definition SET_BINDING_VALUE S b val :=
     result_error S "[SET_BINDING_VALUE] Can not change value of locked binding."
   else
     let%success active := IS_ACTIVE_BINDING S b using S in
-    read%list b_, b_list := b using S in
+    read%list _, b_list := b using S in
     ifb active then
       setActiveValue S (list_carval b_list) val
     else
@@ -883,7 +881,7 @@ Definition SET_BINDING_VALUE S b val :=
 
 Definition BINDING_VALUE S b :=
   let%success active := IS_ACTIVE_BINDING S b using S in
-  read%list b_, b_list := b using S in
+  read%list _, b_list := b using S in
   ifb active then
     getActiveValue S (list_carval b_list)
   else result_success S (list_carval b_list).
@@ -941,10 +939,10 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
             result_skip S
           else result_skip S using S in
         (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-        read%env rho_, rho_env := rho using S in
+        read%env _, rho_env := rho using S in
         fold%return
         along env_frame rho_env
-        as frame, frame_, frame_list do
+        as frame, _, frame_list do
           ifb list_tagval frame_list = symbol then
             run%success SET_BINDING_VALUE S frame value using S in
             run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
@@ -956,16 +954,8 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
           result_error S "[defineVar] Can not add a binding to a locked environment."
         else
           let (S, l) := CONS S value (env_frame rho_env) in
-          let rho_env := {|
-              env_frame := l ;
-              env_enclos := env_enclos rho_env
-            |} in
-          let rho_ := {|
-              NonVector_SExpRec_header := rho_ ;
-              NonVector_SExpRec_data := rho_env
-            |} in
-          write%defined rho := rho_ using S in
-          set%tag env_frame rho_env := symbol using S in
+          run%success SET_FRAME S rho l using S in
+          set%tag l := symbol using S in
           result_skip S.
 
 Definition setVarInFrame S (rho symbol value : SExpRec_pointer) :=
@@ -1005,7 +995,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
         let%env rho_, rho_env := rho_ using S in
         fold%return
         along env_frame rho_env
-        as frame, frame_, frame_list do
+        as frame, _, frame_list do
           ifb list_tagval frame_list = symbol then
             let%success r := BINDING_VALUE S frame using S in
             result_rreturn S r
@@ -1320,13 +1310,13 @@ Definition eval S (e rho : SExpRec_pointer) :=
                   else result_skip S using S in
                 result_success S tmp
         | PromSxp =>
-          let%prom e_, e_prom := e_ using S in
+          let%prom _, e_prom := e_ using S in
           ifb prom_value e_prom = R_UnboundValue then
             let%success e := forcePromise S e using S in
             result_success S e
           else result_success S e
         | LangSxp =>
-          let%list e_, e_list := e_ using S in
+          let%list _, e_list := e_ using S in
           let e_car := list_carval e_list in
           read%defined e_car_ := e_car using S in
           let%success op :=

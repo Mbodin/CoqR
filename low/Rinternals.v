@@ -57,15 +57,17 @@ Fixpoint nbits (n : nat) : Type :=
 (** sxpinfo_struct **)
 Record SxpInfo := make_SxpInfo {
     type : SExpType ;
+    scalar : bool ;
     obj : bool ;
-    named : named_field ;
-    gp : nbits 16
+    alt : bool ;
+    gp : nbits 16 ;
     (* mark : bool ; *)
     (* debug : bool ; *)
     (* trace : bool ; *)
     (* spare : bool ; *)
     (* gcgen : bool ; *)
     (* gccls : nbits 3 *)
+    named : named_field
   }.
 
 (** A type to represent C-style pointers. **)

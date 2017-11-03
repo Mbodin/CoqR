@@ -431,8 +431,9 @@ Definition map_sxpinfo f e_ :=
 
 Definition set_named_sxpinfo n i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
-    (obj i_info) n (gp i_info)
-    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
+    (scalar i_info) (obj i_info) (alt i_info) (gp i_info)
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
+    n.
 
 Definition set_named n :=
   map_sxpinfo (set_named_sxpinfo n).
@@ -448,23 +449,27 @@ Definition set_named_plural :=
 
 Definition set_gp_sxpinfo n i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
-    (obj i_info) (named i_info) n
-    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
+    (scalar i_info) (obj i_info) (alt i_info) n
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
+    (named i_info).
 
 Definition set_gp n :=
   map_sxpinfo (set_gp_sxpinfo n).
 
 Definition map_gp_sxpinfo f i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
-    (obj i_info) (named i_info) (f (gp i_info))
-    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
+    (scalar i_info) (obj i_info) (alt i_info) (f (gp i_info))
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
+    (named i_info).
 
 Definition map_gp f :=
   map_sxpinfo (map_gp_sxpinfo f).
 
 Definition set_type_sxpinfo t i_info :=
-  make_SxpInfo (SExpType_restrict t) (obj i_info) (named i_info) (gp i_info)
-    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*).
+  make_SxpInfo (SExpType_restrict t)
+    (scalar i_info) (obj i_info) (alt i_info) (gp i_info)
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
+    (named i_info).
 
 Definition set_type t :=
   map_sxpinfo (set_type_sxpinfo t).
@@ -480,7 +485,8 @@ Definition set_tag_list tag l_list :=
 
 (** A smart constructor for SxpInfo **)
 Definition build_SxpInfo type : SxpInfo :=
-  make_SxpInfo (SExpType_restrict type) false named_temporary (NBits.nbits_init _).
+  make_SxpInfo (SExpType_restrict type)
+    false false false (NBits.nbits_init _) named_temporary.
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
   by the garbage collector of R. We do not need them here as memory
@@ -610,7 +616,7 @@ Instance SExpRec_Inhab : Inhab SExpRec.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
             (make_SExpRecHeader
-              (make_SxpInfo NilSxp false named_plural (NBits.nbits_init _)) None)
+              (make_SxpInfo NilSxp false false false (NBits.nbits_init _) named_plural) None)
             (make_ListSxp_struct None None None)).
 Defined.
 
