@@ -198,11 +198,19 @@ let print_named = function
   | Named_unique -> "unique"
   | Named_plural -> "plural"
 
+let print_float =
+  Printf.sprintf "%g"
+
 let print_rComplex c =
-  "(" ^ string_of_float c.rcomplex_r ^ ", " ^ string_of_float c.rcomplex_i ^ ")"
+  print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"
 
 let print_character c =
   "'" ^ String.make 1 c ^ "'"
+
+let print_logical i =
+  if i = nA_LOGICAL then "NA"
+  else if i = 0. then "FALSE"
+  else "TRUE"
 
 let print_gp gp_opt gp =
   let gp = (Obj.magic gp : nbits) in
@@ -216,7 +224,7 @@ let is_temporary e =
   let infos = get_SxpInfo e in
   named infos = Named_temporary
 
-let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details, vector_line, charvec_string) t s g e =
+let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details, vector_line, charvec_string) t s g e =
   let print_basic =
     let infos = get_SxpInfo e in
     print_SExpType (type0 infos) ^ " " ^
@@ -269,12 +277,109 @@ let print_SExpRec d (show_gp, gp_opt, show_attrib, show_data, show_details, vect
         indent d ^ "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
       else
         print_vector print_character v
-    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector string_of_float v
-    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector string_of_float v
+    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector print_float v
+    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector print_float v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
-    | SExpRec_VectorReal v -> "(vector real)" ^ print_vector string_of_float v
-    | SExpRec_VectorPointer  v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
+    | SExpRec_VectorReal v -> "(vector real)" ^ print_vector print_float v
+    | SExpRec_VectorPointer v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
   print_basic ^ print_after
+
+let get_memory_cell s = function
+  | None -> None
+  | Some p ->
+    HeapList.read_option nat_comparable (state_heap_SExp (state_memory s)) p
+
+let rec iterate_on_list failure f f_end s g p =
+  let nil = g R_NilValue in
+  if p = nil then
+    f_end
+  else
+    match get_memory_cell s p with
+    | None -> failure "[iterate_on_list] Invalid pointer found along the given list."
+    | Some e ->
+      match e with
+      | SExpRec_NonVector e ->
+        (match nonVector_SExpRec_data e with
+        | ListSxp0 l ->
+          f (list_carval l) (list_tagval l) (iterate_on_list failure f f_end s g (list_cdrval l))
+        | _ -> failure "[iterate_on_list] Non-vector element found instead of a list."
+        )
+      | _ -> failure "[iterate_on_list] Vector element found instead of a list."
+
+let rec print_SExpRec_like_R d s g e =
+  let fetch_print_SExpRec_like_R p =
+    match get_memory_cell s p with
+    | None -> "(Invalid pointer)"
+    | Some e -> print_SExpRec_like_R d s g e in
+  let print_vector t f v =
+    let v = vecSxp_data (vector_SExpRec_vecsxp v) in
+    if v = [] then
+      t ^ "(0)"
+    else
+      let l = List.map f v in
+      let n = List.fold_left max 0 (List.map (String.length) l) in
+      String.concat " " (
+        ((*String.make (max (n - 1) 0) ' ' ^*) "[1]")
+        :: List.map (fun str -> String.make (n - String.length str) ' ' ^ str) l) in
+  let typeof = function
+    | NilSxp -> "NULL"
+    | SymSxp -> "symbol"
+    | ListSxp -> "pairlist"
+    | CloSxp -> "closure"
+    | EnvSxp -> "environment"
+    | PromSxp -> "promise"
+    | LangSxp -> "lang"
+    | SpecialSxp -> "special"
+    | BuiltinSxp -> "builtin"
+    | CharSxp -> "character"
+    | LglSxp -> "logical"
+    | IntSxp -> "integer"
+    | RealSxp -> "numeric"
+    | CplxSxp -> "complex"
+    | StrSxp -> "string"
+    | DotSxp -> "..."
+    | AnySxp -> "any"
+    | VecSxp -> "list"
+    | ExprSxp -> "expression"
+    | BcodeSxp -> "bytecode"
+    | ExtptrSxp -> "external"
+    | WeakrefSxp -> "weak reference"
+    | RawSxp -> "raw"
+    | S4Sxp -> "S4 object"
+    | NewSxp -> "newly allocated object"
+    | FreeSxp -> "free object"
+    | FunSxp -> "function" in
+  let base =
+    let t = typeof (type0 (get_SxpInfo e)) in
+    match e with
+    | SExpRec_NonVector e -> "(" ^ t ^ ")"
+    | SExpRec_VectorChar v ->
+      let v = vector_SExpRec_vecsxp v in
+      "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
+    | SExpRec_VectorLogical v ->
+      print_vector "logical" print_logical v
+    | SExpRec_VectorInteger v ->
+      print_vector "integer" print_float v
+    | SExpRec_VectorComplex v ->
+      print_vector "complex" print_rComplex v
+    | SExpRec_VectorReal v ->
+      print_vector "numeric" print_float v
+    | SExpRec_VectorPointer v ->
+      print_vector t fetch_print_SExpRec_like_R v in
+  let attrs =
+    iterate_on_list (fun msg ->
+        prerr_endline ("[print_SExpRec_like_R] Error when trying to display attributes: " ^ msg) ;
+        indent d ^ "(Error while printing attributes)")
+      (fun v t n ->
+        indent d ^ "attr(," ^ fetch_print_SExpRec_like_R t ^ ")"
+        ^ indent d ^ fetch_print_SExpRec_like_R v ^ n)
+      "" s g (attrib (get_SExpRecHeader e)) in
+  base ^ attrs
+
+let print_SExpRec d (opts, print_unlike_R) t s g e =
+  if print_unlike_R then
+    print_SExpRec_debug d opts t s g e
+  else print_SExpRec_like_R d s g e
 
 let remove_siblings l =
   let l' = List.stable_sort (fun (k1, _) (k2, _) -> compare k1 k2) l in
@@ -300,11 +405,6 @@ let print_memory d s g t no_temporary expr_options m =
         print_memory_cell_expr d s g expr_options t i e
       else "")
     (heap_to_list (state_heap_SExp m))))
-
-let get_memory_cell s = function
-  | None -> None
-  | Some p ->
-    HeapList.read_option nat_comparable (state_heap_SExp (state_memory s)) p
 
 let print_pointed_value d expr_options t s g p =
   match get_memory_cell s p with
@@ -390,12 +490,14 @@ let print_defined r s pr cont =
       pr s r ;
       cont s (Some r))
 
-let print_and_continue (show_state_after_computation, show_result_after_computation, run_options, expr_options)
+let print_and_continue (show_state_after_computation, show_result_after_computation, run_options, ((_, print_unlike_R) as expr_options))
     g r s pr cont =
   print_defined r s (fun s r ->
     if show_state_after_computation then (
       print_endline "State:" ;
       print_endline (print_state 2 run_options expr_options s g)) ;
-    if show_result_after_computation then
-      print_endline ("Result: " ^ pr 8 g s r)) cont
+    if show_result_after_computation then (
+      if print_unlike_R then
+        print_endline ("Result: " ^ pr 8 g s r)
+      else print_endline (pr 0 g s r))) cont
 

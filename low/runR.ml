@@ -13,13 +13,14 @@ let show_initials = ref false
 let show_gp = ref false
 let gp_opt = ref true
 let show_attrib = ref false
-let show_data = ref false
+let show_data = ref true
 let show_details = ref false
 let vector_line = ref false
 let charvec_string = ref false
 let no_temporary = ref false
 let show_context = ref true
 let fetch_global = ref false
+let print_unlike_R = ref false
 
 let show_globals_initial = ref false
 let show_result_after_computation = ref true
@@ -41,24 +42,27 @@ let boolean_switches =
     make_boolean_switch (category_read :: categories) dep "use" "no" "Write" "Do not write" in
   let computation_switch categories dep =
     make_boolean_switch (category_computation :: categories) dep "show" "hide" "Show" "Do not show" in
+  let print_unlike_R =
+    make_boolean_switch [] [] "unlike" "like" "Do not" "Try to (this is an experimental feature)" print_unlike_R "R" "print results as R would" in
   let print_globals =
     print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" in
   let print_initials =
     print_switch [] [] show_initials "initials" "the value of constant global variables" in
   let show_data_switch =
-    print_switch [] [] show_data "data" "the data of vectors" in
+    print_switch [] [print_unlike_R] show_data "data" "the data of vectors" in
   let show_gp_switch =
-    print_switch [] [] show_gp "gp" "the general purpose field of basic language elements" in
+    print_switch [] [print_unlike_R] show_gp "gp" "the general purpose field of basic language elements" in
   let show_result =
     computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" in
   [
     print_switch [] [] show_memory "memory" "the state of the memory" ;
     print_switch [] [] show_context "context" "the execution context" ;
+    print_unlike_R ;
     print_globals ;
     print_initials ;
     print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" ;
     show_gp_switch ;
-    print_switch [] [] show_attrib "attrib" "the attribute field of basic language elements" ;
+    print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" ;
     show_data_switch ;
     print_switch [] [] show_details "details" "the pointers stored in each basic language element" ;
     write_switch [] [] readable_pointers "abr" "pointers in a human readable way" ;
@@ -149,7 +153,7 @@ let run_options _ =
   (!show_context, !show_memory, !show_globals, !show_initials, !no_temporary, !fetch_global, !readable_pointers)
 
 let expr_options _ =
-  (!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string)
+  ((!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string), !print_unlike_R)
 
 let find_opt f l =
   try Some (List.find f l) with
@@ -175,11 +179,13 @@ let _ =
           Print.print_and_continue
             (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
             globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
-              Print.print_pointer !readable_pointers s globals p ^
-              if !fetch_result then (
-                Print.indent n ^ "Pointer value: " ^
-                Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
-              ) else "") (fun s _ -> loop s) in
+              if !print_unlike_R then
+                Print.print_pointer !readable_pointers s globals p ^
+                if !fetch_result then (
+                  Print.indent n ^ "Pointer value: " ^
+                  Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
+                ) else ""
+              else Print.print_pointed_value n (expr_options ()) !readable_pointers s globals p) (fun s _ -> loop s) in
         try match Parser.main Lexer.lex buf with
         | ParserUtils.Success f ->
           success f

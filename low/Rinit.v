@@ -49,12 +49,10 @@ Definition init_R_NilValue S :=
 
 (** The second part of [InitMemory], from main/memory.c **)
 Definition InitMemory S :=
-  let%success R_NilValue :=
-    init_R_NilValue S using S in
   let (S, R_TrueValue) := mkTrue globals S in
   let (S, R_FalseValue) := mkFalse globals S in
   let (S, R_LogicalNAValue) := alloc_vector_lgl globals S [NA_LOGICAL] in
-  result_success S (R_NilValue, R_TrueValue, R_FalseValue, R_LogicalNAValue).
+  result_success S (R_TrueValue, R_FalseValue, R_LogicalNAValue).
 
 (** [InitBaseEnv], from main/envir.c **)
 Definition InitBaseEnv S :=
@@ -248,10 +246,12 @@ End Globals.
 Definition setup_Rmainloop max_step S : result Globals :=
   let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
   let globals := empty_globals in
-  let%success (NilValue, TrueValue, FalseValue, LogicalNAValue) :=
+  let%success NilValue :=
+    init_R_NilValue S using S in
+  let globals := {{ globals with [ decl R_NilValue NilValue ] }} in
+  let%success (TrueValue, FalseValue, LogicalNAValue) :=
     InitMemory globals S using S in
-  let globals := {{ globals with [ decl R_NilValue NilValue ;
-                                   decl R_TrueValue TrueValue ;
+  let globals := {{ globals with [ decl R_TrueValue TrueValue ;
                                    decl R_FalseValue FalseValue ;
                                    decl R_LogicalNAValue LogicalNAValue ] }} in
   let%success (EmptyEnv, BaseEnv) :=
