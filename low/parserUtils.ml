@@ -83,7 +83,7 @@ let mkFloat str : token_type = fun g _ s ->
   let (s, e) = scalarReal g s (float_of_string str) in
   Result_success (s, e)
 let mkInt str : token_type = fun g _ s ->
-  let (s, e) = scalarInteger g s (float_of_string str) in
+  let (s, e) = scalarInteger g s (int_of_string str) in
   Result_success (s, e)
 let mkComplex str : token_type = fun g _ s ->
   let c = {

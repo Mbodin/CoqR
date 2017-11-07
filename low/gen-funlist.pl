@@ -93,9 +93,9 @@ while (my $row = <PIPE>){
 
             my $endFunction = ")" ;
 
-            if ($acc =~ / state ->( (unit|bool|nat|int|float|SExpRec_pointer) ->)* result (unit|bool|nat|int|float|string|SExpRec_pointer)/){
+            if ($acc =~ /^ state ->( (unit|bool|nat|int|float|SExpRec_pointer) ->)* result (unit|bool|nat|int|float|string|SExpRec_pointer)/){
                 # This function is of interest for us.
-                $acc =~ s/ state ->// ;
+                $acc =~ s/^ state ->// ;
 
                 # Checking that it has indeed been extracted.
                 if (check ($funName)) {

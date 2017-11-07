@@ -91,7 +91,7 @@ Record PPinfo := make_PPinfo {
 Record funtab_cell := make_funtab_cell {
     fun_name : string ;
     fun_cfun : function_code ;
-    fun_code : nat ;
+    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat] here. **)
     fun_eval : funtab_eval_arg ;
     fun_arity : int ;
     fun_gram : PPinfo

@@ -14,17 +14,6 @@ Section Parameterised.
 
 (** * Global Variables **)
 
-(* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
-Definition INT_MIN : int := - 2 ^ 31.
-
-Definition R_NaInt := INT_MIN.
-Definition R_PosInf := 0 : int (* TODO *).
-Definition R_NaN := 0 : int (* TODO *).
-Definition NA_INTEGER := R_NaInt.
-Definition NA_LOGICAL := R_NaInt.
-Definition NA_REAL := R_NaInt (* TODO: CHECK *).
-
-
 Variable globals : Globals.
 
 Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
@@ -43,6 +32,75 @@ Definition read_R_FunTab S n :=
     end
   end.
 
+Definition int_to_double : int -> double := Fappli_IEEE_bits.b64_of_bits.
+
+Local Coercion int_to_double : Z >-> double.
+
+(* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
+Definition INT_MIN : int := - 2 ^ 31.
+
+Definition R_NaInt := INT_MIN.
+Definition R_PosInf := 0 : double (* TODO *).
+Definition R_NaN := 0 : double (* TODO *).
+Definition NA_INTEGER := R_NaInt.
+Definition NA_LOGICAL := R_NaInt.
+Definition NA_REAL := R_NaInt : double (* TODO: CHECK *).
+
+Definition NILSXP := 0.
+Definition SYMSXP := 1.
+Definition LISTSXP := 2.
+Definition CLOSXP := 3.
+Definition ENVSXP := 4.
+Definition PROMSXP := 5.
+Definition LANGSXP := 6.
+Definition SPECIALSXP := 7.
+Definition BUILTINSXP := 8.
+Definition CHARSXP := 9.
+Definition LGLSXP := 10.
+Definition INTSXP := 13.
+Definition REALSXP := 14.
+Definition CPLXSXP := 15.
+Definition STRSXP := 16.
+Definition DOTSXP := 17.
+Definition ANYSXP := 18.
+Definition VECSXP := 19.
+Definition EXPRSXP := 20.
+Definition BCODESXP := 21.
+Definition EXTPTRSXP := 22.
+Definition WEAKREFSXP := 23.
+Definition RAWSXP := 24.
+Definition S4SXP := 25.
+Definition NEWSXP := 30.
+Definition FREESXP := 31.
+
+Definition FUNSXP := 99.
+
+Definition PLUSOP := 1.
+Definition MINUSOP := 2.
+Definition TIMESOP := 3.
+Definition DIVOP := 4.
+Definition POWOP := 5.
+Definition MODOP := 6.
+Definition IDIVOP := 7.
+
+Definition EQOP := 1.
+Definition NEOP := 2.
+Definition LTOP := 3.
+Definition LEOP := 4.
+Definition GEOP := 5.
+Definition GTOP := 6.
+
+Definition CTXT_TOPLEVEL := 0.
+Definition CTXT_NEXT := 1.
+Definition CTXT_BREAK := 2.
+Definition CTXT_LOOP := 3.
+Definition CTXT_FUNCTION := 4.
+Definition CTXT_CCODE := 8.
+Definition CTXT_RETURN := 12.
+Definition CTXT_BROWSER := 16.
+Definition CTXT_GENERIC := 20.
+Definition CTXT_RESTART := 32.
+Definition CTXT_BUILTIN := 64.
 
 (** * Interpreter functions **)
 
