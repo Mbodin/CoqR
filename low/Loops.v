@@ -108,6 +108,8 @@ Record runs_type : Type := runs_type_intro {
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
     runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
     runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
+    runs_R_cycle_detected : state -> SExpRec_pointer -> SExpRec_pointer -> result bool ;
+    runs_stripAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
     runs_R_FunTab : funtab
   }.
 
@@ -495,6 +497,15 @@ Definition exit_rresult {A B} (r : result (normal_return A B)) cont :=
   | return_result r => result_success S r
   end.
 
+Notation "'let%exit' a ':=' e 'using' S 'in' cont" :=
+  (exit_rresult e (fun S a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'run%exit' c 'using' S 'in' cont" :=
+  (let%exit _ := c using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+
 Definition continue_and_condition {A B} S (r : normal_return A B) cond :=
   match r with
   | normal_result r => cond S r
@@ -510,21 +521,21 @@ Definition get_success {A B} S (r : normal_return A B) cont
 
 
 Notation "'do%return' 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
-  (exit_rresult
-     (do%let ret := normal_result tt
-      while continue_and_condition S ret (fun S _ => expr)
-      do stat
-      using S, runs)
-     (fun S _ => cont))
+  (run%exit
+     do%let ret := normal_result tt
+     while continue_and_condition S ret (fun S _ => expr)
+     do stat
+     using S, runs
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
-  (exit_rresult
-     (do%let a := normal_result e
-      while continue_and_condition S a (fun S a => expr)
-      do get_success S a (fun S a => stat)
-      using S, runs)
-     (fun S a => cont))
+  (let%exit a :=
+     do%let a := normal_result e
+     while continue_and_condition S a (fun S a => expr)
+     do get_success S a (fun S a => stat)
+     using S, runs
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%return' '(' a1 ',' a2 ')' ':=' e 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
@@ -561,13 +572,13 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'while' expr
 
 
 Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
-  (exit_rresult
-     (fold%let a := normal_result e
-      along le
-      as l, l_, l_list
-      do get_success S a (fun S a => iterate)
-      using S, runs, globals)
-     (fun S a => cont))
+  (let%exit a :=
+     fold%let a := normal_result e
+     along le
+     as l, l_, l_list
+     do get_success S a (fun S a => iterate)
+     using S, runs, globals
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
@@ -612,13 +623,13 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le
 
 
 Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
-  (exit_rresult
-     (fold%let a := normal_result e
-      along le
-      as l_car, l_tag
-      do get_success S a (fun S a => iterate)
-      using S, runs, globals)
-     (fun S a => cont))
+  (let%exit a :=
+     fold%let a := normal_result e
+     along le
+     as l_car, l_tag
+     do get_success S a (fun S a => iterate)
+     using S, runs, globals
+   using S in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=

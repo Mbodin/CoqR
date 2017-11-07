@@ -390,44 +390,43 @@ Definition get_promSxp e_ :=
   | _ => None
   end.
 
+Definition map_sxpinfo_in_header f h :=
+  make_SExpRecHeader
+    (f (sxpinfo h))
+    (attrib h)
+    (*gengc_prev_node h*)
+    (*gengc_next_node h*).
 
-Definition map_sxpinfo_NonVector_SExpRec f e_ :=
+Definition map_header_NonVector_SExpRec f e_ :=
   make_NonVector_SExpRec
-    (let h := NonVector_SExpRec_header e_ in
-     make_SExpRecHeader
-       (f (sxpinfo h))
-       (attrib h)
-       (*gengc_prev_node h*)
-       (*gengc_next_node h*))
+    (f (NonVector_SExpRec_header e_))
     (NonVector_SExpRec_data e_).
 
-Definition map_sxpinfo_Vector_SExpRec T f (e_ : Vector_SExpRec T) :=
+Definition map_header_Vector_SExpRec T f (e_ : Vector_SExpRec T) :=
   make_Vector_SExpRec
-    (let h := Vector_SExpRec_header e_ in
-     make_SExpRecHeader
-       (f (sxpinfo h))
-       (attrib h)
-       (*gengc_prev_node h*)
-       (*gengc_next_node h*))
+    (f (Vector_SExpRec_header e_))
     (Vector_SExpRec_vecsxp e_).
 
-Definition map_sxpinfo f e_ :=
+Definition map_header f e_ :=
   match e_ with
   | SExpRec_NonVector e_ =>
-    SExpRec_NonVector (map_sxpinfo_NonVector_SExpRec f e_)
+    SExpRec_NonVector (map_header_NonVector_SExpRec f e_)
   | SExpRec_VectorChar e_ =>
-    SExpRec_VectorChar (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorChar (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorLogical e_ =>
-    SExpRec_VectorLogical (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorLogical (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorInteger e_ =>
-    SExpRec_VectorInteger (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorInteger (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorComplex e_ =>
-    SExpRec_VectorComplex (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorComplex (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorReal e_ =>
-    SExpRec_VectorReal (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorReal (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorPointer e_ =>
-    SExpRec_VectorPointer (map_sxpinfo_Vector_SExpRec f e_)
+    SExpRec_VectorPointer (map_header_Vector_SExpRec f e_)
   end.
+
+Definition map_sxpinfo f :=
+  map_header (map_sxpinfo_in_header f).
 
 Definition set_named_sxpinfo n i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
@@ -474,6 +473,15 @@ Definition set_type_sxpinfo t i_info :=
 Definition set_type t :=
   map_sxpinfo (set_type_sxpinfo t).
 
+Definition set_obj_sxpinfo o i_info :=
+  make_SxpInfo (SExpType_restrict (type i_info))
+    (scalar i_info) o (alt i_info) (gp i_info)
+    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
+    (named i_info).
+
+Definition set_obj o :=
+  map_sxpinfo (set_obj_sxpinfo o).
+
 Definition set_car_list car l_list :=
   make_ListSxp_struct car (list_cdrval l_list) (list_tagval l_list).
 
@@ -483,17 +491,20 @@ Definition set_cdr_list cdr l_list :=
 Definition set_tag_list tag l_list :=
   make_ListSxp_struct (list_carval l_list) (list_cdrval l_list) tag.
 
+Definition set_attrib a :=
+  map_header (fun h => make_SExpRecHeader (sxpinfo h) a).
+
 (** A smart constructor for SxpInfo **)
-Definition build_SxpInfo type : SxpInfo :=
+Definition build_SxpInfo type scalar : SxpInfo :=
   make_SxpInfo (SExpType_restrict type)
-    false false false (NBits.nbits_init _) named_temporary.
+    scalar false false (NBits.nbits_init _) named_temporary.
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
   by the garbage collector of R. We do not need them here as memory
   allocation is not targetted by this formalisation. We thus offer the
   following smart constructor for the type [SExpRecHeader]. **)
-Definition build_SExpRecHeader type attrib : SExpRecHeader :=
-  make_SExpRecHeader (build_SxpInfo type) attrib (*None*) (*None*).
+Definition build_SExpRecHeader type scalar attrib : SExpRecHeader :=
+  make_SExpRecHeader (build_SxpInfo type scalar) attrib (*None*) (*None*).
 
 Definition get_VecSxp_length e_ :=
   match e_ with
@@ -518,87 +529,87 @@ Definition get_VecSxp_length e_ :=
 
 Definition make_SExpRec_sym attrib pname value internal :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader SymSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader SymSxp false attrib)
       (make_SymSxp_struct pname value internal)).
 
 Definition make_SExpRec_list attrib car cdr tag :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader ListSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader ListSxp false attrib)
       (make_ListSxp_struct car cdr tag)).
 
 Definition make_SExpRec_clo attrib formals body env :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp false attrib)
       (make_CloSxp_struct formals body env)).
 
 Definition make_SExpRec_env attrib frame enclos (* hashtab *) :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader EnvSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader EnvSxp false attrib)
       (make_EnvSxp_struct frame enclos)).
 
 Definition make_SExpRec_prom attrib value expr env :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp false attrib)
       (make_CloSxp_struct value expr env)).
 
 Definition make_SExpRec_lang attrib function argumentList :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader LangSxp attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader LangSxp false attrib)
       (make_ListSxp_struct function argumentList None)).
 
 Definition make_SExpRec_prim attrib prim type :=
   (** [type] is either [BuiltinSxp] or [SpecialSxp].
     See function [mkPRIMSXP] in Rfeatures for more details. **)
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader type attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader type false attrib)
       (make_PrimSxp_struct prim)).
 
 Definition make_SExpRec_char attrib array :=
   SExpRec_VectorChar
     (make_Vector_SExpRec
-      (build_SExpRecHeader CharSxp attrib)
+      (build_SExpRecHeader CharSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_lgl attrib array :=
   SExpRec_VectorLogical
     (make_Vector_SExpRec
-      (build_SExpRecHeader LglSxp attrib)
+      (build_SExpRecHeader LglSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_int attrib array :=
   SExpRec_VectorInteger
     (make_Vector_SExpRec
-      (build_SExpRecHeader IntSxp attrib)
+      (build_SExpRecHeader IntSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_real attrib array :=
   SExpRec_VectorReal
     (make_Vector_SExpRec
-      (build_SExpRecHeader RealSxp attrib)
+      (build_SExpRecHeader RealSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_cplx attrib array :=
   SExpRec_VectorComplex
     (make_Vector_SExpRec
-      (build_SExpRecHeader CplxSxp attrib)
+      (build_SExpRecHeader CplxSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_str attrib array :=
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader StrSxp attrib)
+      (build_SExpRecHeader StrSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_vec attrib array :=
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader VecSxp attrib)
+      (build_SExpRecHeader VecSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 Definition make_SExpRec_expr attrib array :=
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader ExprSxp attrib)
+      (build_SExpRecHeader ExprSxp (decide (length array = 1)) attrib)
       (make_VecSxp_struct (length array) array)).
 
 

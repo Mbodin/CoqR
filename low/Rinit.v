@@ -27,7 +27,7 @@ Variable runs : runs_type.
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
 Definition init_R_NilValue S :=
   let nil_obj := {|
-      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp) NULL ;
+      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp false) NULL ;
       NonVector_SExpRec_data := {|
           list_carval := NULL ;
           list_cdrval := NULL ;
@@ -36,7 +36,7 @@ Definition init_R_NilValue S :=
     |} in
   let (S, R_NilValue) := alloc_SExp S nil_obj in
   let nil_obj := {|
-      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp) R_NilValue ;
+      NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp false) R_NilValue ;
       NonVector_SExpRec_data := {|
           list_carval := R_NilValue ;
           list_cdrval := R_NilValue ;

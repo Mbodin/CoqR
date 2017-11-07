@@ -99,6 +99,97 @@ Definition UNSET_DDVAL_BIT S x :=
   result_skip S.
 
 
+(** ** duplicate.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/duplicate.c. **)
+
+(** This is a temporary simplification of the real [duplicate1] function. **)
+Definition duplicate1 S s (deep : bool) :=
+  read%defined s_ := s using S in
+  let (S, s) := alloc_SExp S s_ in
+  result_success S s.
+
+Definition duplicate S s :=
+  duplicate1 S s true.
+
+(** The following function is actually in the C file include/Rinlinedfuns.h. **)
+Definition isPairList S s :=
+  read%defined s_ := s using S in
+  match type s_ with
+  | NilSxp
+  | ListSxp
+  | LangSxp
+  | DotSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
+
+(** The following function is actually in the C file include/Rinlinedfuns.h. **)
+Definition isVectorList S s :=
+  read%defined s_ := s using S in
+  match type s_ with
+  | VecSxp
+  | ExprSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
+
+Definition R_cycle_detected S s child :=
+  read%defined child_ := child using S in
+  ifb s = child then
+    match type child_ with
+    | NilSxp
+    | SymSxp
+    | EnvSxp
+    | SpecialSxp
+    | BuiltinSxp
+    | ExtptrSxp
+    | BcodeSxp
+    | WeakrefSxp =>
+      result_success S false
+    | _ =>
+      result_success S true
+    end
+  else
+    run%exit
+      ifb attrib child_ <> R_NilValue then
+        let%success r :=
+          runs_R_cycle_detected runs S s (attrib child_) using S in
+        if r then result_rreturn S true
+        else result_rskip S
+      else result_rskip S using S in
+    let%success pl := isPairList S child using S in
+    if pl then
+      fold%return
+      along child
+      as el, el_, el_list do
+        let%success r :=
+          runs_R_cycle_detected runs S s (list_carval el_list) using S in
+        ifb s = el \/ r then
+          result_rreturn S true
+        else
+          let%success r :=
+            runs_R_cycle_detected runs S s (attrib el_) using S in
+          ifb attrib el_ <> R_NilValue /\ r then
+            result_rreturn S true
+          else result_rskip S
+      using S, runs, globals in
+      result_success S false
+    else
+      let%success vl := isVectorList S child using S in
+      if vl then
+        read%VectorPointer child_ := child using S in
+        fold_left (fun e (r : result bool) =>
+          let%success b := r using S in
+          if b then r
+          else runs_R_cycle_detected runs S s e)
+          (result_success S false) (VecSxp_data child_)
+      else result_success S false.
+
+
 (** ** memory.c **)
 
 (** The function names of this section corresponds to the function names
@@ -273,6 +364,10 @@ Definition isInteger S s :=
   let%success inh := inherits S s "factor" using S in
   result_success S (decide (type s_ = IntSxp /\ ~ inh)).
 
+Definition isList S s :=
+  read%defined s_ := s using S in
+  result_success S (decide (s = R_NilValue \/ type s_ = ListSxp)).
+
 
 Definition lcons S car cdr :=
   let (S, e) := CONS S car cdr in
@@ -324,6 +419,19 @@ Definition lang5 S s t u v w :=
 Definition lang6 S s t u v w x :=
   let (S, l) := list5 S t u v w x in
   lcons S s l.
+
+
+Definition R_FixupRHS S x y :=
+  read%defined y_ := y using S in
+  ifb y <> R_NilValue /\ named y_ <> named_temporary then
+    let%success b :=
+      R_cycle_detected S x y using S in
+    if b then
+      duplicate S y
+    else
+      map%pointer y with set_named_plural using S in
+      result_success S y
+  else result_success S y.
 
 
 (** ** envir.c **)
@@ -712,7 +820,7 @@ Definition matchArgs_dots S
     map%pointer a with set_type DotSxp using S in
     fold%success f := a
     along supplied
-    as b, b_, b_list do
+    as _, b_, b_list do
       ifb argused b_ <> 0 then
         result_success S f
       else
@@ -1100,6 +1208,113 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
           else result_success S s
         else result_success S s
       else getAttrib0 S vec name.
+
+Definition installAttrib S vec name val :=
+  read%defined vec_ := vec using S in
+  ifb type vec_ = CharSxp then
+    result_error S "[installAttrib] Cannot set attribute on a CharSxp."
+  else ifb type vec_ = SymSxp then
+    result_error S "[installAttrib] Cannot set attribute on a symbol."
+  else
+    fold%return t := R_NilValue : SExpRec_pointer
+    along attrib vec_
+    as s, _, s_list do
+      ifb list_tagval s_list = name then
+        set%car s := val using S in
+          result_rreturn S val
+      else result_rsuccess S s
+    using S, runs, globals in
+    let (S, s) := CONS S val R_NilValue in
+    set%tag s := name using S in
+    run%success
+      ifb attrib vec_ = R_NilValue then
+        set%attrib vec := s using S in
+        result_skip S
+      else
+        set%cdr t := s using S in
+        result_skip S using S in
+    result_success S val.
+
+Definition stripAttrib S (tag lst : SExpRec_pointer) :=
+  ifb lst = R_NilValue then
+    result_success S lst
+  else
+    read%list _, lst_list := lst using S in
+    ifb tag = list_tagval lst_list then
+      runs_stripAttrib runs S tag (list_cdrval lst_list)
+    else
+      let%success r :=
+        runs_stripAttrib runs S tag (list_cdrval lst_list) using S in
+      set%cdr lst := r using S in
+      result_success S lst.
+
+Definition removeAttrib S (vec name : SExpRec_pointer) :=
+  read%defined vec_ := vec using S in
+  ifb type vec_ = CharSxp then
+    result_error S "[removeAttrib] Cannot set attribute on a CharSxp."
+  else
+    let%success pl := isPairList S vec using S in
+    ifb name = R_NamesSymbol /\ pl then
+      fold%success
+      along vec
+      as t, _, _ do
+        set%tag t := R_NilValue using S in
+        result_skip S
+      using S, runs, globals in
+      result_success S (R_NilValue : SExpRec_pointer)
+    else
+      run%success
+        ifb name = R_DimSymbol then
+          let%success r :=
+            stripAttrib S R_DimSymbol (attrib vec_) using S in
+          set%attrib vec := r using S in
+          result_skip S
+        else
+          result_skip S using S in
+      let%success r :=
+        stripAttrib S R_DimSymbol (attrib vec_) using S in
+      set%attrib vec := r using S in
+      run%success
+        ifb name = R_ClassSymbol then
+          set%obj vec := false using S in
+          result_skip S
+        else
+          result_skip S using S in
+      result_success S (R_NilValue : SExpRec_pointer).
+
+Definition setAttrib S (vec name val : SExpRec_pointer) :=
+  let%success name :=
+    read%defined name_ := name using S in
+    ifb type name_ = StrSxp then
+      let%success str := STRING_ELT S name 0 using S in
+      installTrChar S str
+    else result_success S name using S in
+  ifb val = R_NilValue then
+    removeAttrib S vec name
+  else
+    ifb vec = R_NilValue then
+      result_error S "[setAttrib] Attempt to set an attribute on NULL."
+    else
+      let%success val :=
+        read%defined val_ := val using S in
+        ifb named val_ <> named_temporary then
+          R_FixupRHS S vec val
+        else result_success S val using S in
+      ifb name = R_NamesSymbol then
+        result_not_implemented "[namesgets]"
+      else ifb name = R_DimSymbol then
+        result_not_implemented "[dimgets]"
+      else ifb name = R_DimNamesSymbol then
+        result_not_implemented "[dimnamesgets]"
+      else ifb name = R_ClassSymbol then
+        result_not_implemented "[classgets]"
+      else ifb name = R_TspSymbol then
+        result_not_implemented "[tspgets]"
+      else ifb name = R_CommentSymbol then
+        result_not_implemented "[commentgets]"
+      else ifb name = R_RowNamesSymbol then
+        result_not_implemented "[row_names_gets]"
+      else installAttrib S vec name val.
 
 
 (** ** eval.c **)

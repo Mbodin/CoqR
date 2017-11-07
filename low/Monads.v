@@ -160,6 +160,14 @@ Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
   (map%pointer p with set_gp v using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'set%attrib' p ':=' a 'using' S 'in' cont" :=
+  (map%pointer p with set_attrib a using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
+  (map%pointer p with set_obj o using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** Updating a list. **)
 Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
