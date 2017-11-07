@@ -1324,7 +1324,7 @@ Definition removeAttrib S (vec name : SExpRec_pointer) :=
       run%success
         ifb name = R_DimSymbol then
           let%success r :=
-            stripAttrib S R_DimSymbol (attrib vec_) using S in
+            stripAttrib S R_DimNamesSymbol (attrib vec_) using S in
           set%attrib vec := r using S in
           result_skip S
         else

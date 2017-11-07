@@ -74,6 +74,15 @@ Extract Inductive Fappli_IEEE.binary_float => "float" [
 
 Extract Constant int_to_double => "float_of_int".
 
+Extract Constant HeapList.heap "'a" "'b" => "('a, 'b) PMap.t".
+Extract Constant HeapList.empty => "Obj.magic PMap.create compare".
+Extract Constant HeapList.write => "fun h k v -> PMap.add k v h".
+Extract Constant HeapList.to_list => "fun h -> PMap.foldi (fun k v l -> (k, v) :: l) h []".
+Extract Constant HeapList.read => "fun comparable h k -> PMap.find k h".
+Extract Constant HeapList.read_option => "fun comparable h k -> try Some (PMap.find k h) with Not_found -> None".
+Extract Constant HeapList.rem => "fun comparable h k -> PMap.remove k h".
+Extract Constant HeapList.indom_decidable => "fun comparable h k -> PMap.mem k h".
+
 (*Extract Constant ascii_comparable => "(=)".
 Extract Constant lt_int_decidable => "(<)".
 Extract Constant le_int_decidable => "(<=)".
