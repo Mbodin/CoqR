@@ -349,10 +349,19 @@ let rec print_SExpRec_like_R d s g e =
     | NewSxp -> "newly allocated object"
     | FreeSxp -> "free object"
     | FunSxp -> "function" in
+  let print_nonvector = function
+    | PrimSxp p -> string_of_int (prim_offset p)
+    | SymSxp0 s -> fetch_print_SExpRec_like_R (sym_pname s)
+    | ListSxp0 l -> ""
+    | EnvSxp0 e -> ""
+    | CloSxp0 c -> ""
+    | PromSxp0 p -> "value: " ^ fetch_print_SExpRec_like_R (prom_value p) in
   let base =
     let t = typeof (type0 (get_SxpInfo e)) in
     match e with
-    | SExpRec_NonVector e -> "(" ^ t ^ ")"
+    | SExpRec_NonVector e ->
+      let str = print_nonvector (nonVector_SExpRec_data e) in
+      "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
     | SExpRec_VectorChar v ->
       let v = vector_SExpRec_vecsxp v in
       "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
@@ -421,8 +430,9 @@ let rec print_list d expr_options t s g p =
       | SExpRec_NonVector e_ ->
         (match nonVector_SExpRec_data e_ with
         | ListSxp0 l ->
-          "{" ^ print_pointed_value d expr_options t s g (list_tagval l) ^ ": "
-          ^ print_pointed_value d expr_options t s g (list_carval l) ^ "} "
+          "{" ^ (if list_tagval l = g R_NilValue then ""
+                 else print_pointed_value d expr_options t s g (list_tagval l)) ^ ": "
+          ^ print_pointed_value (d + 2) expr_options t s g (list_carval l) ^ "} "
           ^ print_list d expr_options t s g (list_cdrval l)
         | _ -> "(not a list: " ^ print_SExpRec d expr_options t s g e ^ ")")
       | _ ->

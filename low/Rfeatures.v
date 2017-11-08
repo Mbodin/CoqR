@@ -28,6 +28,26 @@ Definition WrongArgCount A S s : result A :=
 Arguments WrongArgCount [A].
 
 
+(** * util.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/util.c. **)
+
+(** There is a macro replacing every call to [checkArity (a, b)] to
+  [Rf_checkArityCall (a, b, call)]. This macro is not convertible in
+  Coq as the [call] argument is not available in scope. We thus unfold
+  this macro during the translation. **)
+Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
+  let%success arity := PRIMARITY runs S op using S in
+  let%success len := R_length globals runs S args using S in
+  ifb arity >= 0 /\ arity <> len then
+    let%success internal := PRIMINTERNAL runs S op using S in
+    ifb internal then
+      result_error S "[Rf_checkArityCall] An argument has been passed to an element of .Internal without its requirements."
+    else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
+  else result_skip S.
+
+
 (** * dstruct.c **)
 
 (** The function names of this section corresponds to the function names
@@ -90,14 +110,9 @@ Definition CheckFormals S ls :=
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
-Definition PRIMVAL S x :=
-  read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
-  result_success S (fun_code x_fun).
-
 Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   let wrong S :=
-    let%success v := PRIMVAL S op using S in
+    let%success v := PRIMVAL runs S op using S in
     ifb v < 0 then
       result_error S "[do_set] Negative offset."
     else
@@ -123,9 +138,8 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
         else result_success S lhs using S in
       let%success rhs := eval globals runs S (list_carval args_cdr_list) rho using S in
       run%success INCREMENT_NAMED S rhs using S in
-      read%prim _, op_prim := op using S in
-      let%success c := read_R_FunTab runs S (prim_offset op_prim) using S in
-      ifb fun_code c = 2 then
+      let%success val := PRIMVAL runs S op using S in
+      ifb val = 2 then
         read%env _, rho_env := rho using S in
         run%success setVar globals runs S lhs rhs (env_enclos rho_env) using S in
         result_success S rhs
@@ -163,6 +177,11 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
         result_skip S
       else result_skip S using S in
     result_success S rval.
+
+Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list _, args_list := args using S in
+  result_success S (list_carval args_list).
 
 
 (** * names.c **)
@@ -275,7 +294,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "=" do_set 3 eval100 (-1)%Z PP_ASSIGN PREC_EQ true ;
               rdecl "<<-" do_set 2 eval100 (-1)%Z PP_ASSIGN2 PREC_LEFT true ;
               rdecl "{" (dummy_function "do_begin") (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
-              rdecl "(" (dummy_function "do_paren") (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
+              rdecl "(" do_paren (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
               rdecl ".subset" (dummy_function "do_subset_dflt") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "[" (dummy_function "do_subset") (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;

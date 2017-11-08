@@ -439,6 +439,13 @@ Instance le_nat_Decidable : forall n1 n2 : nat,
    typeclass.
 Defined.
 
+Instance ge_Decidable : forall n1 n2 : int,
+    Decidable (n1 >= n2).
+  intros. applys Decidable_equiv (n1 >= n2)%Z.
+   math.
+   typeclass.
+Defined.
+
 
 Instance Ascii_comparable : Comparable Ascii.ascii.
   apply make_comparable. intros. applys sumbool_decidable Ascii.ascii_dec.

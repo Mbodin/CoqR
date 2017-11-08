@@ -1448,17 +1448,78 @@ Definition applyClosure S
       rho arglist op.
 
 Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[promiseArgs] TODO".
+  let (S, tail) := CONS S R_NilValue R_NilValue in
+  fold%success (ans, tail) := (tail, tail)
+  along el
+  as el_car, el_tag do
+    ifb el_car = R_DotsSymbol then
+      let%success h := findVar S el_car rho using S in
+      read%defined h_ := h using S in
+      ifb type h_ = DotSxp \/ h = R_NilValue then
+        fold%success tail := tail
+        along h
+        as h_car, h_tag do
+          read%defined h_car_ := h_car using S in
+          run%success
+            ifb type h_car_ = PromSxp \/ h_car = R_MissingArg then
+              let (S, l) := CONS S h_car R_NilValue in
+              set%cdr tail := l using S in
+              result_skip S
+            else
+              let%success prom :=
+                mkPromise S h_car rho using S in
+              let (S, l) := CONS S prom R_NilValue in
+              set%cdr tail := l using S in
+              result_skip S using S in
+          set%tag tail := h_tag using S in
+          result_success S tail
+        using S, runs, globals in
+        result_success S (ans, tail)
+      else ifb h <> R_MissingArg then
+        result_error S "[promiseArgs] ‘...’ used in an incorrect context."
+      else result_success S (ans, tail)
+    else ifb el_car = R_MissingArg then
+      let (S, l) := CONS S R_MissingArg R_NilValue in
+      set%cdr tail := l using S in
+      set%tag tail := el_tag using S in
+      read%list _, tail_list := tail using S in
+      result_success S (ans, list_cdrval tail_list)
+    else
+      let%success prom :=
+        mkPromise S el_car rho using S in
+      let (S, l) := CONS S prom R_NilValue in
+      set%cdr tail := l using S in
+      set%tag tail := el_tag using S in
+      read%list _, tail_list := tail using S in
+      result_success S (ans, list_cdrval tail_list)
+  using S, runs, globals in
+  read%list _, ans_list := ans using S in
+  result_success S (list_cdrval ans_list).
 
 Definition PRIMFUN S x :=
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_cfun x_fun).
 
+Definition PRIMVAL S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  result_success S (fun_code x_fun).
+
 Definition PPINFO S x :=
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_gram x_fun).
+
+Definition PRIMARITY S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  result_success S (fun_arity x_fun).
+
+Definition PRIMINTERNAL S x :=
+  read%prim _, x_prim := x using S in
+  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
 
 Definition evalList S (el rho call : SExpRec_pointer) n :=
   fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)

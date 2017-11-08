@@ -138,79 +138,6 @@ Notation "'if%success' b 'then' c 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-(** ** [map]-monads **)
-
-(** Mapping on-place the content of a pointer is a frequent scheme.
-  Here is a monad for it. **)
-Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
-    (f : state -> result A) : result A :=
-  let%defined p_ := read_SExp S p using S in
-  write%defined p := map p_ using S in
-  f S.
-
-Notation "'map%pointer' p 'with' map 'using' S 'in' cont" :=
-  (map_pointer S map p (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
-  (map%pointer p with map_gp f using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
-  (map%pointer p with set_gp v using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'set%attrib' p ':=' a 'using' S 'in' cont" :=
-  (map%pointer p with set_attrib a using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
-  (map%pointer p with set_obj o using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
-
-(** Updating a list. **)
-Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
-  let%defined p_ := read_SExp S p using S in
-  let%defined p_ := get_NonVector p_ using S in
-  let%defined p_list := get_listSxp p_ using S in
-  let p_list := f p_list in
-  let p_ := {|
-      NonVector_SExpRec_header := p_ ;
-      NonVector_SExpRec_data := p_list
-    |} in
-  write%defined p := p_ using S in
-  cont S.
-
-Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
-  (map_list S map p (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-(** Updating the first element of a list. **)
-Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map%list p with set_car_list car using S in f S.
-
-Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
-  (set_car S car p (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-(** Updating the tail of a list. **)
-Definition set_cdr A S cdr (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map%list p with set_cdr_list cdr using S in f S.
-
-Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
-  (set_cdr S cdr p (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-(** Updating the tag of a list. **)
-Definition set_tag A S tag (p : SExpRec_pointer) (f : state -> result A) : result A :=
-  map%list p with set_tag_list tag using S in f S.
-
-Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
-  (set_car S tag p (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-
 (** * Monads to View Objects Differently **)
 
 (** ** Basic Language Elements **)
@@ -610,3 +537,73 @@ Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
+(** * Other Monads **)
+
+(** ** [map]-monads **)
+
+(** Mapping on-place the content of a pointer is a frequent scheme.
+  Here is a monad for it. **)
+Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
+    (cont : state -> result A) : result A :=
+  read%defined p_ := p using S in
+  write%defined p := map p_ using S in
+  cont S.
+
+Notation "'map%pointer' p 'with' map 'using' S 'in' cont" :=
+  (map_pointer S map p (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
+  (map%pointer p with map_gp f using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
+  (map%pointer p with set_gp v using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'set%attrib' p ':=' a 'using' S 'in' cont" :=
+  (map%pointer p with set_attrib a using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
+  (map%pointer p with set_obj o using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** Updating a list. **)
+Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
+  read%list p_, p_list := p using S in
+  let p_ := {|
+      NonVector_SExpRec_header := p_ ;
+      NonVector_SExpRec_data := f p_list
+    |} in
+  write%defined p := p_ using S in
+  cont S.
+
+Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
+  (map_list S map p (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** Updating the first element of a list. **)
+Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map%list p with set_car_list car using S in f S.
+
+Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
+  (set_car S car p (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** Updating the tail of a list. **)
+Definition set_cdr A S cdr (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map%list p with set_cdr_list cdr using S in f S.
+
+Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
+  (set_cdr S cdr p (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** Updating the tag of a list. **)
+Definition set_tag A S tag (p : SExpRec_pointer) (f : state -> result A) : result A :=
+  map%list p with set_tag_list tag using S in f S.
+
+Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
+  (set_tag S tag p (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
