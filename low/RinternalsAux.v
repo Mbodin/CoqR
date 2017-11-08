@@ -549,8 +549,8 @@ Definition make_SExpRec_env attrib frame enclos (* hashtab *) :=
 
 Definition make_SExpRec_prom attrib value expr env :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp false attrib)
-      (make_CloSxp_struct value expr env)).
+    (make_NonVector_SExpRec (build_SExpRecHeader PromSxp false attrib)
+      (make_PromSxp_struct value expr env)).
 
 Definition make_SExpRec_lang attrib function argumentList :=
   SExpRec_NonVector

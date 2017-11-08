@@ -277,7 +277,7 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
         indent d ^ "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
       else
         print_vector print_character v
-    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector string_of_int v
+    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector print_logical v
     | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector string_of_int v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
     | SExpRec_VectorReal v -> "(vector real)" ^ print_vector print_float v
@@ -366,7 +366,7 @@ let rec print_SExpRec_like_R d s g e =
       let v = vector_SExpRec_vecsxp v in
       "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
     | SExpRec_VectorLogical v ->
-      print_vector "logical" string_of_int v
+      print_vector "logical" print_logical v
     | SExpRec_VectorInteger v ->
       print_vector "integer" string_of_int v
     | SExpRec_VectorComplex v ->

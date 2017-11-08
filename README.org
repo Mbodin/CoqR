@@ -74,6 +74,13 @@ The Makefile should now work.
 
 This should create the following program.
 #+BEGIN_SRC bash
+    low/runR.native
+#+END_SRC
+As-is, this program should run more or less similarly to R
+(although most features have not been implemented).
+It accepts a large number of argument to customize its output,
+which are (briefly) described by the following invocation:
+#+BEGIN_SRC bash
     low/runR.native -help
 #+END_SRC
 
