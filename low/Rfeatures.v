@@ -76,8 +76,6 @@ Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
   in the file main/eval.c. **)
 
 Definition CheckFormals S ls :=
-  let error :=
-    result_error S "[CheckFormals] invalid formal argument list." in
   let%success l := isList globals S ls using S in
   if l then
     fold%success
@@ -85,10 +83,10 @@ Definition CheckFormals S ls :=
     as _, ls_tag do
       read%defined ls_tag_ := ls_tag using S in
       ifb type ls_tag_ <> SymSxp then
-        error
+        result_error S "[CheckFormals] Invalid formal argument list (not a symbol)."
       else result_skip S using S, runs, globals in
-      result_skip S
-  else error.
+    result_skip S
+  else result_error S "[CheckFormals] Invalid formal argument list (not a list).".
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
@@ -139,10 +137,12 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     end.
 
 Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
-  read%defined op_ := op using S in
   let%success op :=
+    read%defined op_ := op using S in
     ifb type op_ = PromSxp then
-      forcePromise globals runs S op
+      let%success op := forcePromise globals runs S op using S in
+      map%pointer op with set_named_plural using S in
+      result_success S op
     else result_success S op using S in
   let%success len := R_length globals runs S args using S in
   ifb len < 2 then

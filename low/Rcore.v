@@ -139,11 +139,6 @@ Definition INCREMENT_NAMED S x :=
     result_skip S
   end.
 
-Definition SET_NAMED S x n :=
-  read%defined x_ := x using S in
-  map%pointer x with set_named n using S in
-  result_skip S.
-
 Definition DDVAL S x :=
   read%defined x_ := x using S in
   result_success S (NBits.nth_bit 0 (gp x_) ltac:(NBits.nbits_ok)).
@@ -1465,7 +1460,7 @@ Definition PPINFO S x :=
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_gram x_fun).
 
-Definition evalList S el rho n :=
+Definition evalList S (el rho call : SExpRec_pointer) n :=
   fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along el
   as el_car, el_tag
@@ -1539,7 +1534,7 @@ Definition eval S (e rho : SExpRec_pointer) :=
     | ExtptrSxp
     | WeakrefSxp
     | ExprSxp =>
-      write%defined e := set_named_plural e_ using S in
+      map%pointer e with set_named_plural using S in
       result_success S e
     | _ =>
       read%defined rho_ := rho using S in
@@ -1551,7 +1546,7 @@ Definition eval S (e rho : SExpRec_pointer) :=
           (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
             Line 5966 of the same file for the evaluator.
             We do not consider byte code for now in this formalisation. **)
-          result_not_implemented "[eval] byte code"
+          result_not_implemented "[eval] bcEval"
         | SymSxp =>
           ifb e = R_DotsSymbol then
             result_error S "[eval] ‘...’ used in an incorrect context."
@@ -1563,31 +1558,35 @@ Definition eval S (e rho : SExpRec_pointer) :=
               else
                 findVar S e rho using S in
             ifb tmp = R_UnboundValue then
-              result_error S "[eval] object not found."
+              result_error S "[eval] Object not found."
             else ifb tmp = R_MissingArg /\ ~ ddval then
               result_error S "[eval] Argument is missing, with no default."
             else
               read%defined tmp_ := tmp using S in
               ifb type tmp_ = PromSxp then
-                read%prom tmp_, tmp_prom := tmp using S in
+                read%prom _, tmp_prom := tmp using S in
                 let%success tmp :=
                   ifb prom_value tmp_prom = R_UnboundValue then
                     forcePromise S tmp
                   else result_success S (prom_value tmp_prom) using S in
-                run%success SET_NAMED S tmp named_plural using S in
+                map%pointer tmp with set_named_plural using S in
                 result_success S tmp
               else
                 run%success
                   ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
-                    SET_NAMED S tmp named_unique
+                    map%pointer tmp with set_named_unique using S in
+                    result_skip S
                   else result_skip S using S in
                 result_success S tmp
         | PromSxp =>
+          run%success
+            let%prom _, e_prom := e_ using S in
+            ifb prom_value e_prom = R_UnboundValue then
+              run%success forcePromise S e using S in
+              result_skip S
+            else result_skip S using S in
           let%prom _, e_prom := e_ using S in
-          ifb prom_value e_prom = R_UnboundValue then
-            let%success e := forcePromise S e using S in
-            result_success S e
-          else result_success S e
+          result_success S (prom_value e_prom)
         | LangSxp =>
           let%list _, e_list := e_ using S in
           let e_car := list_carval e_list in
@@ -1601,27 +1600,28 @@ Definition eval S (e rho : SExpRec_pointer) :=
               findFun3 S e_car rho ecall
             else runs_eval runs S e_car rho using S in
           read%defined op_ := op using S in
-            match type op_ with
-            | SpecialSxp =>
+          match type op_ with
+          | SpecialSxp =>
+            let%success f := PRIMFUN S op using S in
+            f S e op (list_cdrval e_list) rho
+          | BuiltinSxp =>
+            let%success tmp := evalList S (list_cdrval e_list) rho e 0 using S in
+            let%success infos := PPINFO S op using S in
+            ifb PPinfo_kind infos = PP_FOREIGN then
+              let%success cntxt :=
+                begincontext S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
               let%success f := PRIMFUN S op using S in
-              f S e op (list_cdrval e_list) rho
-            | BuiltinSxp =>
-              let%success tmp := evalList S (list_cdrval e_list) rho 0 using S in
-              let%success infos := PPINFO S op using S in
-              ifb PPinfo_kind infos = PP_FOREIGN then
-                let%success cntxt :=
-                  begincontext S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
-                let%success f := PRIMFUN S op using S in
-                let%success tmp := f S e op tmp rho using S in
-                run%success endcontext S cntxt using S in
-                result_success S tmp
-              else
-                result_success S tmp
-            | CloSxp =>
-              let%success prom := promiseArgs S (list_cdrval e_list) rho using S in
-              applyClosure S e op prom rho R_NilValue
-            | _ => result_error S "[eval] Attempt to apply non-function."
-            end
+              let%success tmp := f S e op tmp rho using S in
+              run%success endcontext S cntxt using S in
+              result_success S tmp
+            else
+              let%success f := PRIMFUN S op using S in
+              f S e op tmp rho
+          | CloSxp =>
+            let%success tmp := promiseArgs S (list_cdrval e_list) rho using S in
+            applyClosure S e op tmp rho R_NilValue
+          | _ => result_error S "[eval] Attempt to apply non-function."
+          end
         | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
         | _ => result_error S "[eval] Type unimplemented in the R source code."
         end

@@ -21,6 +21,7 @@ let no_temporary = ref false
 let show_context = ref true
 let fetch_global = ref false
 let print_unlike_R = ref false
+let always_print_pointer = ref false
 
 let show_globals_initial = ref false
 let show_result_after_computation = ref true
@@ -58,6 +59,7 @@ let boolean_switches =
     print_switch [] [] show_memory "memory" "the state of the memory" ;
     print_switch [] [] show_context "context" "the execution context" ;
     print_unlike_R ;
+    computation_switch [] [] always_print_pointer "pointer-result" "the value of the pointer returned even when trying to mimic R" ;
     print_globals ;
     print_initials ;
     print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" ;
@@ -185,7 +187,13 @@ let _ =
                   Print.indent n ^ "Pointer value: " ^
                   Print.print_pointed_value (n + 15) (expr_options ()) !readable_pointers s globals p
                 ) else ""
-              else Print.print_pointed_value n (expr_options ()) !readable_pointers s globals p) (fun s _ -> loop s) in
+              else
+                let str =
+                  if !always_print_pointer then
+                    Print.print_pointer !readable_pointers s globals p ^ ": "
+                  else "" in
+                str ^ Print.print_pointed_value (n + String.length str) (expr_options ()) !readable_pointers s globals p)
+            (fun s _ -> loop s) in
         try match Parser.main Lexer.lex buf with
         | ParserUtils.Success f ->
           success f
@@ -201,6 +209,9 @@ let _ =
             let get_and_print_memory_cell str =
               let p = Debug.read_pointer s globals str in
               print_endline (Print.print_pointed_value 2 (expr_options ()) !readable_pointers s globals p) in
+            let get_and_print_list str =
+              let p = Debug.read_pointer s globals str in
+              print_endline (Print.print_list 2 (expr_options ()) !readable_pointers s globals p) in
             let print_list_fun _ =
               print_endline (Debug.list_all_fun 2) in
             sort_commands (
@@ -208,12 +219,13 @@ let _ =
               ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
               ("#state", Arg.Unit print_state, "Print the current state") ::
               ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
+              ("#show-list", Arg.String get_and_print_list, "Assuming that the requested memory cell is a list, print the list.") ::
               ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
               ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
               make_options "#" "current") in
           let interactive_options = interactive_options () in
           let check_change_state seen_state_change = function
-            | "#execute" | "#show" ->
+            | "#execute" | "#show" | "#show-list" ->
               if seen_state_change then
                 prerr_endline "Warning: pointers are parsed before the first state change. Possible inconsistency." ;
             | _ -> () in

@@ -411,6 +411,23 @@ let print_pointed_value d expr_options t s g p =
   | None -> "(Invalid pointer)"
   | Some e -> print_SExpRec d expr_options t s g e
 
+let rec print_list d expr_options t s g p =
+  if p = g R_NilValue then ""
+  else
+    match get_memory_cell s p with
+    | None -> "(Invalid pointer)"
+    | Some e ->
+      match e with
+      | SExpRec_NonVector e_ ->
+        (match nonVector_SExpRec_data e_ with
+        | ListSxp0 l ->
+          "{" ^ print_pointed_value d expr_options t s g (list_tagval l) ^ ": "
+          ^ print_pointed_value d expr_options t s g (list_carval l) ^ "} "
+          ^ print_list d expr_options t s g (list_cdrval l)
+        | _ -> "(not a list: " ^ print_SExpRec d expr_options t s g e ^ ")")
+      | _ ->
+        "(not a list: " ^ print_SExpRec d expr_options t s g e ^ ")"
+
 let rec print_context d t s g ctxt =
   "next context:" ^
   (match ctxt.nextcontext with
