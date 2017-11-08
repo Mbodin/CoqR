@@ -722,7 +722,7 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
       let%success str_ := STRING_ELT S str 0 using S in
       result_not_implemented "[pmatch] translateChar(str_)" (* TODO *)
     | _ =>
-      result_error S "[pmatch] invalid partial string match."
+      result_error S "[pmatch] Invalid partial string match."
     end in
   let%success f := get_name formal using S in
   let%success t := get_name tag using S in
@@ -763,22 +763,24 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
         along supplied
         as b, b_, b_list do
           let b_tag := list_tagval b_list in
-          let%success b_tag_sym_name := PRINTNAME S b_tag using S in
-          let%success btag_name := CHAR S b_tag_sym_name using S in
-          ifb b_tag <> R_NilValue /\ ftag_name = btag_name then
-            ifb fargusedi = 2 then
-              result_error S "[matchArgs_first] formal argument matched by multiple actual arguments."
-            else ifb argused b_ = 2 then
-              result_error S "[matchArgs_first] actual argument matches several formal arguments."
-            else
-              set%car a := list_carval b_list using S in
-              run%success
-                ifb list_carval b_list <> R_MissingArg then
-                  run%success SET_MISSING S a 1 ltac:(NBits.nbits_ok) using S in
-                  result_skip S
-                else result_skip S using S in
-              map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
-              result_success S 2
+          ifb b_tag <> R_NilValue then
+            let%success b_tag_sym_name := PRINTNAME S b_tag using S in
+            let%success btag_name := CHAR S b_tag_sym_name using S in
+            ifb ftag_name = btag_name then
+              ifb fargusedi = 2 then
+                result_error S "[matchArgs_first] Formal argument matched by multiple actual arguments."
+              else ifb argused b_ = 2 then
+                result_error S "[matchArgs_first] Actual argument matches several formal arguments."
+              else
+                set%car a := list_carval b_list using S in
+                run%success
+                  ifb list_carval b_list <> R_MissingArg then
+                    run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
+                    result_skip S
+                  else result_skip S using S in
+                map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
+                result_success S 2
+            else result_success S fargusedi
           else result_success S fargusedi using S, runs, globals
       else result_success S 0 using S in
     read%list a_, a_list := a using S in
@@ -807,9 +809,9 @@ Definition matchArgs_second S
                   let%success pmatch := pmatch S f_tag b_tag seendots using S in
                   if pmatch then
                     ifb argused b_ <> 0 then
-                      result_error S "[matchArgs_second] actual argument matches several formal arguments."
+                      result_error S "[matchArgs_second] Actual argument matches several formal arguments."
                     else ifb fargusedi = 1 then
-                      result_error S "[matchArgs_second] formal argument matched by multiple actual arguments."
+                      result_error S "[matchArgs_second] Formal argument matched by multiple actual arguments."
                     else
                       (** The C code emits a warning about partial arguments here.
                         This may be a sign that this part should be actually ignored. **)
@@ -1408,7 +1410,17 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
 
 Definition R_execClosure (S : state)
     (call newrho sysparent rho arglist op : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[R_execClosure] TODO".
+  let%success cntxt :=
+     begincontext S Ctxt_Return call newrho sysparent arglist op using S in
+  read%clo op_, op_clo := op using S in
+  let body := clo_body op_clo in
+  (** JIT functions have been ignored here. **)
+  let%success R_srcef := getAttrib S op R_SrcrefSymbol using S in
+  (** Debugging functions have been ignored here. **)
+  (* Warning: this function uses [SETJMP] whose semantics I am not sure to understand. Please reread. *)
+  let%success cntxt_returnValue := runs_eval runs S body newrho using S in
+  run%success endcontext S cntxt using S in
+  result_success S cntxt_returnValue.
 
 Definition applyClosure S
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
@@ -1555,7 +1567,7 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
         result_error S "[evalList] ‘...’ used in an incorrect context."
       else result_success S (n, head, tail)
     else ifb el_car = R_MissingArg then
-      result_error S "[evalList] argument is empty."
+      result_error S "[evalList] Argument is empty."
     else
       let%success ev := runs_eval runs S el_car rho using S in
       let (S, ev) := CONS_NR S ev R_NilValue in
