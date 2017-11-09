@@ -1,0 +1,114 @@
+
+    start -> "{program}"
+
+    variable -> "a"
+    variable -> "b"
+    variable -> "x"
+    variable -> "d"
+    variable -> "e"
+    variable -> "f"
+
+    string -often> "\"{stringcontent}\""
+    string -> "'\{stringcontent}'"
+
+    stringcontent -> ""
+    stringcontent -> "a"
+    stringcontent -> "b"
+    stringcontent -> "c"
+    stringcontent -> "{stringcontent}{stringcontent}"
+
+    number -> "{sign}{numbers}"
+    number -> "{sign}{numbers}L"
+    number -> "{sign}{numbers}i"
+    number -> "{sign}{numbers}e{numbers}"
+
+    sign -> ""
+    sign -> "-"
+    sign -rare> "+"
+
+    numbers -often> "{digit}{numbers}"
+    numbers -> "{digit}"
+
+    digit -> "0"
+    digit -> "1"
+    digit -> "2"
+    digit -> "3"
+    digit -> "4"
+    digit -> "5"
+    digit -> "6"
+    digit -> "7"
+    digit -> "8"
+    digit -> "9"
+
+    function -> "function () {programret}"
+    function -> "function ({argument}) {programret}"
+    function -> "function ({argument}, {argument}) {programret}"
+    function -rare> "function ({argument}, {argument}, {argument}) {programret}"
+    function -rare> "function ({argument}, {argument}, {argument}, {argument}) {programret}"
+
+    argument -often> "{variable}"
+    argument -> "{variable} = {expression}"
+    argument -rare> "..."
+
+    programret -> "{expression}"
+    programret -> "\{\n{program}\n\}"
+    programret -> "\{\n{program}\n{expression} \}"
+
+    program -> "{lefthandside} <- {expression}"
+    program -rare> "{lefthandside} <- {lefthandside} <- {expression}"
+    program -rare> "{lefthandside} <- {lefthandside} <- {lefthandside} <- {expression}"
+    program -rare> "{expression} -> {lefthandside}"
+    program -rare> "{expression} -> {lefthandside} -> {lefthandside}"
+
+    program -> "{exprapp}"
+    program -rare> "{expression}"
+
+    program -> "if (\expression) \{\n{program} \}"
+    program -> "if (\expression) \{\n{program}\n\} else \{\n{program} \}"
+
+    program -often> "{program} ;\n{program}"
+    program -> ""
+
+    lefthandside -often> "{variable}"
+    lefthandside -rare> "attr({lefthandside}, {string})"
+
+    exprapp -> "{exprfun} ()"
+    exprapp -> "{exprfun} ({expression})"
+    exprapp -> "{exprfun} ({expression}, {expression})"
+    exprapp -> "{exprfun} ({expression}, {expression}, {expression})"
+    exprapp -> "{exprfun} ({expression}, {expression}, {expression}, {expression})"
+
+    exprfun -> "{variable}"
+    exprfun -> "{function}"
+    exprfun -> "{primitivefun}"
+
+    expression -> "{exprfun}"
+    expression -> "{exprapp}"
+    expression -> "{exprarith}"
+    expression -> "{primitive}"
+    expression -> "{exprcst}"
+    expression -rare> "..{digit}"
+
+    exprarith -often> "{variable}"
+    exprarith -> "({exprarith})"
+    exprarith -> "{exprarith} + {exprarith}"
+    exprarith -> "{exprarith} - {exprarith}"
+    exprarith -> "{exprarith} * {exprarith}"
+    exprarith -> "{exprarith} / {exprarith}"
+    exprarith -> "{exprarith} : {exprarith}"
+    exprarith -rare> "{expression}"
+
+    exprcst -> "{string}"
+    exprcst -> "{number}"
+
+    primitive -> "{primitivefun}"
+    primitive -> "{primitiveconstant}"
+
+    primitivefun -> "c"
+    primitivefun -> "is.null"
+
+    primitiveconstant -> "NULL"
+    primitiveconstant -> "TRUE"
+    primitiveconstant -> "FALSE"
+    primitiveconstant -> "NA"
+
