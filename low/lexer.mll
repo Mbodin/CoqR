@@ -125,7 +125,7 @@ rule lex = parse
   | "?"         { QUESTION_MARK (install_and_save "?") }
   | "<-"        { LEFT_ASSIGN (install_and_save "<-") }
   | "<<-"       { LEFT_ASSIGN (install_and_save "<<-") }
-  | ":="        { LEFT_ASSIGN (install_and_save ":=") }
+  | ":="        { LEFT_ASSIGN (install_and_save ":=") } (* TODO: Check *)
   | "="         { EQ_ASSIGN (install_and_save "=") }
   | "->"        { RIGHT_ASSIGN (install_and_save "->") }
   | "~"         { TILDE (install_and_save "~") }

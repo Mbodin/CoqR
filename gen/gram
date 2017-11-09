@@ -1,114 +1,209 @@
 
-    start -> "{program}"
+# Syntax:
+#   nonterminal -> list (atoms) ;
+#   Atoms are either a string to be printed, or a nonterminal.
+#   Strings accepts three escape characters: \\, \", and \n, associated with the usual meaning.
+#   Variants of the arrow -> exists:
+#       -often>
+#       -rare>
+#   The generation algrithm is as followed, parametrised by two probabilities Poften and Prare:
+#   - with probability Poften, a reduction marked as -often> is taken, randomly (uniformly).
+#   - otherwise, with probability Prare, a reduction marked either as -often> or -> is taken, randomly (uniformly).
+#   - otherwise, a reduction marked either as -often>, ->, or -rare> is taken, randomly (uniformly).
+#   This algorithm is repeated until no nonterminal are left.
 
-    variable -> "a"
-    variable -> "b"
-    variable -> "x"
-    variable -> "d"
-    variable -> "e"
-    variable -> "f"
+    start -> program ;
 
-    string -often> "\"{stringcontent}\""
-    string -> "'\{stringcontent}'"
+    variable -> "a" ;
+    variable -> "b" ;
+    variable -> "x" ;
+    variable -> "d" ;
+    variable -> "e" ;
+    variable -> "f" ;
 
-    stringcontent -> ""
-    stringcontent -> "a"
-    stringcontent -> "b"
-    stringcontent -> "c"
-    stringcontent -> "{stringcontent}{stringcontent}"
+    string -often> "\"" stringcontent "\"" ;
+    string -> "'\" stringcontent "'" ;
 
-    number -> "{sign}{numbers}"
-    number -> "{sign}{numbers}L"
-    number -> "{sign}{numbers}i"
-    number -> "{sign}{numbers}e{numbers}"
+    stringcontent -> ;
+    stringcontent -> "a" ;
+    stringcontent -> "b" ;
+    stringcontent -> "c" ;
+    stringcontent -> " " ;
+    stringcontent -> stringcontent stringcontent ;
 
-    sign -> ""
-    sign -> "-"
-    sign -rare> "+"
+    number -> sign digits ;
+    number -> sign digits "L" ;
+    number -> sign digits "i" ;
+    number -> sign digits "e" digits ;
 
-    numbers -often> "{digit}{numbers}"
-    numbers -> "{digit}"
+    sign -> ;
+    sign -> "-" ;
+    sign -rare> "+" ;
 
-    digit -> "0"
-    digit -> "1"
-    digit -> "2"
-    digit -> "3"
-    digit -> "4"
-    digit -> "5"
-    digit -> "6"
-    digit -> "7"
-    digit -> "8"
-    digit -> "9"
+    digits -often> digit digits ;
+    digits -> digit ;
 
-    function -> "function () {programret}"
-    function -> "function ({argument}) {programret}"
-    function -> "function ({argument}, {argument}) {programret}"
-    function -rare> "function ({argument}, {argument}, {argument}) {programret}"
-    function -rare> "function ({argument}, {argument}, {argument}, {argument}) {programret}"
+    digit -> "0" ;
+    digit -> "1" ;
+    digit -> "2" ;
+    digit -> "3" ;
+    digit -> "4" ;
+    digit -> "5" ;
+    digit -> "6" ;
+    digit -> "7" ;
+    digit -> "8" ;
+    digit -> "9" ;
 
-    argument -often> "{variable}"
-    argument -> "{variable} = {expression}"
-    argument -rare> "..."
+    function -> "function () " programret ;
+    function -> "function (" argument ") " programret ;
+    function -> "function (" argument ", " argument ") " programret ;
+    function -rare> "function (" argument ", " argument ", " argument ") " programret ;
+    function -rare> "function (" argument ", " argument ", " argument ", " argument ") " programret ;
 
-    programret -> "{expression}"
-    programret -> "\{\n{program}\n\}"
-    programret -> "\{\n{program}\n{expression} \}"
+    argument -often> variable ;
+    argument -> variable " = " expression ;
+    argument -rare> "..." ;
 
-    program -> "{lefthandside} <- {expression}"
-    program -rare> "{lefthandside} <- {lefthandside} <- {expression}"
-    program -rare> "{lefthandside} <- {lefthandside} <- {lefthandside} <- {expression}"
-    program -rare> "{expression} -> {lefthandside}"
-    program -rare> "{expression} -> {lefthandside} -> {lefthandside}"
+    programret -> expression ;
+    programret -> "{\n" program "\n}" ;
+    programret -> "{\n" program "\n" expression " }" ;
 
-    program -> "{exprapp}"
-    program -rare> "{expression}"
+    programatom -> lefthandside asn expression ;
+    programatom -rare> lefthandside asn lefthandside asn expression ;
+    programatom -rare> lefthandside asn lefthandside asn lefthandside asn expression ;
+    programatom -rare> expression " -> " lefthandside ;
+    programatom -rare> expression " -> " lefthandside " -> " lefthandside ;
+    programatom -rare> lefthandside asn expression " -> " lefthandside ;
 
-    program -> "if (\expression) \{\n{program} \}"
-    program -> "if (\expression) \{\n{program}\n\} else \{\n{program} \}"
+    asn -often> " <- " ;
+    asn -> " <<- " ;
+    asn -> " = " ;
 
-    program -often> "{program} ;\n{program}"
-    program -> ""
+    programatom -> exprapp ;
+    programatom -rare> expression ;
+    programatom -rare> "{ " program " }" ;
 
-    lefthandside -often> "{variable}"
-    lefthandside -rare> "attr({lefthandside}, {string})"
+    programatom -> "if (" expression " programatom ;
+    programatom -> "if (" expression " programatom " else " programatom ;
+    programatom -> "if (" expression " {\n" program " }" ;
+    programatom -> "if (" expression " {\n" program "\n} else {\n" program " }" ;
 
-    exprapp -> "{exprfun} ()"
-    exprapp -> "{exprfun} ({expression})"
-    exprapp -> "{exprfun} ({expression}, {expression})"
-    exprapp -> "{exprfun} ({expression}, {expression}, {expression})"
-    exprapp -> "{exprfun} ({expression}, {expression}, {expression}, {expression})"
+    program -often> programatom " ;\n" program ;
+    program -> ;
 
-    exprfun -> "{variable}"
-    exprfun -> "{function}"
-    exprfun -> "{primitivefun}"
+    lefthandside -often> variable ;
+    lefthandside -rare> "attr (" lefthandside ", " string ")" ;
+    lefthandside -rare> string ;
 
-    expression -> "{exprfun}"
-    expression -> "{exprapp}"
-    expression -> "{exprarith}"
-    expression -> "{primitive}"
-    expression -> "{exprcst}"
-    expression -rare> "..{digit}"
+    exprapp -> exprfun " ()" ;
+    exprapp -> exprfun " (" expression ")" ;
+    exprapp -> exprfun " (" expression ", " expression ")" ;
+    exprapp -> exprfun " (" expression ", " expression ", " expression ")" ;
+    exprapp -> exprfun " (" expression ", " expression ", " expression ", " expression ")" ;
 
-    exprarith -often> "{variable}"
-    exprarith -> "({exprarith})"
-    exprarith -> "{exprarith} + {exprarith}"
-    exprarith -> "{exprarith} - {exprarith}"
-    exprarith -> "{exprarith} * {exprarith}"
-    exprarith -> "{exprarith} / {exprarith}"
-    exprarith -> "{exprarith} : {exprarith}"
-    exprarith -rare> "{expression}"
+    exprfun -> variable ;
+    exprfun -> function ;
+    exprfun -> primitivefun ;
+    exprfun -rare> exprapp ;
 
-    exprcst -> "{string}"
-    exprcst -> "{number}"
+    expression -> exprfun ;
+    expression -> exprapp ;
+    expression -> exprlookup ;
+    expression -> exprarith ;
+    expression -> exprbool ;
+    expression -> primitive ;
+    expression -> exprcst ;
+    expression -rare> ".." digit ;
 
-    primitive -> "{primitivefun}"
-    primitive -> "{primitiveconstant}"
+    exprarith -often> variable ;
+    exprarith -often> "(" exprarith ")" ;
+    exprarith -> exprarith " + " exprarith ;
+    exprarith -> exprarith " - " exprarith ;
+    exprarith -> exprarith " * " exprarith ;
+    exprarith -> exprarith " / " exprarith ;
+    exprarith -> exprarith " ^ " exprarith ;
+    exprarith -> exprarith " %% " exprarith ;
+    exprarith -> exprarith " : " exprarith ;
+    exprarith -rare> exprarith " ~ " exprarith ;
+    exprarith -> expression ;
+    exprarith -rare> exprbool ;
 
-    primitivefun -> "c"
-    primitivefun -> "is.null"
+    exprbool -often> variable ;
+    exprbool -often> "(" exprbool ")" ;
+    exprbool -> exprarith " > " exprarith ;
+    exprbool -> exprarith " >= " exprarith ;
+    exprbool -> exprarith " < " exprarith ;
+    exprbool -> exprarith " <= " exprarith ;
+    exprbool -> exprarith " == " exprarith ;
+    exprbool -> exprarith " != " exprarith ;
+    exprbool -> exprbool " & " exprbool ;
+    exprbool -> exprbool " | " exprbool ;
+    exprbool -> "! " exprbool ;
+    exprbool -rare> exprarith ;
 
-    primitiveconstant -> "NULL"
-    primitiveconstant -> "TRUE"
-    primitiveconstant -> "FALSE"
-    primitiveconstant -> "NA"
+    exprlookup -> expression " [" expression "]" ;
+    exprlookup -> expression " [[" expression "]]" ;
+    exprlookup -rare> expression " [" expression ", " expression "]" ;
+    exprlookup -rare> expression " [[" expression ", " expression "]]" ;
+
+    exprcst -> string ;
+    exprcst -> number ;
+
+    primitive -> primitivefun ;
+    primitive -> primitiveconstant ;
+
+    primitivefun -> "c" ;
+    primitivefun -> primitiveis ;
+    primitivefun -> primitiveas ;
+    primitivefun -> primitivesummary ;
+    primitivefun -> "attr" ;
+
+    primitiveis -> "is.null" ;
+    primitiveis -> "is.logical" ;
+    primitiveis -> "is.integer" ;
+    primitiveis -> "is.double" ;
+    primitiveis -> "is.complex" ;
+    primitiveis -> "is.character" ;
+    primitiveis -> "is.symbol" ;
+    primitiveis -> "is.name" ;
+    primitiveis -> "is.environment" ;
+    primitiveis -> "is.list" ;
+    primitiveis -> "is.pairlist" ;
+    primitiveis -> "is.expression" ;
+    primitiveis -> "is.numeric" ;
+    primitiveis -> "is.matrix" ;
+    primitiveis -> "is.array" ;
+    primitiveis -> "is.atomic" ;
+    primitiveis -> "is.recursive" ;
+    primitiveis -> "is.call" ;
+    primitiveis -> "is.language" ;
+    primitiveis -> "is.function" ;
+    primitiveis -> "is.single" ;
+    primitiveis -> "is.na" ;
+    primitiveis -> "is.nan" ;
+    primitiveis -> "is.finite" ;
+    primitiveis -> "is.infinite" ;
+    primitiveis -> "is.vector" ;
+
+    primitiveas -> "as.character" ;
+    primitiveas -> "as.integer" ;
+    primitiveas -> "as.double" ;
+    primitiveas -> "as.numeric" ;
+    primitiveas -> "as.complex" ;
+    primitiveas -> "as.logical" ;
+    primitiveas -> "as.call" ;
+    primitiveas -> "as.environment" ;
+    primitiveas -> "as.vector" ;
+
+    primitivesummary -> "sum" ;
+    primitivesummary -> "min" ;
+    primitivesummary -> "max" ;
+    primitivesummary -> "prod" ;
+    primitivesummary -> "mean" ;
+    primitivesummary -> "range" ;
+
+    primitiveconstant -> "NULL" ;
+    primitiveconstant -> "TRUE" ;
+    primitiveconstant -> "FALSE" ;
+    primitiveconstant -> "NA" ;
 
