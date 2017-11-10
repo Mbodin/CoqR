@@ -3,7 +3,7 @@
 #   nonterminal -> list (atoms) ;
 #   Atoms are either a string to be printed, or a nonterminal.
 #   Strings accepts three escape characters: \\, \", and \n, associated with the usual meaning.
-#   Variants of the arrow -> exists:
+#   Variants of the arrow -> exist:
 #       -often>
 #       -rare>
 #   The generation algrithm is as followed, parametrised by two probabilities Poften and Prare:
@@ -19,16 +19,17 @@
     variable -> "x" ;
     variable -> "d" ;
     variable -> "e" ;
-    variable -> "f" ;
+    variable -rare> "f" ;
 
     string -often> "\"" stringcontent "\"" ;
-    string -> "'\" stringcontent "'" ;
+    string -> "'" stringcontent "'" ;
 
     stringcontent -> ;
     stringcontent -> "a" ;
     stringcontent -> "b" ;
     stringcontent -> "c" ;
     stringcontent -> " " ;
+    stringcontent -> digit ;
     stringcontent -> stringcontent stringcontent ;
 
     number -> sign digits ;
@@ -63,6 +64,7 @@
     argument -often> variable ;
     argument -> variable " = " expression ;
     argument -rare> "..." ;
+    argument -rare> primitivefun ;
 
     programret -> expression ;
     programret -> "{\n" program "\n}" ;
@@ -81,12 +83,12 @@
 
     programatom -> exprapp ;
     programatom -rare> expression ;
-    programatom -rare> "{ " program " }" ;
+    programatom -rare> "{\n" program "\n}" ;
 
-    programatom -> "if (" expression " programatom ;
-    programatom -> "if (" expression " programatom " else " programatom ;
-    programatom -> "if (" expression " {\n" program " }" ;
-    programatom -> "if (" expression " {\n" program "\n} else {\n" program " }" ;
+    programatom -> "if (" expression ") " programatom ;
+    programatom -> "if (" expression ") " programatom " else " programatom ;
+    programatom -> "if (" expression ") {\n" program " }" ;
+    programatom -> "if (" expression ") {\n" program "\n} else {\n" program " }" ;
 
     program -often> programatom " ;\n" program ;
     program -> ;
@@ -94,12 +96,16 @@
     lefthandside -often> variable ;
     lefthandside -rare> "attr (" lefthandside ", " string ")" ;
     lefthandside -rare> string ;
+    lefthandside -rare> primitivefun ;
 
     exprapp -> exprfun " ()" ;
-    exprapp -> exprfun " (" expression ")" ;
-    exprapp -> exprfun " (" expression ", " expression ")" ;
-    exprapp -> exprfun " (" expression ", " expression ", " expression ")" ;
-    exprapp -> exprfun " (" expression ", " expression ", " expression ", " expression ")" ;
+    exprapp -> exprfun " (" callarg ")" ;
+    exprapp -> exprfun " (" callarg ", " callarg ")" ;
+    exprapp -> exprfun " (" callarg ", " callarg ", " callarg ")" ;
+    exprapp -> exprfun " (" callarg ", " callarg ", " callarg ", " callarg ")" ;
+
+    callarg -often> expression ;
+    callarg -rare> variable " = " expression ;
 
     exprfun -> variable ;
     exprfun -> function ;
@@ -116,6 +122,7 @@
     expression -rare> ".." digit ;
 
     exprarith -often> variable ;
+    exprarith -often> number ;
     exprarith -often> "(" exprarith ")" ;
     exprarith -> exprarith " + " exprarith ;
     exprarith -> exprarith " - " exprarith ;
@@ -140,6 +147,7 @@
     exprbool -> exprbool " | " exprbool ;
     exprbool -> "! " exprbool ;
     exprbool -rare> exprarith ;
+    exprbool -rare> expression ;
 
     exprlookup -> expression " [" expression "]" ;
     exprlookup -> expression " [[" expression "]]" ;
@@ -152,11 +160,15 @@
     primitive -> primitivefun ;
     primitive -> primitiveconstant ;
 
-    primitivefun -> "c" ;
+    primitivefun -> primitivebasic ;
     primitivefun -> primitiveis ;
     primitivefun -> primitiveas ;
     primitivefun -> primitivesummary ;
-    primitivefun -> "attr" ;
+
+    primitivebasic -> "c" ;
+    primitivebasic -> "seq" ;
+    primitivebasic -> "attr" ;
+    primitivebasic -> "list" ;
 
     primitiveis -> "is.null" ;
     primitiveis -> "is.logical" ;
