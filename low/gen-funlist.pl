@@ -16,6 +16,40 @@ my $fileExist = $false ;
 
 $fileExist = $true if -f $coqFile ;
 
+
+print "Creating $mlFile…\n" ;
+
+unlink $mlFile if -f $mlFile ;
+
+open (my $mlStream, '>', $mlFile) or die "Could not create file $mlFile for some reason." ;
+print $mlStream "(* This file has been automatically generated. *)\n" ;
+print $mlStream "(* This file is meant to be rewritten at each compilation: save your changes elsewhere if you really want to edit it. *)\n" ;
+print $mlStream "open Low\n" ;
+print $mlStream "open DebugType\n" ;
+print $mlStream "let funlist =\n" ;
+
+my $exitedBecauseOfError = $true ;
+
+END {
+    if ($exitedBecauseOfError) {
+        print "The generation failed for some reason."
+            . " Generating a dummy file instead."
+            . " Some features will be absent from the final program." ;
+        print $mlStream "[]\n" ;
+        print $mlStream "let _ = prerr_endline \"Warning: "
+            . "the generation of the file $mlFile failed for some reason."
+            . " Some features are absent from this program."
+            . " To investigate on the issue, you may remove the file $mlFile and recompile the project.\"\n" ;
+        close $mlStream ;
+    }
+
+    # A quick clean-up.
+    if (not $fileExist) {
+        unlink $coqFile ;
+    }
+}
+
+
 print "Generating Coq file…\n" ;
 
 if ($fileExist) {
@@ -34,16 +68,7 @@ open (PIPE, "cat low/funlist.v |"
     . "coqtop -R ./lib Lib -R ./lib/tlc/src TLC -R ./low Low -noglob -quiet |")
     or die "Can’t execute Coq for some reason." ;
 
-print "Generating ML file from output…\n" ;
-
-unlink $mlFile if -f $mlFile ;
-
-open (my $mlStream, '>', $mlFile) or die "Could not create file $mlFile for some reason." ;
-print $mlStream "(* This file has been automatically generated. *)\n" ;
-print $mlStream "(* This file is meant to be rewritten at each compilation: save your changes elsewhere if you really want to edit it. *)\n" ;
-print $mlStream "open Low\n" ;
-print $mlStream "open DebugType\n" ;
-print $mlStream "let funlist =\n" ;
+print "Translating output to $mlFile…\n" ;
 
 my $acc = "" ;
 
@@ -109,7 +134,7 @@ while (my $row = <PIPE>){
                     elsif ($endType eq "int" or $endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
                     elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
                     elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
-                    else { die "Should not happen." ; }
+                    else { die "Unknown result type: " . $endType . ". This should not happen." ; }
 
                     my $argNum = 0 ;
 
@@ -136,7 +161,7 @@ while (my $row = <PIPE>){
                         } elsif ($argType eq "SExpRec_pointer") {
                             $beginFunction = "Argument_pointer (fun p" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " p" . $argNum . $endFunction ;
-                        } else { die "Should not happen." ; }
+                        } else { die "Unknown argument type: " . $argType . ". This should not happen." ; }
 
                         $endFunction .= ")" ;
                     }
@@ -162,5 +187,6 @@ if (not $fileExist) {
     unlink $coqFile ;
 }
 
+$exitedBecauseOfError = $false ;
 print "Done.\n" ;
 

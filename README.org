@@ -62,9 +62,7 @@ We can now clone the project.
 
 We need to compile TLC.
 #+BEGIN_SRC bash
-    cd lib/tlc/src
-    make
-    cd ../../..
+    make tlc
 #+END_SRC
 
 The Makefile should now work.

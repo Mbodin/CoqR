@@ -33,26 +33,38 @@ Makefile: ;
 
 phony: ;
 
-.PHONY: all clean phony all_interp clean_interp
+.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc
+
+clean_all: clean clean_tlc
+
+tlc:
+	cd lib/tlc/src ; make ; cd ../../..
+
+clean_tlc:
+	cd lib/tlc/src ; make clean ; cd ../../..
 
 all_interp: low/runR.native low/runR.d.byte
 
 clean_interp:
 	rm low/runR.native || true
-	rm -R low/_build || true
+	rm -Rf low/_build || true
+	rm -f low.ml{,i} || true
+	rm -f low/low.ml{,i} || true
 	rm -f low/funlist.ml || true
 
-low/funlist.ml: low/Extraction.vo low/gen-funlist.pl
+low/funlist.ml: low/low.mli low/gen-funlist.pl
 	low/gen-funlist.pl
 
-low/runR.native: low/Extraction.vo ${OCAMLFILES} low/funlist.ml
+low/low.ml: low/Extraction.vo
 	mv low.ml low/low.ml || true
+
+low/low.mli: low/Extraction.vo
 	mv low.mli low/low.mli || true
+
+low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 	cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.native ; cd ..
 
 # Debug mode
-low/runR.d.byte: low/Extraction.vo ${OCAMLFILES} low/funlist.ml
-	mv low.ml low/low.ml || true
-	mv low.mli low/low.mli || true
+low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 	cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
 
