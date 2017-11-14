@@ -90,7 +90,7 @@ let rec parse_args opt readable fetch s g r cont l = function
       print_and_continue opt g (f g r s) s (fun n g s -> string_of_float) (fun s _ -> cont s))
   | Result_string f ->
     cont l (fun cont s ->
-      print_and_continue opt g (f g r s) s (fun n g s -> print_string) (fun s _ -> cont s))
+      print_and_continue opt g (f g r s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
   | Result_pointer f ->
     cont l (fun cont s ->
       print_and_continue opt g (f g r s) s (fun n g s p ->

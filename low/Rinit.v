@@ -155,14 +155,28 @@ Definition mkPRIMSXP_init S :=
 (** The end of [InitNames], from main/names.c **)
 Definition InitNames_install S :=
   let%defined R_FunTab := runs_R_FunTab runs using S in
-  let%success _ :=
+  run%success
     fold_left (fun c r =>
         let%success i := r using S in
-        let%success _ :=
-          installFunTab globals runs S c i using S in
+        run%success installFunTab globals runs S c i using S in
         result_success S (1 + i)) (result_success S 0) R_FunTab using S in
+  run%success
+    fold_left (fun c r =>
+        run%success r using S in
+        let%success sym := install globals runs S c using S in
+        SET_SPECIAL_SYMBOL S sym true) (result_skip S) Spec_name using S in
+  result_skip S.
+
+(** Called from [InitNames], defined in main/eval.c **)
+Definition R_initAssignSymbols S :=
+  run%success
+    fold_left (fun c r =>
+      run%success r using S in
+      run%success install globals runs S c using S in
+      (* TODO: Store the result into [asymSymbol]. *)
+      result_skip S) (result_skip S) asym using S in
   (* TODO *)
-  result_success S tt.
+  result_skip S.
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -268,8 +282,11 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success primCache :=
     mkPRIMSXP_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
-  let%success _ :=
+  run%success
     InitNames_install globals (runs max_step globals) S using S in
+  run%success
+    R_initAssignSymbols globals (runs max_step globals) S using S in
+  (* TODO: initializeDDVALSymbols, R_initialize_bcode, R_init_altrep *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs max_step globals) S using S in

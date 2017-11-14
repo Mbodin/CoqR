@@ -214,6 +214,16 @@ Definition installFunTab S c offset : result unit :=
   write%defined p := p_ using S in
   result_success S tt.
 
+Definition Spec_name :=
+  [ "if" ; "while" ; "repeat" ; "for" ; "break" ; "next" ; "return" ; "function" ;
+    "(" ; "{" ;
+    "+" ; "-" ; "*" ; "/" ; "^" ; "%%" ; "%/%" ; "%*%" ; ":" ;
+    "==" ; "!=" ; "<" ; ">" ; "<=" ; ">=" ;
+    "&" ; "|" ; "&&" ; "||" ; "!" ;
+    "<-" ; "<<-" ; "=" ;
+    "$" ; "[" ; "[[" ;
+    "$<-" ; "[<-" ; "[[<-" ]%string.
+
 End Parameters.
 
 

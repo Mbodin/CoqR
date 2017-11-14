@@ -74,16 +74,21 @@ my $acc = "" ;
 
 sub check {
     my ($name) = @_ ;
+    my $nameMaj = $name ;
+    $nameMaj =~ s/^([A-Z])/\L$1/ ;
     # This function checks whether a given function has been extracted into OCaml by Coq.
     open (FILE, $extractedFile) or die "Unable to open file $extractedFile for some reason." ;
     while (<FILE>){
         if (/^val $name :/) {
             close FILE ;
-            return $true ;
+            return $name ;
+        } elsif (/^val $nameMaj :/) {
+            close FILE ;
+            return $nameMaj ;
         }
     }
     close FILE ;
-    return $false ;
+    return "" ;
 }
 
 while (my $row = <PIPE>){
@@ -107,31 +112,33 @@ while (my $row = <PIPE>){
                 $acc =~ s/^ runs_type ->// ;
             }
 
-            my $beginFunction = "(fun " ;
-            if ($useGlobals) { $beginFunction .= "g " ; } else { $beginFunction .= "_ " ; }
-            if ($useRuns) { $beginFunction .= "r " ; } else { $beginFunction .= "_ " ; }
-            $beginFunction .= "s -> " ;
-            $beginFunction .= $funName ;
-            if ($useGlobals) { $beginFunction .= " g" ; }
-            if ($useRuns) { $beginFunction .= " r" ; }
-            $beginFunction .= " s" ;
-
-            my $endFunction = ")" ;
-
             if ($acc =~ /^ state ->( (unit|bool|nat|int|float|SExpRec_pointer) ->)* result (unit|bool|nat|int|float|string|SExpRec_pointer)/){
                 # This function is of interest for us.
                 $acc =~ s/^ state ->// ;
 
                 # Checking that it has indeed been extracted.
-                if (check ($funName)) {
+                my $camlName = check ($funName) ;
+                if (not ($camlName eq "")) {
+
+                    my $beginFunction = "(fun " ;
+                    if ($useGlobals) { $beginFunction .= "g " ; } else { $beginFunction .= "_ " ; }
+                    if ($useRuns) { $beginFunction .= "r " ; } else { $beginFunction .= "_ " ; }
+                    $beginFunction .= "s -> " ;
+                    $beginFunction .= $camlName ;
+                    if ($useGlobals) { $beginFunction .= " g" ; }
+                    if ($useRuns) { $beginFunction .= " r" ; }
+                    $beginFunction .= " s" ;
+
+                    my $endFunction = ")" ;
+
                     $acc =~ /result (unit|bool|nat|int|float|string|SExpRec_pointer)$/ ;
                     my $endType = $1 ;
                     $acc =~ s/result .*//g ;
 
                     if ($endType eq "unit") { $beginFunction = "Result_unit " . $beginFunction ; }
                     elsif ($endType eq "bool") { $beginFunction = "Result_bool " . $beginFunction ; }
-                    elsif ($endType eq "nat") { $beginFunction = "Result_int " . $beginFunction ; }
-                    elsif ($endType eq "int" or $endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
+                    elsif ($endType eq "int" or $endType eq "nat") { $beginFunction = "Result_int " . $beginFunction ; }
+                    elsif ($endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
                     elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
                     elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
                     else { die "Unknown result type: " . $endType . ". This should not happen." ; }

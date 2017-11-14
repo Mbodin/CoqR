@@ -38,10 +38,10 @@ phony: ;
 clean_all: clean clean_tlc
 
 tlc:
-	cd lib/tlc/src ; make ; cd ../../..
+	cd lib/tlc ; make ; cd ../..
 
 clean_tlc:
-	cd lib/tlc/src ; make clean ; cd ../../..
+	cd lib/tlc ; make clean ; cd ../..
 
 all_interp: low/runR.native low/runR.d.byte
 

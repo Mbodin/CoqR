@@ -113,8 +113,7 @@ Definition CTXT_BUILTIN := 64.
   in the file include/Rinternals.h. **)
 
 Definition PRINTNAME S x :=
-  read%defined x_ := x using S in
-  let%sym x_, x_sym := x_ using S in
+  read%sym _, x_sym := x using S in
   result_success S (sym_pname x_sym).
 
 Definition CHAR S x :=
@@ -281,14 +280,9 @@ Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result 
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
   while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
-    read%list v_, v_list := v using S in
-    read%list n_, n_list := n using S in
-    let v_list := set_tag_list (list_tagval n_list) v_list in
-    let v_ := {|
-        NonVector_SExpRec_header := v_ ;
-        NonVector_SExpRec_data := v_list
-      |} in
-    write%defined v := v_ using S in
+    read%list _, n_list := n using S in
+    set%tag v := list_tagval n_list using S in
+    read%list _, v_list := v using S in
     result_success S (list_cdrval v_list, list_cdrval n_list) using S, runs in
   result_success S newrho.
 
@@ -888,11 +882,23 @@ Definition matchArgs_dots S
 
 Definition matchArgs_check S
     (supplied : SExpRec_pointer) : result unit :=
-  fold%success acc := false
+  fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along supplied
-  as b, b_, b_list do
-    result_success S (decide (acc \/ argused b_ <> 0)) using S, runs, globals in
-  if acc : bool then
+  as _, b_, b_list do
+    ifb argused b_ <> 0 then
+      ifb last = R_NilValue then
+        let (S, unused) := CONS S (list_carval b_list) R_NilValue in
+        set%tag unused := list_tagval b_list using S in
+        result_success S (unused, unused)
+      else
+        let (S, l) := CONS S (list_carval b_list) R_NilValue in
+        set%cdr last := l using S in
+        read%list _, last_list := last using S in
+        let last := list_cdrval last_list in
+        set%tag last := list_tagval b_list using S in
+        result_success S (unused, last)
+    else result_success S (unused, last) using S, runs, globals in
+  ifb last <> R_NilValue then
     result_error S "[matchArgs_check] Unused argument(s)."
   else
     result_skip S.
@@ -1219,7 +1225,9 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
     read%env _, rho_env := rho using S in
     result_rsuccess S (env_enclos rho_env)
   using S, runs in
-  result_error S "[findFun3] Could not find function".
+  let%success str_symbol := PRINTNAME S symbol using S in
+  let%success str_symbol_ := CHAR S str_symbol using S in
+  result_error S ("[findFun3] Could not find function “" ++ str_symbol_ ++ "”.").
 
 
 (** ** attrib.c **)

@@ -7,7 +7,7 @@ type funtype =
   | Result_bool of (globals -> runs_type -> state -> bool result)
   | Result_int of (globals -> runs_type -> state -> int result)
   | Result_float of (globals -> runs_type -> state -> float result)
-  | Result_string of (globals -> runs_type -> state -> string result)
+  | Result_string of (globals -> runs_type -> state -> char list result)
   | Result_pointer of (globals -> runs_type -> state -> sExpRec_pointer result)
 
   | Argument_unit of (unit -> funtype)

@@ -262,7 +262,7 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
           indent d ^ "Env: Frame: " ^ print_pointer t s g (env_frame env) ^
           indent (d + 5) ^ "Enclos: " ^ print_pointer t s g (env_enclos env)
         | CloSxp0 clo ->
-          indent d ^ "Clo: Frame: " ^ print_pointer t s g (clo.clo_formals) ^
+          indent d ^ "Clo: Formals: " ^ print_pointer t s g (clo.clo_formals) ^
           indent (d + 5) ^ "Body: " ^ print_pointer t s g (clo.clo_body) ^
           indent (d + 5) ^ "Env: " ^ print_pointer t s g (clo.clo_env)
         | PromSxp0 prom ->
@@ -306,11 +306,11 @@ let rec iterate_on_list failure f f_end s g p =
         )
       | _ -> failure "[iterate_on_list] Vector element found instead of a list."
 
-let rec print_SExpRec_like_R d s g e =
+let rec print_SExpRec_like_R d s g p e =
   let fetch_print_SExpRec_like_R p =
     match get_memory_cell s p with
     | None -> "(Invalid pointer)"
-    | Some e -> print_SExpRec_like_R d s g e in
+    | Some e -> print_SExpRec_like_R d s g p e in
   let print_vector t f v =
     let v = vecSxp_data (vector_SExpRec_vecsxp v) in
     if v = [] then
@@ -352,8 +352,17 @@ let rec print_SExpRec_like_R d s g e =
   let print_nonvector = function
     | PrimSxp p -> string_of_int (prim_offset p)
     | SymSxp0 s -> fetch_print_SExpRec_like_R (sym_pname s)
-    | ListSxp0 l -> ""
-    | EnvSxp0 e -> ""
+    | ListSxp0 l ->
+      iterate_on_list
+        (fun str -> "{ Error: " ^ str ^ " }")
+        (fun c t str ->
+          (if t = g R_NilValue then ""
+           else ("(" ^ fetch_print_SExpRec_like_R t ^ ": "))
+          ^ fetch_print_SExpRec_like_R c
+          ^ (if t = g R_NilValue then "" else ")")
+          ^ (if str = "" then "" else ", " ^ str)) "" s g p
+    | EnvSxp0 e ->
+      fetch_print_SExpRec_like_R (env_frame e)
     | CloSxp0 c -> ""
     | PromSxp0 p -> "value: " ^ fetch_print_SExpRec_like_R (prom_value p) in
   let base =
@@ -385,10 +394,10 @@ let rec print_SExpRec_like_R d s g e =
       "" s g (attrib (get_SExpRecHeader e)) in
   base ^ attrs
 
-let print_SExpRec d (opts, print_unlike_R) t s g e =
+let print_SExpRec d (opts, print_unlike_R) t s g p e =
   if print_unlike_R then
     print_SExpRec_debug d opts t s g e
-  else print_SExpRec_like_R d s g e
+  else print_SExpRec_like_R d s g p e
 
 let remove_siblings l =
   let l' = List.stable_sort (fun (k1, _) (k2, _) -> compare k1 k2) l in
@@ -405,7 +414,7 @@ let heap_to_list h =
 let print_memory_cell_expr d s g expr_options t i e =
   let si = print_pointer t s g (Some i) in
   si ^ ": " ^
-  print_SExpRec (d + String.length si + 2) expr_options t s g e
+  print_SExpRec (d + String.length si + 2) expr_options t s g (Some i) e
 
 let print_memory d s g t no_temporary expr_options m =
   String.concat (indent d) (List.filter (fun str -> str <> "")
@@ -418,7 +427,7 @@ let print_memory d s g t no_temporary expr_options m =
 let print_pointed_value d expr_options t s g p =
   match get_memory_cell s p with
   | None -> "(Invalid pointer)"
-  | Some e -> print_SExpRec d expr_options t s g e
+  | Some e -> print_SExpRec d expr_options t s g p e
 
 let rec print_list d expr_options t s g p =
   if p = g R_NilValue then ""
@@ -434,9 +443,9 @@ let rec print_list d expr_options t s g p =
                  else print_pointed_value d expr_options t s g (list_tagval l)) ^ ": "
           ^ print_pointed_value (d + 2) expr_options t s g (list_carval l) ^ "} "
           ^ print_list d expr_options t s g (list_cdrval l)
-        | _ -> "(not a list: " ^ print_SExpRec d expr_options t s g e ^ ")")
+        | _ -> "(not a list: " ^ print_SExpRec d expr_options t s g p e ^ ")")
       | _ ->
-        "(not a list: " ^ print_SExpRec d expr_options t s g e ^ ")"
+        "(not a list: " ^ print_SExpRec d expr_options t s g p e ^ ")"
 
 let rec print_context d t s g ctxt =
   "next context:" ^
