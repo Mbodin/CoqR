@@ -264,22 +264,22 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
 
 (** ** Vectors **)
 
-Definition read_cell_Vector_SExpRec A B S (v : Vector_SExpRec A) n f : result B :=
-  let%defined c := nth_option n v using S in
+Definition read_cell_Vector_SExpRec A `{Inhab A} B (v : Vector_SExpRec A) n f : result B :=
+  let c := ArrayList.read v n in
   f c.
 
-Notation "'read%cell' c ':=' v 'at' n 'using' S 'in' cont" :=
-  (read_cell_Vector_SExpRec S v n (fun c => cont))
+Notation "'read%cell' c ':=' v 'at' n 'in' cont" :=
+  (read_cell_Vector_SExpRec v n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
 
 Definition update_Vector_SExpRec A (v : Vector_SExpRec A) n c :=
-  ifb n < length v then
+  ifb n < ArrayList.length v then
     Some {|
         Vector_SExpRec_header := v ;
         Vector_SExpRec_vecsxp := {|
             VecSxp_length := VecSxp_length v ;
-            VecSxp_data := update n c v
+            VecSxp_data := ArrayList.write v n c
           |}
       |}
   else None.
@@ -300,7 +300,7 @@ Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorChar A S e_ n f : result A :=
   let%VectorChar e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -309,7 +309,7 @@ Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Char A S e n f : result A :=
   read%VectorChar e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Char' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -342,7 +342,7 @@ Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorLogical A S e_ n f : result A :=
   let%VectorLogical e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -351,7 +351,7 @@ Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Logical A S e n f : result A :=
   read%VectorLogical e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Logical' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -384,7 +384,7 @@ Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorInteger A S e_ n f : result A :=
   let%VectorInteger e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -393,7 +393,7 @@ Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Integer A S e n f : result A :=
   read%VectorInteger e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Integer' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -426,7 +426,7 @@ Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorComplex A S e_ n f : result A :=
   let%VectorComplex e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -435,7 +435,7 @@ Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Complex A S e n f : result A :=
   read%VectorComplex e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Complex' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -468,7 +468,7 @@ Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorReal A S e_ n f : result A :=
   let%VectorReal e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -477,7 +477,7 @@ Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Real A S e n f : result A :=
   read%VectorReal e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Real' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -510,7 +510,7 @@ Notation "'read%VectorPointer' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorPointer A S e_ n f : result A :=
   let%VectorPointer e_ := e_ using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -519,7 +519,7 @@ Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Pointer A S e n f : result A :=
   read%VectorPointer e_ := e using S in
-  read%cell c := e_ at n using S in
+  read%cell c := e_ at n in
   f c.
 
 Notation "'read%Pointer' c ':=' e 'at' n 'using' S 'in' cont" :=

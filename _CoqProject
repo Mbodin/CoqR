@@ -8,6 +8,7 @@
 -R ./lib/tlc/src TLC
 
 ./lib/Shared.v
+./lib/Array.v
 
 
 -R ./low Low

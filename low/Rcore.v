@@ -118,7 +118,7 @@ Definition PRINTNAME S x :=
 
 Definition CHAR S x :=
   read%VectorChar x_vector := x using S in
-  result_success S (list_to_string x_vector).
+  result_success S (list_to_string (ArrayList.to_list x_vector)).
 
 Definition SET_MISSING S e (m : nat) I :=
   map%gp e with @NBits.write_nbits 16 4 0 (NBits.nat_to_nbits m I) ltac:(NBits.nbits_ok) using S in
@@ -238,7 +238,7 @@ Definition R_cycle_detected S s child :=
           let%success b := r using S in
           if b then r
           else runs_R_cycle_detected runs S s e)
-          (result_success S false) (VecSxp_data child_)
+          (result_success S false) (ArrayList.to_list (VecSxp_data child_))
       else result_success S false.
 
 
@@ -401,7 +401,7 @@ Definition inherits S s name :=
         else
           let%success str_ := CHAR S str using S in
           result_success S (decide (str_ = name)))
-        (result_success S false) (VecSxp_data klass_vector) using S in
+        (result_success S false) (ArrayList.to_list (VecSxp_data klass_vector)) using S in
     result_success S b
   else
     result_success S false.

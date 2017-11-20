@@ -16,6 +16,7 @@ Set Extraction AccessOpaque.
    (otherwise, useless errors will be launched). *)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
+
 Extract Inductive positive => "int"
 [ "(fun p -> 1 + (2 * p))"
   "(fun p -> 2 * p)"
@@ -78,10 +79,17 @@ Extract Constant HeapList.heap "'a" "'b" => "('a, 'b) PMap.t".
 Extract Constant HeapList.empty => "Obj.magic PMap.create compare".
 Extract Constant HeapList.write => "fun h k v -> PMap.add k v h".
 Extract Constant HeapList.to_list => "fun h -> PMap.foldi (fun k v l -> (k, v) :: l) h []".
-Extract Constant HeapList.read => "fun comparable h k -> PMap.find k h".
-Extract Constant HeapList.read_option => "fun comparable h k -> try Some (PMap.find k h) with Not_found -> None".
-Extract Constant HeapList.rem => "fun comparable h k -> PMap.remove k h".
-Extract Constant HeapList.indom_decidable => "fun comparable h k -> PMap.mem k h".
+Extract Constant HeapList.read => "fun _(*comparable*) h k -> PMap.find k h".
+Extract Constant HeapList.read_option => "fun _(*comparable*) h k -> try Some (PMap.find k h) with Not_found -> None".
+Extract Constant HeapList.rem => "fun _(*comparable*) h k -> PMap.remove k h".
+Extract Constant HeapList.indom_decidable => "fun _(*comparable*) h k -> PMap.mem k h".
+
+Extract Constant ArrayList.array "'a" => "(int * (int, 'a) PMap.t)".
+Extract Constant ArrayList.length => "fst".
+Extract Constant ArrayList.read => "fun (_, a) i -> PMap.find i a".
+Extract Constant ArrayList.write => "fun (n, a) i v -> (n, PMap.add i v a)".
+Extract Constant ArrayList.from_list => "fun l -> List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l".
+Extract Constant ArrayList.to_list => "fun (n, a) -> let rec aux i = if i = n then [] else PMap.find i a :: aux (i + 1) in aux 0".
 
 (*Extract Constant ascii_comparable => "(=)".
 Extract Constant lt_int_decidable => "(<)".

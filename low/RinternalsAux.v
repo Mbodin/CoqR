@@ -565,52 +565,60 @@ Definition make_SExpRec_prim attrib prim type :=
       (make_PrimSxp_struct prim)).
 
 Definition make_SExpRec_char attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorChar
     (make_Vector_SExpRec
-      (build_SExpRecHeader CharSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader CharSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_lgl attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorLogical
     (make_Vector_SExpRec
-      (build_SExpRecHeader LglSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader LglSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_int attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorInteger
     (make_Vector_SExpRec
-      (build_SExpRecHeader IntSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader IntSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_real attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorReal
     (make_Vector_SExpRec
-      (build_SExpRecHeader RealSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader RealSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_cplx attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorComplex
     (make_Vector_SExpRec
-      (build_SExpRecHeader CplxSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader CplxSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_str attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader StrSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader StrSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_vec attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader VecSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader VecSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 Definition make_SExpRec_expr attrib array :=
+  let array := ArrayList.from_list array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
-      (build_SExpRecHeader ExprSxp (decide (length array = 1)) attrib)
-      (make_VecSxp_struct (length array) array)).
+      (build_SExpRecHeader ExprSxp (decide (ArrayList.length array = 1)) attrib)
+      (make_VecSxp_struct (ArrayList.length array) array)).
 
 
 (** * Instances **)
@@ -634,4 +642,13 @@ Defined.
 Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
   prove_comparable_simple_inductive.
 Defined.
+
+Instance character_Inhab : Inhab character.
+Proof. apply prove_Inhab. repeat constructors. Qed.
+
+Instance double_Inhab : Inhab double.
+Proof. apply prove_Inhab. repeat constructors. Qed.
+
+Instance RComplex_Inhab : Inhab RComplex.
+Proof. apply prove_Inhab. repeat constructors. Qed.
 

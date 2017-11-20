@@ -240,9 +240,9 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
       " length:" ^ string_of_int (vecSxp_length v) ^
       if show_data then
         if vector_line then
-          indent d ^ String.concat " " (List.map f (vecSxp_data v))
+          indent d ^ String.concat " " (List.map f (ArrayList.to_list (vecSxp_data v)))
         else
-          String.concat "" (List.map (fun x -> indent d ^ f x) (vecSxp_data v))
+          String.concat "" (List.map (fun x -> indent d ^ f x) (ArrayList.to_list (vecSxp_data v)))
       else "" in
     match e with
     | SExpRec_NonVector e ->
@@ -274,7 +274,7 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
       "(vector char)" ^
       if charvec_string then
         let v = vector_SExpRec_vecsxp v in
-        indent d ^ "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
+        indent d ^ "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
       else
         print_vector print_character v
     | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector print_logical v
@@ -312,7 +312,7 @@ let rec print_SExpRec_like_R d s g p e =
     | None -> "(Invalid pointer)"
     | Some e -> print_SExpRec_like_R d s g p e in
   let print_vector t f v =
-    let v = vecSxp_data (vector_SExpRec_vecsxp v) in
+    let v = ArrayList.to_list (vecSxp_data (vector_SExpRec_vecsxp v)) in
     if v = [] then
       t ^ "(0)"
     else
@@ -373,7 +373,7 @@ let rec print_SExpRec_like_R d s g p e =
       "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
     | SExpRec_VectorChar v ->
       let v = vector_SExpRec_vecsxp v in
-      "\"" ^ char_list_to_string (vecSxp_data v) ^ "\""
+      "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
     | SExpRec_VectorLogical v ->
       print_vector "logical" print_logical v
     | SExpRec_VectorInteger v ->

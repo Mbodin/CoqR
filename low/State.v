@@ -6,7 +6,6 @@ Require Export String.
 Require Export RinternalsAux TLC.LibHeap Shared.
 Require Import TLC.LibStream.
 
-
 (** * A Model for the C Memory **)
 
 (** The global state of the C memory. In particular, it maps SEXP
