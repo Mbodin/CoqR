@@ -4,7 +4,7 @@
 
 Set Implicit Arguments.
 
-Require Export TLC.LibString TLC.LibInt.
+Require Export Array TLC.LibString TLC.LibInt.
 Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
 
 
@@ -156,9 +156,7 @@ Record NonVector_SExpRec := make_NonVector_SExpRec {
 Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     VecSxp_length : nat ;
     (* VecSxp_truelength : nat ; *)
-    (** As stated in the R-ints documentation, such a structure is
-      followed by an array. We represent this as a list in Coq. **)
-    VecSxp_data :> list A
+    VecSxp_data :> array A
   }.
 
 (** VECTOR_SEXPREC **)

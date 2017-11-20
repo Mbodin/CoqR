@@ -51,6 +51,7 @@ clean_interp:
 	rm -f low.ml{,i} || true
 	rm -f low/low.ml{,i} || true
 	rm -f low/funlist.ml || true
+	# If there if a file low/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
 
 low/funlist.ml: low/low.mli low/gen-funlist.pl
 	low/gen-funlist.pl
