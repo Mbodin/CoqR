@@ -29,6 +29,9 @@ let show_state_after_computation = ref false
 let only_parsing = ref false
 let fetch_result = ref true
 
+let initial_state = ref ""
+
+
 (** * Generating List of Options **)
 
 let boolean_switches =
@@ -145,7 +148,10 @@ let sort_commands =
 
 let _ =
     Arg.parse
-      (sort_commands (("-non-interactive", Arg.Clear interactive, "Non-interactive mode") :: make_options "-" "default"))
+      (sort_commands (
+        ("-non-interactive", Arg.Clear interactive, "Non-interactive mode") ::
+        ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state") ::
+          make_options "-" "default"))
       (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
       "This programs aims at mimicking the core of R. Usage:\n\trunR.native [OPTIONS]\nCommands are parsed from left to right.\nDuring interactive mode, type “#help” to get some help."
 
@@ -161,9 +167,19 @@ let find_opt f l =
   try Some (List.find f l) with
   | Not_found -> None
 
+type type_s_globals = Low.state * Low.globals
+
 let _ =
-  print_endline "Initialising…" ;
-  Print.print_defined (Low.setup_Rmainloop !max_steps Low.empty_state) Low.empty_state (fun s globals ->
+  let initialising_function =
+    if !initial_state = "" then (
+      print_endline "Initialising…" ;
+      Low.setup_Rmainloop !max_steps Low.empty_state
+    ) else (
+      print_endline ("Reading state from " ^ !initial_state ^ "…") ;
+      let inchannel = open_in_bin !initial_state in
+      let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
+      Low.Result_success (s, globals)) in
+  Print.print_defined initialising_function Low.empty_state (fun s globals ->
     if !show_globals_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
@@ -214,6 +230,10 @@ let _ =
               print_endline (Print.print_list 2 (expr_options ()) !readable_pointers s globals p) in
             let print_list_fun _ =
               print_endline (Debug.list_all_fun 2) in
+            let save_state str =
+              print_endline ("Saving current state into the file " ^ str ^ "…") ;
+              let outchannel = open_out_bin str in
+              Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures] in
             sort_commands (
               ("#help", Arg.Unit print_help, "Print this list of command") ::
               ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
@@ -222,13 +242,22 @@ let _ =
               ("#show-list", Arg.String get_and_print_list, "Assuming that the requested memory cell is a list, print the list.") ::
               ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
               ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
-              make_options "#" "current") in
+              ("#save-state", Arg.String save_state, "Save the state into an external file (this state can be reused using -initial-state)") ::
+                make_options "#" "current") in
           let interactive_options = interactive_options () in
-          let check_change_state seen_state_change = function
-            | "#execute" | "#show" | "#show-list" ->
-              if seen_state_change then
-                prerr_endline "Warning: pointers are parsed before the first state change. Possible inconsistency." ;
-            | _ -> () in
+          let check_change_state seen_state_change cmd =
+            let parsing_warning = function
+              | "#execute" | "#show" | "#show-list" ->
+                if seen_state_change then
+                  prerr_endline "Warning: pointers are parsed before the first state change. Possible inconsistency." ;
+              | _ -> () in
+            let printing_warning = function
+              | "#show" | "#show-list" | "#save-state" ->
+                if seen_state_change then
+                  prerr_endline "Warning: the state is printed before its first change. Possible inconsistency." ;
+              | _ -> () in
+            parsing_warning cmd ;
+            printing_warning cmd in
           let rec parse_args at_leat_one seen_state_change cont = function
             | [] ->
               let s = cont s in

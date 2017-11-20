@@ -9,3 +9,5 @@ _build
 *.native
 *.byte
 
+*.state
+

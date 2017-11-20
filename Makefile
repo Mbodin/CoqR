@@ -33,7 +33,7 @@ Makefile: ;
 
 phony: ;
 
-.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc
+.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run
 
 clean_all: clean clean_tlc
 
@@ -44,6 +44,9 @@ clean_tlc:
 	cd lib/tlc ; make clean ; cd ../..
 
 all_interp: low/runR.native low/runR.d.byte
+
+run: low/runR.native low/initial.state
+	low/runR.native -initial-state low/initial.state
 
 clean_interp:
 	rm low/runR.native || true
@@ -68,4 +71,8 @@ low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 # Debug mode
 low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 	cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
+
+# To launch the program faster
+low/initial.state: low/runR.native
+	echo "#save-state low/initial.state\n#quit" | low/runR.native
 

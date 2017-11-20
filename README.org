@@ -82,6 +82,14 @@ which are (briefly) described by the following invocation:
     low/runR.native -help
 #+END_SRC
 
+Initialising the program can take some time.
+To save computations time, the program enables to save and load previous
+states from memory.
+A faster-to-load version is available with the following invocation.
+#+BEGIN_SRC bash
+    make run
+#+END_SRC
+
 
 * Files Description
 
