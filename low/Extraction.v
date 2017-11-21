@@ -66,10 +66,10 @@ Extract Constant N.modulo => "mod".
 Extract Constant N.compare =>
  "fun x y -> if x=y then Eq else if x<y then Lt else Gt".
 
-Extract Inductive Fappli_IEEE.binary_float => "float" [
-  "(fun s -> if s then (0.) else (-0.))"
-  "(fun s -> if s then infinity else neg_infinity)"
-  "(fun _ -> nan)"
+Extract Inductive Fappli_IEEE.full_float => "float" [
+  "(fun s -> if s then (-0.) else (0.))"
+  "(fun s -> if s then neg_infinity else infinity)"
+  "let f = fun (b, p) -> nan in f" (** This is probably wrong, because of [NA_real_]… **)
   "(fun (s, m, e) -> failwith ""FIXME: No extraction from binary float allowed yet."")"
 ].
 

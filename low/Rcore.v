@@ -32,7 +32,15 @@ Definition read_R_FunTab S n :=
     end
   end.
 
-Definition int_to_double : int -> double := Fappli_IEEE_bits.b64_of_bits.
+(* Any check would be greatly appreciated on the values of floats marked with a FIXME. *)
+
+Definition int_to_double (i : int) : double :=
+  (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
+  match i with
+  | Z0 => Fappli_IEEE.F754_zero false
+  | Zpos p => Fappli_IEEE.F754_finite false p 64
+  | Zneg p => Fappli_IEEE.F754_finite true p 64
+  end.
 
 Local Coercion int_to_double : Z >-> double.
 
@@ -40,11 +48,19 @@ Local Coercion int_to_double : Z >-> double.
 Definition INT_MIN : int := - 2 ^ 31.
 
 Definition R_NaInt := INT_MIN.
-Definition R_PosInf := 0 : double (* TODO *).
-Definition R_NaN := 0 : double (* TODO *).
+Definition R_PosInf := Fappli_IEEE.F754_infinity false : double.
+Definition R_NegInf := Fappli_IEEE.F754_infinity true : double.
+Definition R_NaN : double := Fappli_IEEE.F754_nan false 1.
+  (* FIXME: refine (Fappli_IEEE.B754_nan _ _ false (exist _ 1%positive _)). reflexivity.*)
 Definition NA_INTEGER := R_NaInt.
 Definition NA_LOGICAL := R_NaInt.
-Definition NA_REAL := R_NaInt : double (* TODO: CHECK *).
+Definition R_NaReal :=
+  (** This is defined in R (in main/arithmetic.c, function R_ValueOfNA) as the raw bit
+    conversion from the two-integer word whose first component is 0x7ff00000 (that is,
+    2146435072) and the second 1954. **)
+  (* FIXME: Fappli_IEEE_bits.b64_of_bits (2146435072 + 1954 * 2 ^ 32).*)
+  Fappli_IEEE.F754_nan true 1954.
+Definition NA_REAL := R_NaReal : double.
 
 Definition NILSXP := 0.
 Definition SYMSXP := 1.

@@ -167,7 +167,7 @@ Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
 
 Definition character := Ascii.ascii.
 
-Definition double : Type := Fappli_IEEE_bits .binary64.
+Definition double : Type := Fappli_IEEE.full_float.
 
 Record RComplex := make_Rcomplex {
     Rcomplex_r : double ;
