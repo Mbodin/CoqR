@@ -1,14 +1,12 @@
 
--arg "-w -notation-overridden,-overriding-logical-loadpath"
-
--R ./lib Lib
-
-# Flocq
+-arg "-w -notation-overridden"
 
 -R ./lib/tlc/src TLC
 
-./lib/Shared.v
-./lib/Array.v
+-R ./lib/extra Lib
+
+./lib/extra/Shared.v
+./lib/extra/Array.v
 
 
 -R ./low Low
