@@ -35,8 +35,8 @@ let initial_state = ref ""
 (** * Generating List of Options **)
 
 let boolean_switches =
-  let make_boolean_switch categories dep verb_small_on verb_small_off verb_verbatim_on verb_verbatim_off pointer command noun =
-    (categories, dep, verb_small_on, verb_small_off, verb_verbatim_on, verb_verbatim_off, pointer, command, noun) in
+  let make_boolean_switch categories dep verb_small_on verb_small_off verb_verbatim_on verb_verbatim_off pointer command noun expert =
+    (categories, dep, verb_small_on, verb_small_off, verb_verbatim_on, verb_verbatim_off, pointer, command, noun, expert) in
   let category_print = ("show", "hide", "all", "Show", "Hide", "every available information about the state", false) in
   let category_read = ("human", "computer", "readable", "human", "computer", "Makes the output easily readable by a", true) in
   let category_computation = ("show", "hide", "computations", "Show", "Hide", "intermediate computations", false) in
@@ -47,45 +47,46 @@ let boolean_switches =
   let computation_switch categories dep =
     make_boolean_switch (category_computation :: categories) dep "show" "hide" "Show" "Do not show" in
   let print_unlike_R =
-    make_boolean_switch [] [] "unlike" "like" "Do not" "Try to (this is an experimental feature)" print_unlike_R "R" "print results as R would" in
+    make_boolean_switch [] [] "unlike" "like" "Do not" "Try to (this is an experimental feature)" print_unlike_R "R" "print results as R would" false in
   let print_globals =
-    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" in
+    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" false in
   let print_initials =
-    print_switch [] [] show_initials "initials" "the value of constant global variables" in
+    print_switch [] [] show_initials "initials" "the value of constant global variables" true in
   let show_data_switch =
-    print_switch [] [print_unlike_R] show_data "data" "the data of vectors" in
+    print_switch [] [print_unlike_R] show_data "data" "the data of vectors" false in
   let show_gp_switch =
-    print_switch [] [print_unlike_R] show_gp "gp" "the general purpose field of basic language elements" in
+    print_switch [] [print_unlike_R] show_gp "gp" "the general purpose field of basic language elements" true in
   let show_result =
-    computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" in
+    computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" false in
   [
-    print_switch [] [] show_memory "memory" "the state of the memory" ;
-    print_switch [] [] show_context "context" "the execution context" ;
+    print_switch [] [] show_memory "memory" "the state of the memory" true ;
+    print_switch [] [] show_context "context" "the execution context" true ;
     print_unlike_R ;
-    computation_switch [] [] always_print_pointer "pointer-result" "the value of the pointer returned even when trying to mimic R" ;
+    computation_switch [] [] always_print_pointer "pointer-result" "the value of the pointer returned even when trying to mimic R" true ;
     print_globals ;
     print_initials ;
-    print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" ;
+    print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" true ;
     show_gp_switch ;
-    print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" ;
+    print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" true ;
     show_data_switch ;
-    print_switch [] [] show_details "details" "the pointers stored in each basic language element" ;
-    write_switch [] [] readable_pointers "abr" "pointers in a human readable way" ;
-    write_switch [] [show_data_switch] vector_line "inline-vector" "vectors as line instead of column" ;
-    write_switch [] [show_data_switch] charvec_string "string" "character vectors as strings instead of a list of characters" ;
-    write_switch [] [show_gp_switch] gp_opt "num-gp" "the general purpose field as a number instead of a bit vector" ;
+    print_switch [] [] show_details "details" "the pointers stored in each basic language element" true ;
+    write_switch [] [] readable_pointers "abr" "pointers in a human readable way" false ;
+    write_switch [] [show_data_switch] vector_line "inline-vector" "vectors as line instead of column" false ;
+    write_switch [] [show_data_switch] charvec_string "string" "character vectors as strings instead of a list of characters" false ;
+    write_switch [] [show_gp_switch] gp_opt "num-gp" "the general purpose field as a number instead of a bit vector" true ;
     show_result ;
-    computation_switch [] [show_result] fetch_result "result-value" "the value of pointed by the current computation" ;
-    computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" ;
-    computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" ;
-    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input"
+    computation_switch [] [show_result] fetch_result "result-value" "the value pointed by the current computation" true ;
+    computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" false ;
+    computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" true ;
+    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true
   ]
 
-let get_pointer (_, _, _, _, _, _, p, _, _) = p
-let get_categories (l, _, _, _, _, _, _, _, _) = l
-let get_dependencies (_, d, _, _, _, _, _, _, _) = d
+let get_pointer (_, _, _, _, _, _, p, _, _, _) = p
+let get_categories (l, _, _, _, _, _, _, _, _, _) = l
+let get_dependencies (_, d, _, _, _, _, _, _, _, _) = d
+let is_expert (_, _, _, _, _, _, _, _, _, e) = e
 
-let name_switch v (_, _, vsy, vsn, vvy, vvn, p, c, n) =
+let name_switch v (_, _, vsy, vsn, vvy, vvn, p, c, n, _) =
   (if v then vsy else vsn) ^ "-" ^ c
 
 let base_suffix = "-base"
@@ -99,22 +100,27 @@ let all_categories =
     | [] -> c
   in aux [] boolean_switches
 
-let make_options prefix default =
+let make_options expert prefix default =
   let name_switch v b = prefix ^ name_switch v b in
   let name_switch_base v b = prefix ^ name_switch_base v b in
-  [(prefix ^ "no-temporary", Arg.Set no_temporary, "Do not show basic element with a temporary named field") ;
-   (prefix ^ "steps", Arg.Set_int max_steps, "Set the maximum number of steps of the interpreter") ;
-   (prefix ^ "only-parsing", Arg.Set only_parsing, "Synonym of " ^ prefix ^ "disable-evaluation") ]
+  let doc_strict str =
+    if expert then str else "" in
+  [(prefix ^ "no-temporary", Arg.Set no_temporary, doc_strict "Do not show basic element with a temporary named field.") ;
+   (prefix ^ "steps", Arg.Set_int max_steps, doc_strict "Set the maximum number of steps of the interpreter.") ;
+   (prefix ^ "only-parsing", Arg.Set only_parsing, doc_strict ("Synonym of " ^ prefix ^ "disable-evaluation.")) ]
   @ List.concat (List.map (fun b ->
-      let (_, d, vsy, vsn, vvy, vvn, p, c, n) = b in
+      let (_, d, vsy, vsn, vvy, vvn, p, c, n, e) = b in
+      let doc str =
+        if e = true && expert = false then ""
+        else str in
       let deps = String.concat " " (List.map (name_switch true) d) in
       let print_dep =
         " (to be used in combination with " ^ deps ^ ")" in
       let default b =
         if b then " (" ^ default ^ ")" else "" in
       let ret dep_text print_dep = [
-          (name_switch true b ^ dep_text, Arg.Set p, vvy ^ " " ^ n ^ print_dep ^ default !p) ;
-          (name_switch false b ^ dep_text, Arg.Clear p, vvn ^ " " ^ n ^ print_dep ^ default (not !p))
+          (name_switch true b ^ dep_text, Arg.Set p, doc_strict (vvy ^ " " ^ n ^ print_dep ^ "." ^ default !p)) ;
+          (name_switch false b ^ dep_text, Arg.Clear p, doc_strict (vvn ^ " " ^ n ^ print_dep ^ "." ^ default (not !p)))
         ] in
       let set_with_dep v _ =
         List.iter (fun b -> get_pointer b := true) d ;
@@ -124,21 +130,24 @@ let make_options prefix default =
       else
         ret base_suffix print_dep @ [
             (name_switch true b, Arg.Unit (set_with_dep true),
-              vvy ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base true b ^ ")") ;
+              doc (vvy ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base true b ^ ").")) ;
             (name_switch false b, Arg.Unit (set_with_dep false),
-              vvn ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base false b ^ ")")
+              doc (vvn ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base false b ^ ")."))
           ]) boolean_switches)
   @ List.concat (List.map (fun c ->
       let this_category =
         List.filter (fun b -> List.mem c (get_categories b)) boolean_switches in
       let (vsy, vsn, c, vvy, vvn, e, r) = c in
       let equivalent v =
-        " (equivalent to " ^ String.concat " " (List.map (name_switch_base v) this_category) ^ ")" in
+        " (equivalent to " ^ String.concat " " (List.map (name_switch_base v) this_category) ^ ")." in
       let all v _ =
         List.iter (fun b -> get_pointer b := v) this_category in [
         (prefix ^ vsy ^ "-" ^ c, Arg.Unit (all true), (if r then e ^ " " ^ vvy else vvy ^ " " ^ e) ^ equivalent true) ;
         (prefix ^ vsn ^ "-" ^ c, Arg.Unit (all false), (if r then e ^ " " ^ vvn else vvn ^ " " ^ e) ^ equivalent false) ;
       ]) all_categories)
+
+let text_expert prefix =
+  "This program accepts a large number of options. To avoid frightening new users, they are hidden by default. This option makes " ^ prefix ^ "help print all of them."
 
 let sort_commands =
   List.sort (fun (s1, _, _) (s2, _, _) -> compare s1 s2)
@@ -147,11 +156,21 @@ let sort_commands =
 (** * Reading Arguments **)
 
 let _ =
-    Arg.parse
-      (sort_commands (
-        ("-non-interactive", Arg.Clear interactive, "Non-interactive mode") ::
-        ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state") ::
-          make_options "-" "default"))
+    let arguments = ref [] in
+    let all_arguments =
+      sort_commands (
+        ("-non-interactive", Arg.Clear interactive, "Non-interactive mode.") ::
+        ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state.") ::
+        ("-expert-mode", Arg.Unit (fun _ -> prerr_endline "This program is already in expert mode."), text_expert "-" ^ " (current)") ::
+          make_options true "-" "default") in
+    let simple_arguments =
+      sort_commands (
+        ("-non-interactive", Arg.Clear interactive, "") ::
+        ("-initial-state", Arg.Set_string initial_state, "") ::
+        ("-expert-mode", Arg.Unit (fun _ -> arguments := all_arguments), text_expert "-") ::
+        make_options false "-" "default") in
+    arguments := simple_arguments ;
+    Arg.parse_dynamic arguments
       (fun str -> prerr_endline ("I do not know what to do with “" ^ str ^ "”."))
       "This programs aims at mimicking the core of R. Usage:\n\trunR.native [OPTIONS]\nCommands are parsed from left to right.\nDuring interactive mode, type “#help” to get some help."
 
@@ -168,6 +187,8 @@ let find_opt f l =
   | Not_found -> None
 
 type type_s_globals = Low.state * Low.globals
+
+let expert_mode = ref false
 
 let _ =
   let initialising_function =
@@ -215,9 +236,10 @@ let _ =
           success f
         | ParserUtils.Command cmd ->
           (** Parsing commands **)
-          let rec interactive_options _ =
+          let interactive_options = ref [] in
+          let rec make_interactive_options _ =
             let print_help _ =
-              List.iter (fun (c, _, h) -> print_endline ("  " ^ c ^ " " ^ h)) (interactive_options ()) in
+              List.iter (fun (c, _, h) -> if h <> "" then print_endline ("  " ^ c ^ " " ^ h)) !interactive_options in
             let dummy _ = () in
             let print_state _ =
               print_endline "State:" ;
@@ -234,17 +256,24 @@ let _ =
               print_endline ("Saving current state into the file " ^ str ^ "…") ;
               let outchannel = open_out_bin str in
               Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures] in
+            let set_expert _ =
+              expert_mode := true ;
+              interactive_options := make_interactive_options () in
             sort_commands (
-              ("#help", Arg.Unit print_help, "Print this list of command") ::
-              ("#quit", Arg.Unit dummy, "Exit the interpreter") ::
-              ("#state", Arg.Unit print_state, "Print the current state") ::
-              ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell") ::
-              ("#show-list", Arg.String get_and_print_list, "Assuming that the requested memory cell is a list, print the list.") ::
-              ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)") ::
-              ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute") ::
-              ("#save-state", Arg.String save_state, "Save the state into an external file (this state can be reused using -initial-state)") ::
-                make_options "#" "current") in
-          let interactive_options = interactive_options () in
+              List.map (fun (c, a, d, e) ->
+                  if e = true && !expert_mode = false then (c, a, "")
+                  else (c, a, d)) (
+                ("#help", Arg.Unit print_help, "Print this list of command", false) ::
+                ("#quit", Arg.Unit dummy, "Exit the interpreter", false) ::
+                ("#expert-mode", Arg.Unit set_expert, text_expert "#" ^ (if !expert_mode then " (current)" else ""), false) ::
+                ("#state", Arg.Unit print_state, "Print the current state", false) ::
+                ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell", true) ::
+                ("#show-list", Arg.String get_and_print_list, "Assuming that the requested memory cell is a list, print the list.", true) ::
+                ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)", true) ::
+                ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute", true) ::
+                ("#save-state", Arg.String save_state, "Save the state into an external file (this state can be reused using -initial-state)", true) :: []) @
+                make_options !expert_mode "#" "current") in
+          interactive_options := make_interactive_options () ;
           let check_change_state seen_state_change cmd =
             let parsing_warning = function
               | "#execute" | "#show" | "#show-list" ->
@@ -281,7 +310,7 @@ let _ =
               check_change_state seen_state_change cmd ;
               let continue l cont' =
                 parse_args true seen_state_change (fun s -> cont' (cont s)) l in
-              match find_opt (fun (c, _, _) -> c = cmd) interactive_options with
+              match find_opt (fun (c, _, _) -> c = cmd) !interactive_options with
               | None ->
                 if at_leat_one then (
                   if cmd.[0] = '#' then
