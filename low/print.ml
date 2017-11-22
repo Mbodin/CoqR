@@ -198,8 +198,10 @@ let print_named = function
   | Named_unique -> "unique"
   | Named_plural -> "plural"
 
-let print_float =
-  Printf.sprintf "%g"
+let print_float x =
+  if compare x nan = 0 then
+    if r_IsNA x then "NA" else "NaN"
+  else Printf.sprintf "%g" x
 
 let print_rComplex c =
   print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"

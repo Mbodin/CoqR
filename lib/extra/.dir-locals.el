@@ -1,5 +1,5 @@
 ((coq-mode . ((coq-load-path . (
         ("." "Lib")
-    	("tlc/src" "TLC")
+        ("../tlc/src" "TLC")
     )))))
 

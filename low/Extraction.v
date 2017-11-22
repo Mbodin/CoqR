@@ -66,10 +66,19 @@ Extract Constant N.modulo => "mod".
 Extract Constant N.compare =>
  "fun x y -> if x=y then Eq else if x<y then Lt else Gt".
 
+(* FIXME: The additional information carried by the NaN value has to be remembered because of the
+  difference between R_NaReal_ and R_NaN. *)
+Extract Constant R_NaN => "nan".
+Extract Constant R_NaReal =>
+  "(let (a, b) = (Obj.magic nan : int * int) in (Obj.magic (a, 1954) : float))".
+Extract Constant R_IsNA =>
+  "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b = 1954 else false)".
+Extract Constant R_IsNAN =>
+  "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b <> 1954 else false)".
 Extract Inductive Fappli_IEEE.full_float => "float" [
   "(fun s -> if s then (-0.) else (0.))"
   "(fun s -> if s then neg_infinity else infinity)"
-  "let f = fun (b, p) -> nan in f" (** This is probably wrong, because of [NA_real_]… **)
+  "let f = fun (b, p) -> nan in f"
   "(fun (s, m, e) -> failwith ""FIXME: No extraction from binary float allowed yet."")"
 ].
 
@@ -80,7 +89,8 @@ Extract Constant HeapList.empty => "Obj.magic PMap.create compare".
 Extract Constant HeapList.write => "fun h k v -> PMap.add k v h".
 Extract Constant HeapList.to_list => "fun h -> PMap.foldi (fun k v l -> (k, v) :: l) h []".
 Extract Constant HeapList.read => "fun _(*comparable*) h k -> PMap.find k h".
-Extract Constant HeapList.read_option => "fun _(*comparable*) h k -> try Some (PMap.find k h) with Not_found -> None".
+Extract Constant HeapList.read_option =>
+  "fun _(*comparable*) h k -> try Some (PMap.find k h) with Not_found -> None".
 Extract Constant HeapList.rem => "fun _(*comparable*) h k -> PMap.remove k h".
 Extract Constant HeapList.indom_decidable => "fun _(*comparable*) h k -> PMap.mem k h".
 
@@ -88,8 +98,10 @@ Extract Constant ArrayList.array "'a" => "(int * (int, 'a) PMap.t)".
 Extract Constant ArrayList.length => "fst".
 Extract Constant ArrayList.read => "fun (_, a) i -> PMap.find i a".
 Extract Constant ArrayList.write => "fun (n, a) i v -> (n, PMap.add i v a)".
-Extract Constant ArrayList.from_list => "fun l -> List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l".
-Extract Constant ArrayList.to_list => "fun (n, a) -> let rec aux i = if i = n then [] else PMap.find i a :: aux (i + 1) in aux 0".
+Extract Constant ArrayList.from_list =>
+  "fun l -> List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l".
+Extract Constant ArrayList.to_list =>
+  "fun (n, a) -> let rec aux i = if i = n then [] else PMap.find i a :: aux (i + 1) in aux 0".
 
 (*Extract Constant ascii_comparable => "(=)".
 Extract Constant lt_int_decidable => "(<)".
@@ -103,6 +115,6 @@ Extraction Inline Fappli_IEEE.Bdiv Fappli_IEEE_bits.b64_div.
 
 (* LATER: When the parser will be in Coq, most of what is forcely being extracted here will be useless. *)
 Extraction "low.ml" NBits all_GlobalVariables
-  Parsing ScalarReal ScalarInteger mkNA alloc_vector_cplx R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString
+  Parsing ScalarReal ScalarInteger mkNA alloc_vector_cplx R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString R_IsNA R_IsNAN
   setup_Rmainloop empty_state eval_global.
 

@@ -50,6 +50,7 @@ run: low/runR.native low/initial.state
 
 clean_interp:
 	rm low/runR.native || true
+	rm low/runR.d.byte || true
 	rm -Rf low/_build || true
 	rm -f low.ml{,i} || true
 	rm -f low/low.ml{,i} || true

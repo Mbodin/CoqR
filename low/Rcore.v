@@ -497,6 +497,26 @@ Definition R_FixupRHS S x y :=
   else result_success S y.
 
 
+(** ** arithmetic.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/arithmetic.c. **)
+
+(* FIXME: Any check about the following two functions would be very welcomed. *)
+
+Definition R_IsNA x :=
+  match x with
+  | Fappli_IEEE.F754_nan _ i => decide (i = 1954)%positive
+  | _ => false
+  end.
+
+Definition R_IsNAN x :=
+  match x with
+  | Fappli_IEEE.F754_nan _ i => decide (i <> 1954)%positive
+  | _ => false
+  end.
+
+
 (** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
@@ -948,9 +968,9 @@ Definition matchArgs S
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
-Definition IS_SPECIAL_SYMBOL S symbol :=
-  read%defined symbol_ := symbol using S in
-  result_success S (NBits.nth_bit 12 (gp symbol_) ltac:(NBits.nbits_ok)).
+Definition IS_SPECIAL_SYMBOL S b :=
+  read%defined b_ := b using S in
+  result_success S (NBits.nth_bit 12 (gp b_) ltac:(NBits.nbits_ok)).
 
 (** This macro definition was already redundant in C. **)
 Definition NO_SPECIAL_SYMBOLS S x :=
@@ -1166,26 +1186,25 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
   read%defined rho_ := rho using S in
   ifb type rho_ = NilSxp then
     result_error S "[findVarInFrame3] Use of NULL environment is defunct."
+  else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
+    SYMBOL_BINDING_VALUE S symbol
+  else ifb rho = R_EmptyEnv then
+    result_success S (R_UnboundValue : SExpRec_pointer)
   else
-    ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
-      SYMBOL_BINDING_VALUE S symbol
-    else ifb rho = R_EmptyEnv then
-      result_success S (R_UnboundValue : SExpRec_pointer)
+    let%success user_database := IS_USER_DATABASE S rho using S in
+    ifb user_database then
+      result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
     else
-      let%success user_database := IS_USER_DATABASE S rho using S in
-      ifb user_database then
-        result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
-      else
-        (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-        let%env rho_, rho_env := rho_ using S in
-        fold%return
-        along env_frame rho_env
-        as frame, _, frame_list do
-          ifb list_tagval frame_list = symbol then
-            let%success r := BINDING_VALUE S frame using S in
-            result_rreturn S r
-          else result_rskip S using S, runs, globals in
-        result_success S (R_UnboundValue : SExpRec_pointer).
+      (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+      let%env _, rho_env := rho_ using S in
+      fold%return
+      along env_frame rho_env
+      as frame, _, frame_list do
+        ifb list_tagval frame_list = symbol then
+          let%success r := BINDING_VALUE S frame using S in
+          result_rreturn S r
+        else result_rskip S using S, runs, globals in
+      result_success S (R_UnboundValue : SExpRec_pointer).
 
 Definition findVar S symbol rho :=
   read%defined rho_ := rho using S in
@@ -1235,7 +1254,9 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
         ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
           result_rreturn S vl
         else ifb vl = R_MissingArg then
-          result_error S "[findFun3] Missing argument, with no default."
+          let%success str_symbol := PRINTNAME S symbol using S in
+          let%success str_symbol_ := CHAR S str_symbol using S in
+          result_error S ("[findFun3] Argument “" ++ str_symbol_ ++ "” is missing, with no default.")
         else result_rskip S
       else result_rskip S using S in
     read%env _, rho_env := rho using S in

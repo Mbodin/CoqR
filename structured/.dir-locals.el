@@ -2,7 +2,7 @@
         (".." "Main")
         ("../low" "Low")
         ("." "Structured")
-        ("../lib" "Lib")
+        ("../lib/extra" "Lib")
     	("../lib/tlc/src" "TLC")
     )))))
 

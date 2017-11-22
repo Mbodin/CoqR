@@ -384,6 +384,11 @@ Instance nat_lt_Decidable : forall n1 n2 : nat,
    typeclass.
 Defined.
 
+Instance positive_lt_Decidable : forall n1 n2,
+    Decidable (n1 < n2)%positive.
+  typeclass.
+Defined.
+
 Instance Z_lt_Decidable : forall n1 n2,
     Decidable (n1 < n2)%Z.
   intros. applys Decidable_equiv Z.compare_lt_iff. typeclass.
@@ -406,6 +411,11 @@ Instance nat_gt_Decidable : forall n1 n2 : nat,
   intros. applys Decidable_equiv.
    symmetry. apply nat_compare_lt.
    typeclass.
+Defined.
+
+Instance positive_gt_Decidable : forall n1 n2,
+    Decidable (n1 > n2)%positive.
+  typeclass.
 Defined.
 
 Instance Z_gt_Decidable : forall n1 n2,
@@ -432,11 +442,9 @@ Instance ge_nat_Decidable : forall n1 n2 : nat,
    typeclass.
 Defined.
 
-Instance le_nat_Decidable : forall n1 n2 : nat,
-    Decidable (@le nat le_nat_inst n1 n2).
-  intros. applys Decidable_equiv (n1 <= n2)%Z.
-   math.
-   typeclass.
+Instance positive_ge_Decidable : forall n1 n2,
+    Decidable (n1 >= n2)%positive.
+  typeclass.
 Defined.
 
 Instance ge_Decidable : forall n1 n2 : int,
@@ -446,6 +454,27 @@ Instance ge_Decidable : forall n1 n2 : int,
    typeclass.
 Defined.
 
+Instance le_nat_Decidable : forall n1 n2 : nat,
+    Decidable (@le nat le_nat_inst n1 n2).
+  intros. applys Decidable_equiv (n1 <= n2)%Z.
+   math.
+   typeclass.
+Defined.
+
+Instance positive_le_Decidable : forall n1 n2,
+    Decidable (n1 <= n2)%positive.
+  typeclass.
+Defined.
+
+
+Instance positive_Comparable : Comparable positive.
+  apply make_comparable. intros.
+  applys Decidable_equiv (let (x, y) := (Pos.to_nat x, Pos.to_nat y) in x >= y /\ x <= y).
+  - transitivity (Pos.to_nat x = Pos.to_nat y).
+    + nat_math.
+    + apply Pos2Nat.inj_iff.
+  - typeclass.
+Defined.
 
 Instance Ascii_comparable : Comparable Ascii.ascii.
   apply make_comparable. intros. applys sumbool_decidable Ascii.ascii_dec.
