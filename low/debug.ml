@@ -46,6 +46,7 @@ let rec print_type = function
   | Result_unit _ -> "unit"
   | Result_bool _ -> "bool"
   | Result_int _ -> "int"
+  | Result_int_list _ -> "int list"
   | Result_float _ -> "float"
   | Result_string _ -> "string"
   | Result_pointer _ -> "SEXP"
@@ -85,6 +86,9 @@ let rec parse_args opt readable fetch s g r cont l = function
   | Result_int f ->
     cont l (fun cont s ->
       print_and_continue opt g (f g r s) s (fun n g s -> string_of_int) (fun s _ -> cont s))
+  | Result_int_list f ->
+    cont l (fun cont s ->
+      print_and_continue opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map string_of_int l) ^ "]") (fun s _ -> cont s))
   | Result_float f ->
     cont l (fun cont s ->
       print_and_continue opt g (f g r s) s (fun n g s -> string_of_float) (fun s _ -> cont s))

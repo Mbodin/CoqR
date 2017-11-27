@@ -345,8 +345,15 @@ let _ =
                 prerr_endline ("Uncaught command: " ^ c) ;
                 loop s
           in parse_args false false (fun s -> s) (List.filter (fun s -> s <> "") (Print.split_on_char ' ' cmd))
-        with Parser.Error ->
-          print_endline ("Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".") ;
+        with
+        | Parser.Error ->
+          print_endline ("Error: Parser error at offset " ^ string_of_int (Lexing.lexeme_start buf) ^ ".") ;
+          loop s
+        | Lexer.SyntaxError msg ->
+          print_endline ("Error: Lexer error: " ^ msg ^ ".") ;
+          loop s
+        | Failure msg ->
+          print_endline ("Error: " ^ msg) ;
           loop s in
       if !interactive then loop s
       else ())

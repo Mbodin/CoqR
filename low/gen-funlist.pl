@@ -11,6 +11,17 @@ my $mlFile = "low/funlist.ml" ;
 
 my $extractedFile = "low/low.mli" ;
 
+my $generateCoq = $false ;
+
+while (@ARGV) {
+    my $arg = shift ;
+    if ($arg eq "-gen-coq-file") { $generateCoq = $true ; }
+    elsif ($arg eq "-coq") { $coqFile = shift or die "Missing argument to “$arg”." ; }
+    elsif ($arg eq "-ml") { $mlFile = shift or die "Missing argument to “$arg”." ; }
+    elsif ($arg eq "-extracted-ml") { $extractedFile = shift or die "Missing argument to “$arg”." ; }
+    else { die "Don’t know what to do with “$arg”." ; }
+}
+
 
 my $fileExist = $false ;
 
@@ -41,23 +52,23 @@ END {
             . " Some features are absent from this program."
             . " To investigate on the issue, you may remove the file $mlFile and recompile the project.\"\n" ;
         close $mlStream ;
-    }
 
-    # A quick clean-up.
-    if (not $fileExist) {
-        unlink $coqFile ;
+        # A quick clean-up.
+        if (not $fileExist and not $generateCoq) {
+            unlink $coqFile ;
+        }
     }
 }
 
 
 print "Generating Coq file…\n" ;
 
-if ($fileExist) {
+if ($fileExist and not $generateCoq) {
     print "Coq file already there, using it as-is.\n"
 } else {
     open (my $outStream, '>', $coqFile) or die "Could not create file $coqFile for some reason." ;
     print $outStream "(* This file has been automatically generated. *)\n" ;
-    print $outStream "Require Import Rinit Rparsing.\n" ;
+    print $outStream "Require Import Rcore Rinit Rparsing.\n" ;
     print $outStream "SearchAbout result.\n" ;
     close $outStream ;
 }
@@ -65,7 +76,7 @@ if ($fileExist) {
 print "Executing Coq file…\n" ;
 
 open (PIPE, "cat low/funlist.v |"
-    . "coqtop -R ./lib Lib -R ./lib/tlc/src TLC -R ./low Low -noglob -quiet |")
+    . "coqtop -R ./lib/tlc/src TLC -R ./lib/extra Lib -R ./low Low -noglob -quiet |")
     or die "Can’t execute Coq for some reason." ;
 
 print "Translating output to $mlFile…\n" ;
@@ -112,7 +123,10 @@ while (my $row = <PIPE>){
                 $acc =~ s/^ runs_type ->// ;
             }
 
-            if ($acc =~ /^ state ->( (unit|bool|nat|int|float|SExpRec_pointer) ->)* result (unit|bool|nat|int|float|string|SExpRec_pointer)/){
+            my $argReg = "(unit|bool|nat|int|float|SExpRec_pointer)" ;
+            my $resultReg = "(unit|bool|nat|int|\\(list nat\\)|\\(list int\\\)|float|string|SExpRec_pointer)" ;
+
+            if ($acc =~ /^ state ->( $argReg ->)* result $resultReg$/){
                 # This function is of interest for us.
                 $acc =~ s/^ state ->// ;
 
@@ -131,13 +145,14 @@ while (my $row = <PIPE>){
 
                     my $endFunction = ")" ;
 
-                    $acc =~ /result (unit|bool|nat|int|float|string|SExpRec_pointer)$/ ;
+                    $acc =~ /result $resultReg$/ ;
                     my $endType = $1 ;
                     $acc =~ s/result .*//g ;
 
                     if ($endType eq "unit") { $beginFunction = "Result_unit " . $beginFunction ; }
                     elsif ($endType eq "bool") { $beginFunction = "Result_bool " . $beginFunction ; }
-                    elsif ($endType eq "int" or $endType eq "nat") { $beginFunction = "Result_int " . $beginFunction ; }
+                    elsif ($endType eq "nat" or $endType eq "int") { $beginFunction = "Result_int " . $beginFunction ; }
+                    elsif ($endType eq "(list nat)" or $endType eq "(list int)") { $beginFunction = "Result_int_list " . $beginFunction ; }
                     elsif ($endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
                     elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
                     elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
@@ -145,9 +160,9 @@ while (my $row = <PIPE>){
 
                     my $argNum = 0 ;
 
-                    while ($acc =~ /(unit|bool|nat|int|float|SExpRec_pointer) -> $/){
+                    while ($acc =~ /$argReg -> $/){
                         my $argType = $1 ;
-                        $acc =~ s/(unit|bool|nat|int|float|SExpRec_pointer) -> $// ;
+                        $acc =~ s/$argReg -> $// ;
                         $argNum += 1 ;
 
                         if ($argType eq "unit") {
@@ -173,7 +188,7 @@ while (my $row = <PIPE>){
                         $endFunction .= ")" ;
                     }
 
-                    print $mlStream "(\"" . $funName . "\", " . $beginFunction . $endFunction . ") ::\n" ;
+                    print $mlStream "  (\"" . $funName . "\", " . $beginFunction . $endFunction . ") ::\n" ;
                 }
             }
         }
@@ -185,12 +200,12 @@ while (my $row = <PIPE>){
     }
 }
 
-print $mlStream "[]\n" ;
+print $mlStream "  []\n" ;
 close $mlStream ;
 
 print "Cleaning up…\n" ;
 
-if (not $fileExist) {
+if (not $fileExist and not $generateCoq) {
     unlink $coqFile ;
 }
 

@@ -39,7 +39,7 @@ let reg_imaginary = (reg_numeric as value) 'i'
 (** *** String Constants **)
 let escape_sequence =
   '\\'
-  (['\'' '"' 'n' 'r' 't' 'b' 'a' 'f' 'v' '\\']
+  (['\'' '"' 'n' 'r' 't' 'b' 'a' 'f' 'v' '\\' '\n' '`']
   |['0'-'7'] (['0'-'7'] ['0'-'7']?)?
   |'x' hexadecimal_digit hexadecimal_digit?
   (** We ignore multibyte locales for now. **))
@@ -93,84 +93,86 @@ let space = ' ' | '\t' | '\x0c' (** Form feed **) | '\xa0' (** Replacement chara
 rule lex = parse
 
   (** ** Special Symbols **)
-  | "NULL"              { NULL_CONST nilValue }
-  | "NA"                { NUM_CONST (tuple_to_result (no_runs mkNA)) }
-  | "TRUE"              { NUM_CONST (tuple_to_result (no_runs mkTrue)) }
-  | "FALSE"             { NUM_CONST (tuple_to_result (no_runs mkFalse)) }
-  | "Inf"               { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_PosInf]))) }
-  | "NaN"               { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_NaN]))) }
-  | "NA_integer_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_int g s [nA_INTEGER]))) }
-  | "NA_real_"          { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [nA_REAL]))) }
-  | "NA_character_"     { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_str g s [g NA_STRING]))) }
-  | "NA_complex_"       { NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_cplx g s [make_Rcomplex nA_REAL nA_REAL]))) }
-  | "function"          { FUNCTION (install_and_save "function") }
-  | "while"             { WHILE (install_and_save "while") }
-  | "repeat"            { REPEAT (install_and_save "repeat") }
-  | "for"               { FOR (install_and_save "for") }
-  | "if"                { IF (install_and_save "if") }
-  | "in"                { IN }
-  | "else"              { ELSE }
-  | "next"              { NEXT (install_and_save "next") }
-  | "break"             { BREAK (install_and_save "break") }
-  | "..."               { SYMBOL (install_and_save "...") }
+  | "NULL"              { eatLines := false ; NULL_CONST nilValue }
+  | "NA"                { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkNA)) }
+  | "TRUE"              { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkTrue)) }
+  | "FALSE"             { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkFalse)) }
+  | "Inf"               { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_PosInf]))) }
+  | "NaN"               { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [r_NaN]))) }
+  | "NA_integer_"       { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_int g s [nA_INTEGER]))) }
+  | "NA_real_"          { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s [nA_REAL]))) }
+  | "NA_character_"     { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_str g s [g NA_STRING]))) }
+  | "NA_complex_"       { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_cplx g s [make_Rcomplex nA_REAL nA_REAL]))) }
+  | "function"          { eatLines := true ; FUNCTION (install_and_save "function") }
+  | "while"             { eatLines := true ; WHILE (install_and_save "while") }
+  | "repeat"            { eatLines := true ; REPEAT (install_and_save "repeat") }
+  | "for"               { eatLines := true ; FOR (install_and_save "for") }
+  | "if"                { ifpush () ; eatLines := true ; IF (install_and_save "if") }
+  | "in"                { eatLines := true ; IN }
+  | "else"              { ifpop () ; eatLines := true ; ELSE }
+  | "next"              { eatLines := false ; NEXT (install_and_save "next") }
+  | "break"             { eatLines := false ; BREAK (install_and_save "break") }
+  | "..."               { eatLines := false ; SYMBOL (install_and_save "...") }
 
   (** ** Special Values **)
-  | reg_special_operator as name    { SPECIAL (install_and_save name) }
-  | reg_string                      { STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list str)))) }
-  | reg_integer                     { NUM_CONST (mkInt value) }
-  | reg_numeric as value            { NUM_CONST (mkFloat value) }
-  | reg_imaginary                   { NUM_CONST (mkComplex value) }
+  | reg_special_operator as name    { eatLines := true ; SPECIAL (install_and_save name) }
+  | reg_string                      { eatLines := false ; STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list str)))) }
+  | reg_integer                     { eatLines := false ; NUM_CONST (mkInt value) }
+  | reg_numeric as value            { eatLines := false ; NUM_CONST (mkFloat value) }
+  | reg_imaginary                   { eatLines := false ; NUM_CONST (mkComplex value) }
 
   (** ** Operators **)
-  | "?"         { QUESTION_MARK (install_and_save "?") }
-  | "<-"        { LEFT_ASSIGN (install_and_save "<-") }
-  | "<<-"       { LEFT_ASSIGN (install_and_save "<<-") }
-  | ":="        { LEFT_ASSIGN (install_and_save ":=") } (* TODO: Check *)
-  | "="         { EQ_ASSIGN (install_and_save "=") }
-  | "->"        { RIGHT_ASSIGN (install_and_save "->") }
-  | "~"         { TILDE (install_and_save "~") }
-  | "+"         { PLUS (install_and_save "+") }
-  | "-"         { MINUS (install_and_save "-") }
-  | "*"         { TIMES (install_and_save "*") }
-  | "/"         { DIV (install_and_save "/") }
-  | "^" | "**"  { EXP (install_and_save "^") }
-  | "<"         { LT (install_and_save "<") }
-  | "<="        { LE (install_and_save "<=") }
-  | ">"         { GT (install_and_save ">") }
-  | ">="        { GE (install_and_save ">=") }
-  | "=="        { EQ (install_and_save "==") }
-  | "!="        { NE (install_and_save "!=") }
-  | "!"         { NOT (install_and_save "!") }
-  | "&&"        { AND2 (install_and_save "&&") }
-  | "&"         { AND (install_and_save "&") }
-  | "||"        { OR2 (install_and_save "||") }
-  | "|"         { OR (install_and_save "|") }
-  | "$"         { DOLLAR (install_and_save "$") }
-  | "@"         { AT (install_and_save "@") }
+  | "?"         { eatLines := true ; QUESTION_MARK (install_and_save "?") }
+  | "<-"        { eatLines := true ; LEFT_ASSIGN (install_and_save "<-") }
+  | "<<-"       { eatLines := true ; LEFT_ASSIGN (install_and_save "<<-") }
+  | ":="        { eatLines := true ; LEFT_ASSIGN (install_and_save ":=") } (* TODO: Check *)
+  | "="         { eatLines := true ; EQ_ASSIGN (install_and_save "=") }
+  | "->"        { eatLines := true ; RIGHT_ASSIGN (install_and_save "->") }
+  | "~"         { eatLines := true ; TILDE (install_and_save "~") }
+  | "+"         { eatLines := true ; PLUS (install_and_save "+") }
+  | "-"         { eatLines := true ; MINUS (install_and_save "-") }
+  | "*"         { eatLines := true ; TIMES (install_and_save "*") }
+  | "/"         { eatLines := true ; DIV (install_and_save "/") }
+  | "^" | "**"  { eatLines := true ; EXP (install_and_save "^") }
+  | "<"         { eatLines := true ; LT (install_and_save "<") }
+  | "<="        { eatLines := true ; LE (install_and_save "<=") }
+  | ">"         { eatLines := true ; GT (install_and_save ">") }
+  | ">="        { eatLines := true ; GE (install_and_save ">=") }
+  | "=="        { eatLines := true ; EQ (install_and_save "==") }
+  | "!="        { eatLines := true ; NE (install_and_save "!=") }
+  | "!"         { eatLines := true ; NOT (install_and_save "!") }
+  | "&&"        { eatLines := true ; AND2 (install_and_save "&&") }
+  | "&"         { eatLines := true ; AND (install_and_save "&") }
+  | "||"        { eatLines := true ; OR2 (install_and_save "||") }
+  | "|"         { eatLines := true ; OR (install_and_save "|") }
+  | "$"         { eatLines := true ; DOLLAR (install_and_save "$") }
+  | "@"         { eatLines := true ; AT (install_and_save "@") }
   | ":::"       { NS_GET_INT (install_and_save ":::") }
   | "::"        { NS_GET (install_and_save "::") }
-  | ":"         { COLON (install_and_save ":") }
+  | ":"         { eatLines := true ; COLON (install_and_save ":") }
 
   (** ** Parentheses **)
-  | '('     { LPAR (install_and_save "(") }
-  | ')'     { RPAR }
-  | '{'     { LBRACE (install_and_save "{") }
-  | '}'     { RBRACE }
-  | "[["    { LBB (install_and_save "[[") }
-  | '['     { LSQBRACKET (install_and_save "[") }
-  | ']'     { RSQBRACKET }
+  | '('     { contextp := Contextp_Par :: !contextp ; LPAR (install_and_save "(") }
+  | ')'     { wifpop () ; contextp_pop () ; RPAR }
+  | '{'     { contextp := Contextp_Bra :: !contextp ; eatLines := true ; LBRACE (install_and_save "{") }
+  | '}'     { wifpop () ; contextp_pop () ; RBRACE }
+  | "[["    { contextp := Contextp_SqBra :: Contextp_SqBra :: !contextp ; LBB (install_and_save "[[") }
+  | '['     { contextp := Contextp_SqBra :: !contextp ; LSQBRACKET (install_and_save "[") }
+  | ']'     { wifpop () ; contextp_pop () ; RSQBRACKET }
 
   (** ** Miscellaneous **)
-  | reg_identifier as str            { SYMBOL (install_and_save str) }
-  | ';'                              { SEMICOLON }
-  | ','                              { COMMA }
-  | ('#' [^ '\n']* as cmd)? '\n'     { NEW_LINE (match cmd with Some s -> s | None -> "") }
+  | reg_identifier as str            { eatLines := false ; SYMBOL (install_and_save str) }
+  | ';'                              { ifpop () ; SEMICOLON }
+  | ','                              { ifpop () ; COMMA }
+  | ('#' [^ '\n']* as cmd)? '\n'     { if !eatLines
+                                          || contextp_hd () = Contextp_Par
+                                          || contextp_hd () = Contextp_SqBra
+                                       then lex lexbuf
+                                       else if contextp_hd () = Contextp_If then
+                                         (* TODO *)
+                                         failwith "[parser] Not yet implemented case (line break in an if-condition)."
+                                       else NEW_LINE (match cmd with Some s -> s | None -> "") }
   | space+                           { lex lexbuf }
   | _                                { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof                              { END_OF_INPUT }
-
-and eatLines = parse
-
-  | space+ ('#' [^ '\n']*)? '\n'    { eatLines lexbuf }
-  | ""                              { lex lexbuf }
 

@@ -93,3 +93,49 @@ let mkComplex str : token_type = fun g _ s ->
   let (s, e) = alloc_vector_cplx g s [c] in
   Result_success (s, e)
 
+
+(** * Global variables used in the parser **)
+
+(** The original file main/gram.y heavily uses imperative features of C.
+  These features interacts with the lexer/parser in non trivial ways.
+  The imperative variables declared here mimick these behaviours. **)
+
+let eatLines = ref false
+
+type contextp_type =
+  | Contextp_Par (** '(' in the C. **)
+  | Contextp_SqBra (** '[' in the C. **)
+  | Contextp_Bra (** LBRACE in the C. **)
+  | Contextp_If (** 'i' in the C. **)
+  | Contextp_Empty (** ' ' or 0 in the C. **)
+
+let contextp : contextp_type list ref = ref [Contextp_Empty]
+
+let contextp_hd () =
+  match !contextp with
+  | [] -> failwith "[parser] The variable “contextp” has no head."
+  | i :: _ -> i
+
+let contextp_pop () =
+  match !contextp with
+  | [] -> failwith "[parser] The variable “contextp” can’t be popped."
+  | _ :: l -> contextp := l
+
+let ifpop () =
+  if contextp_hd () = Contextp_If then contextp_pop ()
+
+let ifpush () =
+  match contextp_hd () with
+  | Contextp_Bra
+  | Contextp_SqBra
+  | Contextp_Par
+  | Contextp_If -> contextp := Contextp_If :: !contextp
+  | _ -> ()
+
+let wifpop () =
+  while contextp_hd () = Contextp_If do ifpop () done
+
+let parseInit () =
+  contextp := [Contextp_Empty] ;
+  eatLines := false
+
