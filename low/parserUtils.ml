@@ -109,7 +109,7 @@ type contextp_type =
   | Contextp_If (** 'i' in the C. **)
   | Contextp_Empty (** ' ' or 0 in the C. **)
 
-let contextp : contextp_type list ref = ref [Contextp_Empty]
+let contextp = ref [Contextp_Empty]
 
 let contextp_hd () =
   match !contextp with

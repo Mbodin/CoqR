@@ -735,11 +735,11 @@ Definition endcontext S cptr :=
 (** The function names of this section corresponds to the function names
   in the file main/match.c. **)
 
-Definition psmatch s1 s2 exact :=
+Definition psmatch f t exact :=
   if exact : bool then
-    decide (s1 = s2)
+    decide (f = t)
   else
-    String.prefix s1 s2.
+    String.prefix t f.
 
 Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   let get_name str :=
@@ -807,8 +807,7 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
                 set%car a := list_carval b_list using S in
                 run%success
                   ifb list_carval b_list <> R_MissingArg then
-                    run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-                    result_skip S
+                    SET_MISSING S a 0 ltac:(NBits.nbits_ok)
                   else result_skip S using S in
                 map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
                 result_success S 2
@@ -849,8 +848,7 @@ Definition matchArgs_second S actuals formals supplied fargused : result SExpRec
                     set%car a := list_carval b_list using S in
                     run%success
                       ifb list_carval b_list <> R_MissingArg then
-                        run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-                        result_skip S
+                        SET_MISSING S a 0 ltac:(NBits.nbits_ok)
                       else result_skip S using S in
                     map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
                     result_success S 1
@@ -905,13 +903,12 @@ Definition matchArgs_dots S dots supplied : result unit :=
     fold%success f := a
     along supplied
     as _, b_, b_list do
-      ifb argused b_ <> 0 then
-        result_success S f
-      else
+      ifb argused b_ = 0 then
         set%car f := list_carval b_list using S in
         set%tag f := list_tagval b_list using S in
         read%list _, f_list := f using S in
-        result_success S (list_cdrval f_list) using S, runs, globals in
+        result_success S (list_cdrval f_list)
+      else result_success S f using S, runs, globals in
     set%car dots := a using S in
     result_skip S.
 
@@ -919,7 +916,7 @@ Definition matchArgs_check S supplied : result unit :=
   fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along supplied
   as _, b_, b_list do
-    ifb argused b_ <> 0 then
+    ifb argused b_ = 0 then
       ifb last = R_NilValue then
         let (S, unused) := CONS S (list_carval b_list) R_NilValue in
         set%tag unused := list_tagval b_list using S in

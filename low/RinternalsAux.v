@@ -446,20 +446,17 @@ Definition set_named_unique :=
 Definition set_named_plural :=
   set_named named_plural.
 
-Definition set_gp_sxpinfo n i_info :=
-  make_SxpInfo (SExpType_restrict (type i_info))
-    (scalar i_info) (obj i_info) (alt i_info) n
-    (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
-    (named i_info).
-
-Definition set_gp n :=
-  map_sxpinfo (set_gp_sxpinfo n).
-
 Definition map_gp_sxpinfo f i_info :=
   make_SxpInfo (SExpType_restrict (type i_info))
     (scalar i_info) (obj i_info) (alt i_info) (f (gp i_info))
     (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
     (named i_info).
+
+Definition set_gp_sxpinfo n i_info :=
+  map_gp_sxpinfo (fun _ => n) i_info.
+
+Definition set_gp n :=
+  map_sxpinfo (set_gp_sxpinfo n).
 
 Definition map_gp f :=
   map_sxpinfo (map_gp_sxpinfo f).

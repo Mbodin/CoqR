@@ -153,12 +153,12 @@ rule lex = parse
 
   (** ** Parentheses **)
   | '('     { contextp := Contextp_Par :: !contextp ; LPAR (install_and_save "(") }
-  | ')'     { wifpop () ; contextp_pop () ; RPAR }
+  | ')'     { wifpop () ; contextp_pop () ; eatLines := false ; RPAR }
   | '{'     { contextp := Contextp_Bra :: !contextp ; eatLines := true ; LBRACE (install_and_save "{") }
   | '}'     { wifpop () ; contextp_pop () ; RBRACE }
   | "[["    { contextp := Contextp_SqBra :: Contextp_SqBra :: !contextp ; LBB (install_and_save "[[") }
   | '['     { contextp := Contextp_SqBra :: !contextp ; LSQBRACKET (install_and_save "[") }
-  | ']'     { wifpop () ; contextp_pop () ; RSQBRACKET }
+  | ']'     { wifpop () ; contextp_pop () ; eatLines := false ; RSQBRACKET }
 
   (** ** Miscellaneous **)
   | reg_identifier as str            { eatLines := false ; SYMBOL (install_and_save str) }

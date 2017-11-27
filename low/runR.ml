@@ -231,6 +231,7 @@ let _ =
                   else "" in
                 str ^ Print.print_pointed_value (n + String.length str) (expr_options ()) !readable_pointers s globals p)
             (fun s _ -> loop s) in
+        ParserUtils.parseInit () ;
         try match Parser.main Lexer.lex buf with
         | ParserUtils.Success f ->
           success f
