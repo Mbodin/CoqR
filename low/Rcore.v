@@ -33,6 +33,8 @@ Definition read_R_FunTab S n :=
   end.
 
 (* Any check would be greatly appreciated on the values of floats marked with a FIXME. *)
+(* LATER: Use file Fappli_IEEE_extra.v of Compcert/lib/? I need to set up a license for this
+  (either GPL or something compatible with the INRIA non-commercial license). *)
 
 Definition int_to_double (i : int) : double :=
   (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
@@ -813,61 +815,59 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
             else result_success S fargusedi
           else result_success S fargusedi using S, runs, globals
       else result_success S 0 using S in
-    read%list a_, a_list := a using S in
+    read%list _, a_list := a using S in
     result_success S (list_cdrval a_list, fargusedi :: fargusedrev) using S, runs, globals in
   result_success S (List.rev fargusedrev).
 
-Definition matchArgs_second S
-    (actuals formals supplied : SExpRec_pointer) fargused : result SExpRec_pointer :=
+Definition matchArgs_second S actuals formals supplied fargused : result SExpRec_pointer :=
   fold%success (a, fargused, dots, seendots) :=
     (actuals, fargused, R_NilValue : SExpRec_pointer, false)
   along formals
   as _, f_tag do
-      match fargused with
-      | nil => result_impossible S "[matchArgs_second] fargused has an unexpected size."
-      | fargusedi :: fargused =>
-        let%success (dots, seendots) :=
-          ifb fargusedi = 0 then
-            ifb f_tag = R_DotsSymbol /\ ~ seendots then
-              result_success S (a, true)
-            else
-              fold%success fargusedi := fargusedi
-              along supplied
-              as b, b_, b_list do
-                let b_tag := list_tagval b_list in
-                ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
-                  let%success pmatch := pmatch S f_tag b_tag seendots using S in
-                  if pmatch then
-                    ifb argused b_ <> 0 then
-                      result_error S "[matchArgs_second] Actual argument matches several formal arguments."
-                    else ifb fargusedi = 1 then
-                      result_error S "[matchArgs_second] Formal argument matched by multiple actual arguments."
-                    else
-                      (** The C code emits a warning about partial arguments here.
-                        This may be a sign that this part should be actually ignored. **)
-                      set%car a := list_carval b_list using S in
-                      run%success
-                        ifb list_carval b_list <> R_MissingArg then
-                          run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-                          result_skip S
-                        else result_skip S using S in
-                      map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
-                      result_success S 1
-                  else result_success S fargusedi
-                else result_success S fargusedi using S, runs, globals in
-              result_success S (dots, seendots)
-          else result_success S (dots, seendots) using S in
-        read%list a_, a_list := a using S in
-        result_success S (list_cdrval a_list, fargused, dots, seendots)
-      end using S, runs, globals in
+    match fargused with
+    | nil => result_impossible S "[matchArgs_second] The list/array “fargused” has an unexpected size."
+    | fargusedi :: fargused =>
+      let%success (dots, seendots) :=
+        ifb fargusedi = 0 then
+          ifb f_tag = R_DotsSymbol /\ ~ seendots then
+            result_success S (a, true)
+          else
+            fold%success fargusedi := fargusedi
+            along supplied
+            as b, b_, b_list do
+              let b_tag := list_tagval b_list in
+              ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
+                let%success pmatch := pmatch S f_tag b_tag seendots using S in
+                if pmatch then
+                  ifb argused b_ <> 0 then
+                    result_error S "[matchArgs_second] Actual argument matches several formal arguments."
+                  else ifb fargusedi = 1 then
+                    result_error S "[matchArgs_second] Formal argument matched by multiple actual arguments."
+                  else
+                    (** The C code emits a warning about partial arguments here.
+                      This may be a sign that this part should be actually ignored. **)
+                    set%car a := list_carval b_list using S in
+                    run%success
+                      ifb list_carval b_list <> R_MissingArg then
+                        run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
+                        result_skip S
+                      else result_skip S using S in
+                    map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
+                    result_success S 1
+                else result_success S fargusedi
+              else result_success S fargusedi using S, runs, globals in
+            result_success S (dots, seendots)
+        else result_success S (dots, seendots) using S in
+      read%list a_, a_list := a using S in
+      result_success S (list_cdrval a_list, fargused, dots, seendots)
+    end using S, runs, globals in
   result_success S dots.
 
-Definition matchArgs_third S
-    (formals actuals supplied : SExpRec_pointer) : result unit :=
+Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) : result unit :=
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
   while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
-    read%list f_, f_list := f using S in
-    read%list a_, a_list := a using S in
+    read%list _, f_list := f using S in
+    read%list _, a_list := a using S in
     ifb list_tagval f_list = R_DotsSymbol then
       result_success S (list_cdrval f_list, list_cdrval a_list, b, true)
     else ifb list_carval a_list <> R_MissingArg then
@@ -880,15 +880,14 @@ Definition matchArgs_third S
         set%car a := list_carval b_list using S in
         run%success
           ifb list_carval b_list <> R_MissingArg then
-            run%success SET_MISSING S a 0 ltac:(NBits.nbits_ok) using S in
-            result_skip S
+            SET_MISSING S a 0 ltac:(NBits.nbits_ok)
           else result_skip S using S in
+        map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
         result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)
   using S, runs in
   result_skip S.
 
-Definition matchArgs_dots S
-    (dots supplied : SExpRec_pointer) : result unit :=
+Definition matchArgs_dots S dots supplied : result unit :=
   run%success SET_MISSING S dots 0 ltac:(NBits.nbits_ok) using S in
   fold%success i := 0
   along supplied
@@ -911,13 +910,12 @@ Definition matchArgs_dots S
       else
         set%car f := list_carval b_list using S in
         set%tag f := list_tagval b_list using S in
-        read%list f_, f_list := f using S in
+        read%list _, f_list := f using S in
         result_success S (list_cdrval f_list) using S, runs, globals in
     set%car dots := a using S in
     result_skip S.
 
-Definition matchArgs_check S
-    (supplied : SExpRec_pointer) : result unit :=
+Definition matchArgs_check S supplied : result unit :=
   fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along supplied
   as _, b_, b_list do
@@ -940,12 +938,12 @@ Definition matchArgs_check S
     result_skip S.
 
 
-Definition matchArgs S
-    (formals supplied call : SExpRec_pointer) : result SExpRec_pointer :=
+Definition matchArgs S formals supplied (call : SExpRec_pointer) : result SExpRec_pointer :=
   fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0)
   along formals
   as _, _ do
-    let (S, actuals) := CONS S R_MissingArg actuals in
+    let (S, actuals) := CONS_NR S R_MissingArg actuals in
+    run%success SET_MISSING S actuals 1 ltac:(NBits.nbits_ok) using S in
     result_success S (actuals, 1 + argi) using S, runs, globals in
   fold%success
   along supplied

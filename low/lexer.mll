@@ -169,3 +169,8 @@ rule lex = parse
   | _                                { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof                              { END_OF_INPUT }
 
+and eatLines = parse
+
+  | space+ ('#' [^ '\n']*)? '\n'    { eatLines lexbuf }
+  | ""                              { lex lexbuf }
+
