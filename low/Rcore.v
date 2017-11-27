@@ -1523,6 +1523,8 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
               let (S, l) := CONS S prom R_NilValue in
               set%cdr tail := l using S in
               result_skip S using S in
+          read%list _, tail_list := tail using S in
+          let tail := list_cdrval tail_list in
           set%tag tail := h_tag using S in
           result_success S tail
         using S, runs, globals in
@@ -1533,17 +1535,19 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
     else ifb el_car = R_MissingArg then
       let (S, l) := CONS S R_MissingArg R_NilValue in
       set%cdr tail := l using S in
-      set%tag tail := el_tag using S in
       read%list _, tail_list := tail using S in
-      result_success S (ans, list_cdrval tail_list)
+      let tail := list_cdrval tail_list in
+      set%tag tail := el_tag using S in
+      result_success S (ans, tail)
     else
       let%success prom :=
         mkPromise S el_car rho using S in
       let (S, l) := CONS S prom R_NilValue in
       set%cdr tail := l using S in
-      set%tag tail := el_tag using S in
       read%list _, tail_list := tail using S in
-      result_success S (ans, list_cdrval tail_list)
+      let tail := list_cdrval tail_list in
+      set%tag tail := el_tag using S in
+      result_success S (ans, tail)
   using S, runs, globals in
   read%list _, ans_list := ans using S in
   result_success S (list_cdrval ans_list).
