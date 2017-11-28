@@ -310,10 +310,10 @@ Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result 
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
   while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
-    read%list _, n_list := n using S in
-    set%tag v := list_tagval n_list using S in
-    read%list _, v_list := v using S in
-    result_success S (list_cdrval v_list, list_cdrval n_list) using S, runs in
+    read%list _, n_cdr, n_tag := n using S in
+    set%tag v := n_tag using S in
+    read%list _, v_cdr, _ := v using S in
+    result_success S (v_cdr, n_cdr) using S, runs in
   result_success S newrho.
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
@@ -420,8 +420,8 @@ Definition R_length S s :=
     do%success (s, i) := (s, 0)
     while result_success S (decide (s <> NULL /\ s <> R_NilValue))
     do
-      read%list s_, s_list := s using S in
-      result_success S (list_cdrval s_list, 1 + i)
+      read%list _, s_cdr, _ := s using S in
+      result_success S (s_cdr, 1 + i)
     using S, runs in
     result_success S i
   | EnvSxp =>
@@ -671,8 +671,8 @@ Definition NewList S :=
 
 Definition GrowList S l s :=
   let (S, tmp) := CONS S s R_NilValue in
-  read%list _, l_list := l using S in
-  set%cdr list_carval l_list := tmp using S in
+  read%list l_car, _, _ := l using S in
+  set%cdr l_car := tmp using S in
   set%car l := tmp using S in
   result_success S l.
 
@@ -695,14 +695,14 @@ Definition TagArg S arg tag :=
 Definition FirstArg S s tag :=
   let%success tmp := NewList S using S in
   let%success tmp := GrowList S tmp s using S in
-  read%list _, tmp_list := tmp using S in
-  set%tag list_carval tmp_list := tag using S in
+  read%list tmp_car, _, _ := tmp using S in
+  set%tag tmp_car := tag using S in
   result_success S tmp.
 
 Definition NextArg S l s tag :=
   let%success l := GrowList S l s using S in
-  read%list _, l_list := l using S in
-  set%tag list_carval l_list := tag using S in
+  read%list l_car, _, _ := l using S in
+  set%tag l_car := tag using S in
   result_success S l.
 
 Definition CheckFormalArgs S formlist new :=
@@ -846,8 +846,8 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
             else result_success S fargusedi
           else result_success S fargusedi using S, runs, globals
       else result_success S 0 using S in
-    read%list _, a_list := a using S in
-    result_success S (list_cdrval a_list, fargusedi :: fargusedrev) using S, runs, globals in
+    read%list _, a_cdr, _ := a using S in
+    result_success S (a_cdr, fargusedi :: fargusedrev) using S, runs, globals in
   result_success S (List.rev fargusedrev).
 
 Definition matchArgs_second S actuals formals supplied fargused : result SExpRec_pointer :=
@@ -888,32 +888,32 @@ Definition matchArgs_second S actuals formals supplied fargused : result SExpRec
               else result_success S fargusedi using S, runs, globals in
             result_success S (dots, seendots)
         else result_success S (dots, seendots) using S in
-      read%list a_, a_list := a using S in
-      result_success S (list_cdrval a_list, fargused, dots, seendots)
+      read%list _, a_cdr, _ := a using S in
+      result_success S (a_cdr, fargused, dots, seendots)
     end using S, runs, globals in
   result_success S dots.
 
 Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) : result unit :=
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
   while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
-    read%list _, f_list := f using S in
-    read%list _, a_list := a using S in
-    ifb list_tagval f_list = R_DotsSymbol then
-      result_success S (list_cdrval f_list, list_cdrval a_list, b, true)
-    else ifb list_carval a_list <> R_MissingArg then
-      result_success S (list_cdrval f_list, list_cdrval a_list, b, seendots)
+    read%list _, f_cdr, f_tag := f using S in
+    read%list a_car, a_cdr, _ := a using S in
+    ifb f_tag = R_DotsSymbol then
+      result_success S (f_cdr, a_cdr, b, true)
+    else ifb a_car <> R_MissingArg then
+      result_success S (f_cdr, a_cdr, b, seendots)
     else
-      read%list b_, b_list := b using S in
-      ifb argused b_ <> 0 \/ list_tagval b_list <> R_NilValue then
-        result_success S (f, a, list_cdrval b_list, seendots)
+      read%list b_, b_car, b_cdr, b_tag := b using S in
+      ifb argused b_ <> 0 \/ b_tag <> R_NilValue then
+        result_success S (f, a, b_cdr, seendots)
       else
-        set%car a := list_carval b_list using S in
+        set%car a := b_car using S in
         run%success
-          ifb list_carval b_list <> R_MissingArg then
+          ifb b_car <> R_MissingArg then
             SET_MISSING S a 0 ltac:(NBits.nbits_ok)
           else result_skip S using S in
         map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
-        result_success S (list_cdrval f_list, list_cdrval a_list, list_cdrval b_list, seendots)
+        result_success S (f_cdr, a_cdr, b_cdr, seendots)
   using S, runs in
   result_skip S.
 
@@ -938,8 +938,8 @@ Definition matchArgs_dots S dots supplied : result unit :=
       ifb argused b_ = 0 then
         set%car f := list_carval b_list using S in
         set%tag f := list_tagval b_list using S in
-        read%list _, f_list := f using S in
-        result_success S (list_cdrval f_list)
+        read%list _, f_cdr, _ := f using S in
+        result_success S f_cdr
       else result_success S f using S, runs, globals in
     set%car dots := a using S in
     result_skip S.
@@ -956,8 +956,8 @@ Definition matchArgs_check S supplied : result unit :=
       else
         let (S, l) := CONS S (list_carval b_list) R_NilValue in
         set%cdr last := l using S in
-        read%list _, last_list := last using S in
-        let last := list_cdrval last_list in
+        read%list _, last_cdr, _ := last using S in
+        let last := last_cdr in
         set%tag last := list_tagval b_list using S in
         result_success S (unused, last)
     else result_success S (unused, last) using S, runs, globals in
@@ -1054,16 +1054,16 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
         let endTag := list_tagval endp_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
         while result_success S (decide (s <> endp)) do
-          read%list s_, s_list := s using S in
-            ifb list_tagval s_list = endTag then
+          read%list _, s_cdr, s_tag := s using S in
+            ifb s_tag = endTag then
               ifb sprev = R_NilValue then
-                let addVars := list_cdrval s_list in
+                let addVars := s_cdr in
                 run%success SET_FRAME S env addVars using S in
-                result_success S (addVars, list_cdrval s_list, sprev)
+                result_success S (addVars, s_cdr, sprev)
               else
-                set_cdr S (list_cdrval s_list) sprev (fun S =>
-                  result_success S (addVars, list_cdrval s_list, sprev))
-            else result_success S (addVars, list_cdrval s_list, s)
+                set_cdr S s_cdr sprev (fun S =>
+                  result_success S (addVars, s_cdr, sprev))
+            else result_success S (addVars, s_cdr, s)
         using S, runs in
         result_skip S using S, runs, globals.
 
@@ -1104,19 +1104,19 @@ Definition SET_BINDING_VALUE S b val :=
     result_error S "[SET_BINDING_VALUE] Can not change value of locked binding."
   else
     let%success active := IS_ACTIVE_BINDING S b using S in
-    read%list _, b_list := b using S in
+    read%list b_car, _, _ := b using S in
     ifb active then
-      setActiveValue S (list_carval b_list) val
+      setActiveValue S b_car val
     else
       set%car b := val using S in
     result_skip S.
 
 Definition BINDING_VALUE S b :=
   let%success active := IS_ACTIVE_BINDING S b using S in
-  read%list _, b_list := b using S in
+  read%list b_car, _, _ := b using S in
   ifb active then
-    getActiveValue S (list_carval b_list)
-  else result_success S (list_carval b_list).
+    getActiveValue S b_car
+  else result_success S b_car.
 
 Definition IS_USER_DATABASE S rho :=
   read%defined rho_ := rho using S in
@@ -1366,12 +1366,12 @@ Definition stripAttrib S (tag lst : SExpRec_pointer) :=
   ifb lst = R_NilValue then
     result_success S lst
   else
-    read%list _, lst_list := lst using S in
-    ifb tag = list_tagval lst_list then
-      runs_stripAttrib runs S tag (list_cdrval lst_list)
+    read%list _, lst_cdr, lst_tag := lst using S in
+    ifb tag = lst_tag then
+      runs_stripAttrib runs S tag lst_cdr
     else
       let%success r :=
-        runs_stripAttrib runs S tag (list_cdrval lst_list) using S in
+        runs_stripAttrib runs S tag lst_cdr using S in
       set%cdr lst := r using S in
       result_success S lst.
 
@@ -1550,13 +1550,13 @@ Definition applyClosure S
     fold%success a := actuals
     along formals
     as f_car, f_tag do
-      read%list a_, a_list := a using S in
-      ifb list_carval a_list = R_MissingArg /\ f_car <> R_MissingArg then
+      read%list a_car, a_cdr, _ := a using S in
+      ifb a_car = R_MissingArg /\ f_car <> R_MissingArg then
         let%success newprom := mkPromise S f_car newrho using S in
         set%car a := newprom using S in
         run%success SET_MISSING S a 2 ltac:(NBits.nbits_ok) using S in
-        result_success S (list_cdrval a_list)
-      else result_success S (list_cdrval a_list) using S, runs, globals in
+        result_success S a_cdr
+      else result_success S a_cdr using S, runs, globals in
     run%success
       ifb suppliedvars <> R_NilValue then
          addMissingVarsToNewEnv S newrho suppliedvars
@@ -1597,8 +1597,8 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
               let (S, l) := CONS S prom R_NilValue in
               set%cdr tail := l using S in
               result_skip S using S in
-          read%list _, tail_list := tail using S in
-          let tail := list_cdrval tail_list in
+          read%list _, tail_cdr, _ := tail using S in
+          let tail := tail_cdr in
           set%tag tail := h_tag using S in
           result_success S tail
         using S, runs, globals in
@@ -1609,8 +1609,8 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
     else ifb el_car = R_MissingArg then
       let (S, l) := CONS S R_MissingArg R_NilValue in
       set%cdr tail := l using S in
-      read%list _, tail_list := tail using S in
-      let tail := list_cdrval tail_list in
+      read%list _, tail_cdr, _ := tail using S in
+      let tail := tail_cdr in
       set%tag tail := el_tag using S in
       result_success S (ans, tail)
     else
@@ -1618,13 +1618,13 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
         mkPromise S el_car rho using S in
       let (S, l) := CONS S prom R_NilValue in
       set%cdr tail := l using S in
-      read%list _, tail_list := tail using S in
-      let tail := list_cdrval tail_list in
+      read%list _, tail_cdr, _ := tail using S in
+      let tail := tail_cdr in
       set%tag tail := el_tag using S in
       result_success S (ans, tail)
   using S, runs, globals in
-  read%list _, ans_list := ans using S in
-  result_success S (list_cdrval ans_list).
+  read%list _, ans_cdr, _ := ans using S in
+  result_success S ans_cdr.
 
 Definition PRIMFUN S x :=
   read%prim _, x_prim := x using S in

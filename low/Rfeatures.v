@@ -121,12 +121,12 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       | Some n => WrongArgCount S n
       end in
   ifb args = R_NilValue then wrong S
-  else read%list _, args_list := args using S in
-  ifb list_cdrval args_list = R_NilValue then wrong S
-  else read%list _, args_cdr_list := list_cdrval args_list using S in
-  ifb list_cdrval args_cdr_list <> R_NilValue then wrong S
+  else read%list args_car, args_cdr, _ := args using S in
+  ifb args_cdr = R_NilValue then wrong S
+  else read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+  ifb args_cdr_cdr <> R_NilValue then wrong S
   else
-    let lhs := list_carval args_list in
+    let lhs := args_car in
     read%defined lhs_ := lhs using S in
     match type lhs_ with
     | StrSxp
@@ -136,7 +136,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
           let%success lhs_char := STRING_ELT S lhs 0 using S in
           installTrChar globals runs S lhs_char
         else result_success S lhs using S in
-      let%success rhs := eval globals runs S (list_carval args_cdr_list) rho using S in
+      let%success rhs := eval globals runs S args_cdr_car rho using S in
       run%success INCREMENT_NAMED S rhs using S in
       let%success val := PRIMVAL runs S op using S in
       ifb val = 2 then
@@ -162,13 +162,13 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
   ifb len < 2 then
     WrongArgCount S "function"
   else
-    read%list _, args_list := args using S in
-    run%success CheckFormals S (list_carval args_list) using S in
-    read%list _, args_cdr_list := list_cdrval args_list using S in
+    read%list args_car, args_cdr, _ := args using S in
+    run%success CheckFormals S args_car using S in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
     let%success rval :=
-      mkCLOSXP S (list_carval args_list) (list_carval args_cdr_list) rho using S in
-    read%list _, args_cdr_cdr_list := list_cdrval args_cdr_list using S in
-    let srcref := list_carval args_cdr_cdr_list in
+      mkCLOSXP S args_car args_cdr_car rho using S in
+    read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+    let srcref := args_cdr_cdr_car in
     read%defined srcref_ := srcref using S in
     run%success
       ifb type srcref_ = NilSxp then
@@ -180,8 +180,8 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
 
 Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
-  read%list _, args_list := args using S in
-  result_success S (list_carval args_list).
+  read%list args_car, _, _ := args using S in
+  result_success S args_car.
 
 Definition getBlockSrcrefs S call : result SExpRec_pointer :=
   let%success srcrefs := getAttrib globals runs S call R_SrcrefSymbol using S in
@@ -248,18 +248,18 @@ Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
     else result_success S cond.
 
 Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
-  read%list _, args_list := args using S in
-  let%success Cond := eval globals runs S (list_carval args_list) rho using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let%success Cond := eval globals runs S args_car rho using S in
   let%success (Stmt, vis) :=
     let%success asLogical := asLogicalNoNA S Cond call using S in
-    read%list _, args_cdr_list := list_cdrval args_list using S in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
     ifb asLogical <> 0 then
-      result_success S (list_carval args_cdr_list, false)
+      result_success S (args_cdr_car, false)
     else
       let%success l := R_length globals runs S args using S in
       ifb l > 2 then
-        read%list _, args_cdr_cdr_list := list_cdrval args_cdr_list using S in
-        result_success S (list_carval args_cdr_cdr_list, false)
+        read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+        result_success S (args_cdr_cdr_car, false)
       else result_success S (R_NilValue : SExpRec_pointer, true) using S in
   if vis then
     result_success S Stmt

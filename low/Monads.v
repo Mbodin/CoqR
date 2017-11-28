@@ -231,6 +231,22 @@ Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   (read_as_list S e (fun e_ e_list => cont))
   (at level 50, left associativity) : monad_scope.
 
+Definition read_as_list_all A S (e : SExpRec_pointer) f : result A :=
+  read%list e_, e_list := e using S in
+  f e_ (list_carval e_list) (list_cdrval e_list) (list_tagval e_list).
+
+Notation "'read%list' e_ ',' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' cont" :=
+  (read_as_list_all S e (fun e_ e_car e_cdr e_tag => cont))
+    (at level 50, left associativity) : monad_scope.
+
+Definition read_as_list_components A S (e : SExpRec_pointer) f : result A :=
+  read%list _, e_car, e_cdr, e_tag := e using S in
+  f e_car e_cdr e_tag.
+
+Notation "'read%list' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' cont" :=
+  (read_as_list_components S e (fun e_car e_cdr e_tag => cont))
+  (at level 50, left associativity) : monad_scope.
+
 
 Definition read_as_env A S (e : SExpRec_pointer) f : result A :=
   let%defined e_ := read_SExp S e using S in

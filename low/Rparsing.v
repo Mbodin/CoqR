@@ -37,9 +37,9 @@ Definition xxparen S n1 n2 :=
   lang2 globals S n1 n2.
 
 Definition xxdefun S fname formals body :=
-  read%list _, formals_list := formals using S in
+  read%list _, formals_cdr, _ := formals using S in
   let srcref := R_NilValue : SExpRec_pointer in
-  lang4 globals S fname (list_cdrval formals_list) body srcref.
+  lang4 globals S fname formals_cdr body srcref.
 
 Definition xxexprlist S a1 a2 :=
   map%pointer a2 with set_type LangSxp using S in
@@ -63,11 +63,10 @@ Definition xxfuncall S expr args :=
       let%success expr_ := STRING_ELT S expr 0 using S in
       installTrChar globals runs S expr_
     else result_success S expr using S in
-  read%list _, args_list := args using S in
-  let args_cdr := list_cdrval args_list in
-  read%list _, args_cdr_list := args_cdr using S in
+  read%list _, args_cdr, _ := args using S in
+  read%list args_cdr_car, _, args_cdr_tag := args_cdr using S in
   let%success args_len := R_length globals runs S args_cdr using S in
-  ifb args_len = 1 /\ list_carval args_cdr_list = R_MissingArg /\ list_tagval args_cdr_list = R_NilValue then
+  ifb args_len = 1 /\ args_cdr_car = R_MissingArg /\ args_cdr_tag = R_NilValue then
     lang1 globals S expr
   else
     lcons globals S expr args_cdr.
@@ -88,8 +87,8 @@ Definition xxforcond S sym expr :=
   lcons globals S sym expr.
 
 Definition xxfor S forsym forcond body :=
-  read%list _, forcond_list := forcond using S in
-  lang4 globals S forsym (list_carval forcond_list) (list_cdrval forcond_list) body.
+  read%list forcond_car, forcond_cdr, _ := forcond using S in
+  lang4 globals S forsym forcond_car forcond_cdr body.
 
 Definition xxwhile S whilesym cond body :=
   lang3 globals S whilesym cond body.
@@ -101,8 +100,8 @@ Definition xxnxtbrk S keyword :=
   lang1 globals S keyword.
 
 Definition xxsubscript S a1 a2 a3 :=
-  read%list _, a3_list := a3 using S in
-  let (S, l) := CONS globals S a1 (list_cdrval a3_list) in
+  read%list _, a3_cdr, _ := a3 using S in
+  let (S, l) := CONS globals S a1 a3_cdr in
   lcons globals S a2 l.
 
 Definition xxsub0 S :=
@@ -143,14 +142,14 @@ Definition xxaddformal1 S formlist sym expr :=
   NextArg globals S formlist expr sym.
 
 Definition xxsublist1 S sub :=
-  read%list _, sub_list := sub using S in
-  read%list _, sub_cdr_list := list_cdrval sub_list using S in
-  FirstArg globals S (list_carval sub_list) (list_carval sub_cdr_list).
+  read%list sub_car, sub_cdr, _ := sub using S in
+  read%list sub_cdr_car, _, _ := sub_cdr using S in
+  FirstArg globals S sub_car sub_cdr_car.
 
 Definition xxsublist2 S sublist sub :=
-  read%list _, sub_list := sub using S in
-  read%list _, sub_cdr_list := list_cdrval sub_list using S in
-  NextArg globals S sublist (list_carval sub_list) (list_carval sub_cdr_list).
+  read%list sub_car, sub_cdr, _ := sub using S in
+  read%list sub_cdr_car, _, _ := sub_cdr using S in
+  NextArg globals S sublist sub_car sub_cdr_car.
 
 End Parameters.
 
