@@ -398,6 +398,11 @@ Definition isVectorAtomic S s :=
   | _ => result_success S false
   end.
 
+Definition isLanguage S s :=
+  read%defined s_ := s using S in
+  result_success S (decide (s = R_NilValue \/ type s_ = LangSxp)).
+
+
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
   read%defined s_ := s using S in
@@ -724,6 +729,7 @@ Definition CheckFormalArgs S formlist new :=
 Definition begincontext S flags syscall env sysp promargs callfun :=
   let cptr := {|
      nextcontext := Some (R_GlobalContext S) ;
+     cjmpbuf := fun H : False => H (* TODO *) ;
      callflag := flags ;
      promargs := promargs ;
      callfun := callfun ;
@@ -1525,13 +1531,12 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
 Definition R_execClosure (S : state)
     (call newrho sysparent rho arglist op : SExpRec_pointer) : result SExpRec_pointer :=
   let%success cntxt :=
-     begincontext S Ctxt_Return call newrho sysparent arglist op using S in
+    begincontext S Ctxt_Return call newrho sysparent arglist op using S in
   read%clo op_, op_clo := op using S in
   let body := clo_body op_clo in
   (** JIT functions have been ignored here. **)
   let%success R_srcef := getAttrib S op R_SrcrefSymbol using S in
-  (** Debugging functions have been ignored here. **)
-  (* Warning: this function uses [SETJMP] whose semantics I am not sure to understand. Please reread. *)
+  (* TODO: translate SETJMP as a continuation *)
   let%success cntxt_returnValue := runs_eval runs S body newrho using S in
   run%success endcontext S cntxt using S in
   result_success S cntxt_returnValue.

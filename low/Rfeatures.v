@@ -247,6 +247,13 @@ Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
         else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
     else result_success S cond.
 
+Definition BodyHasBraces S body :=
+  let%success lang := isLanguage globals S body using S in
+  if lang then
+    read%list body_car, _, _ := body using S in
+    result_success S (decide (body_car = R_BraceSymbol))
+  else result_success S false.
+
 Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   read%list args_car, args_cdr, _ := args using S in
   let%success Cond := eval globals runs S args_car rho using S in
@@ -264,6 +271,26 @@ Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
   if vis then
     result_success S Stmt
   else eval globals runs S Stmt rho.
+
+Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list _, args_cdr, _ := args using S in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let body := args_cdr_car in
+  let%success bgn := BodyHasBraces S body using S in
+  let%success cntxt :=
+    begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
+  (* TODO: translate SETJMP as a continuation *)
+  do%success while
+    read%list args_car, _, _ := args using S in
+    let%success ev := eval globals runs S args_car rho using S in
+    let%success al := asLogicalNoNA S ev call using S in
+    result_success S (decide (al <> 0))
+  do
+    run%success eval globals runs S body rho using S in
+    result_skip S using S, runs in
+  run%success endcontext globals runs S cntxt using S in
+  result_success S (R_NilValue : SExpRec_pointer).
 
 
 (** * names.c **)
@@ -375,7 +402,7 @@ Fixpoint runs max_step globals : runs_type :=
           Some [
 
               rdecl "if" do_if (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
-              rdecl "while" (dummy_function "do_while") (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
+              rdecl "while" do_while (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
               rdecl "for" (dummy_function "do_for") (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
               rdecl "repeat" (dummy_function "do_repeat") (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
               rdecl "break" (dummy_function "do_break") CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;

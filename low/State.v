@@ -199,9 +199,13 @@ Defined.
 
 (** Note: not all fields have been modeled. See the report or the
   original definition in the file include/Defn.h for more details. **)
+(** The [cjmpbuf] field has been implemented as a continuation. **)
 (** RCNTXT, *context **)
 Inductive context := make_context {
     nextcontext : option context ;
+    cjmpbuf_input : Type ;
+    cjmpbuf_output : Type ;
+    cjmpbuf : cjmpbuf_input -> cjmpbuf_output ;
     callflag : context_type ;
     promargs : SExpRec_pointer ;
     callfun : SExpRec_pointer ;
@@ -213,25 +217,30 @@ Inductive context := make_context {
 
 Fixpoint context_rect' (P : context -> Type) HNone HSome c : P c :=
   match c with
-  | make_context nextcontext callflag promargs callfun sysparent call cloenv conexit =>
+  | @make_context nextcontext cjmpbuf_input cjmpbuf_output cjmpbuf
+      callflag promargs callfun sysparent call cloenv conexit =>
     match nextcontext with
-    | None => HNone callflag promargs callfun sysparent call cloenv conexit
+    | None =>
+      HNone cjmpbuf_input cjmpbuf_output cjmpbuf
+        callflag promargs callfun sysparent call cloenv conexit
     | Some c' =>
       HSome _ (context_rect' P HNone HSome c')
+        cjmpbuf_input cjmpbuf_output cjmpbuf
         callflag promargs callfun sysparent call cloenv conexit
     end
   end.
 
 Definition context_ind' (P : context -> Prop) := context_rect' P.
 
-Instance context_Comparable : Comparable context.
+(*Instance context_Comparable : Comparable context.
   applys make_comparable. intros c1.
   induction c1 using context_rect'; intros c2;
     induction c2 using context_rect'; prove_decidable_eq.
-Defined.
+Defined.*)
 
 Definition context_with_conexit context conexit := {|
      nextcontext := nextcontext context ;
+     cjmpbuf := cjmpbuf context ;
      callflag := callflag context ;
      promargs := promargs context ;
      callfun := callfun context ;
@@ -323,7 +332,7 @@ Instance memory_Inhab : Inhab memory :=
   prove_Inhab empty_memory.
 
 Instance context_Inhab : Inhab context.
-  apply prove_Inhab. constructors; typeclass.
+  apply prove_Inhab. eapply make_context with (cjmpbuf_input := False); typeclass.
 Qed.
 
 Instance state_Inhab : Inhab state.
