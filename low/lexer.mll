@@ -125,7 +125,7 @@ rule lex = parse
   | "?"         { eatLines := true ; QUESTION_MARK (install_and_save "?") }
   | "<-"        { eatLines := true ; LEFT_ASSIGN (install_and_save "<-") }
   | "<<-"       { eatLines := true ; LEFT_ASSIGN (install_and_save "<<-") }
-  | ":="        { eatLines := true ; LEFT_ASSIGN (install_and_save ":=") } (* TODO: Check *)
+  | ":="        { eatLines := true ; LEFT_ASSIGN (install_and_save ":=") }
   | "="         { eatLines := true ; EQ_ASSIGN (install_and_save "=") }
   | "->"        { eatLines := true ; RIGHT_ASSIGN (install_and_save "->") }
   | "~"         { eatLines := true ; TILDE (install_and_save "~") }
@@ -161,18 +161,27 @@ rule lex = parse
   | ']'     { wifpop () ; contextp_pop () ; eatLines := false ; RSQBRACKET }
 
   (** ** Miscellaneous **)
-  | reg_identifier as str            { eatLines := false ; SYMBOL (install_and_save str) }
-  | ';'                              { ifpop () ; SEMICOLON }
-  | ','                              { ifpop () ; COMMA }
-  | ('#' [^ '\n']* as cmd)? '\n'     { if !eatLines
-                                          || contextp_hd () = Contextp_Par
-                                          || contextp_hd () = Contextp_SqBra
-                                       then lex lexbuf
-                                       else if contextp_hd () = Contextp_If then
-                                         (* TODO *)
-                                         failwith "[parser] Not yet implemented case (line break in an if-condition)."
-                                       else NEW_LINE (match cmd with Some s -> s | None -> "") }
-  | space+                           { lex lexbuf }
-  | _                                { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
-  | eof                              { END_OF_INPUT }
+  | reg_identifier as str           { eatLines := false ; SYMBOL (install_and_save str) }
+  | ';'                             { ifpop () ; SEMICOLON }
+  | ','                             { ifpop () ; COMMA }
+  | ('#' [^ '\n']* as cmd)? '\n'    { if !eatLines
+                                         || contextp_hd () = Contextp_Par
+                                         || contextp_hd () = Contextp_SqBra
+                                      then lex lexbuf
+                                      else if contextp_hd () = Contextp_If then
+                                        new_line_if_case lexbuf
+                                      else NEW_LINE (match cmd with Some s -> s | None -> "") }
+  | space+                          { lex lexbuf }
+  | _                               { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
+  | eof                             { END_OF_INPUT }
+
+and new_line_if_case = parse
+  | ('#' [^ '\n']*)? '\n'   { new_line_if_case lexbuf }
+  | space+                  { new_line_if_case lexbuf }
+  | "}"                     { wifpop () ; contextp_pop () ; RBRACE }
+  | ")"                     { wifpop () ; contextp_pop () ; RPAR }
+  | "]"                     { wifpop () ; contextp_pop () ; RSQBRACKET }
+  | ","                     { ifpop () ; COMMA }
+  | "else"                  { eatLines := true ; ifpop () ; ELSE }
+  | ""                      { ifpop () ; NEW_LINE "" }
 

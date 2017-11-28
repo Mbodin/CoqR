@@ -97,7 +97,7 @@ expr:
   | c = NULL_CONST                                          { c }
   | c = SYMBOL                                              { c }
 
-  | b = LBRACE; e = exprlist; RBRACE                        { eatLines := true ; lift2 (only_state xxexprlist) b e }
+  | b = LBRACE; e = exprlist; RBRACE                        { eatLines := false ; (* FIXME: The parser gets unsynchronised with the lexer at this point: this assignment to eatLines occurs one step too late. *) lift2 (only_state xxexprlist) b e }
   | p = LPAR; e = expr_or_assign; RPAR                      { lift2 (no_runs xxparen) p e }
 
   | s = MINUS; e = expr %prec UMINUS                        { lift2 (no_runs xxunary) s e }
@@ -158,13 +158,13 @@ expr:
   | k = BREAK                                               { lift1 (no_runs xxnxtbrk) k }
 
 cond:
-  | LPAR; e = expr; RPAR    { eatLines := true ; lift1 (only_state xxcond) e }
+  | LPAR; e = expr; RPAR; eatLines  { lift1 (only_state xxcond) e }
 
 ifcond:
-  | LPAR; e = expr; RPAR    { eatLines := true ; lift1 (only_state xxifcond) e }
+  | LPAR; e = expr; RPAR; eatLines  { lift1 (only_state xxifcond) e }
 
 forcond:
-  | LPAR; s = SYMBOL; IN; e = expr; RPAR    { eatLines := true ; lift2 (no_runs xxforcond) s e }
+  | LPAR; s = SYMBOL; IN; e = expr; RPAR; eatLines  { lift2 (no_runs xxforcond) s e }
 
 exprlist:
   |                                             { no_runs xxexprlist0 }
@@ -195,8 +195,22 @@ formlist:
   | l = formlist; COMMA; s = SYMBOL;                        { lift2 xxaddformal0 l s }
   | l = formlist; COMMA; s = SYMBOL; EQ_ASSIGN; e = expr    { lift3 xxaddformal1 l s e }
 
+(*
+(** Due to a difference between Menhir and Bison, the lexer gets unsynchronised when
+  evaluating this non-terminal (due to the look-ahead character). The behaviour of
+  this rule as-is is thus not what is expected in R. **)
 cr:
   |     { eatLines := true }
+*)
+(** We thus uses the following rule, ignoring new-lines without changing the value of
+  eatLines, which might already have been overwritten by reading the next character
+  (for instance when parsing [function (x) x]). **)
+cr:
+  | eatLines { }
+
+eatLines:
+  |                     { }
+  | NEW_LINE; eatLines  { }
 
 %%
 
