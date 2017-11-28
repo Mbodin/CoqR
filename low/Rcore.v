@@ -64,6 +64,8 @@ Definition R_NaReal :=
   Fappli_IEEE.F754_nan true 1954.
 Definition NA_REAL := R_NaReal : double.
 
+Definition R_NaString := NA_STRING.
+
 Definition NILSXP := 0.
 Definition SYMSXP := 1.
 Definition LISTSXP := 2.
@@ -167,6 +169,16 @@ Definition SET_DDVAL_BIT S x :=
 Definition UNSET_DDVAL_BIT S x :=
   map%gp x with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) false using S in
   result_skip S.
+
+Definition IS_SCALAR S x t :=
+  read%defined x_ := x using S in
+  result_success S (decide (type x_ = t /\ scalar x_)).
+
+Definition isLogical S s :=
+  read%defined s_ := s using S in
+  result_success S (decide (type s_ = LglSxp)).
+
+Definition IS_LOGICAL := isLogical.
 
 
 (** ** duplicate.c **)
@@ -374,6 +386,18 @@ Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
     let (S, s) := alloc_vector_str S [x] in
     result_success S s.
 
+Definition isVectorAtomic S s :=
+  read%defined s_ := s using S in
+  match type s_ with
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | RawSxp => result_success S true
+  | _ => result_success S false
+  end.
+
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
   read%defined s_ := s using S in
@@ -432,6 +456,14 @@ Definition isInteger S s :=
 Definition isList S s :=
   read%defined s_ := s using S in
   result_success S (decide (s = R_NilValue \/ type s_ = ListSxp)).
+
+Definition SCALAR_LVAL S x :=
+  read%Logical r := x at 0 using S in
+  result_success S r.
+
+Definition SCALAR_IVAL S x :=
+  read%Integer r := x at 0 using S in
+  result_success S r.
 
 
 Definition lcons S car cdr :=
@@ -1412,6 +1444,48 @@ Definition setAttrib S (vec name val : SExpRec_pointer) :=
       else installAttrib S vec name val.
 
 
+(** ** utils.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/utils.c. **)
+
+Definition truenames : list string :=
+  ["T"; "True"; "TRUE"; "true"]%string.
+
+Definition StringTrue name :=
+  decide (Mem name truenames).
+
+Definition falsenames : list string :=
+  ["F"; "False"; "FALSE"; "false"]%string.
+
+Definition StringFalse name :=
+  decide (Mem name falsenames).
+
+
+(** ** coerce.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/coerce.c. **)
+
+Definition LogicalFromString S (x : SExpRec_pointer) :=
+  ifb x <> R_NaString then
+    let%success c := CHAR S x using S in
+    if StringTrue c then result_success S (1 : int)
+    else if StringFalse c then result_success S (0 : int)
+    else result_success S NA_LOGICAL
+  else result_success S NA_LOGICAL.
+
+Definition asLogical S x :=
+  let%success iva := isVectorAtomic S x using S in
+  if iva then
+    result_not_implemented "[asLogical] [XLENGTH]"
+  else
+    read%defined x_ := x using S in
+    ifb type x_ = CharSxp then
+      LogicalFromString S x
+    else result_success S NA_LOGICAL.
+
+
 (** ** eval.c **)
 
 (** The function names of this section corresponds to the function names
@@ -1743,6 +1817,7 @@ Definition eval S (e rho : SExpRec_pointer) :=
         | _ => result_error S "[eval] Type unimplemented in the R source code."
         end
     end.
+
 
 (** Evaluates the expression in the global environment. **)
 Definition eval_global S e :=

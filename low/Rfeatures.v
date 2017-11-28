@@ -183,6 +183,88 @@ Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   read%list _, args_list := args using S in
   result_success S (list_carval args_list).
 
+Definition getBlockSrcrefs S call : result SExpRec_pointer :=
+  let%success srcrefs := getAttrib globals runs S call R_SrcrefSymbol using S in
+  read%defined srcrefs_ := srcrefs using S in
+  ifb type srcrefs_ = VecSxp then
+    result_success S srcrefs
+  else result_success S (R_NilValue : SExpRec_pointer).
+
+Definition do_begin S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  ifb args <> R_NilValue then
+    let%success srcrefs := getBlockSrcrefs S call using S in
+    fold%success s := R_NilValue : SExpRec_pointer
+    along args
+    as args_car, _ do
+      let%success s := eval globals runs S args_car rho using S in
+      result_success S s using S, runs, globals in
+    result_success S s
+  else result_success S (R_NilValue : SExpRec_pointer).
+
+Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
+  let%exit cond :=
+    let%success scal := IS_SCALAR S s LglSxp using S in
+    if scal then
+      let%success cond := SCALAR_LVAL S s using S in
+      ifb cond <> NA_LOGICAL then
+        result_rreturn S cond
+      else result_rsuccess S cond
+    else
+      let%success scal := IS_SCALAR S s IntSxp using S in
+      if scal then
+        let%success val := SCALAR_IVAL S s using S in
+        ifb val <> NA_INTEGER then
+          ifb val <> 0 then
+            result_rreturn S (1 : int)
+          else result_rreturn S (0 : int)
+        else result_rsuccess S NA_LOGICAL
+      else result_rsuccess S NA_LOGICAL using S in
+  let%success len := R_length globals runs S s using S in
+  ifb len > 1 then
+    result_error S "[asLogicalNoNA] The condition has length > 1."
+  else
+    let%success cond :=
+      ifb len > 0 then
+        read%defined s_ := s using S in
+        match type s_ with
+        | LglSxp =>
+          read%Logical cond := s at 0 using S in
+          result_success S cond
+        | IntSxp =>
+          read%Integer cond := s at 0 using S in
+          result_success S cond
+        | _ =>
+          asLogical globals S s
+        end
+      else result_success S cond using S in
+    ifb cond = NA_LOGICAL then
+      ifb len = 0 then
+        result_error S "[asLogicalNoNA] Argument is of length zero."
+      else
+        let%success islog := isLogical S s using S in
+        ifb islog then
+          result_error S "[asLogicalNoNA] Missing value where TRUE/FALSE needed."
+        else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
+    else result_success S cond.
+
+Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  read%list _, args_list := args using S in
+  let%success Cond := eval globals runs S (list_carval args_list) rho using S in
+  let%success (Stmt, vis) :=
+    let%success asLogical := asLogicalNoNA S Cond call using S in
+    read%list _, args_cdr_list := list_cdrval args_list using S in
+    ifb asLogical <> 0 then
+      result_success S (list_carval args_cdr_list, false)
+    else
+      let%success l := R_length globals runs S args using S in
+      ifb l > 2 then
+        read%list _, args_cdr_cdr_list := list_cdrval args_cdr_list using S in
+        result_success S (list_carval args_cdr_cdr_list, false)
+      else result_success S (R_NilValue : SExpRec_pointer, true) using S in
+  if vis then
+    result_success S Stmt
+  else eval globals runs S Stmt rho.
+
 
 (** * names.c **)
 
@@ -292,7 +374,7 @@ Fixpoint runs max_step globals : runs_type :=
             decl name (wrap cfun) code eval arity (make_PPinfo kind prec rightassoc) in
           Some [
 
-              rdecl "if" (dummy_function "do_if") (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
+              rdecl "if" do_if (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
               rdecl "while" (dummy_function "do_while") (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
               rdecl "for" (dummy_function "do_for") (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
               rdecl "repeat" (dummy_function "do_repeat") (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
@@ -303,7 +385,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "<-" do_set 1 eval100 (-1)%Z PP_ASSIGN PREC_LEFT true ;
               rdecl "=" do_set 3 eval100 (-1)%Z PP_ASSIGN PREC_EQ true ;
               rdecl "<<-" do_set 2 eval100 (-1)%Z PP_ASSIGN2 PREC_LEFT true ;
-              rdecl "{" (dummy_function "do_begin") (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
+              rdecl "{" do_begin (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
               rdecl "(" do_paren (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
               rdecl ".subset" (dummy_function "do_subset_dflt") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;

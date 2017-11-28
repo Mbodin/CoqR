@@ -351,28 +351,33 @@ let rec print_SExpRec_like_R d s g p e =
     | NewSxp -> "newly allocated object"
     | FreeSxp -> "free object"
     | FunSxp -> "function" in
-  let print_nonvector = function
-    | PrimSxp p -> string_of_int (prim_offset p)
-    | SymSxp0 s -> fetch_print_SExpRec_like_R (sym_pname s)
+  let print_nonvector ty = function
+    | PrimSxp p -> (false, string_of_int (prim_offset p))
+    | SymSxp0 s -> (true, fetch_print_SExpRec_like_R (sym_pname s))
     | ListSxp0 l ->
-      iterate_on_list
-        (fun str -> "{ Error: " ^ str ^ " }")
-        (fun c t str ->
-          (if t = g R_NilValue then ""
-           else ("(" ^ fetch_print_SExpRec_like_R t ^ ": "))
-          ^ fetch_print_SExpRec_like_R c
-          ^ (if t = g R_NilValue then "" else ")")
-          ^ (if str = "" then "" else ", " ^ str)) "" s g p
+      (match ty with
+       | NilSxp -> (true, "NULL")
+       | _ ->
+         (false, iterate_on_list
+           (fun str -> "{ Error: " ^ str ^ " }")
+           (fun c t str ->
+             (if t = g R_NilValue then ""
+              else ("(" ^ fetch_print_SExpRec_like_R t ^ ": "))
+             ^ fetch_print_SExpRec_like_R c
+             ^ (if t = g R_NilValue then "" else ")")
+             ^ (if str = "" then "" else ", " ^ str)) "" s g p))
     | EnvSxp0 e ->
-      fetch_print_SExpRec_like_R (env_frame e)
-    | CloSxp0 c -> ""
-    | PromSxp0 p -> "value: " ^ fetch_print_SExpRec_like_R (prom_value p) in
+      (false, fetch_print_SExpRec_like_R (env_frame e))
+    | CloSxp0 c -> (false, "")
+    | PromSxp0 p -> (false, "value: " ^ fetch_print_SExpRec_like_R (prom_value p)) in
   let base =
-    let t = typeof (type0 (get_SxpInfo e)) in
+    let ty = type0 (get_SxpInfo e) in
+    let t = typeof ty in
     match e with
     | SExpRec_NonVector e ->
-      let str = print_nonvector (nonVector_SExpRec_data e) in
-      "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
+      let (ok, str) = print_nonvector ty (nonVector_SExpRec_data e) in
+      if ok then str
+      else "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
     | SExpRec_VectorChar v ->
       let v = vector_SExpRec_vecsxp v in
       "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
