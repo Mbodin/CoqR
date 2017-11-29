@@ -729,7 +729,7 @@ Definition CheckFormalArgs S formlist new :=
 Definition begincontext S flags syscall env sysp promargs callfun :=
   let cptr := {|
      nextcontext := Some (R_GlobalContext S) ;
-     cjmpbuf := fun H : False => H (* TODO *) ;
+     cjmpbuf := 1 + cjmpbuf (R_GlobalContext S) ;
      callflag := flags ;
      promargs := promargs ;
      callfun := callfun ;

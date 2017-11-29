@@ -349,7 +349,8 @@ Defined.
 Fixpoint runs max_step globals : runs_type :=
   match max_step with
   | O => {|
-      runs_do_while := fun _ S _ _ _ => result_bottom S ;
+      runs_while_loop := fun _ S _ _ _ => result_bottom S ;
+      runs_set_longjump := fun _ S _ _ _ => result_bottom S ;
       runs_eval := fun S _ _ => result_bottom S ;
       runs_inherits := fun S _ _ => result_bottom S ;
       runs_getAttrib := fun S _ _ => result_bottom S ;
@@ -367,7 +368,8 @@ Fixpoint runs max_step globals : runs_type :=
     let wrap_dep {A : Type -> Type} (f : Globals -> runs_type -> forall B, A B) (T : Type) : A T :=
       (** A dependent version of [wrap]. **)
       f globals (runs max_step globals) T in {|
-      runs_do_while := wrap_dep (fun _ => do_while) ;
+      runs_while_loop := wrap_dep (fun _ => while_loop) ;
+      runs_set_longjump := wrap_dep (fun _ => set_longjump) ;
       runs_eval := wrap eval ;
       runs_inherits := wrap inherits ;
       runs_getAttrib := wrap getAttrib ;

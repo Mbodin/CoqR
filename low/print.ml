@@ -507,6 +507,9 @@ let print_result r cont =
   | Result_error (s, str) ->
     print_endline ("Error: " ^ char_list_to_string str) ;
     cont (Some s) None
+  | Result_longjump (s, i, cs) ->
+    print_endline ("Impossible! Please report. A long jump reached the top level (target jump buffer: " ^ string_of_int i ^ ").") ;
+    cont (Some s) None
   | Result_impossible (s, str) ->
     print_endline ("Impossible! Please report. " ^ char_list_to_string str) ;
     cont (Some s) None

@@ -11,11 +11,13 @@ Require Export State.
 Inductive result (A : Type) :=
   | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
   | result_error : state -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
+  | result_longjump : state -> nat -> context_types -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
   | result_impossible : state -> string -> result A (** This result should never happen. We provide a string to help debugging. **)
   | result_not_implemented : string -> result A (** The result relies on a feature not yet implemented. **)
   | result_bottom : state -> result A (** We went out of fuel during the computation. **)
   .
 Arguments result_error [A].
+Arguments result_longjump [A].
 Arguments result_impossible [A].
 Arguments result_not_implemented [A].
 Arguments result_bottom [A].
@@ -57,6 +59,7 @@ Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) :
   match r with
   | result_success S0 a => f S0 a
   | result_error S0 s => result_error S0 s
+  | result_longjump S0 n t => result_longjump S0 n t
   | result_impossible S0 s => result_impossible S0 s
   | result_not_implemented s => result_not_implemented s
   | result_bottom S0 => result_bottom S0

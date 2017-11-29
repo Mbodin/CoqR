@@ -232,6 +232,7 @@ Definition init_R_Toplevel S :=
     InitBaseEnv S using S in
   result_success S {|
       nextcontext := None ;
+      cjmpbuf := 1 ;
       callflag := Ctxt_TopLevel ;
       promargs := R_NilValue ;
       callfun := R_NilValue ;
@@ -318,14 +319,15 @@ Definition setup_Rmainloop max_step S : result Globals :=
 
 (** An empty (and dummy) context **)
 Definition empty_context := {|
-     nextcontext := None ;
-     callflag := Ctxt_TopLevel ;
-     promargs := NULL ;
-     callfun := NULL ;
-     sysparent := NULL ;
-     call := NULL ;
-     cloenv := NULL ;
-     conexit := NULL
+    nextcontext := None ;
+    cjmpbuf := 0 ;
+    callflag := Ctxt_TopLevel ;
+    promargs := NULL ;
+    callfun := NULL ;
+    sysparent := NULL ;
+    call := NULL ;
+    cloenv := NULL ;
+    conexit := NULL
   |}.
 
 (** An empty (and dummy) state **)

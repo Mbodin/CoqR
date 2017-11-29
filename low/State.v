@@ -175,10 +175,8 @@ Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E
 
 (** Contexts are defined in the file main/context.c of R source code. **)
 
-(* FIXME: According to the C comments, these types can be mixed (as in
-  a [nbits 6]), but the C code rarely does this. I am putting this as
-  a simple inductive for now, but this may move later to a lower level
-  formalisation, if it is needed. *)
+(* According to the C comments, these types can be mixed (as in a
+  [nbits 6]). I simply formalise this as a list of types. *)
 Inductive context_type :=
   | Ctxt_TopLevel
   | Ctxt_Next
@@ -191,21 +189,27 @@ Inductive context_type :=
   | Ctxt_Generic
   | Ctxt_Restart
   | Ctxt_Builtin
-  .
+.
+
+Definition context_types := list context_type.
+
+Definition empty_context_types : context_types := nil.
 
 Instance context_type_Comparable : Comparable context_type.
   prove_comparable_simple_inductive.
 Defined.
 
+Definition context_type_mask t (ts : context_types) := Mem t ts.
+
 (** Note: not all fields have been modeled. See the report or the
   original definition in the file include/Defn.h for more details. **)
-(** The [cjmpbuf] field has been implemented as a continuation. **)
+(** The [cjmpbuf] field is here just a number, different for all
+  context. The jumping process occurs by returning a special
+  result (see Monads.v or the repport). **)
 (** RCNTXT, *context **)
 Inductive context := make_context {
     nextcontext : option context ;
-    cjmpbuf_input : Type ;
-    cjmpbuf_output : Type ;
-    cjmpbuf : cjmpbuf_input -> cjmpbuf_output ;
+    cjmpbuf : nat ;
     callflag : context_type ;
     promargs : SExpRec_pointer ;
     callfun : SExpRec_pointer ;
@@ -217,26 +221,23 @@ Inductive context := make_context {
 
 Fixpoint context_rect' (P : context -> Type) HNone HSome c : P c :=
   match c with
-  | @make_context nextcontext cjmpbuf_input cjmpbuf_output cjmpbuf
-      callflag promargs callfun sysparent call cloenv conexit =>
+  | @make_context nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv conexit =>
     match nextcontext with
     | None =>
-      HNone cjmpbuf_input cjmpbuf_output cjmpbuf
-        callflag promargs callfun sysparent call cloenv conexit
+      HNone cjmpbuf callflag promargs callfun sysparent call cloenv conexit
     | Some c' =>
       HSome _ (context_rect' P HNone HSome c')
-        cjmpbuf_input cjmpbuf_output cjmpbuf
-        callflag promargs callfun sysparent call cloenv conexit
+        cjmpbuf callflag promargs callfun sysparent call cloenv conexit
     end
   end.
 
 Definition context_ind' (P : context -> Prop) := context_rect' P.
 
-(*Instance context_Comparable : Comparable context.
+Instance context_Comparable : Comparable context.
   applys make_comparable. intros c1.
   induction c1 using context_rect'; intros c2;
     induction c2 using context_rect'; prove_decidable_eq.
-Defined.*)
+Defined.
 
 Definition context_with_conexit context conexit := {|
      nextcontext := nextcontext context ;
@@ -332,7 +333,7 @@ Instance memory_Inhab : Inhab memory :=
   prove_Inhab empty_memory.
 
 Instance context_Inhab : Inhab context.
-  apply prove_Inhab. eapply make_context with (cjmpbuf_input := False); typeclass.
+  apply prove_Inhab. constructors; typeclass.
 Qed.
 
 Instance state_Inhab : Inhab state.

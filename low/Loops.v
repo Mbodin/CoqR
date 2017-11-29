@@ -104,7 +104,8 @@ Definition funtab := option (list funtab_cell).
 
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
-    runs_do_while : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
+    runs_while_loop : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
+    runs_set_longjump : forall A, state -> context_types -> nat -> (state -> context_types -> result A) -> result A ;
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
     runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
     runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
@@ -122,16 +123,16 @@ Record runs_type : Type := runs_type_intro {
 (** ** While **)
 
 (** A basic C-like loop **)
-Definition do_while runs A S (a : A) expr stat : result A :=
+Definition while_loop runs A S (a : A) expr stat : result A :=
   let%success b := expr S a using S in
   if b : bool then
     let%success a := stat S a using S in
-    runs_do_while runs S a expr stat
+    runs_while_loop runs S a expr stat
   else
     result_success S a.
 
 Notation "'do%let' a ':=' e 'while' expr 'do' stat 'using' S ',' runs" :=
-  (do_while runs S e (fun S a => expr) (fun S a => stat))
+  (while_loop runs S e (fun S a => expr) (fun S a => stat))
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'while' expr 'do' stat 'using' S ',' runs" :=
@@ -671,3 +672,26 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le
    do let (a1, a2, a3, a4, a5) := a in iterate
    using S, runs, globals in let (a1, a2, a3, a4, a5) := a in cont)
   (at level 50, left associativity) : monad_scope.
+
+
+(** * Long Jump Monads **)
+
+(** R source code uses long jumps. These monads specify their behaviour. **)
+
+Definition set_longjump runs (A : Type) S t (cjmpbuf : nat) (f : state -> context_types -> result A) : result A :=
+  match f S t with
+  | result_success S0 a => result_success S0 a
+  | result_error S0 s => result_error S0 s
+  | result_longjump S0 n t =>
+    ifb cjmpbuf = n then
+      runs_set_longjump runs S0 t cjmpbuf f
+    else result_longjump S0 n t
+  | result_impossible S0 s => result_impossible S0 s
+  | result_not_implemented s => result_not_implemented s
+  | result_bottom S0 => result_bottom S0
+  end.
+
+Notation "'set%longjump' cjmpbuf 'as' ret 'using' S ',' runs 'in' cont" :=
+  (set_longjump runs S empty_context_types cjmpbuf (fun S ret => cont))
+  (at level 50, left associativity) : monad_scope.
+
