@@ -105,6 +105,10 @@ let print_context_type = function
   | Ctxt_Restart -> "Ctxt_Restart"
   | Ctxt_Builtin -> "Ctxt_Builtin"
 
+let print_context_types l =
+  if l = [] then "0"
+  else String.concat "|" (List.map print_context_type l)
+
 
 let indent_no_break d =
   String.make d ' '
@@ -455,20 +459,29 @@ let rec print_list d expr_options t s g p =
       | _ ->
         "(not a list: " ^ print_SExpRec d expr_options t s g p e ^ ")"
 
-let rec print_context d t s g ctxt =
+let rec print_context d ce t s g ctxt =
+  let expert str =
+    if ce then str else "" in
   "next context:" ^
-  (match ctxt.nextcontext with
-   | None -> " None"
-   | Some c -> indent (d + 2) ^ print_context (d + 2) t s g c) ^
+    (match ctxt.nextcontext with
+     | None -> " None"
+     | Some c -> indent (d + 2) ^ print_context (d + 2) ce t s g c) ^
+  expert (indent d ^ "cjmp buffer: " ^ string_of_int ctxt.cjmpbuf) ^
   indent d ^ "call flag: " ^ print_context_type ctxt.callflag ^
-  indent d ^ "prom args: " ^ print_pointer t s g ctxt.promargs ^
-  indent d ^ "call fun: " ^ print_pointer t s g ctxt.callfun ^
-  indent d ^ "sysparent: " ^ print_pointer t s g ctxt.sysparent ^
-  indent d ^ "call: " ^ print_pointer t s g ctxt.call ^
+  expert (indent d ^ "prom args: " ^ print_pointer t s g ctxt.promargs) ^
+  expert (indent d ^ "call fun: " ^ print_pointer t s g ctxt.callfun) ^
+  expert (indent d ^ "sysparent: " ^ print_pointer t s g ctxt.sysparent) ^
+  expert (indent d ^ "call: " ^ print_pointer t s g ctxt.call) ^
   indent d ^ "cloenv: " ^ print_pointer t s g ctxt.cloenv ^
-  indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit
+  indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit ^
+  expert (indent d ^ "return value: " ^ print_pointer t s g ctxt.returnValue) ^
+  expert (indent d ^ "jump target:" ^
+    (match ctxt.nextcontext with
+     | None -> " None"
+     | Some c -> " cjmp buffer: " ^ string_of_int c.cjmpbuf (*indent (d + 2) ^ print_context (d + 2) ce t s g c*))) ^
+  expert (indent d ^ "jump mask: " ^ print_context_types ctxt.jumpmask)
 
-let print_state d (context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
+let print_state d (context, all_context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
   (if memory then
     "Memory:" ^ indent (d + 2) ^
     print_memory (d + 2) s g t no_temporary expr_options (state_memory s)
@@ -497,7 +510,7 @@ let print_state d (context, memory, globals, initials, no_temporary, fetch_globa
     ^ (if context then indent d else "")
    else "") ^
   if context then
-    "Context:" ^ indent (d + 2) ^ print_context (d + 2) t s g (state_context s)
+    "Context:" ^ indent (d + 2) ^ print_context (d + 2) all_context t s g (state_context s)
   else ""
 
 let print_result r cont =

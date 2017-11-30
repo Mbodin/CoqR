@@ -19,6 +19,7 @@ let vector_line = ref false
 let charvec_string = ref false
 let no_temporary = ref false
 let show_context = ref true
+let all_context = ref false
 let fetch_global = ref false
 let print_unlike_R = ref false
 let always_print_pointer = ref false
@@ -46,6 +47,8 @@ let boolean_switches =
     make_boolean_switch (category_read :: categories) dep "use" "no" "Write" "Do not write" in
   let computation_switch categories dep =
     make_boolean_switch (category_computation :: categories) dep "show" "hide" "Show" "Do not show" in
+  let print_context =
+    print_switch [] [] show_context "context" "the execution context" true in
   let print_unlike_R =
     make_boolean_switch [] [] "unlike" "like" "Do not" "Try to (this is an experimental feature)" print_unlike_R "R" "print results as R would" false in
   let print_globals =
@@ -60,7 +63,8 @@ let boolean_switches =
     computation_switch [] [] show_result_after_computation "result" "the result of intermediate computation" false in
   [
     print_switch [] [] show_memory "memory" "the state of the memory" true ;
-    print_switch [] [] show_context "context" "the execution context" true ;
+    print_context ;
+    print_switch [] [print_context] all_context "all-context" "all fields of contexts" true ;
     print_unlike_R ;
     computation_switch [] [] always_print_pointer "pointer-result" "the value of the pointer returned even when trying to mimic R" true ;
     print_globals ;
@@ -177,7 +181,7 @@ let _ =
 (** * Main Loop **)
 
 let run_options _ =
-  (!show_context, !show_memory, !show_globals, !show_initials, !no_temporary, !fetch_global, !readable_pointers)
+  (!show_context, !all_context, !show_memory, !show_globals, !show_initials, !no_temporary, !fetch_global, !readable_pointers)
 
 let expr_options _ =
   ((!show_gp, !gp_opt, !show_attrib, !show_data, !show_details, !vector_line, !charvec_string), !print_unlike_R)

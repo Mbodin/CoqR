@@ -201,6 +201,17 @@ Definition do_begin S (call op args rho : SExpRec_pointer) : result SExpRec_poin
     result_success S s
   else result_success S (R_NilValue : SExpRec_pointer).
 
+Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  let%success v :=
+    ifb args = R_NilValue then
+      result_success S (R_NilValue : SExpRec_pointer)
+    else
+      read%list args_car, args_cdr, _ := args using S in
+      ifb args_cdr = R_NilValue then
+        eval globals runs S args_car rho
+      else result_error S "[do_return] Multi-argument returns are not permitted." using S in
+  findcontext globals runs _ S [Ctxt_Browser; Ctxt_Function] rho v.
+
 Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
   let%exit cond :=
     let%success scal := IS_SCALAR S s LglSxp using S in
@@ -409,7 +420,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "repeat" (dummy_function "do_repeat") (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
               rdecl "break" (dummy_function "do_break") CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;
               rdecl "next" (dummy_function "do_break") CTXT_NEXT eval0 (0)%Z PP_NEXT PREC_FN false ;
-              rdecl "return" (dummy_function "do_return") (0)%Z eval0 (-1)%Z PP_RETURN PREC_FN false ;
+              rdecl "return" do_return (0)%Z eval0 (-1)%Z PP_RETURN PREC_FN false ;
               rdecl "function" do_function 0 eval0 (-1)%Z PP_FUNCTION PREC_FN false ;
               rdecl "<-" do_set 1 eval100 (-1)%Z PP_ASSIGN PREC_LEFT true ;
               rdecl "=" do_set 3 eval100 (-1)%Z PP_ASSIGN PREC_EQ true ;

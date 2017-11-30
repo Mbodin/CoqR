@@ -280,6 +280,21 @@ Instance context_Comparable : Comparable context.
     induction c2 using context_rect'; prove_decidable_eq.
 Defined.
 
+Definition context_with_callflag context callflag := {|
+     nextcontext := nextcontext context ;
+     cjmpbuf := cjmpbuf context ;
+     callflag := callflag ;
+     promargs := promargs context ;
+     callfun := callfun context ;
+     sysparent := sysparent context ;
+     call := call context ;
+     cloenv := cloenv context ;
+     conexit := conexit context ;
+     returnValue := returnValue context ;
+     jumptarget := jumptarget context ;
+     jumpmask := jumpmask context
+   |}.
+
 Definition context_with_conexit context conexit := {|
      nextcontext := nextcontext context ;
      cjmpbuf := cjmpbuf context ;
@@ -323,6 +338,21 @@ Definition context_with_jumptarget context jumptarget := {|
      returnValue := returnValue context ;
      jumptarget := jumptarget ;
      jumpmask := jumpmask context
+   |}.
+
+Definition context_with_jumpmask context jumpmask := {|
+     nextcontext := nextcontext context ;
+     cjmpbuf := cjmpbuf context ;
+     callflag := callflag context ;
+     promargs := promargs context ;
+     callfun := callfun context ;
+     sysparent := sysparent context ;
+     call := call context ;
+     cloenv := cloenv context ;
+     conexit := conexit context ;
+     returnValue := returnValue context ;
+     jumptarget := jumptarget context ;
+     jumpmask := jumpmask
    |}.
 
 

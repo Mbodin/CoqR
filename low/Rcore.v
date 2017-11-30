@@ -219,6 +219,22 @@ Definition isVectorList S s :=
     result_success S false
   end.
 
+Definition isVector S s :=
+  read%defined s_ := s using S in
+  match type s_ with
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | RawSxp
+  | VecSxp
+  | ExprSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
+
 Definition R_cycle_detected S s child :=
   read%defined child_ := child using S in
   ifb s = child then
@@ -744,8 +760,68 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
   let S := state_with_context S cptr in
   result_success S cptr.
 
-Definition R_jumpctxt A (S : state) (targetcptr : context) (mask : context_types) (val : SExpRec_pointer) : result A :=
-  result_not_implemented "[R_jumpctxt]" (* TODO *).
+Fixpoint first_jump_target_loop S c cptr mask :=
+  ifb c = cptr then
+    result_success S cptr
+  else
+    ifb cloenv c <> R_NilValue /\ conexit c <> R_NilValue then
+      let c := context_with_jumptarget c (Some cptr) in
+      let c := context_with_jumpmask c mask in
+      result_success S c
+    else
+      match nextcontext c with
+      | None => result_success S cptr
+      | Some c => first_jump_target_loop S c cptr mask
+      end.
+
+Definition first_jump_target S cptr mask :=
+  first_jump_target_loop S (R_GlobalContext S) cptr mask.
+
+Fixpoint R_run_onexits_loop S c cptr :=
+  ifb c = cptr then
+    result_skip S
+  else
+    run%success
+      ifb cloenv c <> R_NilValue /\ conexit c <> R_NilValue then
+        let s := conexit c in
+        let savecontext := R_ExitContext S in
+        let c := context_with_conexit c R_NilValue in
+        let c := context_with_returnValue c NULL in
+        let S := state_with_exit_context S (Some c) in
+        fold%success
+        along s
+        as _, _, s_list do
+          let c := context_with_conexit c (list_cdrval s_list) in
+          let S := state_with_context S c in
+          run%success
+            runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
+            result_skip S using S, runs, globals in
+        let S := state_with_exit_context S savecontext in
+        result_skip S
+      else result_skip S using S in
+    run%success
+      ifb R_ExitContext S = Some c then
+        let S := state_with_exit_context S None in
+        result_skip S
+      else result_skip S using S in
+    match nextcontext c with
+    | None => result_impossible S "[R_run_onexits_loop] Bad target context."
+    | Some c => R_run_onexits_loop S c cptr
+    end.
+
+Definition R_run_onexits S cptr :=
+  R_run_onexits_loop S (R_GlobalContext S) cptr.
+
+Definition R_restore_globals S (cptr : context) :=
+  result_skip S.
+
+Definition R_jumpctxt A S targetcptr mask val : result A :=
+  let%success cptr := first_jump_target S targetcptr mask using S in
+  run%success R_run_onexits S cptr using S in
+  let S := update_R_ReturnedValue S val in
+  let S := state_with_context S cptr in
+  run%success R_restore_globals S (R_GlobalContext S) using S in
+  result_longjump S (cjmpbuf cptr) mask.
 Arguments R_jumpctxt [A].
 
 Definition endcontext S cptr :=
@@ -760,7 +836,8 @@ Definition endcontext S cptr :=
       fold%success
       along s
       as _, _, s_list do
-        let S := state_with_context S (context_with_conexit cptr (list_cdrval s_list)) in
+        let cptr := context_with_conexit cptr (list_cdrval s_list) in
+        let S := state_with_context S cptr in
         run%success
           runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
         result_skip S using S, runs, globals in
@@ -1337,8 +1414,50 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
 (** The function names of this section corresponds to the function names
   in the file main/attrib.c. **)
 
-Definition getAttrib0 (S : state) (vec name : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[getAttrib0] TODO".
+Definition isOneDimensionalArray S vec :=
+  let%success ivec := isVector S vec using S in
+  let%success ilist := isList S vec using S in
+  let%success ilang := isLanguage S vec using S in
+  ifb ivec \/ ilist \/ ilang then
+    let%success s := runs_getAttrib runs S vec R_DimSymbol using S in
+    read%defined s_ := s using S in
+    ifb type s_ = IntSxp then
+      let%success len := R_length S s using S in
+      ifb len = 1 then result_success S true
+      else result_success S false
+    else result_success S false
+  else result_success S false.
+
+Definition getAttrib0 S (vec name : SExpRec_pointer) :=
+  run%exit
+    ifb name = R_NamesSymbol then
+      run%return
+        let%success ioda := isOneDimensionalArray S vec using S in
+        ifb ioda then
+          let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
+          read%defined s_ := s using S in
+            ifb type s_ <> NilSxp then
+              let%Pointer s_0 := s_ at 0 using S in
+              map%pointer s_0 with set_named_plural using S in
+              result_rreturn S s_0
+            else result_rskip S
+        else result_rskip S using S in
+      result_not_implemented "[getAttrib0] TODO"
+    else result_rskip S using S in
+  read%defined vec_ := vec using S in
+  fold%return
+  along attrib vec_
+  as s, _, s_list do
+    ifb list_tagval s_list = name then
+      read%defined s_car_ := list_carval s_list using S in
+      ifb name = R_DimNamesSymbol /\ type s_car_ = ListSxp then
+        result_error S "[getAttrib0] Old list is no longer allowed for dimnames attributes."
+      else
+        map%pointer (list_carval s_list) with set_named_plural using S in
+        result_rreturn S (list_carval s_list)
+    else result_rskip S
+  using S, runs, globals in
+  result_success S (R_NilValue : SExpRec_pointer).
 
 Definition getAttrib S (vec name : SExpRec_pointer) :=
   read%defined vec_ := vec using S in
@@ -1573,12 +1692,17 @@ Definition R_execClosure (S : state)
     ifb jmp <> nil then
       ifb jumptarget cntxt <> None then
         ifb R_ReturnedValue S = R_RestartToken then
-          result_not_implemented "[R_execClosure]" (* TODO *)
+          let cntxt := context_with_callflag cntxt Ctxt_Return in
+          let S := state_with_context S cntxt in
+          let S := update_R_ReturnedValue S R_NilValue in
+          runs_eval runs S body newrho
         else result_success S (R_ReturnedValue S)
       else result_success S NULL
     else runs_eval runs S body newrho using S in
+  let cntxt := context_with_returnValue cntxt cntxt_returnValue in
+  let S := state_with_context S cntxt in
   run%success endcontext S cntxt using S in
-  result_success S cntxt_returnValue.
+  result_success S (returnValue cntxt).
 
 Definition applyClosure S
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
