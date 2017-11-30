@@ -64,6 +64,7 @@ let all_global_variables =
     (R_PreviousSymbol, "R_PreviousSymbol") ;
     (R_QuoteSymbol, "R_QuoteSymbol") ;
     (R_RecursiveSymbol, "R_RecursiveSymbol") ;
+    (R_RestartToken,  "R_RestartToken") ;
     (R_RowNamesSymbol, "R_RowNamesSymbol") ;
     (R_SeedsSymbol, "R_SeedsSymbol") ;
     (R_SortListSymbol, "R_SortListSymbol") ;

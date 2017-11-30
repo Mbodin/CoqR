@@ -70,6 +70,7 @@ Inductive GlobalVariable :=
   | R_PreviousSymbol
   | R_QuoteSymbol
   | R_RecursiveSymbol
+  | R_RestartToken
   | R_RowNamesSymbol
   | R_SeedsSymbol
   | R_SortListSymbol

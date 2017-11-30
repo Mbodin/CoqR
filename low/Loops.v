@@ -678,14 +678,14 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le
 
 (** R source code uses long jumps. These monads specify their behaviour. **)
 
-Definition set_longjump runs (A : Type) S t (cjmpbuf : nat) (f : state -> context_types -> result A) : result A :=
-  match f S t with
+Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> context_types -> result A) : result A :=
+  match f S mask with
   | result_success S0 a => result_success S0 a
   | result_error S0 s => result_error S0 s
-  | result_longjump S0 n t =>
+  | result_longjump S0 n mask =>
     ifb cjmpbuf = n then
-      runs_set_longjump runs S0 t cjmpbuf f
-    else result_longjump S0 n t
+      runs_set_longjump runs S0 mask cjmpbuf f
+    else result_longjump S0 n mask
   | result_impossible S0 s => result_impossible S0 s
   | result_not_implemented s => result_not_implemented s
   | result_bottom S0 => result_bottom S0

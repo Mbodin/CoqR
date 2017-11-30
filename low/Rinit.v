@@ -131,8 +131,9 @@ Definition InitNames_shorcuts S :=
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
-  (** Some ignored global values: [R_InBCInterpreter], [R_RestartToken],
-    [R_CurrentExpression] **)
+  let (S, str) := mkChar globals S "" in
+  let%success R_RestartToken := mkSymMarker globals S str using S in
+  (** Some ignored global values: [R_InBCInterpreter], [R_CurrentExpression] **)
   let (S, NA_STRING) := alloc_vector_char globals S (string_to_list "NA") in
   map%gp NA_STRING with @NBits.write_nbit 16 5 ltac:(NBits.nbits_ok) true using S in
   let (S, R_BlankString) := mkChar globals S "" in
@@ -141,7 +142,7 @@ Definition InitNames_shorcuts S :=
   let S := update_R_SymbolTable S R_SymbolTable in
   let%success L :=
      SymbolShortcuts S using S in
-  result_success S (R_UnboundValue, R_MissingArg, NA_STRING, R_BlankString, R_BlankScalarString, L).
+  result_success S (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString, L).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
@@ -239,7 +240,10 @@ Definition init_R_Toplevel S :=
       sysparent := R_BaseEnv ;
       call := R_NilValue ;
       cloenv := R_BaseEnv ;
-      conexit := R_NilValue
+      conexit := R_NilValue ;
+      returnValue := NULL ;
+      jumptarget := None ;
+      jumpmask := empty_context_types
     |}.
 
 End Globals.
@@ -273,10 +277,11 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitBaseEnv globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
-  let%success (UnboundValue, MissingArg, NA_string, BlankString, BlankScalarString, L) :=
+  let%success (UnboundValue, MissingArg, RestartToken, NA_string, BlankString, BlankScalarString, L) :=
     InitNames_shorcuts globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg ;
+                                   decl R_RestartToken RestartToken ;
                                    decl NA_STRING NA_string ;
                                    decl R_BlankString BlankString ;
                                    decl R_BlankScalarString BlankScalarString ] ++ L }} in
@@ -287,7 +292,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitNames_install globals (runs max_step globals) S using S in
   run%success
     R_initAssignSymbols globals (runs max_step globals) S using S in
-  (* TODO: initializeDDVALSymbols, R_initialize_bcode, R_init_altrep *)
+  (* TODO: [initializeDDVALSymbols], [R_initialize_bcode], [R_init_altrep]. *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
     InitGlobalEnv globals (runs max_step globals) S using S in
@@ -297,17 +302,20 @@ Definition setup_Rmainloop max_step S : result Globals :=
                                    decl R_BaseNamespace BaseNamespace ;
                                    decl R_BaseNamespaceName BaseNamespaceName ;
                                    decl R_NamespaceRegistry NamespaceRegistry] }} in
-  (* TODO [InitOptions] *)
-  (* TODO [InitTypeTables] *)
-  (* TODO [InitS3DefaulTypes] *)
+  (* TODO: [InitOptions]. *)
+  (* TODO: [InitTypeTables]. *)
+  (* TODO: [InitS3DefaulTypes]. *)
   let%success R_Toplevel :=
     init_R_Toplevel globals (runs max_step globals) S using S in
+  (* TODO: [Init_R_Variables]. *)
   let S := {|
       state_memory := S ;
       state_context := R_Toplevel ;
       R_ExitContext := None ;
-      R_SymbolTable := R_SymbolTable S
+      R_SymbolTable := R_SymbolTable S ;
+      R_ReturnedValue := NULL
     |} in
+  (* TODO: Some more initialisation. *)
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 
@@ -327,7 +335,10 @@ Definition empty_context := {|
     sysparent := NULL ;
     call := NULL ;
     cloenv := NULL ;
-    conexit := NULL
+    conexit := NULL ;
+    returnValue := NULL ;
+    jumptarget := None ;
+    jumpmask := empty_context_types
   |}.
 
 (** An empty (and dummy) state **)
@@ -335,6 +346,7 @@ Definition empty_state := {|
     state_memory := empty_memory ;
     state_context := empty_context ;
     R_ExitContext := None ;
-    R_SymbolTable := NULL
+    R_SymbolTable := NULL ;
+    R_ReturnedValue := NULL
   |}.
 

@@ -529,7 +529,7 @@ Ltac prove_decidable_eq :=
             let I := fresh "I" in
             let I1 := fresh "I_f" in let I2 := fresh "I_x" in
             rewrite decide_spec; rewrite isTrue_eq_isTrue; iff I;
-            [ lets (I1&I2): (rm I); try rewrite I1; rewrite~ I2
+            [ lets (I1&I2): (rm I); try rewrite I1; try rewrite I2; reflexivity
             | inverts I as I; splits~;
               let Eq := fresh "Eq" in
               asserts Eq: (tr (f1 x1) = tr (f2 x2));

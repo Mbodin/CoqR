@@ -216,22 +216,63 @@ Inductive context := make_context {
     sysparent : SExpRec_pointer ;
     call : SExpRec_pointer ;
     cloenv : SExpRec_pointer ;
-    conexit : SExpRec_pointer
+    conexit : SExpRec_pointer ;
+    returnValue : SExpRec_pointer ;
+    jumptarget : option context ;
+    jumpmask : context_types
   }.
 
-Fixpoint context_rect' (P : context -> Type) HNone HSome c : P c :=
+Fixpoint context_rect' (P : context -> Type) HNoneNone HNoneSome HSomeNone HSomeSome c : P c :=
   match c with
-  | @make_context nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv conexit =>
-    match nextcontext with
-    | None =>
-      HNone cjmpbuf callflag promargs callfun sysparent call cloenv conexit
-    | Some c' =>
-      HSome _ (context_rect' P HNone HSome c')
-        cjmpbuf callflag promargs callfun sysparent call cloenv conexit
+  | make_context nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv
+      conexit returnValue jumptarget jumpmask =>
+    match nextcontext, jumptarget with
+    | None, None =>
+      HNoneNone cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
+    | None, Some c' =>
+      HNoneSome c' (context_rect' P HNoneNone HNoneSome HSomeNone HSomeSome c')
+        cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
+    | Some c', None =>
+      HSomeNone c' (context_rect' P HNoneNone HNoneSome HSomeNone HSomeSome c')
+        cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
+    | Some c1, Some c2 =>
+      HSomeSome c1 c2 (context_rect' P HNoneNone HNoneSome HSomeNone HSomeSome c1)
+        (context_rect' P HNoneNone HNoneSome HSomeNone HSomeSome c2)
+        cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
     end
   end.
 
 Definition context_ind' (P : context -> Prop) := context_rect' P.
+
+Fixpoint context_rect_next_context (P : context -> Type) HNone HSome c : P c :=
+  match c with
+  | make_context nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv
+      conexit returnValue jumptarget jumpmask =>
+    match nextcontext with
+    | None =>
+      HNone cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumptarget jumpmask
+    | Some c' =>
+      HSome c' (context_rect_next_context P HNone HSome c')
+        cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumptarget jumpmask
+    end
+  end.
+
+Definition context_ind_next_context (P : context -> Prop) := context_rect_next_context P.
+
+Fixpoint context_rect_jumptarget (P : context -> Type) HNone HSome c : P c :=
+  match c with
+  | make_context nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv
+      conexit returnValue jumptarget jumpmask =>
+    match jumptarget with
+    | None =>
+      HNone nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
+    | Some c' =>
+      HSome c' (context_rect_jumptarget P HNone HSome c')
+       nextcontext cjmpbuf callflag promargs callfun sysparent call cloenv conexit returnValue jumpmask
+    end
+  end.
+
+Definition context_ind_jumptarget (P : context -> Prop) := context_rect_jumptarget P.
 
 Instance context_Comparable : Comparable context.
   applys make_comparable. intros c1.
@@ -248,7 +289,40 @@ Definition context_with_conexit context conexit := {|
      sysparent := sysparent context ;
      call := call context ;
      cloenv := cloenv context ;
-     conexit := conexit
+     conexit := conexit ;
+     returnValue := returnValue context ;
+     jumptarget := jumptarget context ;
+     jumpmask := jumpmask context
+   |}.
+
+Definition context_with_returnValue context returnValue := {|
+     nextcontext := nextcontext context ;
+     cjmpbuf := cjmpbuf context ;
+     callflag := callflag context ;
+     promargs := promargs context ;
+     callfun := callfun context ;
+     sysparent := sysparent context ;
+     call := call context ;
+     cloenv := cloenv context ;
+     conexit := conexit context ;
+     returnValue := returnValue ;
+     jumptarget := jumptarget context ;
+     jumpmask := jumpmask context
+   |}.
+
+Definition context_with_jumptarget context jumptarget := {|
+     nextcontext := nextcontext context ;
+     cjmpbuf := cjmpbuf context ;
+     callflag := callflag context ;
+     promargs := promargs context ;
+     callfun := callfun context ;
+     sysparent := sysparent context ;
+     call := call context ;
+     cloenv := cloenv context ;
+     conexit := conexit context ;
+     returnValue := returnValue context ;
+     jumptarget := jumptarget ;
+     jumpmask := jumpmask context
    |}.
 
 
@@ -258,7 +332,8 @@ Record state := make_state {
     state_memory :> memory ;
     state_context : context ;
     R_ExitContext : option context ;
-    R_SymbolTable : SExpRec_pointer
+    R_SymbolTable : SExpRec_pointer ;
+    R_ReturnedValue : SExpRec_pointer
   }.
 
 Definition R_GlobalContext := state_context.
@@ -267,29 +342,42 @@ Definition state_with_memory S m := {|
     state_memory := m ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
-    R_SymbolTable := R_SymbolTable S
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S
   |}.
 
 Definition state_with_context S c := {|
     state_memory := state_memory S ;
     state_context := c ;
     R_ExitContext := R_ExitContext S ;
-    R_SymbolTable := R_SymbolTable S
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S
   |}.
 
 Definition state_with_exit_context S c := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := c ;
-    R_SymbolTable := R_SymbolTable S
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S
   |}.
 
 Definition update_R_SymbolTable S p := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
-    R_SymbolTable := p
+    R_SymbolTable := p ;
+    R_ReturnedValue := R_ReturnedValue S
   |}.
+
+Definition update_R_ReturnedValue S p := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := p
+  |}.
+
 
 (** Wrapping up with the functions defined in the previous section. **)
 

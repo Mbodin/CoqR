@@ -736,18 +736,27 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
      sysparent := sysp ;
      call := syscall ;
      cloenv := env ;
-     conexit := R_NilValue
+     conexit := R_NilValue ;
+     returnValue := NULL ;
+     jumptarget := None ;
+     jumpmask := empty_context_types
    |} in
   let S := state_with_context S cptr in
   result_success S cptr.
 
+Definition R_jumpctxt A (S : state) (targetcptr : context) (mask : context_types) (val : SExpRec_pointer) : result A :=
+  result_not_implemented "[R_jumpctxt]" (* TODO *).
+Arguments R_jumpctxt [A].
+
 Definition endcontext S cptr :=
+  let jmptarget := jumptarget cptr in
   run%success
     ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
       let s := conexit cptr in
       let savecontext := R_ExitContext S in
+      let cptr := context_with_conexit cptr R_NilValue in
+      let cptr := context_with_jumptarget cptr None in
       let S := state_with_exit_context S (Some cptr) in
-      let S := state_with_context S (context_with_conexit cptr R_NilValue) in
       fold%success
       along s
       as _, _, s_list do
@@ -763,9 +772,32 @@ Definition endcontext S cptr :=
       let S := state_with_exit_context S None in
       result_skip S
     else result_skip S using S in
+  run%success
+    match jmptarget with
+    | None => result_skip S
+    | Some jmptarget =>
+      R_jumpctxt S jmptarget (jumpmask cptr) (R_ReturnedValue S)
+    end using S in
   let%defined c := nextcontext cptr using S in
   let S := state_with_context S c in
   result_skip S.
+
+Fixpoint findcontext_for A S cptr env mask mask_against val err : result A :=
+  ifb context_type_mask (callflag cptr) mask_against /\ cloenv cptr = env then
+    R_jumpctxt S cptr mask val
+  else
+    match nextcontext cptr with
+    | None => result_error S ("[findcontext_for] " ++ err)
+    | Some cptr => findcontext_for _ S cptr env mask mask_against val err
+    end.
+Arguments findcontext_for [A].
+
+Definition findcontext A S mask env val : result A :=
+  ifb context_type_mask Ctxt_Loop mask then
+    findcontext_for S (R_GlobalContext S) env mask [Ctxt_Loop] val "No loop for break/next, jumping to top level."
+  else
+    findcontext_for S (R_GlobalContext S) env mask mask val "No function to return from, jumping to top level.".
+Arguments findcontext [A].
 
 
 (** ** match.c **)
@@ -1536,8 +1568,15 @@ Definition R_execClosure (S : state)
   let body := clo_body op_clo in
   (** JIT functions have been ignored here. **)
   let%success R_srcef := getAttrib S op R_SrcrefSymbol using S in
-  (* TODO: translate SETJMP as a continuation *)
-  let%success cntxt_returnValue := runs_eval runs S body newrho using S in
+  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  let%success cntxt_returnValue :=
+    ifb jmp <> nil then
+      ifb jumptarget cntxt <> None then
+        ifb R_ReturnedValue S = R_RestartToken then
+          result_not_implemented "[R_execClosure]" (* TODO *)
+        else result_success S (R_ReturnedValue S)
+      else result_success S NULL
+    else runs_eval runs S body newrho using S in
   run%success endcontext S cntxt using S in
   result_success S cntxt_returnValue.
 
