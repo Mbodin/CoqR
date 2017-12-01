@@ -105,7 +105,7 @@ Definition funtab := option (list funtab_cell).
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
 Record runs_type : Type := runs_type_intro {
     runs_while_loop : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
-    runs_set_longjump : forall A, state -> context_types -> nat -> (state -> context_types -> result A) -> result A ;
+    runs_set_longjump : forall A, state -> context_type -> nat -> (state -> context_type -> result A) -> result A ;
     runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
     runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
     runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
@@ -678,7 +678,7 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le
 
 (** R source code uses long jumps. These monads specify their behaviour. **)
 
-Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> context_types -> result A) : result A :=
+Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> context_type -> result A) : result A :=
   match f S mask with
   | result_success S0 a => result_success S0 a
   | result_error S0 s => result_error S0 s
@@ -692,6 +692,6 @@ Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> con
   end.
 
 Notation "'set%longjump' cjmpbuf 'as' ret 'using' S ',' runs 'in' cont" :=
-  (set_longjump runs S empty_context_types cjmpbuf (fun S ret => cont))
+  (set_longjump runs S empty_context_type cjmpbuf (fun S ret => cont))
   (at level 50, left associativity) : monad_scope.
 

@@ -7,6 +7,7 @@
 
 ./lib/extra/Shared.v
 ./lib/extra/Array.v
+./lib/extra/NBits.v
 
 
 -R ./low Low

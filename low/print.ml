@@ -92,22 +92,24 @@ let _ =
 let all_global_variables_state =
   [ (r_SymbolTable, "R_SymbolTable") ]
 
-let print_context_type = function
-  | Ctxt_TopLevel -> "Ctxt_TopLevel"
-  | Ctxt_Next -> "Ctxt_Next"
-  | Ctxt_Break -> "Ctxt_Break"
-  | Ctxt_Loop -> "Ctxt_Loop"
-  | Ctxt_Function -> "Ctxt_Function"
-  | Ctxt_CCode -> "Ctxt_CCode"
-  | Ctxt_Return -> "Ctxt_Return"
-  | Ctxt_Browser -> "Ctxt_Browser"
-  | Ctxt_Generic -> "Ctxt_Generic"
-  | Ctxt_Restart -> "Ctxt_Restart"
-  | Ctxt_Builtin -> "Ctxt_Builtin"
-
-let print_context_types l =
-  if l = [] then "0"
-  else String.concat "|" (List.map print_context_type l)
+let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
+  let l =
+    let switch b str = if b then [str] else [] in
+    List.concat (
+        switch b1 "Ctxt_Next"
+        :: switch b2 "Ctxt_Break"
+        :: switch (b1 && b2) "Ctxt_Loop"
+        :: switch b3 "Ctxt_Function"
+        :: switch b4 "Ctxt_CCode"
+        :: switch b5 "Ctxt_Browser"
+        :: switch (b3 && b4) "Ctxt_Return"
+        :: switch (b3 && b5) "Ctxt_Generic"
+        :: switch b6 "Ctxt_Restart"
+        :: switch b7 "Ctxt_Builtin"
+        :: []
+      ) in
+  if l = [] then "Ctxt_TopLevel"
+  else String.concat " | " l
 
 
 let indent_no_break d =
@@ -224,8 +226,8 @@ let print_gp gp_opt gp =
   if not gp_opt then
     let print_bit b =
       if b then "1" else "0" in
-    String.concat "" (List.map print_bit (NBits.nbits_to_list 16 gp))
-  else string_of_int (NBits.nbits_to_nat 16 gp)
+    String.concat "" (List.map print_bit (nbits_to_list 16 gp))
+  else string_of_int (nbits_to_nat 16 gp)
 
 let is_temporary e =
   let infos = get_SxpInfo e in
@@ -479,7 +481,7 @@ let rec print_context d ce t s g ctxt =
     (match ctxt.nextcontext with
      | None -> " None"
      | Some c -> " cjmp buffer: " ^ string_of_int c.cjmpbuf (*indent (d + 2) ^ print_context (d + 2) ce t s g c*))) ^
-  expert (indent d ^ "jump mask: " ^ print_context_types ctxt.jumpmask)
+  expert (indent d ^ "jump mask: " ^ print_context_type ctxt.jumpmask)
 
 let print_state d (context, all_context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
   (if memory then

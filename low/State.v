@@ -175,31 +175,36 @@ Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E
 
 (** Contexts are defined in the file main/context.c of R source code. **)
 
-(* According to the C comments, these types can be mixed (as in a
-  [nbits 6]). I simply formalise this as a list of types. *)
-Inductive context_type :=
-  | Ctxt_TopLevel
-  | Ctxt_Next
-  | Ctxt_Break
-  | Ctxt_Loop
-  | Ctxt_Function
-  | Ctxt_CCode
-  | Ctxt_Return
-  | Ctxt_Browser
-  | Ctxt_Generic
-  | Ctxt_Restart
-  | Ctxt_Builtin
-.
+Definition context_type := nbits 7.
 
-Definition context_types := list context_type.
+Definition Ctxt_TopLevel : context_type := @nat_to_nbits 7 0 ltac:(nbits_ok).
+Definition Ctxt_Next : context_type := @nat_to_nbits 7 1 ltac:(nbits_ok).
+Definition Ctxt_Break : context_type := @nat_to_nbits 7 2 ltac:(nbits_ok).
+Definition Ctxt_Loop : context_type := @nat_to_nbits 7 3 ltac:(nbits_ok).
+Definition Ctxt_Function : context_type := @nat_to_nbits 7 4 ltac:(nbits_ok).
+Definition Ctxt_CCode : context_type := @nat_to_nbits 7 8 ltac:(nbits_ok).
+Definition Ctxt_Return : context_type := @nat_to_nbits 7 12 ltac:(nbits_ok).
+Definition Ctxt_Browser : context_type := @nat_to_nbits 7 16 ltac:(nbits_ok).
+Definition Ctxt_Generic : context_type := @nat_to_nbits 7 20 ltac:(nbits_ok).
+Definition Ctxt_Restart : context_type := @nat_to_nbits 7 32 ltac:(nbits_ok).
+Definition Ctxt_Builtin : context_type := @nat_to_nbits 7 64 ltac:(nbits_ok).
 
-Definition empty_context_types : context_types := nil.
+Definition empty_context_type := Ctxt_TopLevel.
 
 Instance context_type_Comparable : Comparable context_type.
-  prove_comparable_simple_inductive.
+  typeclass.
 Defined.
 
-Definition context_type_mask t (ts : context_types) := Mem t ts.
+Instance context_type_Inhab : Inhab context_type.
+  apply prove_Inhab. apply empty_context_type.
+Defined.
+
+Definition context_type_mask (t1 t2 : context_type) :=
+  nbits_intersects t1 t2.
+
+Definition context_type_merge (t1 t2 : context_type) :=
+  nbits_and t1 t2.
+
 
 (** Note: not all fields have been modeled. See the report or the
   original definition in the file include/Defn.h for more details. **)
@@ -219,7 +224,7 @@ Inductive context := make_context {
     conexit : SExpRec_pointer ;
     returnValue : SExpRec_pointer ;
     jumptarget : option context ;
-    jumpmask : context_types
+    jumpmask : context_type
   }.
 
 Fixpoint context_rect' (P : context -> Type) HNoneNone HNoneSome HSomeNone HSomeSome c : P c :=
@@ -451,7 +456,7 @@ Instance memory_Inhab : Inhab memory :=
   prove_Inhab empty_memory.
 
 Instance context_Inhab : Inhab context.
-  apply prove_Inhab. constructors; typeclass.
+  apply prove_Inhab. constructors; typeclass || apply arbitrary.
 Qed.
 
 Instance state_Inhab : Inhab state.

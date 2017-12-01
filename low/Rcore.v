@@ -141,7 +141,7 @@ Definition CHAR S x :=
   result_success S (list_to_string (ArrayList.to_list x_vector)).
 
 Definition SET_MISSING S e (m : nat) I :=
-  map%gp e with @NBits.write_nbits 16 4 0 (NBits.nat_to_nbits m I) ltac:(NBits.nbits_ok) using S in
+  map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
@@ -160,14 +160,14 @@ Definition INCREMENT_NAMED S x :=
 
 Definition DDVAL S x :=
   read%defined x_ := x using S in
-  result_success S (NBits.nth_bit 0 (gp x_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 0 (gp x_) ltac:(nbits_ok)).
 
 Definition SET_DDVAL_BIT S x :=
-  map%gp x with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) true using S in
+  map%gp x with @write_nbit 16 0 ltac:(nbits_ok) true using S in
   result_skip S.
 
 Definition UNSET_DDVAL_BIT S x :=
-  map%gp x with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) false using S in
+  map%gp x with @write_nbit 16 0 ltac:(nbits_ok) false using S in
   result_skip S.
 
 Definition IS_SCALAR S x t :=
@@ -611,7 +611,7 @@ Definition iSDDName S (name : SExpRec_pointer) :=
 Definition mkSYMSXP S (name value : SExpRec_pointer) :=
   let%success i := iSDDName S name using S in
   let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
-  map%gp c with @NBits.write_nbit 16 0 ltac:(NBits.nbits_ok) i using S in
+  map%gp c with @write_nbit 16 0 ltac:(nbits_ok) i using S in
   result_success S c.
 
 
@@ -755,7 +755,7 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
      conexit := R_NilValue ;
      returnValue := NULL ;
      jumptarget := None ;
-     jumpmask := empty_context_types
+     jumpmask := empty_context_type
    |} in
   let S := state_with_context S cptr in
   result_success S cptr.
@@ -859,21 +859,24 @@ Definition endcontext S cptr :=
   let S := state_with_context S c in
   result_skip S.
 
-Fixpoint findcontext_for A S cptr env mask mask_against val err : result A :=
+Fixpoint findcontext_loop A S cptr env mask mask_against val err : result A :=
   ifb context_type_mask (callflag cptr) mask_against /\ cloenv cptr = env then
     R_jumpctxt S cptr mask val
   else
+    let error S := result_error S ("[findcontext_loop] " ++ err) in
     match nextcontext cptr with
-    | None => result_error S ("[findcontext_for] " ++ err)
-    | Some cptr => findcontext_for _ S cptr env mask mask_against val err
+    | None => error S
+    | Some cptr =>
+      ifb callflag cptr = Ctxt_TopLevel then error S
+      else findcontext_loop _ S cptr env mask mask_against val err
     end.
-Arguments findcontext_for [A].
+Arguments findcontext_loop [A].
 
 Definition findcontext A S mask env val : result A :=
   ifb context_type_mask Ctxt_Loop mask then
-    findcontext_for S (R_GlobalContext S) env mask [Ctxt_Loop] val "No loop for break/next, jumping to top level."
+    findcontext_loop S (R_GlobalContext S) env mask Ctxt_Loop val "No loop for break/next, jumping to top level."
   else
-    findcontext_for S (R_GlobalContext S) env mask mask val "No function to return from, jumping to top level.".
+    findcontext_loop S (R_GlobalContext S) env mask mask val "No function to return from, jumping to top level.".
 Arguments findcontext [A].
 
 
@@ -921,14 +924,14 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   to mark some arguments as being used or missing. **)
 
 Definition argused e_ :=
-  NBits.nbits_to_nat (gp e_).
+  nbits_to_nat (gp e_).
 
 Definition set_argused (used : nat) I :=
-  set_gp (NBits.nat_to_nbits used I).
+  set_gp (nat_to_nbits used I).
 Arguments set_argused : clear implicits.
 
 Definition missing e_ :=
-  NBits.sub_nbits 0 4 (gp e_) ltac:(NBits.nbits_ok).
+  sub_nbits 0 4 (gp e_) ltac:(nbits_ok).
 
 Definition matchArgs_first S formals actuals supplied : result (list nat) :=
   fold%success (a, fargusedrev) := (actuals, nil)
@@ -954,9 +957,9 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
                 set%car a := list_carval b_list using S in
                 run%success
                   ifb list_carval b_list <> R_MissingArg then
-                    SET_MISSING S a 0 ltac:(NBits.nbits_ok)
+                    SET_MISSING S a 0 ltac:(nbits_ok)
                   else result_skip S using S in
-                map%pointer b with set_argused 2 ltac:(NBits.nbits_ok) using S in
+                map%pointer b with set_argused 2 ltac:(nbits_ok) using S in
                 result_success S 2
             else result_success S fargusedi
           else result_success S fargusedi using S, runs, globals
@@ -995,9 +998,9 @@ Definition matchArgs_second S actuals formals supplied fargused : result SExpRec
                     set%car a := list_carval b_list using S in
                     run%success
                       ifb list_carval b_list <> R_MissingArg then
-                        SET_MISSING S a 0 ltac:(NBits.nbits_ok)
+                        SET_MISSING S a 0 ltac:(nbits_ok)
                       else result_skip S using S in
-                    map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
+                    map%pointer b with set_argused 1 ltac:(nbits_ok) using S in
                     result_success S 1
                 else result_success S fargusedi
               else result_success S fargusedi using S, runs, globals in
@@ -1025,15 +1028,15 @@ Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) : resu
         set%car a := b_car using S in
         run%success
           ifb b_car <> R_MissingArg then
-            SET_MISSING S a 0 ltac:(NBits.nbits_ok)
+            SET_MISSING S a 0 ltac:(nbits_ok)
           else result_skip S using S in
-        map%pointer b with set_argused 1 ltac:(NBits.nbits_ok) using S in
+        map%pointer b with set_argused 1 ltac:(nbits_ok) using S in
         result_success S (f_cdr, a_cdr, b_cdr, seendots)
   using S, runs in
   result_skip S.
 
 Definition matchArgs_dots S dots supplied : result unit :=
-  run%success SET_MISSING S dots 0 ltac:(NBits.nbits_ok) using S in
+  run%success SET_MISSING S dots 0 ltac:(nbits_ok) using S in
   fold%success i := 0
   along supplied
   as a, _ do
@@ -1087,12 +1090,12 @@ Definition matchArgs S formals supplied (call : SExpRec_pointer) : result SExpRe
   along formals
   as _, _ do
     let (S, actuals) := CONS_NR S R_MissingArg actuals in
-    run%success SET_MISSING S actuals 1 ltac:(NBits.nbits_ok) using S in
+    run%success SET_MISSING S actuals 1 ltac:(nbits_ok) using S in
     result_success S (actuals, 1 + argi) using S, runs, globals in
   fold%success
   along supplied
   as b, _ do
-    map%pointer b with set_argused 0 ltac:(NBits.nbits_ok) using S in
+    map%pointer b with set_argused 0 ltac:(nbits_ok) using S in
     result_skip S using S, runs, globals in
   let%success fargused := matchArgs_first S formals actuals supplied using S in
   let%success dots := matchArgs_second S actuals formals supplied fargused using S in
@@ -1112,15 +1115,15 @@ Definition matchArgs S formals supplied (call : SExpRec_pointer) : result SExpRe
 
 Definition IS_SPECIAL_SYMBOL S b :=
   read%defined b_ := b using S in
-  result_success S (NBits.nth_bit 12 (gp b_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 12 (gp b_) ltac:(nbits_ok)).
 
 (** This macro definition was already redundant in C. **)
 Definition NO_SPECIAL_SYMBOLS S x :=
   read%defined x_ := x using S in
-  result_success S (NBits.nth_bit 12 (gp x_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 12 (gp x_) ltac:(nbits_ok)).
 
 Definition SET_SPECIAL_SYMBOL S x v :=
-  map%gp x with @NBits.write_nbit 16 12 ltac:(NBits.nbits_ok) v using S in
+  map%gp x with @write_nbit 16 12 ltac:(nbits_ok) v using S in
   result_skip S.
 
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
@@ -1184,15 +1187,15 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
 
 Definition FRAME_IS_LOCKED S rho :=
   read%defined rho_ := rho using S in
-  result_success S (NBits.nth_bit 14 (gp rho_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 14 (gp rho_) ltac:(nbits_ok)).
 
 Definition BINDING_IS_LOCKED S symbol :=
   read%defined symbol_ := symbol using S in
-  result_success S (NBits.nth_bit 14 (gp symbol_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 14 (gp symbol_) ltac:(nbits_ok)).
 
 Definition IS_ACTIVE_BINDING S symbol :=
   read%defined symbol_ := symbol using S in
-  result_success S (NBits.nth_bit 15 (gp symbol_) ltac:(NBits.nbits_ok)).
+  result_success S (nth_bit 15 (gp symbol_) ltac:(nbits_ok)).
 
 Definition getActiveValue S f :=
   let%success expr := lcons S f R_NilValue using S in
@@ -1292,7 +1295,7 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
         as frame, _, frame_list do
           ifb list_tagval frame_list = symbol then
             run%success SET_BINDING_VALUE S frame value using S in
-            run%success SET_MISSING S frame 0 ltac:(NBits.nbits_ok) using S in
+            run%success SET_MISSING S frame 0 ltac:(nbits_ok) using S in
             result_rreturn S tt
           else
             result_rskip S using S, runs, globals in
@@ -1653,17 +1656,17 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
   read%prom e_, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
     run%success
-      ifb NBits.nbits_to_nat (gp e_) <> 0 then
-        ifb NBits.nbits_to_nat (gp e_) = 1 then
+      ifb nbits_to_nat (gp e_) <> 0 then
+        ifb nbits_to_nat (gp e_) = 1 then
           result_error S "[forcePromise] Promise already under evaluation."
         else
           (** The C code emitted a warning here: restarting interrupted promise evaluation.
             This may be a sign that this part should be ignored. *)
           result_skip S
       else result_skip S using S in
-    set%gp e with @NBits.nat_to_nbits 16 1 ltac:(NBits.nbits_ok) using S in
+    set%gp e with @nat_to_nbits 16 1 ltac:(nbits_ok) using S in
     let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
-    set%gp e with @NBits.nat_to_nbits 16 0 ltac:(NBits.nbits_ok) using S in
+    set%gp e with @nat_to_nbits 16 0 ltac:(nbits_ok) using S in
     map%pointer val with set_named_plural using S in
     read%prom e_, e_prom := e using S in
     let e_prom := {|
@@ -1689,7 +1692,7 @@ Definition R_execClosure (S : state)
   let%success R_srcef := getAttrib S op R_SrcrefSymbol using S in
   set%longjump cjmpbuf cntxt as jmp using S, runs in
   let%success cntxt_returnValue :=
-    ifb jmp <> nil then
+    ifb jmp <> empty_context_type then
       ifb jumptarget cntxt <> None then
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
@@ -1722,7 +1725,7 @@ Definition applyClosure S
       ifb a_car = R_MissingArg /\ f_car <> R_MissingArg then
         let%success newprom := mkPromise S f_car newrho using S in
         set%car a := newprom using S in
-        run%success SET_MISSING S a 2 ltac:(NBits.nbits_ok) using S in
+        run%success SET_MISSING S a 2 ltac:(nbits_ok) using S in
         result_success S a_cdr
       else result_success S a_cdr using S, runs, globals in
     run%success

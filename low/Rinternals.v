@@ -4,7 +4,7 @@
 
 Set Implicit Arguments.
 
-Require Export Array TLC.LibString TLC.LibInt.
+Require Export Array NBits TLC.LibString TLC.LibInt.
 Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
 
 
@@ -47,12 +47,6 @@ Inductive named_field :=
   | named_unique (** 1 in R; bound to at most one variable **)
   | named_plural (** 2 in R; the object may be bound to more than one variable **)
   .
-
-Fixpoint nbits (n : nat) : Type :=
-  match n with
-  | O => unit
-  | S n => bool * nbits n
-  end.
 
 (** sxpinfo_struct **)
 Record SxpInfo := make_SxpInfo {

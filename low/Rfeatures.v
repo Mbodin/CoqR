@@ -210,7 +210,7 @@ Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_poi
       ifb args_cdr = R_NilValue then
         eval globals runs S args_car rho
       else result_error S "[do_return] Multi-argument returns are not permitted." using S in
-  findcontext globals runs _ S [Ctxt_Browser; Ctxt_Function] rho v.
+  findcontext globals runs _ S (context_type_merge Ctxt_Browser Ctxt_Function) rho v.
 
 Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
   let%exit cond :=

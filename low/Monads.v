@@ -11,7 +11,7 @@ Require Export State.
 Inductive result (A : Type) :=
   | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
   | result_error : state -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
-  | result_longjump : state -> nat -> context_types -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
+  | result_longjump : state -> nat -> context_type -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
   | result_impossible : state -> string -> result A (** This result should never happen. We provide a string to help debugging. **)
   | result_not_implemented : string -> result A (** The result relies on a feature not yet implemented. **)
   | result_bottom : state -> result A (** We went out of fuel during the computation. **)
