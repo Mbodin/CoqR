@@ -4,6 +4,7 @@
 (** * References to Options **)
 
 let interactive = ref true
+let verbose = ref true
 let max_steps = ref max_int
 
 let readable_pointers = ref true
@@ -82,7 +83,8 @@ let boolean_switches =
     computation_switch [] [show_result] fetch_result "result-value" "the value pointed by the current computation" true ;
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" false ;
     computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" true ;
-    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true
+    make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true ;
+    make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false
   ]
 
 let get_pointer (_, _, _, _, _, _, p, _, _, _) = p
@@ -122,22 +124,23 @@ let make_options expert prefix default =
         " (to be used in combination with " ^ deps ^ ")" in
       let default b =
         if b then " (" ^ default ^ ")" else "" in
+      let doc_d = if d = [] then doc else doc_strict in
       let ret dep_text print_dep = [
-          (name_switch true b ^ dep_text, Arg.Set p, doc_strict (vvy ^ " " ^ n ^ print_dep ^ "." ^ default !p)) ;
-          (name_switch false b ^ dep_text, Arg.Clear p, doc_strict (vvn ^ " " ^ n ^ print_dep ^ "." ^ default (not !p)))
+          (name_switch true b ^ dep_text, Arg.Set p, doc_d (vvy ^ " " ^ n ^ print_dep ^ "." ^ default !p)) ;
+          (name_switch false b ^ dep_text, Arg.Clear p, doc_d (vvn ^ " " ^ n ^ print_dep ^ "." ^ default (not !p)))
         ] in
       let set_with_dep v _ =
         List.iter (fun b -> get_pointer b := true) d ;
         p := v in
+      let doc_base vv s =
+        let deps = if deps = "" then "" else deps ^ " " in
+        doc (vv ^ " " ^ n ^ " (equivalent to " ^ deps ^ name_switch_base s b ^ ").") in
       if d = [] then
         ret "" ""
       else
-        ret base_suffix print_dep @ [
-            (name_switch true b, Arg.Unit (set_with_dep true),
-              doc (vvy ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base true b ^ ").")) ;
-            (name_switch false b, Arg.Unit (set_with_dep false),
-              doc (vvn ^ " " ^ n ^ " (equivalent to " ^ deps ^ " " ^ name_switch_base false b ^ ")."))
-          ]) boolean_switches)
+        ret base_suffix print_dep
+        @ [ (name_switch true b, Arg.Unit (set_with_dep true), doc_base vvy true) ;
+            (name_switch false b, Arg.Unit (set_with_dep false), doc_base vvn false) ]) boolean_switches)
   @ List.concat (List.map (fun c ->
       let this_category =
         List.filter (fun b -> List.mem c (get_categories b)) boolean_switches in
@@ -197,18 +200,18 @@ let expert_mode = ref false
 let _ =
   let initialising_function =
     if !initial_state = "" then (
-      print_endline "Initialising…" ;
+      if !verbose then print_endline "Initialising…" ;
       Low.setup_Rmainloop !max_steps Low.empty_state
     ) else (
-      print_endline ("Reading state from " ^ !initial_state ^ "…") ;
+      if !verbose then print_endline ("Reading state from " ^ !initial_state ^ "…") ;
       let inchannel = open_in_bin !initial_state in
       let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
       Low.Result_success (s, globals)) in
-  Print.print_defined initialising_function Low.empty_state (fun s globals ->
+  Print.print_defined !verbose initialising_function Low.empty_state (fun s globals ->
     if !show_globals_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
-    | None -> print_endline "Initialisation of constant global variables failed. Halting"
+    | None -> print_endline ("Initialisation of constant global variables failed." ^ if !verbose then " Halting." else "")
     | Some globals ->
       let buf = Lexing.from_channel stdin in
       let rec loop s =
@@ -219,7 +222,7 @@ let _ =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
               Low.eval_global g r s p) in
-          Print.print_and_continue
+          Print.print_and_continue !verbose
             (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
             globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
               if !print_unlike_R then
@@ -258,7 +261,7 @@ let _ =
             let print_list_fun _ =
               print_endline (Debug.list_all_fun 2) in
             let save_state str =
-              print_endline ("Saving current state into the file " ^ str ^ "…") ;
+              if !verbose then print_endline ("Saving current state into the file " ^ str ^ "…") ;
               let outchannel = open_out_bin str in
               Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures] in
             let set_expert _ =
@@ -296,12 +299,12 @@ let _ =
             | [] ->
               let s = cont s in
               if at_leat_one then
-                print_endline "Done." ;
+                if !verbose then print_endline "Done." ;
               loop s
             | "#quit" :: l -> ignore (cont s)
             | "#execute" as cmd :: l ->
               check_change_state seen_state_change cmd ;
-              Debug.parse_arg_fun
+              Debug.parse_arg_fun !verbose
                 (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
                 !readable_pointers !fetch_result s globals (Low.runs !max_steps globals)
                 (fun l f ->

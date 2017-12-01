@@ -515,10 +515,10 @@ let print_state d (context, all_context, memory, globals, initials, no_temporary
     "Context:" ^ indent (d + 2) ^ print_context (d + 2) all_context t s g (state_context s)
   else ""
 
-let print_result r cont =
+let print_result verbose r cont =
   match r with
   | Result_success (s, g) ->
-    print_endline "Success." ;
+    if verbose then print_endline "Success." ;
     cont (Some s) (Some g)
   | Result_error (s, str) ->
     print_endline ("Error: " ^ char_list_to_string str) ;
@@ -536,15 +536,15 @@ let print_result r cont =
     print_endline "Stopped because of lack of fuel." ;
     cont None None
 
-let print_continue r s cont =
-  print_result r (function
+let print_continue verbose r s cont =
+  print_result verbose r (function
     | None ->
       print_endline "An error lead to an undefined state. Continuing using the old one." ;
       cont s
     | Some s -> cont s)
 
-let print_defined r s pr cont =
-  print_continue r s (fun s -> function
+let print_defined verbose r s pr cont =
+  print_continue verbose r s (fun s -> function
     | None ->
       print_endline "An error lead to an undefined result." ;
       cont s None
@@ -552,9 +552,10 @@ let print_defined r s pr cont =
       pr s r ;
       cont s (Some r))
 
-let print_and_continue (show_state_after_computation, show_result_after_computation, run_options, ((_, print_unlike_R) as expr_options))
+let print_and_continue verbose
+    (show_state_after_computation, show_result_after_computation, run_options, ((_, print_unlike_R) as expr_options))
     g r s pr cont =
-  print_defined r s (fun s r ->
+  print_defined verbose r s (fun s r ->
     if show_state_after_computation then (
       print_endline "State:" ;
       print_endline (print_state 2 run_options expr_options s g)) ;

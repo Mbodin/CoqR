@@ -203,7 +203,7 @@ Definition context_type_mask (t1 t2 : context_type) :=
   nbits_intersects t1 t2.
 
 Definition context_type_merge (t1 t2 : context_type) :=
-  nbits_and t1 t2.
+  nbits_or t1 t2.
 
 
 (** Note: not all fields have been modeled. See the report or the

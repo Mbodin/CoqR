@@ -1693,7 +1693,7 @@ Definition R_execClosure (S : state)
   set%longjump cjmpbuf cntxt as jmp using S, runs in
   let%success cntxt_returnValue :=
     ifb jmp <> empty_context_type then
-      ifb jumptarget cntxt <> None then
+      ifb jumptarget cntxt = None then
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
           let S := state_with_context S cntxt in
