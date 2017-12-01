@@ -219,6 +219,73 @@ Proof.
   - rewrite rewrite_nbits_to_nat. simpl. rewrite* IHn.
 Qed.
 
+Definition nat_to_nbits_check : forall n, nat -> option (nbits n).
+  introv m. destruct (decide (m < 2 ^ n)%nat) eqn: E.
+  - refine (Some (nat_to_nbits m _)). fold_bool. rew_refl~ in E.
+  - exact None.
+Defined.
+Arguments nat_to_nbits_check [n].
+
+Lemma rewrite_decide_if_true : forall A P `{Decidable P} f1 f2 (E : decide P = true),
+  (if decide P as b return decide P = b -> A then f1 else f2) eq_refl = f1 E.
+Proof. introv. destruct (decide P); tryfalse. erewrite~ (proof_irrelevance E). Qed.
+
+Lemma rewrite_decide_if_false : forall A P `{Decidable P} f1 f2 (E : decide P = false),
+  (if decide P as b return decide P = b -> A then f1 else f2) eq_refl = f2 E.
+Proof. introv. destruct (decide P); tryfalse. erewrite~ (proof_irrelevance E). Qed.
+
+Lemma nat_to_nbits_check_correct : forall n m (I : (m < 2 ^ n)%nat),
+  nat_to_nbits_check m = Some (nat_to_nbits m I).
+Proof.
+  introv. unfolds nat_to_nbits_check.
+  asserts E: (decide (m < 2 ^ n)%nat = true). { fold_bool. rew_refl*. }
+  rewrite rewrite_decide_if_true with (E := E). erewrite~ rewrite_nat_to_nbits.
+Qed.
+
+Lemma nat_to_nbits_check_out : forall n m,
+  (m >= 2 ^ n)%nat ->
+  @nat_to_nbits_check n m = None.
+Proof.
+  introv I. unfolds nat_to_nbits_check.
+  asserts E: (decide (m < 2 ^ n)%nat = false). { fold_bool. rew_refl*. nat_math. }
+  rewrite rewrite_decide_if_false with (E := E). reflexivity.
+Qed.
+
+Definition int_to_nbits_check n z : option (nbits n) :=
+  match z with
+  | 0%Z => Some (@nat_to_nbits n 0 ltac:(forwards: Nat.pow_nonzero 2 n; nat_math))
+  | Z.pos p => nat_to_nbits_check (Pos.to_nat p)
+  | Z.neg _ => None
+  end.
+Arguments int_to_nbits_check [n].
+
+Lemma int_to_nbits_check_correct : forall (n : nat) (m : Z) (I : (Z.to_nat m < 2 ^ n)%nat),
+  (0 <= m)%Z ->
+  int_to_nbits_check m = Some (nat_to_nbits (Z.to_nat m) I).
+Proof.
+  introv I'. destruct m.
+  - simpl. repeat fequals.
+  - simpl. apply nat_to_nbits_check_correct.
+  - apply Zle_not_lt in I'. false I'. apply Zlt_neg_0.
+Qed.
+
+Lemma int_to_nbits_check_out : forall n m,
+  (Z.to_nat m >= 2 ^ n)%nat \/ (m < 0)%Z ->
+  @int_to_nbits_check n m = None.
+Proof.
+  introv [I|I]; destruct m.
+  - forwards: Nat.pow_nonzero 2 n. { nat_math. }
+    simpls. nat_math.
+  - simpls. apply~ nat_to_nbits_check_out.
+  - forwards: Nat.pow_nonzero 2 n. { nat_math. }
+    simpls. nat_math.
+  - nat_math.
+  - forwards: Zle_0_pos p. nat_math.
+  - reflexivity.
+Qed.
+
+
+
 
 (** * Extracting Bits **)
 

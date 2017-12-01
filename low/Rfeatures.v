@@ -67,14 +67,14 @@ Definition mkPRIMSXP S (offset : nat) (type_ : bool) : result SExpRec_pointer :=
       write%Pointer mkPRIMSXP_primCache at offset := result using S in
       result_success S result
     else
-      read%defined result_ := result using S in
-      ifb type result_ <> type_ then
+      let%success result_type := TYPEOF S result using S in
+      ifb result_type <> type_ then
         result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
       else result_success S result.
 
 Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
-  read%defined body_ := body using S in
-  match type body_ with
+  let%success body_type := TYPEOF S body using S in
+  match body_type with
   | CloSxp
   | BuiltinSxp
   | SpecialSxp
@@ -101,8 +101,8 @@ Definition CheckFormals S ls :=
     fold%success
     along ls
     as _, ls_tag do
-      read%defined ls_tag_ := ls_tag using S in
-      ifb type ls_tag_ <> SymSxp then
+      let%success ls_tag_type := TYPEOF S ls_tag using S in
+      ifb ls_tag_type <> SymSxp then
         result_error S "[CheckFormals] Invalid formal argument list (not a symbol)."
       else result_skip S using S, runs, globals in
     result_skip S
@@ -112,11 +112,11 @@ Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
 Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   let wrong S :=
-    let%success v := PRIMVAL runs S op using S in
-    ifb v < 0 then
+    let%success op_val := PRIMVAL runs S op using S in
+    ifb op_val < 0 then
       result_error S "[do_set] Negative offset."
     else
-      match nth_option (Z.to_nat v) asym with
+      match nth_option (Z.to_nat op_val) asym with
       | None => result_error S "[do_set] [PRIMVAL] out of bound in [asym]."
       | Some n => WrongArgCount S n
       end in
@@ -127,19 +127,19 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
   ifb args_cdr_cdr <> R_NilValue then wrong S
   else
     let lhs := args_car in
-    read%defined lhs_ := lhs using S in
-    match type lhs_ with
+    let%success lhs_type := TYPEOF S lhs using S in
+    match lhs_type with
     | StrSxp
     | SymSxp =>
       let%success lhs :=
-        ifb type lhs_ = StrSxp then
+        ifb lhs_type  = StrSxp then
           let%success lhs_char := STRING_ELT S lhs 0 using S in
           installTrChar globals runs S lhs_char
         else result_success S lhs using S in
       let%success rhs := eval globals runs S args_cdr_car rho using S in
       run%success INCREMENT_NAMED S rhs using S in
-      let%success val := PRIMVAL runs S op using S in
-      ifb val = 2 then
+      let%success op_val := PRIMVAL runs S op using S in
+      ifb op_val = 2 then
         read%env _, rho_env := rho using S in
         run%success setVar globals runs S lhs rhs (env_enclos rho_env) using S in
         result_success S rhs
@@ -152,8 +152,8 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 
 Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   let%success op :=
-    read%defined op_ := op using S in
-    ifb type op_ = PromSxp then
+    let%success op_type := TYPEOF S op using S in
+    ifb op_type = PromSxp then
       let%success op := forcePromise globals runs S op using S in
       map%pointer op with set_named_plural using S in
       result_success S op
@@ -169,14 +169,22 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
       mkCLOSXP S args_car args_cdr_car rho using S in
     read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
     let srcref := args_cdr_cdr_car in
-    read%defined srcref_ := srcref using S in
+    let%success srcref_type := TYPEOF S srcref using S in
     run%success
-      ifb type srcref_ = NilSxp then
+      ifb srcref_type = NilSxp then
         run%success
           setAttrib globals runs S rval R_SrcrefSymbol srcref using S in
         result_skip S
       else result_skip S using S in
     result_success S rval.
+
+Definition do_break S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  let%success op_val := PRIMVAL runs S op using S in
+  match int_to_nbits_check op_val with
+  | None => result_impossible S "[do_break] The variable “op_val” should be of type “context_type”."
+  | Some c => findcontext globals runs _ S c rho R_NilValue
+  end.
 
 Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -185,8 +193,8 @@ Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_poin
 
 Definition getBlockSrcrefs S call : result SExpRec_pointer :=
   let%success srcrefs := getAttrib globals runs S call R_SrcrefSymbol using S in
-  read%defined srcrefs_ := srcrefs using S in
-  ifb type srcrefs_ = VecSxp then
+  let%success srcrefs_type := TYPEOF S srcrefs using S in
+  ifb srcrefs_type = VecSxp then
     result_success S srcrefs
   else result_success S (R_NilValue : SExpRec_pointer).
 
@@ -236,8 +244,8 @@ Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
   else
     let%success cond :=
       ifb len > 0 then
-        read%defined s_ := s using S in
-        match type s_ with
+        let%success s_type := TYPEOF S s using S in
+        match s_type with
         | LglSxp =>
           read%Logical cond := s at 0 using S in
           result_success S cond
@@ -418,8 +426,8 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "while" do_while (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
               rdecl "for" (dummy_function "do_for") (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
               rdecl "repeat" (dummy_function "do_repeat") (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
-              rdecl "break" (dummy_function "do_break") CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;
-              rdecl "next" (dummy_function "do_break") CTXT_NEXT eval0 (0)%Z PP_NEXT PREC_FN false ;
+              rdecl "break" do_break CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;
+              rdecl "next" do_break CTXT_NEXT eval0 (0)%Z PP_NEXT PREC_FN false ;
               rdecl "return" do_return (0)%Z eval0 (-1)%Z PP_RETURN PREC_FN false ;
               rdecl "function" do_function 0 eval0 (-1)%Z PP_FUNCTION PREC_FN false ;
               rdecl "<-" do_set 1 eval100 (-1)%Z PP_ASSIGN PREC_LEFT true ;

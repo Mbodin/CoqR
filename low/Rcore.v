@@ -132,6 +132,10 @@ Definition CTXT_BUILTIN := 64.
 (** The function names of this section corresponds to the macro names
   in the file include/Rinternals.h. **)
 
+Definition TYPEOF S x :=
+  read%defined x_ := x using S in
+  result_success S (type x_).
+
 Definition PRINTNAME S x :=
   read%sym _, x_sym := x using S in
   result_success S (sym_pname x_sym).
@@ -175,8 +179,8 @@ Definition IS_SCALAR S x t :=
   result_success S (decide (type x_ = t /\ scalar x_)).
 
 Definition isLogical S s :=
-  read%defined s_ := s using S in
-  result_success S (decide (type s_ = LglSxp)).
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = LglSxp)).
 
 Definition IS_LOGICAL := isLogical.
 
@@ -197,8 +201,8 @@ Definition duplicate S s :=
 
 (** The following function is actually in the C file include/Rinlinedfuns.h. **)
 Definition isPairList S s :=
-  read%defined s_ := s using S in
-  match type s_ with
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
   | NilSxp
   | ListSxp
   | LangSxp
@@ -210,8 +214,8 @@ Definition isPairList S s :=
 
 (** The following function is actually in the C file include/Rinlinedfuns.h. **)
 Definition isVectorList S s :=
-  read%defined s_ := s using S in
-  match type s_ with
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
   | VecSxp
   | ExprSxp =>
     result_success S true
@@ -220,8 +224,8 @@ Definition isVectorList S s :=
   end.
 
 Definition isVector S s :=
-  read%defined s_ := s using S in
-  match type s_ with
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
   | LglSxp
   | IntSxp
   | RealSxp
@@ -236,9 +240,9 @@ Definition isVector S s :=
   end.
 
 Definition R_cycle_detected S s child :=
-  read%defined child_ := child using S in
+  let%success child_type := TYPEOF S child using S in
   ifb s = child then
-    match type child_ with
+    match child_type with
     | NilSxp
     | SymSxp
     | EnvSxp
@@ -253,6 +257,7 @@ Definition R_cycle_detected S s child :=
     end
   else
     run%exit
+      read%defined child_ := child using S in
       ifb attrib child_ <> R_NilValue then
         let%success r :=
           runs_R_cycle_detected runs S s (attrib child_) using S in
@@ -310,11 +315,11 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
   in aux S n R_NilValue.
 
 Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
-  read%defined x_ := x using S in
-  ifb type x_ <> StrSxp then
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> StrSxp then
     result_error S "[STRING_ELT] Not a character vector."
   else
-    let%Pointer r := x_ at i using S in
+    read%Pointer r := x at i using S in
     result_success S r.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
@@ -395,16 +400,16 @@ Definition ScalarComplex S x : state * SExpRec_pointer :=
   alloc_vector_cplx S [x].
 
 Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
-  read%defined x_ := x using S in
-  ifb type x_ <> CharSxp then
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> CharSxp then
     result_error S "[ScalarString] The given argument is not of type ‘CharSxp’."
   else
     let (S, s) := alloc_vector_str S [x] in
     result_success S s.
 
 Definition isVectorAtomic S s :=
-  read%defined s_ := s using S in
-  match type s_ with
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
   | LglSxp
   | IntSxp
   | RealSxp
@@ -415,14 +420,14 @@ Definition isVectorAtomic S s :=
   end.
 
 Definition isLanguage S s :=
-  read%defined s_ := s using S in
-  result_success S (decide (s = R_NilValue \/ type s_ = LangSxp)).
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s = R_NilValue \/ s_type = LangSxp)).
 
 
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
-  read%defined s_ := s using S in
-  match type s_ with
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
   | NilSxp => result_success S 0
   | LglSxp
   | IntSxp
@@ -433,6 +438,7 @@ Definition R_length S s :=
   | VecSxp
   | ExprSxp
   | RawSxp =>
+    read%defined s_ := s using S in
     let%defined l := get_VecSxp_length s_ using S in
     result_success S l
   | ListSxp
@@ -470,13 +476,13 @@ Definition inherits S s name :=
     result_success S false.
 
 Definition isInteger S s :=
-  read%defined s_ := s using S in
+  let%success s_type := TYPEOF S s using S in
   let%success inh := inherits S s "factor" using S in
-  result_success S (decide (type s_ = IntSxp /\ ~ inh)).
+  result_success S (decide (s_type = IntSxp /\ ~ inh)).
 
 Definition isList S s :=
-  read%defined s_ := s using S in
-  result_success S (decide (s = R_NilValue \/ type s_ = ListSxp)).
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s = R_NilValue \/ s_type = ListSxp)).
 
 Definition SCALAR_LVAL S x :=
   read%Logical r := x at 0 using S in
@@ -662,8 +668,8 @@ Definition installChar S charSXP :=
   in the file main/sysutils.c. **)
 
 Definition installTrChar S x :=
-  read%defined x_ := x using S in
-  ifb type x_ <> CharSxp then
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> CharSxp then
     result_error S "[installTrChar] Must be called on a [CharSxp]."
   else
     (** The original C program deals with encoding here. **)
@@ -698,9 +704,9 @@ Definition GrowList S l s :=
   result_success S l.
 
 Definition TagArg S arg tag :=
-  read%defined tag_ := tag using S in
+  let%success tag_type := TYPEOF S tag using S in
   run%success
-    match type tag_ with
+    match tag_type with
     | StrSxp =>
       let%success tag_ := STRING_ELT S tag 0 using S in
       run%success installTrChar S tag_ using S in
@@ -893,8 +899,8 @@ Definition psmatch f t exact :=
 
 Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
   let get_name str :=
-    read%defined str_ := str using S in
-    match type str_ with
+    let%success str_type := TYPEOF S str using S in
+    match str_type with
     | SymSxp =>
       let%success str_name := PRINTNAME S str using S in
       CHAR S str_name
@@ -1154,11 +1160,11 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
   ifb addVars = R_NilValue then
     result_skip S
   else
-    read%defined addVars_ := addVars using S in
-    ifb type addVars_ = EnvSxp then
+    let%success addVars_type := TYPEOF S addVars using S in
+    ifb addVars_type = EnvSxp then
       result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
     else
-      let%list addVars_, addVars_list := addVars_ using S in
+      read%list addVars_, addVars_list := addVars using S in
       fold%success aprev := addVars
       along list_cdrval addVars_list
       as a, _, _ do
@@ -1328,8 +1334,8 @@ Definition setVar S (symbol value rho : SExpRec_pointer) :=
   defineVar S symbol value R_GlobalEnv.
 
 Definition findVarInFrame3 S rho symbol (doGet : bool) :=
-  read%defined rho_ := rho using S in
-  ifb type rho_ = NilSxp then
+  let%success rho_type := TYPEOF S rho using S in
+  ifb rho_type = NilSxp then
     result_error S "[findVarInFrame3] Use of NULL environment is defunct."
   else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
     SYMBOL_BINDING_VALUE S symbol
@@ -1341,6 +1347,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
       result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
     else
       (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+      read%defined rho_ := rho using S in
       let%env _, rho_env := rho_ using S in
       fold%return
       along env_frame rho_env
@@ -1352,10 +1359,10 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
       result_success S (R_UnboundValue : SExpRec_pointer).
 
 Definition findVar S symbol rho :=
-  read%defined rho_ := rho using S in
-  ifb type rho_ = NilSxp then
+  let%success rho_type := TYPEOF S rho using S in
+  ifb rho_type = NilSxp then
     result_error S "[findVar] Use of NULL environment is defunct."
-  else ifb type rho_ <> EnvSxp then
+  else ifb rho_type <> EnvSxp then
     result_error S "[findVar] Argument ‘rho’ is not an environment."
   else
     do%return rho := rho
@@ -1389,14 +1396,13 @@ Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_point
     let%success vl := findVarInFrame3 S rho symbol true using S in
     run%return
       ifb vl <> R_UnboundValue then
-        read%defined vl_ := vl using S in
+        let%success vl_type := TYPEOF S vl using S in
         let%success vl :=
-          ifb type vl_ = PromSxp then
-            let%success vl := runs_eval runs S vl rho using S in
-            result_success S vl
+          ifb vl_type = PromSxp then
+            runs_eval runs S vl rho
           else result_success S vl using S in
-        read%defined vl_ := vl using S in
-        ifb type vl_ = CloSxp \/ type vl_ = BuiltinSxp \/ type vl_ = SpecialSxp then
+        let%success vl_type := TYPEOF S vl using S in
+        ifb vl_type = CloSxp \/ vl_type = BuiltinSxp \/ vl_type = SpecialSxp then
           result_rreturn S vl
         else ifb vl = R_MissingArg then
           let%success str_symbol := PRINTNAME S symbol using S in
@@ -1423,8 +1429,8 @@ Definition isOneDimensionalArray S vec :=
   let%success ilang := isLanguage S vec using S in
   ifb ivec \/ ilist \/ ilang then
     let%success s := runs_getAttrib runs S vec R_DimSymbol using S in
-    read%defined s_ := s using S in
-    ifb type s_ = IntSxp then
+    let%success s_type := TYPEOF S s using S in
+    ifb s_type = IntSxp then
       let%success len := R_length S s using S in
       ifb len = 1 then result_success S true
       else result_success S false
@@ -1438,12 +1444,12 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
         let%success ioda := isOneDimensionalArray S vec using S in
         ifb ioda then
           let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
-          read%defined s_ := s using S in
-            ifb type s_ <> NilSxp then
-              let%Pointer s_0 := s_ at 0 using S in
-              map%pointer s_0 with set_named_plural using S in
-              result_rreturn S s_0
-            else result_rskip S
+          let%success s_type := TYPEOF S s using S in
+          ifb s_type <> NilSxp then
+            read%Pointer s_0 := s at 0 using S in
+            map%pointer s_0 with set_named_plural using S in
+            result_rreturn S s_0
+          else result_rskip S
         else result_rskip S using S in
       result_not_implemented "[getAttrib0] TODO"
     else result_rskip S using S in
@@ -1452,8 +1458,8 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
   along attrib vec_
   as s, _, s_list do
     ifb list_tagval s_list = name then
-      read%defined s_car_ := list_carval s_list using S in
-      ifb name = R_DimNamesSymbol /\ type s_car_ = ListSxp then
+      let%success s_car_type := TYPEOF S (list_carval s_list) using S in
+      ifb name = R_DimNamesSymbol /\ s_car_type = ListSxp then
         result_error S "[getAttrib0] Old list is no longer allowed for dimnames attributes."
       else
         map%pointer (list_carval s_list) with set_named_plural using S in
@@ -1463,16 +1469,17 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
   result_success S (R_NilValue : SExpRec_pointer).
 
 Definition getAttrib S (vec name : SExpRec_pointer) :=
-  read%defined vec_ := vec using S in
-  ifb type vec_ = CharSxp then
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
     result_error S "[getAttrib] Can not have attributes on a [CharSxp]."
   else
-    ifb attrib vec_ = R_NilValue /\ ~ (type vec_ = ListSxp \/ type vec_ = LangSxp) then
+    read%defined vec_ := vec using S in
+    ifb attrib vec_ = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
       result_success S (R_NilValue : SExpRec_pointer)
     else
-      read%defined name_ := name using S in
+      let%success name_type := TYPEOF S name using S in
       let%success name :=
-        ifb type name_ = StrSxp then
+        ifb name_type = StrSxp then
           read%VectorPointer name_ := name using S in
           let%success str := STRING_ELT S name 0 using S in
           let%success sym := installTrChar S str using S in
@@ -1497,12 +1504,13 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
       else getAttrib0 S vec name.
 
 Definition installAttrib S vec name val :=
-  read%defined vec_ := vec using S in
-  ifb type vec_ = CharSxp then
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
     result_error S "[installAttrib] Cannot set attribute on a CharSxp."
-  else ifb type vec_ = SymSxp then
+  else ifb vec_type = SymSxp then
     result_error S "[installAttrib] Cannot set attribute on a symbol."
   else
+    read%defined vec_ := vec using S in
     fold%return t := R_NilValue : SExpRec_pointer
     along attrib vec_
     as s, _, s_list do
@@ -1536,8 +1544,8 @@ Definition stripAttrib S (tag lst : SExpRec_pointer) :=
       result_success S lst.
 
 Definition removeAttrib S (vec name : SExpRec_pointer) :=
-  read%defined vec_ := vec using S in
-  ifb type vec_ = CharSxp then
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
     result_error S "[removeAttrib] Cannot set attribute on a CharSxp."
   else
     let%success pl := isPairList S vec using S in
@@ -1550,6 +1558,7 @@ Definition removeAttrib S (vec name : SExpRec_pointer) :=
       using S, runs, globals in
       result_success S (R_NilValue : SExpRec_pointer)
     else
+      read%defined vec_ := vec using S in
       run%success
         ifb name = R_DimSymbol then
           let%success r :=
@@ -1571,8 +1580,8 @@ Definition removeAttrib S (vec name : SExpRec_pointer) :=
 
 Definition setAttrib S (vec name val : SExpRec_pointer) :=
   let%success name :=
-    read%defined name_ := name using S in
-    ifb type name_ = StrSxp then
+    let%success name_type := TYPEOF S name using S in
+    ifb name_type = StrSxp then
       let%success str := STRING_ELT S name 0 using S in
       installTrChar S str
     else result_success S name using S in
@@ -1640,8 +1649,8 @@ Definition asLogical S x :=
   if iva then
     result_not_implemented "[asLogical] [XLENGTH]"
   else
-    read%defined x_ := x using S in
-    ifb type x_ = CharSxp then
+    let%success x_type := TYPEOF S x using S in
+    ifb x_type = CharSxp then
       LogicalFromString S x
     else result_success S NA_LOGICAL.
 
@@ -1709,8 +1718,8 @@ Definition R_execClosure (S : state)
 
 Definition applyClosure S
     (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
-  read%defined rho_ := rho using S in
-  ifb type rho_ <> EnvSxp then
+  let%success rho_type := TYPEOF S rho using S in
+  ifb rho_type <> EnvSxp then
     result_error S "[applyClosure] ‘rho’ must be an environment."
   else
     read%clo op_, op_clo := op using S in
@@ -1751,14 +1760,14 @@ Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_p
   as el_car, el_tag do
     ifb el_car = R_DotsSymbol then
       let%success h := findVar S el_car rho using S in
-      read%defined h_ := h using S in
-      ifb type h_ = DotSxp \/ h = R_NilValue then
+      let%success h_type := TYPEOF S h using S in
+      ifb h_type = DotSxp \/ h = R_NilValue then
         fold%success tail := tail
         along h
         as h_car, h_tag do
-          read%defined h_car_ := h_car using S in
+          let%success h_car_type := TYPEOF S h_car using S in
           run%success
-            ifb type h_car_ = PromSxp \/ h_car = R_MissingArg then
+            ifb h_car_type  = PromSxp \/ h_car = R_MissingArg then
               let (S, l) := CONS S h_car R_NilValue in
               set%cdr tail := l using S in
               result_skip S
@@ -1830,8 +1839,8 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
     let n := n + 1 in
     ifb el_car = R_DotsSymbol then
       let%success h := findVar S el_car rho using S in
-      read%defined h_ := h using S in
-      ifb type h_ = DotSxp \/ h = R_NilValue then
+      let%success h_type := TYPEOF S h using S in
+      ifb h_type = DotSxp \/ h = R_NilValue then
         fold%success tail := tail
         along h
         as h_car, h_tag
@@ -1877,117 +1886,118 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) :=
-  read%defined e_ := e using S in
-    match type e_ with
-    | NilSxp
-    | ListSxp
-    | LglSxp
-    | IntSxp
-    | RealSxp
-    | StrSxp
-    | CplxSxp
-    | RawSxp
-    | S4Sxp
-    | SpecialSxp
-    | BuiltinSxp
-    | EnvSxp
-    | CloSxp
-    | VecSxp
-    | ExtptrSxp
-    | WeakrefSxp
-    | ExprSxp =>
-      map%pointer e with set_named_plural using S in
-      result_success S e
-    | _ =>
-      read%defined rho_ := rho using S in
-      ifb type rho_ <> EnvSxp then
-        result_error S "[eval] ‘rho’ must be an environment."
-      else
-        match type e_ with
-        | BcodeSxp =>
-          (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
-            Line 5966 of the same file for the evaluator.
-            We do not consider byte code for now in this formalisation. **)
-          result_not_implemented "[eval] bcEval"
-        | SymSxp =>
-          ifb e = R_DotsSymbol then
-            result_error S "[eval] ‘...’ used in an incorrect context."
-          else
-            let%success ddval := DDVAL S e using S in
-            let%success tmp :=
-              if ddval then
-                ddfindVar S e rho
-              else
-                findVar S e rho using S in
-            ifb tmp = R_UnboundValue then
-              result_error S "[eval] Object not found."
-            else ifb tmp = R_MissingArg /\ ~ ddval then
-              result_error S "[eval] Argument is missing, with no default."
+  let%success e_type := TYPEOF S e using S in
+  match e_type with
+  | NilSxp
+  | ListSxp
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | StrSxp
+  | CplxSxp
+  | RawSxp
+  | S4Sxp
+  | SpecialSxp
+  | BuiltinSxp
+  | EnvSxp
+  | CloSxp
+  | VecSxp
+  | ExtptrSxp
+  | WeakrefSxp
+  | ExprSxp =>
+    map%pointer e with set_named_plural using S in
+    result_success S e
+  | _ =>
+    let%success rho_type := TYPEOF S rho using S in
+    ifb rho_type <> EnvSxp then
+      result_error S "[eval] ‘rho’ must be an environment."
+    else
+      match e_type with
+      | BcodeSxp =>
+        (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
+          Line 5966 of the same file for the evaluator.
+          We do not consider byte code for now in this formalisation. **)
+        result_not_implemented "[eval] bcEval"
+      | SymSxp =>
+        ifb e = R_DotsSymbol then
+          result_error S "[eval] ‘...’ used in an incorrect context."
+        else
+          let%success ddval := DDVAL S e using S in
+          let%success tmp :=
+            if ddval then
+              ddfindVar S e rho
             else
-              read%defined tmp_ := tmp using S in
-              ifb type tmp_ = PromSxp then
-                read%prom _, tmp_prom := tmp using S in
-                let%success tmp :=
-                  ifb prom_value tmp_prom = R_UnboundValue then
-                    forcePromise S tmp
-                  else result_success S (prom_value tmp_prom) using S in
-                map%pointer tmp with set_named_plural using S in
-                result_success S tmp
-              else
-                run%success
-                  ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
-                    map%pointer tmp with set_named_unique using S in
-                    result_skip S
-                  else result_skip S using S in
-                result_success S tmp
-        | PromSxp =>
-          run%success
-            let%prom _, e_prom := e_ using S in
-            ifb prom_value e_prom = R_UnboundValue then
-              run%success forcePromise S e using S in
-              result_skip S
-            else result_skip S using S in
-          let%prom _, e_prom := e_ using S in
-          result_success S (prom_value e_prom)
-        | LangSxp =>
-          let%list _, e_list := e_ using S in
-          let e_car := list_carval e_list in
-          read%defined e_car_ := e_car using S in
-          let%success op :=
-            ifb type e_car_ = SymSxp then
-              let%success ecall :=
-                ifb callflag (R_GlobalContext S) = Ctxt_CCode then
-                  result_success S (call (R_GlobalContext S))
-                else result_success S e using S in
-              findFun3 S e_car rho ecall
-            else runs_eval runs S e_car rho using S in
-          read%defined op_ := op using S in
-          match type op_ with
-          | SpecialSxp =>
-            let%success f := PRIMFUN S op using S in
-            f S e op (list_cdrval e_list) rho
-          | BuiltinSxp =>
-            let%success tmp := evalList S (list_cdrval e_list) rho e 0 using S in
-            let%success infos := PPINFO S op using S in
-            ifb PPinfo_kind infos = PP_FOREIGN then
-              let%success cntxt :=
-                begincontext S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
-              let%success f := PRIMFUN S op using S in
-              let%success tmp := f S e op tmp rho using S in
-              run%success endcontext S cntxt using S in
+              findVar S e rho using S in
+          ifb tmp = R_UnboundValue then
+            result_error S "[eval] Object not found."
+          else ifb tmp = R_MissingArg /\ ~ ddval then
+            result_error S "[eval] Argument is missing, with no default."
+          else
+            let%success tmp_type := TYPEOF S tmp using S in
+            ifb tmp_type = PromSxp then
+              read%prom _, tmp_prom := tmp using S in
+              let%success tmp :=
+                ifb prom_value tmp_prom = R_UnboundValue then
+                  forcePromise S tmp
+                else result_success S (prom_value tmp_prom) using S in
+              map%pointer tmp with set_named_plural using S in
               result_success S tmp
             else
-              let%success f := PRIMFUN S op using S in
-              f S e op tmp rho
-          | CloSxp =>
-            let%success tmp := promiseArgs S (list_cdrval e_list) rho using S in
-            applyClosure S e op tmp rho R_NilValue
-          | _ => result_error S "[eval] Attempt to apply non-function."
-          end
-        | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
-        | _ => result_error S "[eval] Type unimplemented in the R source code."
+              read%defined tmp_ := tmp using S in
+              run%success
+                ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
+                  map%pointer tmp with set_named_unique using S in
+                  result_skip S
+                else result_skip S using S in
+              result_success S tmp
+      | PromSxp =>
+        run%success
+          read%prom _, e_prom := e using S in
+          ifb prom_value e_prom = R_UnboundValue then
+            run%success forcePromise S e using S in
+            result_skip S
+          else result_skip S using S in
+        read%prom _, e_prom := e using S in
+        result_success S (prom_value e_prom)
+      | LangSxp =>
+        read%list _, e_list := e using S in
+        let e_car := list_carval e_list in
+        let%success e_car_type := TYPEOF S e_car using S in
+        let%success op :=
+          ifb e_car_type = SymSxp then
+            let%success ecall :=
+              ifb callflag (R_GlobalContext S) = Ctxt_CCode then
+                result_success S (call (R_GlobalContext S))
+              else result_success S e using S in
+            findFun3 S e_car rho ecall
+          else runs_eval runs S e_car rho using S in
+        let%success op_type := TYPEOF S op using S in
+        match op_type with
+        | SpecialSxp =>
+          let%success f := PRIMFUN S op using S in
+          f S e op (list_cdrval e_list) rho
+        | BuiltinSxp =>
+          let%success tmp := evalList S (list_cdrval e_list) rho e 0 using S in
+          let%success infos := PPINFO S op using S in
+          ifb PPinfo_kind infos = PP_FOREIGN then
+            let%success cntxt :=
+              begincontext S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+            let%success f := PRIMFUN S op using S in
+            let%success tmp := f S e op tmp rho using S in
+            run%success endcontext S cntxt using S in
+            result_success S tmp
+          else
+            let%success f := PRIMFUN S op using S in
+            f S e op tmp rho
+        | CloSxp =>
+          let%success tmp := promiseArgs S (list_cdrval e_list) rho using S in
+          applyClosure S e op tmp rho R_NilValue
+        | _ => result_error S "[eval] Attempt to apply non-function."
         end
-    end.
+      | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
+      | _ => result_error S "[eval] Type unimplemented in the R source code."
+      end
+  end.
 
 
 (** Evaluates the expression in the global environment. **)
