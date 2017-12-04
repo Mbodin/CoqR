@@ -211,7 +211,8 @@ let print_float x =
   else Printf.sprintf "%g" x
 
 let print_rComplex c =
-  print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"
+  if compare c.rcomplex_r nan = 0 || compare c.rcomplex_i nan = 0 then "NA"
+  else print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"
 
 let print_character c =
   "'" ^ String.make 1 c ^ "'"
@@ -220,6 +221,11 @@ let print_logical i =
   if i = nA_LOGICAL then "NA"
   else if i = 0 then "FALSE"
   else "TRUE"
+
+let print_integer i =
+  if i = nA_INTEGER then "NA"
+  else string_of_int i
+
 
 let print_gp gp_opt gp =
   let gp = (Obj.magic gp : nbits) in
@@ -287,7 +293,7 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
       else
         print_vector print_character v
     | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector print_logical v
-    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector string_of_int v
+    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector print_integer v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
     | SExpRec_VectorReal v -> "(vector real)" ^ print_vector print_float v
     | SExpRec_VectorPointer v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
@@ -386,12 +392,14 @@ let rec print_SExpRec_like_R d s g p e =
       if ok then str
       else "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
     | SExpRec_VectorChar v ->
-      let v = vector_SExpRec_vecsxp v in
-      "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
+      if p = g NA_STRING then "NA"
+      else
+        let v = vector_SExpRec_vecsxp v in
+        "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
     | SExpRec_VectorLogical v ->
       print_vector "logical" print_logical v
     | SExpRec_VectorInteger v ->
-      print_vector "integer" string_of_int v
+      print_vector "integer" print_integer v
     | SExpRec_VectorComplex v ->
       print_vector "complex" print_rComplex v
     | SExpRec_VectorReal v ->

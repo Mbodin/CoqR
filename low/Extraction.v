@@ -68,6 +68,12 @@ Extract Constant N.compare =>
 
 (* FIXME: The additional information carried by the NaN value has to be remembered because of the
   difference between R_NaReal_ and R_NaN. *)
+Extract Inductive Fappli_IEEE.full_float => "float" [
+  "(fun s -> if s then (-0.) else (0.))"
+  "(fun s -> if s then neg_infinity else infinity)"
+  "let f = fun (b, p) -> nan in f"
+  "(fun (s, m, e) -> failwith ""FIXME: No extraction from binary float allowed yet."")"
+].
 Extract Constant R_NaN => "nan".
 Extract Constant R_NaReal =>
   "(let (a, b) = (Obj.magic nan : int * int) in (Obj.magic (a, 1954) : float))".
@@ -75,12 +81,12 @@ Extract Constant R_IsNA =>
   "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b = 1954 else false)".
 Extract Constant R_IsNAN =>
   "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b <> 1954 else false)".
-Extract Inductive Fappli_IEEE.full_float => "float" [
-  "(fun s -> if s then (-0.) else (0.))"
-  "(fun s -> if s then neg_infinity else infinity)"
-  "let f = fun (b, p) -> nan in f"
-  "(fun (s, m, e) -> failwith ""FIXME: No extraction from binary float allowed yet."")"
-].
+Extract Constant Fappli_IEEE.is_nan_FF => "(fun x -> compare x nan = 0)".
+Extract Constant double_comparable =>
+  "(fun x y ->
+     if compare x y = 0 then
+      if compare x nan = 0 then (Obj.magic x : int * int) = (Obj.magic y : int * int) else true
+     else false)".
 
 Extract Constant int_to_double => "float_of_int".
 

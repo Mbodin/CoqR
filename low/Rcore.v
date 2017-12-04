@@ -46,6 +46,10 @@ Definition int_to_double (i : int) : double :=
 
 Local Coercion int_to_double : Z >-> double.
 
+Definition double_is_zero (x : double) :=
+  decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
+
+
 (* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
 Definition INT_MIN : int := - 2 ^ 31.
 
@@ -122,10 +126,20 @@ Definition CTXT_GENERIC := 20.
 Definition CTXT_RESTART := 32.
 Definition CTXT_BUILTIN := 64.
 
+
 (** * Interpreter functions **)
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
   referenced by the pointer [p], and [p_f] for the field [f] or it **)
+
+(** ** Rmath.h **)
+
+(** The function names of this section corresponds to the macro names
+  in the file include/Rmath.h. **)
+
+Definition ISNAN (x : double) :=
+  Fappli_IEEE.is_nan_FF x.
+
 
 (** ** Rinternals.h **)
 
@@ -556,6 +570,80 @@ Definition R_FixupRHS S x y :=
       map%pointer y with set_named_plural using S in
       result_success S y
   else result_success S y.
+
+Definition ALTREP_LENGTH (S : state) (x : SExpRec_pointer) : result nat :=
+  result_not_implemented "[ALTREP_LENGTH]".
+
+Definition STDVEC_LENGTH S x :=
+  read%defined x_ := x using S in
+  match x_ with
+  | SExpRec_NonVector _ => result_impossible S "[STDVEC_LENGTH] Not a vector."
+  | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorLogical x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorPointer x_ => result_success S (VecSxp_length x_)
+  end.
+
+Definition XLENGTH_EX S x :=
+  read%defined x_ := x using S in
+  if alt x_ then ALTREP_LENGTH S x
+  else STDVEC_LENGTH S x.
+
+Definition XLENGTH := XLENGTH_EX.
+
+Definition ALTLOGICAL_ELT S x i :=
+  read%Logical x_i := x at i using S in
+  result_success S x_i.
+
+Definition LOGICAL_ELT S x i :=
+  read%defined x_ := x using S in
+  ifb alt x_ then ALTLOGICAL_ELT S x i
+  else
+    read%Logical x_i := x at i using S in
+    result_success S x_i.
+
+Definition ALTINTEGER_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result int :=
+  result_not_implemented "[ALTINTEGER_ELT]".
+
+Definition INTEGER_ELT S x i :=
+  read%defined x_ := x using S in
+  ifb alt x_ then ALTINTEGER_ELT S x i
+  else
+    read%Integer x_i := x at i using S in
+    result_success S x_i.
+
+Definition ALTREAL_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result double :=
+  result_not_implemented "[ALTREAL_ELT]".
+
+Definition REAL_ELT S x i :=
+  read%defined x_ := x using S in
+  ifb alt x_ then ALTREAL_ELT S x i
+  else
+    read%Real x_i := x at i using S in
+    result_success S x_i.
+
+Definition ALTCOMPLEX_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result Rcomplex :=
+  result_not_implemented "[ALTCOMPLEX_ELT]".
+
+Definition COMPLEX_ELT S x i :=
+  read%defined x_ := x using S in
+  ifb alt x_ then ALTCOMPLEX_ELT S x i
+  else
+    read%Complex x_i := x at i using S in
+    result_success S x_i.
+
+Definition ALTRAW_ELT S x i :=
+  read%Pointer x_i := x at i using S in
+  result_success S x_i.
+
+Definition RAW_ELT S x i :=
+  read%defined x_ := x using S in
+  ifb alt x_ then ALTRAW_ELT S x i
+  else
+    read%Pointer x_i := x at i using S in
+    result_success S x_i.
 
 
 (** ** arithmetic.c **)
@@ -1644,10 +1732,45 @@ Definition LogicalFromString S (x : SExpRec_pointer) :=
     else result_success S NA_LOGICAL
   else result_success S NA_LOGICAL.
 
+Definition LogicalFromInteger S (x : int) : result int :=
+  ifb x = NA_INTEGER then result_success S NA_LOGICAL
+  else result_success S (ifb x <> 0 then 1 : int else 0).
+
+Definition LogicalFromReal S x : result int :=
+  ifb ISNAN x then result_success S NA_LOGICAL
+  else result_success S (if negb (double_is_zero x) then 1 : int else 0).
+
+Definition LogicalFromComplex S x : result int :=
+  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then result_success S NA_LOGICAL
+  else result_success S (ifb ~ double_is_zero (Rcomplex_r x) \/ ~ double_is_zero (Rcomplex_i x) then 1 : int else 0).
+
 Definition asLogical S x :=
   let%success iva := isVectorAtomic S x using S in
   if iva then
-    result_not_implemented "[asLogical] [XLENGTH]"
+    let%success len := XLENGTH S x using S in
+    ifb len < 1 then
+      result_success S NA_LOGICAL
+    else
+      read%defined x_ := x using S in
+      match type x_ with
+      | LglSxp => LOGICAL_ELT S x 0
+      | IntSxp =>
+        let%success i := INTEGER_ELT S x 0 using S in
+        LogicalFromInteger S i
+      | RealSxp =>
+        let%success r := REAL_ELT S x 0 using S in
+        LogicalFromReal S r
+      | CplxSxp =>
+        let%success c := COMPLEX_ELT S x 0 using S in
+        LogicalFromComplex S c
+      | StrSxp =>
+        let%success s := STRING_ELT S x 0 using S in
+        LogicalFromString S s
+      | RawSxp =>
+        let%success s := RAW_ELT S x 0 using S in
+        LogicalFromString S s
+      | _ => result_error S "[asLogical] Unimplemented type."
+      end
   else
     let%success x_type := TYPEOF S x using S in
     ifb x_type = CharSxp then

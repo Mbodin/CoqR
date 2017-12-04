@@ -153,7 +153,7 @@ Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     VecSxp_data :> ArrayList.array A
   }.
 
-(** VECTOR_SEXPREC **)
+(** VECTOR_SEXPREC, VECSEXP **)
 Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
     Vector_SExpRec_header :> SExpRecHeader ;
     Vector_SExpRec_vecsxp :> VecSxp_struct A
@@ -163,7 +163,7 @@ Definition character := Ascii.ascii.
 
 Definition double : Type := Fappli_IEEE.full_float.
 
-Record RComplex := make_Rcomplex {
+Record Rcomplex := make_Rcomplex {
     Rcomplex_r : double ;
     Rcomplex_i : double
   }.
@@ -177,7 +177,7 @@ Inductive SExpRec :=
   | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec (* FIXME: As for the field [named], we may want to declare a special type for this. *)
   | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
   (* | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec *)
-  | SExpRec_VectorComplex : Vector_SExpRec RComplex -> SExpRec
+  | SExpRec_VectorComplex : Vector_SExpRec Rcomplex -> SExpRec
   | SExpRec_VectorReal : Vector_SExpRec double -> SExpRec
   | SExpRec_VectorPointer : Vector_SExpRec SExpRec_pointer -> SExpRec
   .

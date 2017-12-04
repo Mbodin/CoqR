@@ -85,13 +85,13 @@ let rec parse_args verbose opt readable fetch s g r cont l = function
       print_and_continue verbose opt g (f g r s) s (fun n g s -> print_bool) (fun s _ -> cont s))
   | Result_int f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> string_of_int) (fun s _ -> cont s))
+      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_integer) (fun s _ -> cont s))
   | Result_int_list f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map string_of_int l) ^ "]") (fun s _ -> cont s))
+      print_and_continue verbose opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map print_integer l) ^ "]") (fun s _ -> cont s))
   | Result_float f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> string_of_float) (fun s _ -> cont s))
+      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_float) (fun s _ -> cont s))
   | Result_string f ->
     cont l (fun cont s ->
       print_and_continue verbose opt g (f g r s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
@@ -111,10 +111,10 @@ let rec parse_args verbose opt readable fetch s g r cont l = function
     parse_one_arg read_bool_opt print_bool false "a boolean"
       (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
   | Argument_int f ->
-    parse_one_arg read_int_opt string_of_int 0 "an integer"
+    parse_one_arg read_int_opt print_integer 0 "an integer"
       (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
   | Argument_float f ->
-    parse_one_arg read_float_opt string_of_float 0. "a floating-point number"
+    parse_one_arg read_float_opt print_float 0. "a floating-point number"
       (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
   | Argument_pointer f ->
     parse_one_arg (read_pointer_opt s g) (print_pointer readable s g) (g R_NilValue) "a pointer"

@@ -123,8 +123,8 @@ while (my $row = <PIPE>){
                 $acc =~ s/^ runs_type ->// ;
             }
 
-            my $argReg = "(unit|bool|nat|int|float|SExpRec_pointer)" ;
-            my $resultReg = "(unit|bool|nat|int|\\(list nat\\)|\\(list int\\\)|float|string|SExpRec_pointer)" ;
+            my $argReg = "(unit|bool|nat|int|float|double|SExpRec_pointer)" ;
+            my $resultReg = "(unit|bool|nat|int|\\(list nat\\)|\\(list int\\\)|float|double|string|SExpRec_pointer)" ;
 
             if ($acc =~ /^ state ->( $argReg ->)* result $resultReg$/){
                 # This function is of interest for us.
@@ -153,7 +153,7 @@ while (my $row = <PIPE>){
                     elsif ($endType eq "bool") { $beginFunction = "Result_bool " . $beginFunction ; }
                     elsif ($endType eq "nat" or $endType eq "int") { $beginFunction = "Result_int " . $beginFunction ; }
                     elsif ($endType eq "(list nat)" or $endType eq "(list int)") { $beginFunction = "Result_int_list " . $beginFunction ; }
-                    elsif ($endType eq "float") { $beginFunction = "Result_float " . $beginFunction ; }
+                    elsif ($endType eq "float" or $endType eq "double") { $beginFunction = "Result_float " . $beginFunction ; }
                     elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
                     elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
                     else { die "Unknown result type: " . $endType . ". This should not happen." ; }
@@ -175,9 +175,9 @@ while (my $row = <PIPE>){
                             $beginFunction = "Argument_int (fun n" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " n" . $argNum . $endFunction ;
                         } elsif ($argType eq "int") {
-                            $beginFunction = "Argument_float (fun i" . $argNum . " -> " . $beginFunction ;
+                            $beginFunction = "Argument_int (fun i" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " i" . $argNum . $endFunction ;
-                        } elsif ($argType eq "float") {
+                        } elsif ($argType eq "float" or $argType eq "double") {
                             $beginFunction = "Argument_float (fun f" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " f" . $argNum . $endFunction ;
                         } elsif ($argType eq "SExpRec_pointer") {
