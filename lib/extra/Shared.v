@@ -156,6 +156,16 @@ Proof.
     + forwards* (x&Mx&Ex): (rm IHl) M.
 Qed.
 
+Lemma map_nth : forall A B `{Inhab A} `{Inhab B} (f : A -> B) l n,
+  n < length l ->
+  nth n (map f l) = f (nth n l).
+Proof.
+  introv I. gen l. induction n; introv I; destruct l; try solve [false; rew_list in I; nat_math]; rewrite map_cons.
+  - do 2 rewrite nth_zero. reflexivity.
+  - do 2 rewrite nth_succ. apply~ IHn. rew_list in I. nat_math.
+Qed.
+
+
 Global Instance No_duplicates_decidable : forall A (l : list A),
     Comparable A ->
     Decidable (No_duplicates l).

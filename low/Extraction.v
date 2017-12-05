@@ -88,6 +88,8 @@ Extract Constant double_comparable =>
       if compare x nan = 0 then (Obj.magic x : int * int) = (Obj.magic y : int * int) else true
      else false)".
 
+Extract Constant double_opp => "(~-.)".
+
 Extract Constant int_to_double => "float_of_int".
 
 Extract Constant HeapList.heap "'a" "'b" => "('a, 'b) PMap.t".
@@ -108,6 +110,8 @@ Extract Constant ArrayList.from_list =>
   "fun l -> List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l".
 Extract Constant ArrayList.to_list =>
   "fun (n, a) -> let rec aux i = if i = n then [] else PMap.find i a :: aux (i + 1) in aux 0".
+Extract Constant ArrayListExtra.map =>
+  "fun f (n, a) -> (n, PMap.map f a)".
 
 (*Extract Constant ascii_comparable => "(=)".
 Extract Constant lt_int_decidable => "(<)".
@@ -121,6 +125,6 @@ Extraction Inline Fappli_IEEE.Bdiv Fappli_IEEE_bits.b64_div.
 
 (* LATER: When the parser will be in Coq, most of what is forcely being extracted here will be useless. *)
 Extraction "low.ml" all_GlobalVariables
-  Parsing ScalarReal ScalarInteger mkNA alloc_vector_cplx R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString R_IsNA R_IsNAN
+  Parsing ScalarReal ScalarInteger ScalarComplex mkNA R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString R_IsNA R_IsNAN
   setup_Rmainloop empty_state eval_global.
 

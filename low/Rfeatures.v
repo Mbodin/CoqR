@@ -220,7 +220,7 @@ Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_poi
       else result_error S "[do_return] Multi-argument returns are not permitted." using S in
   findcontext globals runs _ S (context_type_merge Ctxt_Browser Ctxt_Function) rho v.
 
-Definition asLogicalNoNA (S : state) (s call : SExpRec_pointer) :=
+Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
   let%exit cond :=
     let%success scal := IS_SCALAR S s LglSxp using S in
     if scal then
@@ -310,6 +310,188 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
     result_skip S using S, runs in
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SExpRec_pointer).
+
+(** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
+  overwrites its additional argument [ans]. This naturally translates as an option type. **)
+Definition DispatchGroup (S : state) (group : string) (call op args rho : SExpRec_pointer)
+  : result (option SExpRec_pointer) :=
+  result_not_implemented "[DispatchGroup]".
+
+
+(** * complex.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/complex.c. **)
+
+Definition complex_unary S (code : int) s1 :=
+  ifb code = PLUSOP then
+    result_success S s1
+  else ifb code = MINUSOP then
+    let%success noref := NO_REFERENCES S s1 using S in
+    let%success ans :=
+      ifb noref then result_success S s1
+      else duplicate S s1 using S in
+    read%VectorComplex s1_ := s1 using S in
+    let px := VecSxp_data s1_ in
+    let pa := ArrayListExtra.map (fun x =>
+      make_Rcomplex (double_opp (Rcomplex_r x)) (double_opp (Rcomplex_i x))) px in
+    write%VectorComplex ans := pa using S in
+    result_success S ans
+    else result_error S "[real_unary] Invalid unary operator.".
+
+
+(** * arithmetic.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/arithmetic.c. **)
+
+Definition R_binary (S : state) (call op x y : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[R_binary]".
+
+Definition logical_unary S (code : int) s1 :=
+  let%success n := XLENGTH S s1 using S in
+  let%success names := getAttrib globals runs S s1 R_NamesSymbol using S in
+  let%success dim := getAttrib globals runs S s1 R_DimSymbol using S in
+  let%success dimnames := getAttrib globals runs S s1 R_DimNamesSymbol using S in
+  read%VectorInteger s1_ := s1 using S in
+  let px := VecSxp_data s1_ in
+  let%success pa :=
+    ifb code = PLUSOP then
+      result_success S px
+    else ifb code = MINUSOP then
+      result_success S (ArrayListExtra.map (fun x =>
+        ifb x = NA_INTEGER then NA_INTEGER
+        else ifb x = 0 then 0 else -x) px)
+    else result_error S "[logical_unary] Invalid unary operator." using S in
+  let (S, ans) := alloc_vector_int globals S pa in
+  run%success
+    ifb names <> R_NilValue then
+      run%success setAttrib globals runs S ans R_NamesSymbol names using S in
+      result_skip S
+    else result_skip S using S in
+  run%success
+    ifb dim <> R_NilValue then
+      run%success setAttrib globals runs S ans R_DimSymbol dim using S in
+      result_skip S
+    else result_skip S using S in
+  run%success
+    ifb dimnames <> R_NilValue then
+      run%success setAttrib globals runs S ans R_DimNamesSymbol dimnames using S in
+      result_skip S
+    else result_skip S using S in
+  result_success S ans.
+
+Definition integer_unary S (code : int) s1 :=
+  ifb code = PLUSOP then
+    result_success S s1
+  else ifb code = MINUSOP then
+    let%success noref := NO_REFERENCES S s1 using S in
+    let%success ans :=
+      ifb noref then result_success S s1
+      else duplicate S s1 using S in
+    read%VectorInteger s1_ := s1 using S in
+    let px := VecSxp_data s1_ in
+    let pa := ArrayListExtra.map (fun x =>
+      ifb x = NA_INTEGER then NA_INTEGER
+      else ifb x = 0 then 0 else -x) px in
+    write%VectorInteger ans := pa using S in
+    result_success S ans
+  else result_error S "[integer_unary] Invalid unary operator.".
+
+Definition real_unary S (code : int) s1 :=
+  ifb code = PLUSOP then
+    result_success S s1
+  else ifb code = MINUSOP then
+    let%success noref := NO_REFERENCES S s1 using S in
+    let%success ans :=
+      ifb noref then result_success S s1
+      else duplicate S s1 using S in
+    read%VectorReal s1_ := s1 using S in
+    let px := VecSxp_data s1_ in
+    let pa := ArrayListExtra.map (fun x : double => double_opp x) px in
+    write%VectorReal ans := pa using S in
+    result_success S ans
+  else result_error S "[real_unary] Invalid unary operator.".
+
+Definition R_unary S (call op s1 : SExpRec_pointer) : result SExpRec_pointer :=
+  let%success operation := PRIMVAL runs S op using S in
+  let%success s1_type := TYPEOF S s1 using S in
+  match s1_type with
+  | LglSxp => logical_unary S operation s1
+  | IntSxp => integer_unary S operation s1
+  | RealSxp => real_unary S operation s1
+  | CplxSxp => complex_unary S operation s1
+  | _ => result_error S "[R_unary] Invalid argument to unary operator."
+  end.
+
+Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  read%list args_car, args_cdr, _ := args using S in
+  read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+  let%success argc :=
+    ifb args = R_NilValue then
+      result_success S 0
+    else ifb args_cdr = R_NilValue then
+      result_success S 1
+    else ifb args_cdr_cdr = R_NilValue then
+      result_success S 2
+    else R_length globals runs S args using S in
+  let arg1 := args_car in
+  let arg2 := args_cdr_car in
+  read%defined arg1_ := arg1 using S in
+  read%defined arg2_ := arg1 using S in
+  run%exit
+    ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
+      let%success ans := DispatchGroup S "Ops" call op args env using S in
+      match ans with
+      | Some ans => result_rreturn S ans
+      | None => result_rskip S
+      end
+    else ifb argc = 2 then
+      result_not_implemented "[do_arith] TODO (argc = 2)"
+    else ifb argc = 1 then
+      result_not_implemented "[do_arith] TODO (argc = 1)"
+    else result_rskip S using S in
+  ifb argc = 2 then
+    R_binary S call op arg1 arg2
+  else ifb argc = 1 then
+    R_unary S call op arg1
+  else result_error S "[do_arith] Operator needs one or two arguments.".
+
+
+(** * relop.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/relop.c. **)
+
+Definition do_relop_dflt (S : state) (call op x y : SExpRec_pointer) : result SExpRec_pointer  :=
+  result_not_implemented "[do_relop_dflt]".
+
+Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  read%list args_car, args_cdr, _ := args using S in
+  read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+  let%success argc :=
+    ifb args <> R_NilValue then
+      ifb args_cdr <> R_NilValue then
+        ifb args_cdr_cdr = R_NilValue then
+          result_success S 2
+        else R_length globals runs S args
+      else R_length globals runs S args
+   else R_length globals runs S args using S in
+  let arg1 := args_car in
+  let arg2 := args_cdr_car in
+  read%defined arg1_ := arg1 using S in
+  read%defined arg2_ := arg1 using S in
+  run%exit
+    ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
+      let%success ans := DispatchGroup S "Ops" call op args env using S in
+      match ans with
+      | Some ans => result_rreturn S ans
+      | None => result_rskip S
+      end
+    else result_rskip S using S in
+  ifb argc <> 2 then
+    result_error S "[do_relop] Operator needs two arguments."
+  else do_relop_dflt S call op arg1 arg2.
 
 
 (** * names.c **)
@@ -487,21 +669,21 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "identical" (dummy_function "do_identical") (0)%Z eval11 (8)%Z PP_FUNCALL PREC_FN false ;
               rdecl "C_tryCatchHelper" (dummy_function "do_tryCatchHelper") (0)%Z eval11 (-1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "+" (dummy_function "do_arith") PLUSOP eval1 (-1)%Z PP_BINARY PREC_SUM false ;
-              rdecl "-" (dummy_function "do_arith") MINUSOP eval1 (-1)%Z PP_BINARY PREC_SUM false ;
-              rdecl "*" (dummy_function "do_arith") TIMESOP eval1 (2)%Z PP_BINARY PREC_PROD false ;
-              rdecl "/" (dummy_function "do_arith") DIVOP eval1 (2)%Z PP_BINARY2 PREC_PROD false ;
-              rdecl "^" (dummy_function "do_arith") POWOP eval1 (2)%Z PP_BINARY2 PREC_POWER true ;
-              rdecl "%%" (dummy_function "do_arith") MODOP eval1 (2)%Z PP_BINARY2 PREC_PERCENT false ;
-              rdecl "%/%" (dummy_function "do_arith") IDIVOP eval1 (2)%Z PP_BINARY2 PREC_PERCENT false ;
+              rdecl "+" do_arith PLUSOP eval1 (-1)%Z PP_BINARY PREC_SUM false ;
+              rdecl "-" do_arith MINUSOP eval1 (-1)%Z PP_BINARY PREC_SUM false ;
+              rdecl "*" do_arith TIMESOP eval1 (2)%Z PP_BINARY PREC_PROD false ;
+              rdecl "/" do_arith DIVOP eval1 (2)%Z PP_BINARY2 PREC_PROD false ;
+              rdecl "^" do_arith POWOP eval1 (2)%Z PP_BINARY2 PREC_POWER true ;
+              rdecl "%%" do_arith MODOP eval1 (2)%Z PP_BINARY2 PREC_PERCENT false ;
+              rdecl "%/%" do_arith IDIVOP eval1 (2)%Z PP_BINARY2 PREC_PERCENT false ;
               rdecl "%*%" (dummy_function "do_matprod") (0)%Z eval1 (2)%Z PP_BINARY PREC_PERCENT false ;
 
-              rdecl "==" (dummy_function "do_relop") EQOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl "!=" (dummy_function "do_relop") NEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl "<" (dummy_function "do_relop") LTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl "<=" (dummy_function "do_relop") LEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl ">=" (dummy_function "do_relop") GEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl ">" (dummy_function "do_relop") GTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl "==" do_relop EQOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl "!=" do_relop NEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl "<" do_relop LTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl "<=" do_relop LEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl ">=" do_relop GEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
+              rdecl ">" do_relop GTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
               rdecl "&" (dummy_function "do_logic") (1)%Z eval1 (2)%Z PP_BINARY PREC_AND false ;
               rdecl "|" (dummy_function "do_logic") (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
               rdecl "!" (dummy_function "do_logic") (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;

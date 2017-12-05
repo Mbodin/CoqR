@@ -6,6 +6,8 @@ Set Implicit Arguments.
 
 Require Export Shared TLC.LibNat.
 
+(** * Module Type Definition **)
+
 Module Type ArraySpec.
 
 Parameter array : Type -> Type.
@@ -44,8 +46,26 @@ Parameter to_list_read : forall T `{Inhab T} (a : array T) n,
 
 End ArraySpec.
 
-(* FIXME: If I mask the types with the module type annotation below, I get a universe inconsistency in State.v. *)
-Module ArrayList (*: ArraySpec*).
+
+Module Type ArrayExtra (A : ArraySpec).
+
+Import A.
+
+Parameter map : forall T1 T2, (T1 -> T2) -> array T1 -> array T2.
+
+Parameter map_length : forall T1 T2 (f : T1 -> T2) a,
+  length (map f a) = length a.
+
+Parameter map_read : forall T1 T2 `{Inhab T1} `{Inhab T2} (f : T1 -> T2) a n,
+  n < length a ->
+  read (map f a) n = f (read a n).
+
+End ArrayExtra.
+
+
+(** * Implementation **)
+
+Module ArrayList <: ArraySpec.
 
 Definition array := list.
 
@@ -89,3 +109,22 @@ Lemma to_list_read : forall T `{Inhab T} (a : array T) n,
 Proof. reflexivity. Qed.
 
 End ArrayList.
+
+
+Module ArrayListExtra <: ArrayExtra (ArrayList).
+
+Export ArrayList.
+
+Definition map : forall T1 T2, (T1 -> T2) -> array T1 -> array T2 := LibList.map.
+
+Lemma map_length : forall T1 T2 (f : T1 -> T2) a,
+  length (map f a) = length a.
+Proof. introv. apply length_map. Qed.
+
+Lemma map_read : forall T1 T2 `{Inhab T1} `{Inhab T2} (f : T1 -> T2) a n,
+  n < length a ->
+  read (map f a) n = f (read a n).
+Proof. introv I. apply~ map_nth. Qed.
+
+End ArrayListExtra.
+

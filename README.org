@@ -9,6 +9,8 @@ The project is divided in several passes, each providing a more typed
 version of the R programming language.
 Each pass is related to the previous by the corresponding Relation.v file.
 
+The files of interest are mainly low/Rinternals.v, low/Rcore.v, and low/Rfeatures.v.
+
 For more details, see my report (not in this repository).
 
 

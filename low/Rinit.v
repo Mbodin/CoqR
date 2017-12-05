@@ -51,7 +51,7 @@ Definition init_R_NilValue S :=
 Definition InitMemory S :=
   let (S, R_TrueValue) := mkTrue globals S in
   let (S, R_FalseValue) := mkFalse globals S in
-  let (S, R_LogicalNAValue) := alloc_vector_lgl globals S [NA_LOGICAL] in
+  let (S, R_LogicalNAValue) := alloc_vector_lgl globals S (ArrayList.from_list [NA_LOGICAL]) in
   result_success S (R_TrueValue, R_FalseValue, R_LogicalNAValue).
 
 (** [InitBaseEnv], from main/envir.c **)
@@ -134,7 +134,7 @@ Definition InitNames_shorcuts S :=
   let (S, str) := mkChar globals S "" in
   let%success R_RestartToken := mkSymMarker globals S str using S in
   (** Some ignored global values: [R_InBCInterpreter], [R_CurrentExpression] **)
-  let (S, NA_STRING) := alloc_vector_char globals S (string_to_list "NA") in
+  let (S, NA_STRING) := alloc_vector_char globals S (ArrayList.from_list (string_to_list "NA")) in
   map%gp NA_STRING with @write_nbit 16 5 ltac:(nbits_ok) true using S in
   let (S, R_BlankString) := mkChar globals S "" in
   let%success R_BlankScalarString := ScalarString globals S R_BlankString using S in
@@ -150,7 +150,7 @@ Definition mkPRIMSXP_init S :=
   let%defined R_FunTab := runs_R_FunTab runs using S in
   let FunTabSize := length R_FunTab in
   let (S, primCache) :=
-    alloc_vector_vec globals S (repeat (R_NilValue : SExpRec_pointer) FunTabSize) in
+    alloc_vector_vec globals S (ArrayList.from_list (repeat (R_NilValue : SExpRec_pointer) FunTabSize)) in
   result_success S primCache.
 
 (** The end of [InitNames], from main/names.c **)

@@ -90,7 +90,7 @@ let mkComplex str : token_type = fun g _ s ->
       rcomplex_r = 0. ;
       rcomplex_i = float_of_string str
     } in
-  let (s, e) = alloc_vector_cplx g s [c] in
+  let (s, e) = alloc_vector_cplx g s (ArrayList.from_list [c]) in
   Result_success (s, e)
 
 

@@ -49,6 +49,7 @@ Local Coercion int_to_double : Z >-> double.
 Definition double_is_zero (x : double) :=
   decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
 
+Parameter double_opp : double -> double. (* TODO: use Flocq. *)
 
 (* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
 Definition INT_MIN : int := - 2 ^ 31.
@@ -175,6 +176,10 @@ Definition INCREMENT_NAMED S x :=
   | named_plural =>
     result_skip S
   end.
+
+Definition NO_REFERENCES S x :=
+  read%defined x_ := x using S in
+  result_success S (decide (named x_ = named_temporary)).
 
 Definition DDVAL S x :=
   read%defined x_ := x using S in
@@ -405,20 +410,20 @@ Definition ScalarLogical x : SExpRec_pointer :=
   else R_FalseValue.
 
 Definition ScalarInteger S x : state * SExpRec_pointer :=
-  alloc_vector_int S [x].
+  alloc_vector_int S (ArrayList.from_list [x]).
 
 Definition ScalarReal S x : state * SExpRec_pointer :=
-  alloc_vector_real S [x].
+  alloc_vector_real S (ArrayList.from_list [x]).
 
 Definition ScalarComplex S x : state * SExpRec_pointer :=
-  alloc_vector_cplx S [x].
+  alloc_vector_cplx S (ArrayList.from_list [x]).
 
 Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
     result_error S "[ScalarString] The given argument is not of type ‘CharSxp’."
   else
-    let (S, s) := alloc_vector_str S [x] in
+    let (S, s) := alloc_vector_str S (ArrayList.from_list [x]) in
     result_success S s.
 
 Definition isVectorAtomic S s :=
@@ -678,12 +683,12 @@ Definition R_IsNAN x :=
   allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
 Definition mkChar S (str : string) : state * SExpRec_pointer :=
-  (* TODO: Caching values using R_StringHash. *)
-  alloc_vector_char S (string_to_list str).
+  (* Note that values are not cached, in contrary to the original code. *)
+  alloc_vector_char S (ArrayList.from_list (string_to_list str)).
 
 Definition mkString S (str : string) : state * SExpRec_pointer :=
   let (S, c) := mkChar S str in
-  alloc_vector_str S [c].
+  alloc_vector_str S (ArrayList.from_list [c]).
 
 
 (** ** dstruct.c **)
@@ -770,13 +775,13 @@ Definition installTrChar S x :=
   in the file main/gram.y. **)
 
 Definition mkTrue S :=
-  alloc_vector_lgl S [1 : int].
+  alloc_vector_lgl S (ArrayList.from_list [1 : int]).
 
 Definition mkFalse S :=
-  alloc_vector_lgl S [0 : int].
+  alloc_vector_lgl S (ArrayList.from_list [0 : int]).
 
 Definition mkNA S :=
-  alloc_vector_lgl S [NA_LOGICAL : int].
+  alloc_vector_lgl S (ArrayList.from_list [NA_LOGICAL : int]).
 
 
 Definition NewList S :=
@@ -1584,7 +1589,9 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
             ifb s_0 = R_NaInt then
               let%Integer s_1 := s_ at 1 using S in
               let n := abs s_1 in
-              let (S, s) := alloc_vector_int S (map (id : nat -> int) (seq 1 n)) in
+              let (S, s) :=
+                alloc_vector_int S
+                  (ArrayList.from_list (map (id : nat -> int) (seq 1 n))) in
               result_success S s
             else result_success S s
           else result_success S s
@@ -1814,8 +1821,8 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
     result_success S val
   else result_success S (prom_value e_prom).
 
-Definition R_execClosure (S : state)
-    (call newrho sysparent rho arglist op : SExpRec_pointer) : result SExpRec_pointer :=
+Definition R_execClosure S (call newrho sysparent rho arglist op : SExpRec_pointer)
+    : result SExpRec_pointer :=
   let%success cntxt :=
     begincontext S Ctxt_Return call newrho sysparent arglist op using S in
   read%clo op_, op_clo := op using S in
@@ -1839,8 +1846,8 @@ Definition R_execClosure (S : state)
   run%success endcontext S cntxt using S in
   result_success S (returnValue cntxt).
 
-Definition applyClosure S
-    (call op arglist rho suppliedvars : SExpRec_pointer) : result SExpRec_pointer :=
+Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
+    : result SExpRec_pointer :=
   let%success rho_type := TYPEOF S rho using S in
   ifb rho_type <> EnvSxp then
     result_error S "[applyClosure] ‘rho’ must be an environment."
@@ -1876,7 +1883,7 @@ Definition applyClosure S
        else rho)
       rho arglist op.
 
-Definition promiseArgs (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition promiseArgs S (el rho : SExpRec_pointer) : result SExpRec_pointer :=
   let (S, tail) := CONS S R_NilValue R_NilValue in
   fold%success (ans, tail) := (tail, tail)
   along el
