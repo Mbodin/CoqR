@@ -16,8 +16,9 @@
 ./low/Rinternals.v
 ./low/RinternalsAux.v
 ./low/State.v
-./low/Globals.v
 ./low/Monads.v
+./low/InternalTypes.v
+./low/Globals.v
 ./low/Loops.v
 ./low/Rcore.v
 ./low/Rfeatures.v

@@ -16,7 +16,7 @@ Section Parameterised.
 
 Variable globals : Globals.
 
-Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
+Let read_globals := read_globals globals.
 
 Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
@@ -55,35 +55,6 @@ Definition R_NaReal := Double.NaN1954.
 Definition NA_REAL := R_NaReal.
 
 Definition R_NaString := NA_STRING.
-
-Definition NILSXP := 0.
-Definition SYMSXP := 1.
-Definition LISTSXP := 2.
-Definition CLOSXP := 3.
-Definition ENVSXP := 4.
-Definition PROMSXP := 5.
-Definition LANGSXP := 6.
-Definition SPECIALSXP := 7.
-Definition BUILTINSXP := 8.
-Definition CHARSXP := 9.
-Definition LGLSXP := 10.
-Definition INTSXP := 13.
-Definition REALSXP := 14.
-Definition CPLXSXP := 15.
-Definition STRSXP := 16.
-Definition DOTSXP := 17.
-Definition ANYSXP := 18.
-Definition VECSXP := 19.
-Definition EXPRSXP := 20.
-Definition BCODESXP := 21.
-Definition EXTPTRSXP := 22.
-Definition WEAKREFSXP := 23.
-Definition RAWSXP := 24.
-Definition S4SXP := 25.
-Definition NEWSXP := 30.
-Definition FREESXP := 31.
-
-Definition FUNSXP := 99.
 
 Definition PLUSOP := 1.
 Definition MINUSOP := 2.

@@ -9,7 +9,7 @@ Section Parameters.
 
 Variable globals : Globals.
 
-Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
+Let read_globals := read_globals globals.
 
 Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
@@ -48,6 +48,24 @@ Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
       result_error S "[Rf_checkArityCall] An argument has been passed to an element of .Internal without its requirements."
     else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
   else result_skip S.
+
+
+Definition type2rstr S (t : SExpType) :=
+  let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
+  ifb res <> NULL then result_success S res
+  else result_success S (R_NilValue : SExpRec_pointer).
+
+
+(** * coerce.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/coerce.c. **)
+
+Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let%success t := TYPEOF S args_car using S in
+  type2rstr S t.
 
 
 (** * dstruct.c **)
@@ -91,6 +109,7 @@ Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
     let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
     result_success S c
   end.
+
 
 (** * eval.c **)
 
@@ -1166,19 +1185,19 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "strtoi" (dummy_function "do_strtoi") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "strrep" (dummy_function "do_strrep") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.null" (dummy_function "do_is") NILSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.logical" (dummy_function "do_is") LGLSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.integer" (dummy_function "do_is") INTSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.double" (dummy_function "do_is") REALSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.complex" (dummy_function "do_is") CPLXSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.character" (dummy_function "do_is") STRSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.symbol" (dummy_function "do_is") SYMSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.name" (dummy_function "do_is") SYMSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.environment" (dummy_function "do_is") ENVSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.list" (dummy_function "do_is") VECSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.pairlist" (dummy_function "do_is") LISTSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.expression" (dummy_function "do_is") EXPRSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.raw" (dummy_function "do_is") RAWSXP eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.null" (dummy_function "do_is") NilSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.logical" (dummy_function "do_is") LglSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.integer" (dummy_function "do_is") IntSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.double" (dummy_function "do_is") RealSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.complex" (dummy_function "do_is") CplxSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.character" (dummy_function "do_is") StrSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.symbol" (dummy_function "do_is") SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.name" (dummy_function "do_is") SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.environment" (dummy_function "do_is") EnvSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.list" (dummy_function "do_is") VecSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.pairlist" (dummy_function "do_is") ListSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.expression" (dummy_function "do_is") ExprSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.raw" (dummy_function "do_is") RawSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "is.object" (dummy_function "do_is") (50)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "isS4" (dummy_function "do_is") (51)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
@@ -1273,7 +1292,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "dyn.load" (dummy_function "do_dynload") (0)%Z eval111 (4)%Z PP_FUNCALL PREC_FN false ;
               rdecl "dyn.unload" (dummy_function "do_dynunload") (0)%Z eval111 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "ls" (dummy_function "do_ls") (1)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "typeof" (dummy_function "do_typeof") (1)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "typeof" do_typeof (1)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "eval" (dummy_function "do_eval") (0)%Z eval211 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "returnValue" (dummy_function "do_returnValue") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "sys.parent" (dummy_function "do_sys") (1)%Z eval11 (-1)%Z PP_FUNCALL PREC_FN false ;

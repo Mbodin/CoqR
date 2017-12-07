@@ -33,7 +33,7 @@ let install_and_save str : token_type = fun g r s ->
   install g r s (Print.string_to_char_list str)
 
 let null : token_type = fun _ _ s -> Result_success (s, nULL)
-let nilValue : token_type = fun g _ s -> Result_success (s, g (R_NilValue))
+let nilValue : token_type = fun g _ s -> Result_success (s, read_globals g (R_NilValue))
 
 (* This looks like a bug: this function should have been extracted. *)
 let make_Rcomplex r i = { rcomplex_r = r; rcomplex_i = i }

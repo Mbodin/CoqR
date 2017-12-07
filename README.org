@@ -109,20 +109,26 @@ This file describes the data structures of R as they are in its C code.
 Auxiliary definitions and properties about the data structures defined in
 Rinternals.v.
 
+This file may take some time to compile.
+
 *** State.v
 
 This file provides a model for the C memory.
+
+*** Monads.v
+
+This file provides monads to manipulate R objects easily.
+
+*** InternalTypes.v
+
+This file describes various internal data types used in the source of R/
 
 *** Globals.v
 
 This file lists all global variables used in the C source code of R,
 that are initialised, then never changed.
 
-This file can take a long time to compile.
-
-*** Monads.v
-
-This file provides monads to manipulate R objects easily.
+This file may take some time to compile.
 
 *** Loops.v
 

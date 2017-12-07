@@ -3,7 +3,7 @@
   that are initialised, then never changed. **)
 
 
-Require Export Rinternals Shared.
+Require Export Rinternals InternalTypes Shared.
 
 
 (** Global variables that are initialised once, then treated as
@@ -97,15 +97,35 @@ Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
   prove_comparable_trivial_inductive_faster.
 Defined.
 
-Definition Globals : Type := GlobalVariable -> SExpRec_pointer.
+Definition Global_mapping : Type := GlobalVariable -> SExpRec_pointer.
 
-Definition empty_globals : Globals :=
+Record Globals := make_Globals {
+    global_mapping :> Global_mapping ;
+    global_Type2Table : ArrayList.array Type2Table_type
+  }.
+
+Definition read_globals (globals : Globals) : GlobalVariable -> SExpRec_pointer := globals : Global_mapping.
+
+Definition Globals_with_mapping (g : Globals) m :=
+  make_Globals m (global_Type2Table g).
+
+Definition Globals_with_Type2Table (g : Globals) t :=
+  make_Globals (global_mapping g) t.
+
+Definition empty_global_mapping : Global_mapping :=
   fun _ => NULL.
 
-Definition GlobalsWith (g : Globals) (C : GlobalVariable) (p : SExpRec_pointer) : Globals :=
+Definition empty_Globals : Globals :=
+  make_Globals empty_global_mapping ArrayList.empty.
+
+Definition Global_mapping_with (g : Global_mapping) (C : GlobalVariable) (p : SExpRec_pointer) : Global_mapping :=
   fun C' =>
     ifb C = C' then p
     else g C'.
+
+Definition GlobalsWith (g : Globals) (C : GlobalVariable) (p : SExpRec_pointer) : Globals :=
+  Globals_with_mapping g (Global_mapping_with g C p).
+
 
 Delimit Scope globals_scope with globals.
 
@@ -133,7 +153,7 @@ Notation "'{{' g 'with' L '}}'" :=
   quite slow (as they proof its correctness at the same time as defining it).
   Its computation is thus disabled by default. **)
 
-Definition flatten_Globals (g : Globals) : Globals.
+Definition flatten_Global_mapping (g : Global_mapping) : Global_mapping.
   let rec build_let l t :=
     match t with
     | @nil _ =>
@@ -151,8 +171,11 @@ Definition flatten_Globals (g : Globals) : Globals.
   build_let (@nil SExpRec_pointer) l.
 Defined.
 
-Lemma flatten_Globals_correct : forall g C,
-  g C = flatten_Globals g C.
+Lemma flatten_Global_mapping_correct : forall g C,
+  g C = flatten_Global_mapping g C.
 Proof.
   introv. destruct C; reflexivity.
 Qed.
+
+Definition flatten_Globals (g : Globals) : Globals :=
+  Globals_with_mapping g (flatten_Global_mapping g).

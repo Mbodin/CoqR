@@ -159,7 +159,7 @@ let print_raw_pointer = function
 let pointer_exceptions s g =
   List.concat [
       List.map (fun (var, str) ->
-        (g var, str)) all_global_variables ;
+        (read_globals g var, str)) all_global_variables ;
       List.map (fun (proj, str) ->
         (proj s, str)) all_global_variables_state
     ]
@@ -305,7 +305,7 @@ let get_memory_cell s = function
     HeapList.read_option nat_comparable (state_heap_SExp (state_memory s)) p
 
 let rec iterate_on_list failure f f_end s g p =
-  let nil = g R_NilValue in
+  let nil = read_globals g R_NilValue in
   if p = nil then
     f_end
   else
@@ -374,10 +374,10 @@ let rec print_SExpRec_like_R d s g p e =
          (false, iterate_on_list
            (fun str -> "{ Error: " ^ str ^ " }")
            (fun c t str ->
-             (if t = g R_NilValue then ""
+             (if t = read_globals g R_NilValue then ""
               else ("(" ^ fetch_print_SExpRec_like_R t ^ ": "))
              ^ fetch_print_SExpRec_like_R c
-             ^ (if t = g R_NilValue then "" else ")")
+             ^ (if t = read_globals g R_NilValue then "" else ")")
              ^ (if str = "" then "" else ", " ^ str)) "" s g p))
     | EnvSxp0 e ->
       (false, fetch_print_SExpRec_like_R (env_frame e))
@@ -392,7 +392,7 @@ let rec print_SExpRec_like_R d s g p e =
       if ok then str
       else "(" ^ t ^ (if str = "" then "" else ": " ^ str) ^ ")"
     | SExpRec_VectorChar v ->
-      if p = g NA_STRING then "NA"
+      if p = read_globals g NA_STRING then "NA"
       else
         let v = vector_SExpRec_vecsxp v in
         "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
@@ -452,7 +452,7 @@ let print_pointed_value d expr_options t s g p =
   | Some e -> print_SExpRec d expr_options t s g p e
 
 let rec print_list d expr_options t s g p =
-  if p = g R_NilValue then ""
+  if p = read_globals g R_NilValue then ""
   else
     match get_memory_cell s p with
     | None -> "(Invalid pointer)"
@@ -461,7 +461,7 @@ let rec print_list d expr_options t s g p =
       | SExpRec_NonVector e_ ->
         (match nonVector_SExpRec_data e_ with
         | ListSxp0 l ->
-          "{" ^ (if list_tagval l = g R_NilValue then ""
+          "{" ^ (if list_tagval l = read_globals g R_NilValue then ""
                  else print_pointed_value d expr_options t s g (list_tagval l)) ^ ": "
           ^ print_pointed_value (d + 2) expr_options t s g (list_carval l) ^ "} "
           ^ print_list d expr_options t s g (list_cdrval l)
@@ -512,10 +512,10 @@ let print_state d (context, all_context, memory, globals, initials, no_temporary
     "Constant global variables:" ^ indent (d + 2) ^
     String.concat (indent (d + 2)) (
       List.map (fun (var, str) ->
-        str ^ ": " ^ print_raw_pointer (g var) ^
+        str ^ ": " ^ print_raw_pointer (read_globals g var) ^
         if fetch_global then
           indent (String.length str + d + 4) ^ "Pointer value: " ^
-          print_pointed_value (String.length str + d + 19) expr_options t s g (g var)
+          print_pointed_value (String.length str + d + 19) expr_options t s g (read_globals g var)
         else "") all_global_variables)
     ^ (if context then indent d else "")
    else "") ^

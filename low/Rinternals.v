@@ -8,7 +8,7 @@ Require Export Array NBits TLC.LibString TLC.LibInt.
 Require Import Double.
 
 
-(** * Types **)
+(** * General Types **)
 
 Definition double := Double.double.
 
@@ -40,8 +40,9 @@ Inductive SExpType :=
   | S4Sxp
   | NewSxp
   | FreeSxp
-  | FunSxp (** Note that in some place in the R source code, this last type is used as [CloSxp]. See Definition [SExpType_restrict] in RinternalsAux for more details. **)
-  .
+  | FunSxp (** Note that in some place in the R source code, this last type [FunSxp]
+             is used as [CloSxp]. See Definition [SExpType_restrict] in RinternalsAux
+             for more details. **).
 
 (** The field [named] of [sxpinfo_struct] can take these three values. **)
 Inductive named_field :=
@@ -182,4 +183,3 @@ Inductive SExpRec :=
   | SExpRec_VectorPointer : Vector_SExpRec SExpRec_pointer -> SExpRec
   .
 Coercion SExpRec_NonVector : NonVector_SExpRec >-> SExpRec.
-

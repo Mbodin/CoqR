@@ -39,7 +39,7 @@ let read_pointer s g str =
   | Some p -> p
   | None ->
     prerr_endline ("Impossible to parse “" ^ str ^ "” as a pointer. Assuming R_NilValue.") ;
-    g R_NilValue
+    read_globals g R_NilValue
 
 
 let rec print_type = function
@@ -117,7 +117,7 @@ let rec parse_args verbose opt readable fetch s g r cont l = function
     parse_one_arg read_float_opt print_float 0. "a floating-point number"
       (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
   | Argument_pointer f ->
-    parse_one_arg (read_pointer_opt s g) (print_pointer readable s g) (g R_NilValue) "a pointer"
+    parse_one_arg (read_pointer_opt s g) (print_pointer readable s g) (read_globals g R_NilValue) "a pointer"
       (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
 
 

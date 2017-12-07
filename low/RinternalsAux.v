@@ -25,6 +25,66 @@ Definition SExpType_restrict t :=
   | _ => t
   end.
 
+Definition TYPE_BITS := 5.
+Definition MAX_NUM_SEXPTYPE := 2 ^ TYPE_BITS.
+
+Definition all_SExpTypes : list SExpType.
+  list_all_constructors.
+Defined.
+
+Definition SExpType_to_nat t :=
+  match t with
+  | NilSxp => 0
+  | SymSxp => 1
+  | ListSxp => 2
+  | CloSxp => 3
+  | EnvSxp => 4
+  | PromSxp => 5
+  | LangSxp => 6
+  | SpecialSxp => 7
+  | BuiltinSxp => 8
+  | CharSxp => 9
+  | LglSxp => 10
+  | IntSxp => 13
+  | RealSxp => 14
+  | CplxSxp => 15
+  | StrSxp => 16
+  | DotSxp => 17
+  | AnySxp => 18
+  | VecSxp => 19
+  | ExprSxp => 20
+  | BcodeSxp => 21
+  | ExtptrSxp => 22
+  | WeakrefSxp => 23
+  | RawSxp => 24
+  | S4Sxp => 25
+  | NewSxp => 30
+  | FreeSxp => 31
+  | FunSxp => 99
+  end.
+Coercion SExpType_to_nat : SExpType >-> nat.
+
+Definition nat_to_SExpType : nat -> option SExpType.
+  intro i.
+  let rec build_let l :=
+    match l with
+    | @nil _ => exact None
+    | ?t :: ?l =>
+      exact (ifb i = t then Some t else ltac:(build_let l))
+    end in
+  let l := eval unfold all_SExpTypes in all_SExpTypes in
+  build_let l.
+Defined.
+
+Lemma nat_to_SExpType_correct : forall t i,
+  nat_to_SExpType i = Some t <-> i = t.
+Proof.
+  introv. iff I.
+  - unfolds in I. repeat cases_if; inverts I; fold_bool; rew_refl~ in *.
+  - substs. unfolds. destruct~ t;
+      repeat (cases_if as C; [ reflexivity || fold_bool; rew_refl in C; false~ C
+                             | fold_bool; rew_refl in C; solve [ false~ C ] || clear C ]).
+Qed.
 
 Definition get_NonVector e_ :=
   match e_ with

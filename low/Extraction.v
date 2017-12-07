@@ -109,13 +109,15 @@ Extract Constant HeapList.indom_decidable => "fun _(*comparable*) h k -> PMap.me
 Extract Constant ArrayList.array "'a" => "(int * (int, 'a) PMap.t)".
 Extract Constant ArrayList.length => "fst".
 Extract Constant ArrayList.read => "fun (_, a) i -> PMap.find i a".
-Extract Constant ArrayList.write => "fun (n, a) i v -> (n, PMap.add i v a)".
+Extract Constant ArrayList.write => "fun (n, a) i v -> ((n, PMap.add i v a) : _ array)".
 Extract Constant ArrayList.from_list =>
-  "fun l -> List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l".
+  "fun l -> (List.fold_left (fun (i, m) v -> (i + 1, PMap.add i v m)) (0, PMap.create compare) l : _ array)".
 Extract Constant ArrayList.to_list =>
   "fun (n, a) -> let rec aux i = if i = n then [] else PMap.find i a :: aux (i + 1) in aux 0".
 Extract Constant ArrayListExtra.map =>
   "fun f (n, a) -> (n, PMap.map f a)".
+Extract Constant ArrayList.empty =>
+  "Obj.magic (from_list [])".
 
 (*Extract Constant ascii_comparable => "(=)".
 Extract Constant lt_int_decidable => "(<)".

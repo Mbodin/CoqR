@@ -4,102 +4,6 @@
 Set Implicit Arguments.
 Require Export Monads Globals.
 
-(** * Defn.h **)
-
-(** This section defines the FUNTAB structure, which is used to store primitive
-  and internal functions, as well as some constructs to evaluate it. **)
-
-(** All function in the array [R_FunTab] have the same type. **)
-Definition function_code :=
-  state ->
-  SExpRec_pointer -> (** call **)
-  SExpRec_pointer -> (** op **)
-  SExpRec_pointer -> (** args **)
-  SExpRec_pointer -> (** rho **)
-  result SExpRec_pointer.
-
-(** The following type is represented in C as an integer, each of its figure
-  (in base 10) representing a different bit of information. **)
-Record funtab_eval_arg := make_funtab_eval_arg {
-    funtab_eval_arg_internal : bool ; (** Whether it is stored in the array [.Internals] or directly visible. **)
-    funtab_eval_arg_eval : bool (** Whether its arguments should be evaluated before calling. **)
-  }.
-
-(** PPkind **)
-Inductive PPkind :=
-  | PP_INVALID
-  | PP_ASSIGN
-  | PP_ASSIGN2
-  | PP_BINARY
-  | PP_BINARY2
-  | PP_BREAK
-  | PP_CURLY
-  | PP_FOR
-  | PP_FUNCALL
-  | PP_FUNCTION
-  | PP_IF
-  | PP_NEXT
-  | PP_PAREN
-  | PP_RETURN
-  | PP_SUBASS
-  | PP_SUBSET
-  | PP_WHILE
-  | PP_UNARY
-  | PP_DOLLAR
-  | PP_FOREIGN
-  | PP_REPEAT
-  .
-
-Instance PPkind_Comparable : Comparable PPkind.
-  prove_comparable_trivial_inductive.
-Defined.
-
-(** PPprec **)
-Inductive PPprec :=
-  | PREC_FN
-  | PREC_EQ
-  | PREC_LEFT
-  | PREC_RIGHT
-  | PREC_TILDE
-  | PREC_OR
-  | PREC_AND
-  | PREC_NOT
-  | PREC_COMPARE
-  | PREC_SUM
-  | PREC_PROD
-  | PREC_PERCENT
-  | PREC_COLON
-  | PREC_SIGN
-  | PREC_POWER
-  | PREC_SUBSET
-  | PREC_DOLLAR
-  | PREC_NS
-  .
-
-Instance PPprec_Comparable : Comparable PPprec.
-  prove_comparable_trivial_inductive.
-Defined.
-
-(** PPinfo **)
-Record PPinfo := make_PPinfo {
-    PPinfo_kind : PPkind ;
-    PPinfo_precedence : PPprec ;
-    PPinfo_rightassoc : bool
-  }.
-
-(** FUNTAB **)
-Record funtab_cell := make_funtab_cell {
-    fun_name : string ;
-    fun_cfun : function_code ;
-    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat] here. **)
-    fun_eval : funtab_eval_arg ;
-    fun_arity : int ;
-    fun_gram : PPinfo
-  }.
-
-Definition funtab := option (list funtab_cell).
-
-
 (** * Global structure of the interpreter **)
 
 (** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
@@ -226,10 +130,10 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'while' exp
 (** Looping through a list is a frequent pattern in R source code.
   [fold_left_listSxp_gen] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen runs globals A S (l : SExpRec_pointer) (a : A)
+Definition fold_left_listSxp_gen runs (globals : Globals) A S (l : SExpRec_pointer) (a : A)
     (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
   do%success (l, a) := (l, a)
-  while result_success S (decide (l <> globals R_NilValue))
+  while result_success S (decide (l <> global_mapping globals R_NilValue))
   do
     read%list l_, l_list := l using S in
     let%success a := iterate S a l l_ l_list using S in

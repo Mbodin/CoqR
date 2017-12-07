@@ -11,7 +11,7 @@ Section Globals.
 
 Variable globals : Globals.
 
-Let read_globals : GlobalVariable -> SExpRec_pointer := globals.
+Let read_globals := read_globals globals.
 
 Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
@@ -173,7 +173,7 @@ Definition R_initAssignSymbols S :=
   run%success
     fold_left (fun c r =>
       run%success r using S in
-      run%success install globals runs S c using S in
+      let%success sym := install globals runs S c using S in
       (* TODO: Store the result into [asymSymbol]. *)
       result_skip S) (result_skip S) asym using S in
   (* TODO *)
@@ -210,17 +210,79 @@ Definition InitGlobalEnv S :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   run%success
     defineVar globals runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
-  result_success S (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace, R_BaseNamespaceName, R_NamespaceRegistry).
+  result_success S (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace,
+                    R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
 (*Definition InitOptions runs S :=
   TODO.*)
 
+(** [TypeTable], from main/util.c **)
+Definition TypeTable : list (string * SExpType) := [
+    ("NULL", NilSxp) ;
+    ("symbol", SymSxp) ;
+    ("pairlist", ListSxp) ;
+    ("closure", CloSxp) ;
+    ("environment", EnvSxp) ;
+    ("promise", PromSxp) ;
+    ("language", LangSxp) ;
+    ("special", SpecialSxp) ;
+    ("builtin", BuiltinSxp) ;
+    ("char", CharSxp) ;
+    ("logical", LglSxp) ;
+    ("integer", IntSxp) ;
+    ("double", RealSxp) ;
+    ("complex", CplxSxp) ;
+    ("character", StrSxp) ;
+    ("...", DotSxp) ;
+    ("any", AnySxp) ;
+    ("expression", ExprSxp) ;
+    ("list", VecSxp) ;
+    ("externalptr", ExtptrSxp) ;
+    ("bytecode", BcodeSxp) ;
+    ("weakref", WeakrefSxp) ;
+    ("raw", RawSxp) ;
+    ("S4", S4Sxp) ;
+    ("numeric", RealSxp) ;
+    ("name", SymSxp)
+  ]%string.
+
+(** [findTypeInTypeTable], from main/util.c **)
+Fixpoint findTypeInTypeTable_loop t i (l : list (string * SExpType)) :=
+  match l return int with
+  | nil => (-1)%Z
+  | (str, t') :: l =>
+    ifb t = t' then i
+    else findTypeInTypeTable_loop t (1 + i)%Z l
+  end.
+
+Definition findTypeInTypeTable t :=
+  findTypeInTypeTable_loop t 0 TypeTable.
+
 (** [InitTypeTables], from main/util.c **)
-(* FIXME: Do we want to model it? *)
-(*Definition InitTypeTables runs S :=
-  TODO.*)
+Definition InitTypeTables S :=
+  let%success table :=
+    fold_left (fun type st =>
+      let%success L := st using S in
+      match nat_to_SExpType type with
+      | Some type =>
+        let j := findTypeInTypeTable type in
+        ifb (j <> -1)%Z then
+          match nth_option (Z.to_nat j) TypeTable with
+          | Some (cstr, _) =>
+            let (S, rchar) := mkChar globals S cstr in
+            let%success rstr := ScalarString globals S rchar using S in
+            map%pointer rstr with set_named_plural using S in
+            let%success rsym := install globals runs S cstr using S in
+            result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
+          | None => result_impossible S "[InitTypeTables] Out of bound."
+          end
+        else result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
+      | None =>
+        result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
+      end) (result_success S nil) (seq 0 MAX_NUM_SEXPTYPE) using S in
+  result_success S (ArrayList.from_list table).
 
 (** [InitS3DefaulTypes], from main/attrib.c **)
 (* FIXME: Do we want to model it? *)
@@ -264,7 +326,7 @@ End Globals.
   the updated [globals]. **)
 Definition setup_Rmainloop max_step S : result Globals :=
   let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
-  let globals := empty_globals in
+  let globals := empty_Globals in
   let%success NilValue :=
     init_R_NilValue S using S in
   let globals := {{ globals with [ decl R_NilValue NilValue ] }} in
@@ -303,7 +365,8 @@ Definition setup_Rmainloop max_step S : result Globals :=
                                    decl R_BaseNamespaceName BaseNamespaceName ;
                                    decl R_NamespaceRegistry NamespaceRegistry] }} in
   (* TODO: [InitOptions]. *)
-  (* TODO: [InitTypeTables]. *)
+  let%success Type2Table := InitTypeTables globals (runs max_step globals) S using S in
+  let globals := Globals_with_Type2Table globals Type2Table in
   (* TODO: [InitS3DefaulTypes]. *)
   let%success R_Toplevel :=
     init_R_Toplevel globals (runs max_step globals) S using S in
