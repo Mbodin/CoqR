@@ -75,8 +75,9 @@ Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_poi
 
 Definition mkPRIMSXP S (offset : nat) (type_ : bool) : result SExpRec_pointer :=
   let type_ :=
-    ifb type_ then BuiltinSxp else SpecialSxp in
-  let%defined FunTabSize := LibOption.map length (runs_R_FunTab runs) using S in
+      ifb type_ then BuiltinSxp else SpecialSxp in
+  let%success R_FunTab := get_R_FunTab runs S using S in
+  let FunTabSize := ArrayList.length R_FunTab in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
   ifb offset >= FunTabSize then
     result_error S "[mkPRIMSXP] Offset is out of range"
@@ -650,6 +651,78 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
 (** The function names of this section corresponds to the function names
   in the file main/names.c. **)
 
+Definition do_internal S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let s := args_car in
+  let%success pl := isPairList S s using S in
+  run%success
+    ifb ~ pl then
+      result_error S "[do_internal] Invalid .Internal() argument."
+    else result_skip S using S in
+  read%list s_car, s_cdr, _ := s using S in
+  let sfun := s_car in
+  let%success isym := isSymbol S sfun using S in
+  run%success
+    ifb ~ isym then
+      result_error S "[do_internal] Invalid .Internal() argument."
+    else result_skip S using S in
+  read%sym _, sfun_sym := sfun using S in
+  run%success
+    ifb sym_internal sfun_sym = R_NilValue then
+      result_error S "[do_internal] There is no such .Internal() function."
+    else result_skip S using S in
+  let%success args :=
+    let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
+    ifb sfun_internal_type = BuiltinSxp then
+      evalList globals runs S args env call 0
+    else result_success S s_cdr using S in
+  let%success f := PRIMFUN runs S (sym_internal sfun_sym) using S in
+  let%success ans := f S s (sym_internal sfun_sym) args env using S in
+  result_success S ans.
+
+
+Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
+  let i := ArrayList.length R_FunTab - lmi in
+  match lmi with
+  | 0 =>
+    (** [i = ArrayList.length R_FunTab] **)
+    result_success S (R_NilValue : SExpRec_pointer)
+  | S lmi =>
+    let c := ArrayList.read R_FunTab i in
+    ifb fun_name c = primname then
+      if funtab_eval_arg_internal (fun_eval c) then
+        result_success S (R_NilValue : SExpRec_pointer)
+      else
+        let%success prim := mkPRIMSXP S i (funtab_eval_arg_eval (fun_eval c)) using S in
+        result_success S prim
+    else R_Primitive_loop S R_FunTab primname lmi
+  end.
+
+Definition R_Primitive S primname :=
+  let%success R_FunTab := get_R_FunTab runs S using S in
+  R_Primitive_loop S R_FunTab primname (ArrayList.length R_FunTab).
+
+Definition do_primitive S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let name := args_car in
+  let%success ist := isString S name using S in
+  let%success len := LENGTH globals S name using S in
+  ifb ~ ist \/ len <> 1 then
+    result_error S "[do_primitive] String argument required."
+  else
+    let%success strel := STRING_ELT S name 0 using S in
+    ifb strel = R_NilValue then
+      result_error S "[do_primitive] String argument required."
+    else
+      let%success strel_ := CHAR S strel using S in
+      let%success prim := R_Primitive S strel_ using S in
+      ifb prim = R_NilValue then
+        result_error S "[do_primitive] No such primitive function."
+      else result_success S prim.
+
+
 (** In contrary to the original C, this function here takes as argument
   the structure of type [funtab_cell] in addition to its range in the
   array [R_FunTab]. **)
@@ -753,7 +826,7 @@ Fixpoint runs max_step globals : runs_type :=
             f globals (runs max_step globals) S call op args rho in
           let rdecl name cfun code eval arity kind prec rightassoc :=
             decl name (wrap cfun) code eval arity (make_PPinfo kind prec rightassoc) in
-          Some [
+          Some (ArrayList.from_list [
 
               rdecl "if" do_if (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
               rdecl "while" do_while (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
@@ -781,8 +854,8 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "browser" (dummy_function "do_browser") (0)%Z eval101 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl ".primTrace" (dummy_function "do_trace") (0)%Z eval101 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl ".primUntrace" (dummy_function "do_trace") (1)%Z eval101 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl ".Internal" (dummy_function "do_internal") (0)%Z eval200 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl ".Primitive" (dummy_function "do_primitive") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl ".Internal" do_internal (0)%Z eval200 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl ".Primitive" do_primitive (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "call" (dummy_function "do_call") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "quote" (dummy_function "do_quote") (0)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "substitute" (dummy_function "do_substitute") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
@@ -1568,7 +1641,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "curlGetHeaders" (dummy_function "do_curlGetHeaders") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "curlDownload" (dummy_function "do_curlDownload") (0)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false
 
-            ]%string
+            ]%string)
         end
     |}
   end.

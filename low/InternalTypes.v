@@ -27,6 +27,10 @@ Record funtab_eval_arg := make_funtab_eval_arg {
     funtab_eval_arg_eval : bool (** Whether its arguments should be evaluated before calling. **)
   }.
 
+Instance funtab_eval_arg_Inhab : Inhab funtab_eval_arg.
+  apply prove_Inhab. constructors; typeclass.
+Qed.
+
 (** PPkind **)
 Inductive PPkind :=
   | PP_INVALID
@@ -97,6 +101,10 @@ Record PPinfo := make_PPinfo {
     PPinfo_rightassoc : bool
   }.
 
+Instance PPinfo_Inhab : Inhab PPinfo.
+  apply prove_Inhab. constructors; typeclass.
+Qed.
+
 (** FUNTAB **)
 Record funtab_cell := make_funtab_cell {
     fun_name : string ;
@@ -107,7 +115,11 @@ Record funtab_cell := make_funtab_cell {
     fun_gram : PPinfo
   }.
 
-Definition funtab := option (list funtab_cell).
+Instance funtab_cell_Inhab : Inhab funtab_cell.
+  apply prove_Inhab. constructors; apply arbitrary.
+Qed.
+
+Definition funtab := option (ArrayList.array funtab_cell).
 
 
 (** * Type2Table **)

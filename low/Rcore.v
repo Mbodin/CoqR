@@ -22,15 +22,20 @@ Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
 
 Variable runs : runs_type.
 
-Definition read_R_FunTab S n :=
+Definition get_R_FunTab S :=
   match runs_R_FunTab runs with
   | None => result_bottom S
-  | Some f =>
-    match nth_option n f with
-    | None => result_impossible S "[read_R_FunTab] Out of bounds."
-    | Some c => result_success S c
-    end
+  | Some t =>
+    result_success S t
   end.
+
+Definition read_R_FunTab S n :=
+  let%success t := get_R_FunTab S using S in
+  ifb n >= ArrayList.length t then
+    result_impossible S "[read_R_FunTab] Out of bounds."
+  else
+    let c := ArrayList.read t n in
+    result_success S c.
 
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -158,6 +163,14 @@ Definition isLogical S s :=
   result_success S (decide (s_type = LglSxp)).
 
 Definition IS_LOGICAL := isLogical.
+
+Definition isSymbol S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = SymSxp)).
+
+Definition isString S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = StrSxp)).
 
 
 (** ** duplicate.c **)
@@ -610,6 +623,14 @@ Definition XLENGTH_EX S x :=
   else STDVEC_LENGTH S x.
 
 Definition XLENGTH := XLENGTH_EX.
+
+Definition LENGTH_EX S (x : SExpRec_pointer) :=
+  ifb x = R_NilValue then
+    result_success S 0
+  else XLENGTH S x.
+
+Definition LENGTH := LENGTH_EX.
+
 
 Definition ALTLOGICAL_ELT S x i :=
   read%Logical x_i := x at i using S in

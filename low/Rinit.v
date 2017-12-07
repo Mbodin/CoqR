@@ -147,20 +147,20 @@ Definition InitNames_shorcuts S :=
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
 Definition mkPRIMSXP_init S :=
-  let%defined R_FunTab := runs_R_FunTab runs using S in
-  let FunTabSize := length R_FunTab in
+  let%success R_FunTab := get_R_FunTab runs S using S in
+  let FunTabSize := ArrayList.length R_FunTab in
   let (S, primCache) :=
     alloc_vector_vec globals S (ArrayList.from_list (repeat (R_NilValue : SExpRec_pointer) FunTabSize)) in
   result_success S primCache.
 
 (** The end of [InitNames], from main/names.c **)
 Definition InitNames_install S :=
-  let%defined R_FunTab := runs_R_FunTab runs using S in
+  let%success R_FunTab := get_R_FunTab runs S using S in
   run%success
     fold_left (fun c r =>
         let%success i := r using S in
         run%success installFunTab globals runs S c i using S in
-        result_success S (1 + i)) (result_success S 0) R_FunTab using S in
+        result_success S (1 + i)) (result_success S 0) (ArrayList.to_list R_FunTab) using S in
   run%success
     fold_left (fun c r =>
         run%success r using S in
