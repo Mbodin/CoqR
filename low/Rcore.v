@@ -6,7 +6,7 @@
   C source. See report for more details. **)
 
 Set Implicit Arguments.
-Require Import Ascii.
+Require Import Ascii Double.
 Require Export Loops.
 
 
@@ -32,42 +32,22 @@ Definition read_R_FunTab S n :=
     end
   end.
 
-(* Any check would be greatly appreciated on the values of floats marked with a FIXME. *)
-(* LATER: Use file Fappli_IEEE_extra.v of Compcert/lib/? I need to set up a license for this
-  (either GPL or something compatible with the INRIA non-commercial license). *)
 
-Definition int_to_double (i : int) : double :=
-  (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
-  match i with
-  | Z0 => Fappli_IEEE.F754_zero false
-  | Zpos p => Fappli_IEEE.F754_finite false p 64
-  | Zneg p => Fappli_IEEE.F754_finite true p 64
-  end.
+Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
-
-Definition double_is_zero (x : double) :=
-  decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
-
-Parameter double_opp : double -> double. (* TODO: use Flocq. *)
 
 (* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
 Definition INT_MIN : int := - 2 ^ 31.
 
 Definition R_NaInt := INT_MIN.
-Definition R_PosInf := Fappli_IEEE.F754_infinity false : double.
-Definition R_NegInf := Fappli_IEEE.F754_infinity true : double.
-Definition R_NaN : double := Fappli_IEEE.F754_nan false 1.
-  (* FIXME: refine (Fappli_IEEE.B754_nan _ _ false (exist _ 1%positive _)). reflexivity.*)
+Definition R_PosInf := Double.posInf.
+Definition R_NegInf := Double.negInf.
+Definition R_NaN := Double.NaN.
 Definition NA_INTEGER := R_NaInt.
 Definition NA_LOGICAL := R_NaInt.
-Definition R_NaReal :=
-  (** This is defined in R (in main/arithmetic.c, function R_ValueOfNA) as the raw bit
-    conversion from the two-integer word whose first component is 0x7ff00000 (that is,
-    2146435072) and the second 1954. **)
-  (* FIXME: Fappli_IEEE_bits.b64_of_bits (2146435072 + 1954 * 2 ^ 32).*)
-  Fappli_IEEE.F754_nan true 1954.
-Definition NA_REAL := R_NaReal : double.
+Definition R_NaReal := Double.NaN1954.
+Definition NA_REAL := R_NaReal.
 
 Definition R_NaString := NA_STRING.
 
@@ -138,8 +118,8 @@ Definition CTXT_BUILTIN := 64.
 (** The function names of this section corresponds to the macro names
   in the file include/Rmath.h. **)
 
-Definition ISNAN (x : double) :=
-  Fappli_IEEE.is_nan_FF x.
+Definition ISNAN x :=
+  Double.isNaN x.
 
 
 (** ** Rinternals.h **)
@@ -402,6 +382,30 @@ Definition alloc_vector_vec S v_data : state * SExpRec_pointer :=
 Definition alloc_vector_expr S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_expr R_NilValue v_data).
 
+(** We however propose the following smart constructor. **)
+Definition allocVector S type (size : nat) :=
+  match type with
+  | CharSxp =>
+    let (S, v) := alloc_vector_char S [Ascii false false false false false false false false] in
+    result_success S v
+  | LglSxp =>
+    let (S, v) := alloc_vector_lgl S [NA_LOGICAL] in
+    result_success S v
+  | IntSxp =>
+    let (S, v) := alloc_vector_int S [NA_INTEGER] in
+    result_success S v
+  | RealSxp =>
+    let (S, v) := alloc_vector_real S [NA_REAL] in
+    result_success S v
+  | CplxSxp =>
+    let (S, v) := alloc_vector_cplx S [make_Rcomplex NA_REAL NA_REAL] in
+    result_success S v
+  | StrSxp =>
+    let (S, v) := alloc_vector_str S [R_NilValue : SExpRec_pointer] in
+    result_success S v
+  | _ => result_error S "[allocVector] Invalid (non-vector) type."
+  end.
+
 Definition ScalarLogical x : SExpRec_pointer :=
   ifb x = NA_LOGICAL then
     R_LogicalNAValue
@@ -510,6 +514,22 @@ Definition SCALAR_LVAL S x :=
 Definition SCALAR_IVAL S x :=
   read%Integer r := x at 0 using S in
   result_success S r.
+
+Definition SCALAR_DVAL S x :=
+  read%Real r := x at 0 using S in
+  result_success S r.
+
+Definition SET_SCALAR_LVAL S x v :=
+  write%Logical x at 0 := v using S in
+  result_skip S.
+
+Definition SET_SCALAR_IVAL S x v :=
+  write%Integer x at 0 := v using S in
+  result_skip S.
+
+Definition SET_SCALAR_DVAL S x v :=
+  write%Real x at 0 := v using S in
+  result_skip S.
 
 
 Definition lcons S car cdr :=
@@ -656,19 +676,21 @@ Definition RAW_ELT S x i :=
 (** The function names of this section corresponds to the function names
   in the file main/arithmetic.c. **)
 
-(* FIXME: Any check about the following two functions would be very welcomed. *)
-
 Definition R_IsNA x :=
-  match x with
-  | Fappli_IEEE.F754_nan _ i => decide (i = 1954)%positive
-  | _ => false
-  end.
+  decide (Double.getNaNData x = Some 1954)%positive.
 
 Definition R_IsNAN x :=
-  match x with
-  | Fappli_IEEE.F754_nan _ i => decide (i <> 1954)%positive
-  | _ => false
+  match Double.getNaNData x with
+  | Some i => decide (i <> 1954)%positive
+  | None => false
   end.
+
+Definition ScalarValue1 S x :=
+  let%success nr := NO_REFERENCES S x using S in
+  if nr then result_success S x
+  else
+    let%success x_type := TYPEOF S x using S in
+    alloc_vector S x_type 1.
 
 
 (** ** envir.c **)
@@ -1745,11 +1767,12 @@ Definition LogicalFromInteger S (x : int) : result int :=
 
 Definition LogicalFromReal S x : result int :=
   ifb ISNAN x then result_success S NA_LOGICAL
-  else result_success S (if negb (double_is_zero x) then 1 : int else 0).
+  else result_success S (if negb (Double.is_zero x) then 1 : int else 0).
 
 Definition LogicalFromComplex S x : result int :=
   ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then result_success S NA_LOGICAL
-  else result_success S (ifb ~ double_is_zero (Rcomplex_r x) \/ ~ double_is_zero (Rcomplex_i x) then 1 : int else 0).
+  else result_success S (ifb ~ Double.is_zero (Rcomplex_r x)
+                             \/ ~ Double.is_zero (Rcomplex_i x) then 1 : int else 0).
 
 Definition asLogical S x :=
   let%success iva := isVectorAtomic S x using S in

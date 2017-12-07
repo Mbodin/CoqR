@@ -88,7 +88,11 @@ Extract Constant double_comparable =>
       if compare x nan = 0 then (Obj.magic x : int * int) = (Obj.magic y : int * int) else true
      else false)".
 
-Extract Constant double_opp => "(~-.)".
+Extract Constant Double.opp => "(~-.)".
+Extract Constant Double.add => "(+.)".
+Extract Constant Double.sub => "(-.)".
+Extract Constant Double.mult => "(*.)".
+Extract Constant Double.div => "(/.)".
 
 Extract Constant int_to_double => "float_of_int".
 

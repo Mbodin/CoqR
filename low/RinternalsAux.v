@@ -381,11 +381,6 @@ Proof. apply prove_Inhab. repeat constructors. Qed.
 Instance Rcomplex_Inhab : Inhab Rcomplex.
 Proof. apply prove_Inhab. repeat constructors. Qed.
 
-(* Warning: this is using the Leibniz equality, not the usual “equality operator” on floats. *)
-Instance double_comparable : Comparable double.
-  prove_comparable_simple_inductive.
-Defined.
-
 Instance Rcomplex_comparable : Comparable Rcomplex.
   prove_comparable_simple_inductive.
 Defined.

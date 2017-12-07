@@ -30,6 +30,7 @@
     stringcontent -> "c" ;
     stringcontent -> " " ;
     stringcontent -> digit ;
+    stringcontent -> primitive ;
     stringcontent -> stringcontent stringcontent ;
 
     number -> sign digits ;

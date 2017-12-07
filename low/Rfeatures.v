@@ -334,7 +334,7 @@ Definition complex_unary S (code : int) s1 :=
     read%VectorComplex s1_ := s1 using S in
     let px := VecSxp_data s1_ in
     let pa := ArrayListExtra.map (fun x =>
-      make_Rcomplex (double_opp (Rcomplex_r x)) (double_opp (Rcomplex_i x))) px in
+      make_Rcomplex (Double.opp (Rcomplex_r x)) (Double.opp (Rcomplex_i x))) px in
     write%VectorComplex ans := pa using S in
     result_success S ans
     else result_error S "[real_unary] Invalid unary operator.".
@@ -408,7 +408,7 @@ Definition real_unary S (code : int) s1 :=
       else duplicate S s1 using S in
     read%VectorReal s1_ := s1 using S in
     let px := VecSxp_data s1_ in
-    let pa := ArrayListExtra.map (fun x : double => double_opp x) px in
+    let pa := ArrayListExtra.map (fun x => Double.opp x) px in
     write%VectorReal ans := pa using S in
     result_success S ans
   else result_error S "[real_unary] Invalid unary operator.".
@@ -447,7 +447,80 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
       | None => result_rskip S
       end
     else ifb argc = 2 then
-      result_not_implemented "[do_arith] TODO (argc = 2)"
+      let double_case S ans x1 x2 :=
+        let%success op_val := PRIMVAL runs S op using S in
+        ifb op_val = PLUSOP then
+          run%success SET_SCALAR_DVAL S ans (Double.add x1 x2) using S in
+          result_rreturn S ans
+        else ifb op_val = MINUSOP then
+          run%success SET_SCALAR_DVAL S ans (Double.sub x1 x2) using S in
+          result_rreturn S ans
+        else ifb op_val = TIMESOP then
+          run%success SET_SCALAR_DVAL S ans (Double.mult x1 x2) using S in
+          result_rreturn S ans
+        else ifb op_val = DIVOP then
+          run%success SET_SCALAR_DVAL S ans (Double.div x1 x2) using S in
+          result_rreturn S ans
+        else result_rskip S in
+      let%success scal1 := IS_SCALAR S arg1 RealSxp using S in
+      ifb scal1 then
+        let%success x1 := SCALAR_DVAL S arg1 using S in
+        let%success scal2 := IS_SCALAR S arg2 RealSxp using S in
+        ifb scal2 then
+          let%success x2 := SCALAR_DVAL S arg2 using S in
+          let%success ans := ScalarValue2 S arg1 arg2 using S in
+          double_case S ans x1 x2
+        else
+          let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
+          ifb scal2 then
+            let%success i2 := SCALAR_IVAL S arg2 using S in
+            let x2 :=
+              ifb i2 <> NA_INTEGER then
+                (i2 : double)
+              else NA_REAL in
+            let%success ans := ScalarValue1 S arg1 using S in
+            double_case S ans x1 x2
+          else result_rskip S
+      else
+        let%success scal1 := IS_SCALAR S arg1 IntSxp using S in
+        ifb scal1 then
+          let%success i1 := SCALAR_IVAL S arg1 using S in
+          let%success scal2 := IS_SCALAR S arg2 RealSxp using S in
+          ifb scal2 then
+            let x1 :=
+              ifb i1 <> NA_INTEGER then
+                (i1 : double)
+              else NA_REAL in
+            let%success x2 := SCALAR_DVAL S arg2 using S in
+            let%success ans := ScalarValue1 S arg2 using S in
+            double_case S ans x1 x2
+          else
+            let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
+            ifb scal2 then
+              let%success i2 := SCALAR_IVAL S arg2 using S in
+              let%success op_val := PRIMVAL runs S op using S in
+              ifb op_val = PLUSOP then
+                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success res := R_integer_plus S i1 i2 using S in
+                run%success SET_SCALAR_IVAL S ans res using S in
+                result_rreturn S ans
+              else ifb op_val = MINUSOP then
+                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success res := R_integer_minus S i1 i2 using S in
+                run%success SET_SCALAR_IVAL S ans res using S in
+                result_rreturn S ans
+              else ifb op_val = TIMESOP then
+                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success res := R_integer_times S i1 i2 using S in
+                run%success SET_SCALAR_IVAL S ans res using S in
+                result_rreturn S ans
+              else ifb op_val = DIVOP then
+                let%success res := R_integer_divide S i1 i2 using S in
+                let (S, ans) := ScalarReal globals S res in
+                result_rreturn S ans
+              else result_rskip S
+            else result_rskip S
+        else result_rskip S
     else ifb argc = 1 then
       result_not_implemented "[do_arith] TODO (argc = 1)"
     else result_rskip S using S in

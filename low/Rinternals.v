@@ -5,10 +5,12 @@
 Set Implicit Arguments.
 
 Require Export Array NBits TLC.LibString TLC.LibInt.
-Require Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
+Require Import Double.
 
 
 (** * Types **)
+
+Definition double := Double.double.
 
 (** SEXPTYPE **)
 Inductive SExpType :=
@@ -160,8 +162,6 @@ Record Vector_SExpRec (A : Type) := make_Vector_SExpRec {
   }.
 
 Definition character := Ascii.ascii.
-
-Definition double : Type := Fappli_IEEE.full_float.
 
 Record Rcomplex := make_Rcomplex {
     Rcomplex_r : double ;
