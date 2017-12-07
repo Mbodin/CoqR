@@ -37,8 +37,13 @@ Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
 
-(* We may want to make [INT_MIN] a parameter, as it depends on the C compiler options. *)
+(* We may want to make [INT_MIN] and [INT_MAX] a parameter of the formalisation,
+  as it depends on the C compiler options. *)
 Definition INT_MIN : int := - 2 ^ 31.
+Definition INT_MAX : int := 2 ^ 31 - 1.
+
+Definition R_INT_MAX := INT_MAX.
+Definition R_INT_MIN := INT_MIN.
 
 Definition R_NaInt := INT_MIN.
 Definition R_PosInf := Double.posInf.
@@ -382,28 +387,45 @@ Definition alloc_vector_vec S v_data : state * SExpRec_pointer :=
 Definition alloc_vector_expr S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_expr R_NilValue v_data).
 
-(** We however propose the following smart constructor. **)
-Definition allocVector S type (size : nat) :=
+(** We however propose the following smart constructor, based on
+  [allocVector]/[allocVector3] from main/memory.c. **)
+(** Note: using [arbitrary] would here be more natural than these default values
+  for the base cases, but it would not behave well in the extraction. **)
+Definition allocVector S type length :=
+  let alloc {T} (allocator : state -> ArrayList.array T -> state * SExpRec_pointer) (base : T) :=
+    let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
+    result_success S v in
   match type with
+  | NilSxp =>
+    result_success S (R_NilValue : SExpRec_pointer)
+  | RawSxp =>
+    result_not_implemented "[allocVector] Raw type."
   | CharSxp =>
-    let (S, v) := alloc_vector_char S [Ascii false false false false false false false false] in
-    result_success S v
+    alloc alloc_vector_char (Ascii false false false false false false false false)
   | LglSxp =>
-    let (S, v) := alloc_vector_lgl S [NA_LOGICAL] in
-    result_success S v
+    alloc alloc_vector_lgl (NA_LOGICAL)
   | IntSxp =>
-    let (S, v) := alloc_vector_int S [NA_INTEGER] in
-    result_success S v
+    alloc alloc_vector_int (NA_INTEGER)
   | RealSxp =>
-    let (S, v) := alloc_vector_real S [NA_REAL] in
-    result_success S v
+    alloc alloc_vector_real (NA_REAL)
   | CplxSxp =>
-    let (S, v) := alloc_vector_cplx S [make_Rcomplex NA_REAL NA_REAL] in
-    result_success S v
+    alloc alloc_vector_cplx (make_Rcomplex NA_REAL NA_REAL)
   | StrSxp =>
-    let (S, v) := alloc_vector_str S [R_NilValue : SExpRec_pointer] in
-    result_success S v
-  | _ => result_error S "[allocVector] Invalid (non-vector) type."
+    alloc alloc_vector_str (R_NilValue : SExpRec_pointer)
+  | ExprSxp =>
+    alloc alloc_vector_expr (R_NilValue : SExpRec_pointer)
+  | VecSxp =>
+    alloc alloc_vector_vec (R_NilValue : SExpRec_pointer)
+  | LangSxp =>
+    ifb length = 0 then result_success S (R_NilValue : SExpRec_pointer)
+    else
+      let (S, s) := allocList S length in
+      map%pointer s with set_type LangSxp using S in
+      result_success S s
+  | ListSxp =>
+    let (S, s) := allocList S length in
+    result_success S s
+  | _ => result_error S "[allocVector] Invalid type in vector allocation."
   end.
 
 Definition ScalarLogical x : SExpRec_pointer :=
@@ -690,7 +712,17 @@ Definition ScalarValue1 S x :=
   if nr then result_success S x
   else
     let%success x_type := TYPEOF S x using S in
-    alloc_vector S x_type 1.
+    allocVector S x_type 1.
+
+Definition ScalarValue2 S x y :=
+  let%success nrx := NO_REFERENCES S x using S in
+  if nrx then result_success S x
+  else
+    let%success nry := NO_REFERENCES S y using S in
+    if nry then result_success S y
+    else
+      let%success x_type := TYPEOF S x using S in
+      allocVector S x_type 1.
 
 
 (** ** envir.c **)

@@ -17,6 +17,8 @@ Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
 
+Local Coercion int_to_double : Z >-> double.
+
 
 (** * errors.c **)
 
@@ -424,6 +426,40 @@ Definition R_unary S (call op s1 : SExpRec_pointer) : result SExpRec_pointer :=
   | _ => result_error S "[R_unary] Invalid argument to unary operator."
   end.
 
+Definition R_integer_plus S x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then
+    result_success S NA_INTEGER
+  else
+    ifb (y < 0 /\ x > R_INT_MAX - y)%Z \/ (y > 0 /\ x < R_INT_MIN - y)%Z then
+      (* A warning has been formalised out here. *)
+      result_success S NA_INTEGER
+    else result_success S (x + y)%Z.
+
+Definition R_integer_minus S x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then
+    result_success S NA_INTEGER
+  else
+    ifb (y < 0 /\ x > R_INT_MAX + y)%Z \/ (y > 0 /\ x < R_INT_MIN + y)%Z then
+      (* A warning has been formalised out here. *)
+      result_success S NA_INTEGER
+    else result_success S (x - y)%Z.
+
+Definition R_integer_times S x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then
+    result_success S NA_INTEGER
+  else
+    let z := (x * y)%Z in
+    ifb Double.mult (x : double) (y : double) = (z : double) /\ z <> NA_INTEGER then
+      result_success S z
+    else
+      (* A warning has been formalised out here. *)
+      result_success S NA_INTEGER.
+
+Definition R_integer_divide S x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then
+    result_success S NA_REAL
+  else result_success S (Double.div (x : double) (y : double)).
+
 Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
@@ -468,7 +504,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
         let%success scal2 := IS_SCALAR S arg2 RealSxp using S in
         ifb scal2 then
           let%success x2 := SCALAR_DVAL S arg2 using S in
-          let%success ans := ScalarValue2 S arg1 arg2 using S in
+          let%success ans := ScalarValue2 globals S arg1 arg2 using S in
           double_case S ans x1 x2
         else
           let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
@@ -478,7 +514,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
               ifb i2 <> NA_INTEGER then
                 (i2 : double)
               else NA_REAL in
-            let%success ans := ScalarValue1 S arg1 using S in
+            let%success ans := ScalarValue1 globals S arg1 using S in
             double_case S ans x1 x2
           else result_rskip S
       else
@@ -492,7 +528,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
                 (i1 : double)
               else NA_REAL in
             let%success x2 := SCALAR_DVAL S arg2 using S in
-            let%success ans := ScalarValue1 S arg2 using S in
+            let%success ans := ScalarValue1 globals S arg2 using S in
             double_case S ans x1 x2
           else
             let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
@@ -500,17 +536,17 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
               let%success i2 := SCALAR_IVAL S arg2 using S in
               let%success op_val := PRIMVAL runs S op using S in
               ifb op_val = PLUSOP then
-                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success ans := ScalarValue2 globals S arg1 arg2 using S in
                 let%success res := R_integer_plus S i1 i2 using S in
                 run%success SET_SCALAR_IVAL S ans res using S in
                 result_rreturn S ans
               else ifb op_val = MINUSOP then
-                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success ans := ScalarValue2 globals S arg1 arg2 using S in
                 let%success res := R_integer_minus S i1 i2 using S in
                 run%success SET_SCALAR_IVAL S ans res using S in
                 result_rreturn S ans
               else ifb op_val = TIMESOP then
-                let%success ans := ScalarValue2 S arg1 arg2 using S in
+                let%success ans := ScalarValue2 globals S arg1 arg2 using S in
                 let%success res := R_integer_times S i1 i2 using S in
                 run%success SET_SCALAR_IVAL S ans res using S in
                 result_rreturn S ans
@@ -522,7 +558,30 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
             else result_rskip S
         else result_rskip S
     else ifb argc = 1 then
-      result_not_implemented "[do_arith] TODO (argc = 1)"
+      let%success scal1 := IS_SCALAR S arg1 RealSxp using S in
+      ifb scal1 then
+        let%success op_val := PRIMVAL runs S op using S in
+        ifb op_val = PLUSOP then
+          result_rreturn S arg1
+        else ifb op_val = MINUSOP then
+          let%success ans := ScalarValue1 globals S arg1 using S in
+          let%success v := SCALAR_DVAL S arg1 using S in
+          run%success SET_SCALAR_DVAL S ans (Double.opp v) using S in
+          result_rreturn S ans
+        else result_rskip S
+      else
+        let%success scal1 := IS_SCALAR S arg1 IntSxp using S in
+        ifb scal1 then
+          let%success op_val := PRIMVAL runs S op using S in
+          ifb op_val = PLUSOP then
+            result_rreturn S arg1
+          else ifb op_val = MINUSOP then
+            let%success ival := SCALAR_IVAL S arg1 using S in
+            let%success ans := ScalarValue1 globals S arg1 using S in
+            run%success SET_SCALAR_IVAL S ans (ifb ival = NA_INTEGER then NA_INTEGER else -ival) using S in
+            result_rreturn S ans
+          else result_rskip S
+        else result_rskip S
     else result_rskip S using S in
   ifb argc = 2 then
     R_binary S call op arg1 arg2

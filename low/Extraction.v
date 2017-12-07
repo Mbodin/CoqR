@@ -74,15 +74,15 @@ Extract Inductive Fappli_IEEE.full_float => "float" [
   "let f = fun (b, p) -> nan in f"
   "(fun (s, m, e) -> failwith ""FIXME: No extraction from binary float allowed yet."")"
 ].
-Extract Constant R_NaN => "nan".
-Extract Constant R_NaReal =>
+Extract Constant Double.NaN => "nan".
+Extract Constant Double.NaN1954 =>
   "(let (a, b) = (Obj.magic nan : int * int) in (Obj.magic (a, 1954) : float))".
-Extract Constant R_IsNA =>
+Extract Constant Double.isNaN =>
   "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b = 1954 else false)".
-Extract Constant R_IsNAN =>
-  "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b <> 1954 else false)".
-Extract Constant Fappli_IEEE.is_nan_FF => "(fun x -> compare x nan = 0)".
-Extract Constant double_comparable =>
+Extract Constant Double.getNaNData =>
+  "(fun x -> if compare x nan = 0 then let (_, b) = (Obj.magic x : int * int) in Some b else None)".
+Extract Constant Double.isNaN => "(fun x -> compare x nan = 0)".
+Extract Constant Double.double_comparable =>
   "(fun x y ->
      if compare x y = 0 then
       if compare x nan = 0 then (Obj.magic x : int * int) = (Obj.magic y : int * int) else true
@@ -91,7 +91,7 @@ Extract Constant double_comparable =>
 Extract Constant Double.opp => "(~-.)".
 Extract Constant Double.add => "(+.)".
 Extract Constant Double.sub => "(-.)".
-Extract Constant Double.mult => "(*.)".
+Extract Constant Double.mult => "( *. )".
 Extract Constant Double.div => "(/.)".
 
 Extract Constant int_to_double => "float_of_int".
