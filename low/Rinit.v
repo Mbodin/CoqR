@@ -282,6 +282,7 @@ Definition InitTypeTables S :=
       | None =>
         result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
       end) (result_success S nil) (seq 0 MAX_NUM_SEXPTYPE) using S in
+  let table := LibList.rev table in (* The table has been computed backward. *)
   result_success S (ArrayList.from_list table).
 
 (** [InitS3DefaulTypes], from main/attrib.c **)

@@ -1303,16 +1303,16 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
     ifb addVars_type = EnvSxp then
       result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
     else
-      read%list addVars_, addVars_list := addVars using S in
+      read%list addVars_car, addVars_cdr, _ := addVars using S in
       fold%success aprev := addVars
-      along list_cdrval addVars_list
+      along addVars_cdr
       as a, _, _ do
         result_success S a using S, runs, globals in
       read%env _, env_env := env using S in
       set%cdr aprev := env_frame env_env using S in
       run%success SET_FRAME S env addVars using S in
       fold%let
-      along list_cdrval addVars_list
+      along addVars_cdr
       as endp, _, endp_list do
         let endTag := list_tagval endp_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
@@ -2137,8 +2137,7 @@ Definition eval S (e rho : SExpRec_pointer) :=
         read%prom _, e_prom := e using S in
         result_success S (prom_value e_prom)
       | LangSxp =>
-        read%list _, e_list := e using S in
-        let e_car := list_carval e_list in
+        read%list e_car, e_cdr, _ := e using S in
         let%success e_car_type := TYPEOF S e_car using S in
         let%success op :=
           ifb e_car_type = SymSxp then
@@ -2152,9 +2151,9 @@ Definition eval S (e rho : SExpRec_pointer) :=
         match op_type with
         | SpecialSxp =>
           let%success f := PRIMFUN S op using S in
-          f S e op (list_cdrval e_list) rho
+          f S e op e_cdr rho
         | BuiltinSxp =>
-          let%success tmp := evalList S (list_cdrval e_list) rho e 0 using S in
+          let%success tmp := evalList S e_cdr rho e 0 using S in
           let%success infos := PPINFO S op using S in
           ifb PPinfo_kind infos = PP_FOREIGN then
             let%success cntxt :=
@@ -2167,7 +2166,7 @@ Definition eval S (e rho : SExpRec_pointer) :=
             let%success f := PRIMFUN S op using S in
             f S e op tmp rho
         | CloSxp =>
-          let%success tmp := promiseArgs S (list_cdrval e_list) rho using S in
+          let%success tmp := promiseArgs S e_cdr rho using S in
           applyClosure S e op tmp rho R_NilValue
         | _ => result_error S "[eval] Attempt to apply non-function."
         end

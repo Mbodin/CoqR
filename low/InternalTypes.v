@@ -24,7 +24,7 @@ Definition function_code :=
   (in base 10) representing a different bit of information. **)
 Record funtab_eval_arg := make_funtab_eval_arg {
     funtab_eval_arg_internal : bool ; (** Whether it is stored in the array [.Internals] or directly visible. **)
-    funtab_eval_arg_eval : bool (** Whether its arguments should be evaluated before calling. **)
+    funtab_eval_arg_eval : bool (** Whether its arguments should be evaluated before calling (that is, whether it is a [BuiltinSxp] or a [SpecialSxp]). **)
   }.
 
 Instance funtab_eval_arg_Inhab : Inhab funtab_eval_arg.

@@ -73,9 +73,8 @@ Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_poi
 (** The function names of this section corresponds to the function names
   in the file main/dstruct.c. **)
 
-Definition mkPRIMSXP S (offset : nat) (type_ : bool) : result SExpRec_pointer :=
-  let type_ :=
-      ifb type_ then BuiltinSxp else SpecialSxp in
+Definition mkPRIMSXP S (offset : nat) (type : bool) : result SExpRec_pointer :=
+  let type := if type then BuiltinSxp else SpecialSxp in
   let%success R_FunTab := get_R_FunTab runs S using S in
   let FunTabSize := ArrayList.length R_FunTab in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
@@ -84,12 +83,12 @@ Definition mkPRIMSXP S (offset : nat) (type_ : bool) : result SExpRec_pointer :=
   else
     read%Pointer result := mkPRIMSXP_primCache at offset using S in
     ifb result = R_NilValue then
-      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type_) in
+      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
       write%Pointer mkPRIMSXP_primCache at offset := result using S in
       result_success S result
     else
       let%success result_type := TYPEOF S result using S in
-      ifb result_type <> type_ then
+      ifb result_type <> type then
         result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
       else result_success S result.
 
@@ -675,7 +674,7 @@ Definition do_internal S (call op args env : SExpRec_pointer) : result SExpRec_p
   let%success args :=
     let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
     ifb sfun_internal_type = BuiltinSxp then
-      evalList globals runs S args env call 0
+      evalList globals runs S s_cdr env call 0
     else result_success S s_cdr using S in
   let%success f := PRIMFUN runs S (sym_internal sfun_sym) using S in
   let%success ans := f S s (sym_internal sfun_sym) args env using S in
@@ -684,6 +683,8 @@ Definition do_internal S (call op args env : SExpRec_pointer) : result SExpRec_p
 
 Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
   let i := ArrayList.length R_FunTab - lmi in
+  (** For termination, the loop variable has been reversed.
+    In C, the loop variable is [i] and not [lmi = ArrayList.length R_FunTab - i]. **)
   match lmi with
   | 0 =>
     (** [i = ArrayList.length R_FunTab] **)

@@ -93,6 +93,14 @@ let mkComplex str : token_type = fun g _ s ->
   let (s, e) = alloc_vector_cplx g s (ArrayList.from_list [c]) in
   Result_success (s, e)
 
+(** When creating an integer, R checks whether floats would be more
+  precise, and if so, uses floats instead. **)
+let mkIntCheck str =
+  let f = float_of_string str in
+  if f = float_of_int (int_of_float f) then
+    mkInt str
+  else mkFloat str
+
 
 (** * Global variables used in the parser **)
 
