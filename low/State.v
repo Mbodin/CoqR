@@ -361,9 +361,35 @@ Definition context_with_jumpmask context jumpmask := {|
    |}.
 
 
+(** * A Model for R’s Inputs and Outputs **)
+
+(** ** Inputs **)
+
+Record input := make_input {
+    prompt_string : stream string ;
+    random_boolean : stream bool
+  }.
+
+(** The following parameter is extracted as expected in Extraction.v. **)
+Parameter default_input : input.
+
+
+(** ** Outputs **)
+
+Record output := make_output {
+    output_string : list string
+  }.
+
+Definition default_output : output := {|
+    output_string := nil
+  |}.
+
+
 (** * A Model for R’s State **)
 
 Record state := make_state {
+    inputs :> input ;
+    outputs :> output ;
     state_memory :> memory ;
     state_context : context ;
     R_ExitContext : option context ;
@@ -374,6 +400,8 @@ Record state := make_state {
 Definition R_GlobalContext := state_context.
 
 Definition state_with_memory S m := {|
+    inputs := inputs S ;
+    outputs := outputs S ;
     state_memory := m ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -382,6 +410,8 @@ Definition state_with_memory S m := {|
   |}.
 
 Definition state_with_context S c := {|
+    inputs := inputs S ;
+    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := c ;
     R_ExitContext := R_ExitContext S ;
@@ -390,6 +420,8 @@ Definition state_with_context S c := {|
   |}.
 
 Definition state_with_exit_context S c := {|
+    inputs := inputs S ;
+    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := c ;
@@ -398,6 +430,8 @@ Definition state_with_exit_context S c := {|
   |}.
 
 Definition update_R_SymbolTable S p := {|
+    inputs := inputs S ;
+    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -406,6 +440,8 @@ Definition update_R_SymbolTable S p := {|
   |}.
 
 Definition update_R_ReturnedValue S p := {|
+    inputs := inputs S ;
+    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -457,6 +493,14 @@ Instance memory_Inhab : Inhab memory :=
 
 Instance context_Inhab : Inhab context.
   apply prove_Inhab. constructors; typeclass || apply arbitrary.
+Qed.
+
+Instance input_Inhab : Inhab input.
+  apply prove_Inhab. constructors; apply arbitrary.
+Qed.
+
+Instance output_Inhab : Inhab output.
+  apply prove_Inhab. constructors; apply arbitrary.
 Qed.
 
 Instance state_Inhab : Inhab state.

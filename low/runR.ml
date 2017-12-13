@@ -4,7 +4,7 @@
 (** * References to Options **)
 
 let interactive = ref true
-let verbose = ref true
+let verbose = ref false
 let max_steps = ref max_int
 
 let readable_pointers = ref true

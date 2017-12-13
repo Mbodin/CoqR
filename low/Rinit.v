@@ -374,6 +374,8 @@ Definition setup_Rmainloop max_step S : result Globals :=
   (* TODO: [Init_R_Variables]. *)
   let S := {|
       state_memory := S ;
+      inputs := S ;
+      outputs := S ;
       state_context := R_Toplevel ;
       R_ExitContext := None ;
       R_SymbolTable := R_SymbolTable S ;
@@ -407,6 +409,8 @@ Definition empty_context := {|
 
 (** An empty (and dummy) state **)
 Definition empty_state := {|
+    inputs := default_input ;
+    outputs := default_output ;
     state_memory := empty_memory ;
     state_context := empty_context ;
     R_ExitContext := None ;

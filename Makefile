@@ -52,7 +52,7 @@ run: low/runR.native low/initial.state
 
 # To launch the program faster through the “make run” command.
 low/initial.state: low/runR.native
-	${AT}echo "#save-state low/initial.state\n#quit" | low/runR.native -quiet-output
+	${AT}echo "#save-state low/initial.state\n#quit" | low/runR.native > /dev/null
 
 clean_interp:
 	${AT}rm low/runR.native || true

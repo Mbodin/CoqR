@@ -1,51 +1,77 @@
 
 # This file is meant to be read line-by-line, each line being independent from the other.
 # In particular, if the state at the beginning of each line should always be the initial state.
+# A test passes if the output of the tested interpreter is the same than R’s.
+# In particular, all step should return the same output.
 
 # Tests about aborting primitives.
 return
 return (1)
 return (0/0)
+return (NULL)
 (return (1)) (2)
 break
 break (1)
 next
 next (1)
+(function (){ 1 ; return (2) ; 3 }) ()
+repeat break
+x <- FALSE ; repeat if (x) break else x <- TRUE
+x <- FALSE ; repeat if (x) break else { x <- TRUE; next; x <- FALSE }
+x <- TRUE ; while (x) { x <- FALSE; next; x <- TRUE }
+while (TRUE) break
+repeat break + return (1)
+repeat return (1) + break
 
 # Tests about if.
 if ("TRUE") 1 else ""
-if ("True") 1 else ""
-if ("true") 1 else ""
-if ("T") 1 else ""
-if ("t") 1 else ""
-if ("tRUE") 1 else ""
-if ("FALSE") 1 else ""
-if ("False") 1 else ""
-if ("false") 1 else ""
-if ("F") 1 else ""
-if ("f") 1 else ""
-if ("fALSE") 1 else ""
-if ("") 1 else ""
-if ("0") 1 else ""
-if ("1") 1 else ""
-if (c (TRUE, FALSE)) 1 else ""
-if (0) 1 else ""
-if (1) 1 else ""
-if (0L) 1 else ""
-if (1L) 1 else ""
-if (1:3) 1 else ""
-if (function () TRUE) 1 else ""
+if ("True") "1" else 2
+if ("true") 1L else 2
+if ("T") 2 else 3L
+if ("t") "" else NA
+if ("tRUE") "NA" else 2L
+if ("FALSE") 1 else TRUE
+if ("False") TRUE else 1
+if ("false") FALSE else ""
+if ("F") "" else FALSE
+if ("f") 2L else TRUE
+if ("fALSE") FALSE else 2L
+if ("") 1 else NULL
+if ("0") NULL else ""
+if ("1") NULL else NA
+if (c (TRUE, FALSE)) NULL else 1L
+if (0) 1L else NULL
+if (1) NA else NULL
+if (0L) "1" else NULL
+if (1L) 1L else NULL
+if (1:3) NA else NULL
+if (function () TRUE) (function () FALSE) else NA
 if (.Internal) 1 else ""
 if (if (TRUE) FALSE else TRUE) 1 else ""
 if (TRUE) a <- 1 else b <- 1 ; a ; b
 if (FALSE) a <- 1 else b <- 1 ; b ; a
+if (TRUE) 1 else 1 (2)
+if (FALSE) 1 (2) else 1
+if (FALSE) 1
+if (TRUE) 1
+if (a <- TRUE) NULL else NULL ; a
+1 + if (TRUE) 2
+if (NA) NaN else ""
+if (NaN) 1L else NaN
+if ("") 1 else NaN
+if (" ") NaN else NULL
+if (NULL) NaN else FALSE
 
 # Tests about typeof.
-typeof <- function (x) .Internal (typeof (x)) ; typeof (1)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (1) ; typeof (5i)
 typeof <- function (x) .Internal (typeof (x)) ; typeof (1L)
 typeof <- function (x) .Internal (typeof (x)) ; typeof ("")
-typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (NULL)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (NA) ; typeof (NA_integer_) ; typeof (NA_real_) ; typeof (NA_character_) ; typeof (NA_complex_)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (NaN) ; typeof (Inf)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof) ; typeof (typeof (1))
 typeof <- function (x) .Internal (typeof (x)) ; typeof (.Internal)
+typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1, 5, 10)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
 
 # Tests about lazy evaluation.
 (function (x, y = x) { x <- 1 ; y ; x <- 2 ; y }) (3)
@@ -54,8 +80,11 @@ x <- 1 ; (function (x, y, z) { z ; if (x) y }) (FALSE, x <- 2, x <- 3) ; x
 x <- 1 ; (function (x, y, z) { z ; if (x) y }) (TRUE, x <- 2, x <- 3) ; x
 x <- 1 ; (function (x, y) { (function (x, y) if (x) y) (x, y) }) (FALSE, x <- 2) ; x
 (function (x, y = x <- 1) { x <- 2 ; y ; x }) (3)
+(function (x, y = x <- 1) { x }) (3)
+z <- 1 ; (function (x, y = x) NULL) (z <- 2) ; z
+z <- 1 ; (function (x, y = x) y) (z <- 2) ; z
 
-# Tests about implicit conversions.
+# Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
 a <- 1L + 2 ; a ; .Internal (typeof (a))
 a <- 1L + TRUE ; a ; .Internal (typeof (a))
@@ -76,10 +105,32 @@ a <- FALSE + .Internal
 2 == 2L ; -0 == 0 ; -0 == 0L ; 1 == TRUE ; 1L == TRUE ; 0 == FALSE ; 0L == FALSE
 "FALSE" == FALSE ; "False" == FALSE ; "false" == FALSE ; "F" == FALSE ; "f" == FALSE ; "fALSE" == FALSE
 "TRUE" == TRUE ; "True" == TRUE ; "true" == TRUE ; "T" == TRUE ; "t" == TRUE ; "tRUE" == TRUE
+NA == NA ; NaN == NaN ; NA == NaN ; NaN == 0/0 ; NaN == -0/0 ; NaN == 1 + 0/0 ; NaN == 1 + NaN
+NA_integer_ == NA ; NA_character_ == NA ; NA_integer_ == NA_character_
+NULL == 0 ; NULL == NA ; NULL == NaN ; NULL == FALSE ; NULL == TRUE
+0 == -0 ; 0L == -0L ; 1/Inf == 0 ; -1/Inf == 0 ; NaN == Inf - Inf
 .Internal == .Internal
+c (1, 1L) ; c (1, NULL) ; c (1, TRUE) ; c (1, "a") ; c (1, NA) ; c (1, NaN)
+c (1L, 1L) ; c (1L, NULL) ; c (1L, TRUE) ; c (1L, "a") ; c (1L, NA) ; c (1L, NaN)
+c (NULL, 1L) ; c (NULL, NULL) ; c (NULL, TRUE) ; c (NULL, "a") ; c (NULL, NA) ; c (NULL, NaN)
+c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, "a") ; c (TRUE, NA) ; c (TRUE, NaN)
+c ("b", 1L) ; c ("b", NULL) ; c ("b", TRUE) ; c ("b", "a") ; c ("b", NA) ; c ("b", NaN)
+c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN)
+c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN)
+c (1, TRUE, "a") ; c (c (1, TRUE), "a") ; c (1, c (TRUE, "a"))
 
 # Tests about assignments.
-"x" <- 1 ; x
+x <- y <- 2 ; x ; y
+x <- 2 -> y ; x ; y
+x <- 2 ; x <- x <- x + 1 ; x
+x <- 2 ; x <- x + 1 -> x ; x
+x <- 2 ; y <- x <- x + 1 ; y ; x
+x <- 2 ; y <- x + 1 -> x ; y ; y
+x <- 1 ; y <- x ; x <- 2 ; y
+(x <- 1) + (x <- 2)
+x <- 1 ; x <- NULL ; x
+x <- 1 ; "x" <- 2 ; x
+y <- 1 ; x <- "y" ; x <- 2 ; y ; x
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3
@@ -90,4 +141,5 @@ a <- FALSE + .Internal
 "<-" <- function (x, y) x + y ; 1 <- 2
 "<<-" <- function (x, y) x + y ; 1 <<- 2
 "function" <- function (x, y, z) y ; function (x) 2
+"+" <- function (x, y) x - y ; 1 + 2
 
