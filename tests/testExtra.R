@@ -22,6 +22,7 @@ x <- TRUE ; while (x) { x <- FALSE; next; x <- TRUE }
 while (TRUE) break
 repeat break + return (1)
 repeat return (1) + break
+f <- function () break ; while (TRUE) f ()
 
 # Tests about if.
 if ("TRUE") 1 else ""
@@ -71,7 +72,7 @@ typeof <- function (x) .Internal (typeof (x)) ; typeof (NA) ; typeof (NA_integer
 typeof <- function (x) .Internal (typeof (x)) ; typeof (NaN) ; typeof (Inf)
 typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof) ; typeof (typeof (1))
 typeof <- function (x) .Internal (typeof (x)) ; typeof (.Internal)
-typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1, 5, 10)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
+typeof <- function (x) .Internal (typeof (x)) ; runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
 
 # Tests about lazy evaluation.
 (function (x, y = x) { x <- 1 ; y ; x <- 2 ; y }) (3)
@@ -83,6 +84,7 @@ x <- 1 ; (function (x, y) { (function (x, y) if (x) y) (x, y) }) (FALSE, x <- 2)
 (function (x, y = x <- 1) { x }) (3)
 z <- 1 ; (function (x, y = x) NULL) (z <- 2) ; z
 z <- 1 ; (function (x, y = x) y) (z <- 2) ; z
+apply <- function (f, ...) f (...) ; apply (function () 1) ; apply (function (x) x, 2) ; apply (function (x, y) x, 1) ; apply (function (x, y) y, 1, 2)
 
 # Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
@@ -125,7 +127,7 @@ x <- 2 -> y ; x ; y
 x <- 2 ; x <- x <- x + 1 ; x
 x <- 2 ; x <- x + 1 -> x ; x
 x <- 2 ; y <- x <- x + 1 ; y ; x
-x <- 2 ; y <- x + 1 -> x ; y ; y
+x <- 2 ; y <- x + 1 -> x ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y
 (x <- 1) + (x <- 2)
 x <- 1 ; x <- NULL ; x

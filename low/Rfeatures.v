@@ -320,15 +320,19 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   let%success bgn := BodyHasBraces S body using S in
   let%success cntxt :=
     begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
-  (* TODO: translate SETJMP as a continuation *)
-  do%success while
-    read%list args_car, _, _ := args using S in
-    let%success ev := eval globals runs S args_car rho using S in
-    let%success al := asLogicalNoNA S ev call using S in
-    result_success S (decide (al <> 0))
-  do
-    run%success eval globals runs S body rho using S in
-    result_skip S using S, runs in
+  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  run%success
+    ifb jmp <> Ctxt_Break then
+      do%success while
+        read%list args_car, _, _ := args using S in
+        let%success ev := eval globals runs S args_car rho using S in
+        let%success al := asLogicalNoNA S ev call using S in
+        result_success S (decide (al <> 0))
+      do
+        run%success eval globals runs S body rho using S in
+        result_skip S using S, runs in
+        result_skip S
+    else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SExpRec_pointer).
 
