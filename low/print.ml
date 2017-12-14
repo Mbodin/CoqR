@@ -208,6 +208,8 @@ let print_named = function
 let print_float x =
   if compare x nan = 0 then
     if r_IsNA x then "NA" else "NaN"
+  else if compare x infinity = 0 then "Inf"
+  else if compare x neg_infinity = 0 then "-Inf"
   else Printf.sprintf "%g" x
 
 let print_rComplex c =

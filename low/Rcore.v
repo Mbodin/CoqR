@@ -1137,8 +1137,6 @@ Definition matchArgs_second S actuals formals supplied fargused :=
                   else ifb fargusedi = 1 then
                     result_error S "[matchArgs_second] Formal argument matched by multiple actual arguments."
                   else
-                    (** The C code emits a warning about partial arguments here.
-                      This may be a sign that this part should be actually ignored. **)
                     set%car a := list_carval b_list using S in
                     run%success
                       ifb list_carval b_list <> R_MissingArg then
@@ -1188,9 +1186,7 @@ Definition matchArgs_dots S dots supplied :=
       result_success S (1 + i)
     else
       result_success S i using S, runs, globals in
-  ifb i = 0 then
-    result_skip S
-  else
+  ifb i <> 0 then
     let (S, a) := allocList S i in
     map%pointer a with set_type DotSxp using S in
     fold%success f := a
@@ -1203,7 +1199,8 @@ Definition matchArgs_dots S dots supplied :=
         result_success S f_cdr
       else result_success S f using S, runs, globals in
     set%car dots := a using S in
-    result_skip S.
+    result_skip S
+  else result_skip S.
 
 Definition matchArgs_check S supplied :=
   fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)

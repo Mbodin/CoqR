@@ -20,6 +20,7 @@
     variable -> "d" ;
     variable -> "e" ;
     variable -rare> "f" ;
+    variable -rare> primitive ;
 
     string -often> "\"" stringcontent "\"" ;
     string -> "'" stringcontent "'" ;
@@ -37,6 +38,9 @@
     number -> sign digits "L" ;
     number -> sign digits "i" ;
     number -> sign digits "e" digits ;
+    number -rare> sign "Inf" ;
+    number -rare> "NaN" ;
+    number -rare> "NA" ;
 
     sign -> ;
     sign -> "-" ;
@@ -45,16 +49,16 @@
     digits -often> digit digits ;
     digits -> digit ;
 
-    digit -> "0" ;
-    digit -> "1" ;
+    digit -often> "0" ;
+    digit -often> "1" ;
     digit -> "2" ;
     digit -> "3" ;
     digit -> "4" ;
     digit -> "5" ;
     digit -> "6" ;
     digit -> "7" ;
-    digit -> "8" ;
-    digit -> "9" ;
+    digit -rare> "8" ;
+    digit -rare> "9" ;
 
     function -> "function () " programret ;
     function -> "function (" argument ") " programret ;
@@ -74,13 +78,16 @@
     programatom -> lefthandside asn expression ;
     programatom -rare> lefthandside asn lefthandside asn expression ;
     programatom -rare> lefthandside asn lefthandside asn lefthandside asn expression ;
-    programatom -rare> expression " -> " lefthandside ;
-    programatom -rare> expression " -> " lefthandside " -> " lefthandside ;
-    programatom -rare> lefthandside asn expression " -> " lefthandside ;
+    programatom -rare> expression asnright lefthandside ;
+    programatom -rare> expression asnright lefthandside asnright lefthandside ;
+    programatom -rare> lefthandside asn expression asnright lefthandside ;
 
     asn -often> " <- " ;
     asn -> " <<- " ;
     asn -> " = " ;
+
+    asnright -often> " -> " ;
+    asnright -> " ->> " ;
 
     programatom -> exprapp ;
     programatom -rare> expression ;
@@ -107,11 +114,13 @@
 
     callarg -often> expression ;
     callarg -rare> variable " = " expression ;
+    callarg -rare> "..." ;
 
     exprfun -> variable ;
     exprfun -> function ;
     exprfun -> primitivefun ;
     exprfun -rare> exprapp ;
+    exprfun -rare> "missing" ;
 
     expression -> exprfun ;
     expression -> exprapp ;
@@ -121,6 +130,7 @@
     expression -> primitive ;
     expression -> exprcst ;
     expression -rare> ".." digit ;
+    expression -rare> "(" programatom ")" ;
 
     exprarith -often> variable ;
     exprarith -often> number ;
@@ -137,6 +147,8 @@
     exprarith -rare> exprbool ;
 
     exprbool -often> variable ;
+    exprbool -> "TRUE" ;
+    exprbool -> "FALSE" ;
     exprbool -often> "(" exprbool ")" ;
     exprbool -> exprarith " > " exprarith ;
     exprbool -> exprarith " >= " exprarith ;
@@ -219,4 +231,10 @@
     primitiveconstant -> "TRUE" ;
     primitiveconstant -> "FALSE" ;
     primitiveconstant -> "NA" ;
+    primitiveconstant -> "NA_integer_" ;
+    primitiveconstant -> "NA_real_" ;
+    primitiveconstant -> "NA_character_" ;
+    primitiveconstant -> "NA_complex_" ;
+    primitiveconstant -> "Inf" ;
+    primitiveconstant -> "NaN" ;
 

@@ -85,7 +85,7 @@ typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof) ; typeof (typeof
 typeof <- function (x) .Internal (typeof (x)) ; typeof (.Internal)
 typeof <- function (x) .Internal (typeof (x)) ; runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
 
-# Tests about lazy evaluation.
+# Tests about lazy evaluation and function application.
 (function (x, y = x) { x <- 1 ; y ; x <- 2 ; y }) (3)
 x <- 1 ; (function (x, y) { if (x) y }) (FALSE, x <- 2) ; x
 x <- 1 ; (function (x, y, z) { z ; if (x) y }) (FALSE, x <- 2, x <- 3) ; x
@@ -96,6 +96,10 @@ x <- 1 ; (function (x, y) { (function (x, y) if (x) y) (x, y) }) (FALSE, x <- 2)
 z <- 1 ; (function (x, y = x) NULL) (z <- 2) ; z
 z <- 1 ; (function (x, y = x) y) (z <- 2) ; z
 apply <- function (f, ...) f (...) ; apply (function () 1) ; apply (function (x) x, 2) ; apply (function (x, y) x, 1) ; apply (function (x, y) y, 1, 2)
+a <- b <- c <- d <- e <- 1 ; f <- function (x, y, ..., z) 1 ; f () ; f (a <- 2) ; a; f (a <- 3, b <- 4) ; a ; b ; f (a <- 5, b <- 6, d <- 7, e <- 8) ; a ; b ; c ; d ; e ; f (z = a <- 9, b <- 10, c <- 11, d <- 12, e <- 13) ; a ; b ; c ; d ; e
+a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ; b ; f (a <- 4) ; a ; b ; f ()
+missing ; missing (x)
+f <- function (x, y, z) x ; g <- function (x, ...) f (..., x) ; g (1) ; g (1, 2) ; g (1, 2, 3)
 
 # Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
