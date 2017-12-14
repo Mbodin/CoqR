@@ -124,10 +124,11 @@ rule lex = parse
   (** ** Operators **)
   | "?"         { eatLines := true ; QUESTION_MARK (install_and_save "?") }
   | "<-"        { eatLines := true ; LEFT_ASSIGN (install_and_save "<-") }
+  | "->"        { eatLines := true ; RIGHT_ASSIGN (install_and_save "<-") }
   | "<<-"       { eatLines := true ; LEFT_ASSIGN (install_and_save "<<-") }
+  | "->>"       { eatLines := true ; RIGHT_ASSIGN (install_and_save "<<-") }
   | ":="        { eatLines := true ; LEFT_ASSIGN (install_and_save ":=") }
   | "="         { eatLines := true ; EQ_ASSIGN (install_and_save "=") }
-  | "->"        { eatLines := true ; RIGHT_ASSIGN (install_and_save "->") }
   | "~"         { eatLines := true ; TILDE (install_and_save "~") }
   | "+"         { eatLines := true ; PLUS (install_and_save "+") }
   | "-"         { eatLines := true ; MINUS (install_and_save "-") }

@@ -17,12 +17,21 @@ next (1)
 (function (){ 1 ; return (2) ; 3 }) ()
 repeat break
 x <- FALSE ; repeat if (x) break else x <- TRUE
-x <- FALSE ; repeat if (x) break else { x <- TRUE; next; x <- FALSE }
-x <- TRUE ; while (x) { x <- FALSE; next; x <- TRUE }
+x <- FALSE ; repeat if (x) break else { x <- TRUE ; next ; x <- FALSE }
+x <- TRUE ; while (x) { x <- FALSE ; next ; x <- TRUE }
 while (TRUE) break
 repeat break + return (1)
 repeat return (1) + break
 f <- function () break ; while (TRUE) f ()
+f <- function () next ; while (TRUE) f ()
+while (TRUE) (function () break) ()
+while (TRUE) (function () next) ()
+(function () repeat return (1)) ()
+(function () while (TRUE) return (1)) ()
+(function () while (FALSE) return (1)) () ; (function () if (FALSE) return (1)) ()
+x <- 10 ; while (x > 5) x <- x - 1 ; x
+x <- 10 ; repeat if (x < 5) break else x <- x - 1 ; x
+x <- 10 ; while (x > 5) { repeat break ; x <- x - 1 ; next ; x <- x + 1 } ; x
 
 # Tests about if.
 if ("TRUE") 1 else ""
@@ -59,9 +68,11 @@ if (a <- TRUE) NULL else NULL ; a
 1 + if (TRUE) 2
 if (NA) NaN else ""
 if (NaN) 1L else NaN
-if ("") 1 else NaN
-if (" ") NaN else NULL
 if (NULL) NaN else FALSE
+if ("NULL") 1 else NaN
+if ("NA") NA else Inf
+if (" ") NaN else NULL
+if ("#") NA else NaN
 
 # Tests about typeof.
 typeof <- function (x) .Internal (typeof (x)) ; typeof (1) ; typeof (5i)
@@ -88,6 +99,9 @@ apply <- function (f, ...) f (...) ; apply (function () 1) ; apply (function (x)
 
 # Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
+TRUE - TRUE ; TRUE - FALSE ; FALSE - FALSE
+TRUE * TRUE ; TRUE * FALSE ; FALSE * FALSE
+TRUE / TRUE ; FALSE / TRUE ; FALSE / FALSE
 a <- 1L + 2 ; a ; .Internal (typeof (a))
 a <- 1L + TRUE ; a ; .Internal (typeof (a))
 a <- 1L + ""
@@ -130,9 +144,10 @@ x <- 2 ; y <- x <- x + 1 ; y ; x
 x <- 2 ; y <- x + 1 -> x ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y
 (x <- 1) + (x <- 2)
-x <- 1 ; x <- NULL ; x
+x <- 1 ; x <- NULL ; x ; x <- NA ; x ; x <- NaN ; x
 x <- 1 ; "x" <- 2 ; x
 y <- 1 ; x <- "y" ; x <- 2 ; y ; x
+x <- 1 ; y <- x ; x <- 2 ; y ; x
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3
@@ -140,8 +155,8 @@ y <- 1 ; x <- "y" ; x <- 2 ; y ; x
 "(" <- function (x) 2 * x ; (2)
 "(" <- function () 1 ; (2)
 "{" <- function (x) 2 * x ; {2}
-"<-" <- function (x, y) x + y ; 1 <- 2
-"<<-" <- function (x, y) x + y ; 1 <<- 2
+"<-" <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4
+"<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4
 "function" <- function (x, y, z) y ; function (x) 2
 "+" <- function (x, y) x - y ; 1 + 2
 

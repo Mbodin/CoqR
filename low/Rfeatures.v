@@ -323,15 +323,30 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   set%longjump cjmpbuf cntxt as jmp using S, runs in
   run%success
     ifb jmp <> Ctxt_Break then
-      do%success while
+      do%let while
         read%list args_car, _, _ := args using S in
         let%success ev := eval globals runs S args_car rho using S in
         let%success al := asLogicalNoNA S ev call using S in
         result_success S (decide (al <> 0))
       do
         run%success eval globals runs S body rho using S in
-        result_skip S using S, runs in
-        result_skip S
+        result_skip S using S, runs
+    else result_skip S using S in
+  run%success endcontext globals runs S cntxt using S in
+  result_success S (R_NilValue : SExpRec_pointer).
+
+Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let body := args_car in
+  let%success cntxt :=
+    begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
+  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  run%success
+    ifb jmp <> Ctxt_Break then
+      do%let while result_success S true do
+        run%success eval globals runs S body rho using S in
+        result_skip S using S, runs
     else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SExpRec_pointer).
@@ -836,7 +851,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "if" do_if (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
               rdecl "while" do_while (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
               rdecl "for" (dummy_function "do_for") (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
-              rdecl "repeat" (dummy_function "do_repeat") (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
+              rdecl "repeat" do_repeat (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
               rdecl "break" do_break CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;
               rdecl "next" do_break CTXT_NEXT eval0 (0)%Z PP_NEXT PREC_FN false ;
               rdecl "return" do_return (0)%Z eval0 (-1)%Z PP_RETURN PREC_FN false ;

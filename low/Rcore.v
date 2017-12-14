@@ -477,8 +477,7 @@ Definition R_length S s :=
     while result_success S (decide (s <> NULL /\ s <> R_NilValue))
     do
       read%list _, s_cdr, _ := s using S in
-      result_success S (s_cdr, 1 + i)
-    using S, runs in
+      result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
     result_not_implemented "[R_length] Rf_envlength"
@@ -1113,7 +1112,7 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
     result_success S (a_cdr, fargusedi :: fargusedrev) using S, runs, globals in
   result_success S (List.rev fargusedrev).
 
-Definition matchArgs_second S actuals formals supplied fargused : result SExpRec_pointer :=
+Definition matchArgs_second S actuals formals supplied fargused :=
   fold%success (a, fargused, dots, seendots) :=
     (actuals, fargused, R_NilValue : SExpRec_pointer, false)
   along formals
@@ -1156,7 +1155,7 @@ Definition matchArgs_second S actuals formals supplied fargused : result SExpRec
     end using S, runs, globals in
   result_success S dots.
 
-Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) : result unit :=
+Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) :=
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
   while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
     read%list _, f_cdr, f_tag := f using S in
@@ -1176,11 +1175,10 @@ Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) : resu
             SET_MISSING S a 0 ltac:(nbits_ok)
           else result_skip S using S in
         map%pointer b with set_argused 1 ltac:(nbits_ok) using S in
-        result_success S (f_cdr, a_cdr, b_cdr, seendots)
-  using S, runs in
+        result_success S (f_cdr, a_cdr, b_cdr, seendots) using S, runs in
   result_skip S.
 
-Definition matchArgs_dots S dots supplied : result unit :=
+Definition matchArgs_dots S dots supplied :=
   run%success SET_MISSING S dots 0 ltac:(nbits_ok) using S in
   fold%success i := 0
   along supplied
@@ -1207,7 +1205,7 @@ Definition matchArgs_dots S dots supplied : result unit :=
     set%car dots := a using S in
     result_skip S.
 
-Definition matchArgs_check S supplied : result unit :=
+Definition matchArgs_check S supplied :=
   fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along supplied
   as _, b_, b_list do
@@ -1230,7 +1228,7 @@ Definition matchArgs_check S supplied : result unit :=
     result_skip S.
 
 
-Definition matchArgs S formals supplied (call : SExpRec_pointer) : result SExpRec_pointer :=
+Definition matchArgs S formals supplied (call : SExpRec_pointer) :=
   fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0)
   along formals
   as _, _ do
@@ -1295,7 +1293,7 @@ Definition SET_FRAME S x v :=
   write%defined x := x_ using S in
   result_success S tt.
 
-Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result unit :=
+Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) :=
   ifb addVars = R_NilValue then
     result_skip S
   else
@@ -1326,8 +1324,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) : result uni
               else
                 set_cdr S s_cdr sprev (fun S =>
                   result_success S (addVars, s_cdr, sprev))
-            else result_success S (addVars, s_cdr, s)
-        using S, runs in
+            else result_success S (addVars, s_cdr, s) using S, runs in
         result_skip S using S, runs, globals.
 
 Definition FRAME_IS_LOCKED S rho :=
@@ -1944,7 +1941,7 @@ Definition promiseArgs S (el rho : SExpRec_pointer) : result SExpRec_pointer :=
         as h_car, h_tag do
           let%success h_car_type := TYPEOF S h_car using S in
           run%success
-            ifb h_car_type  = PromSxp \/ h_car = R_MissingArg then
+            ifb h_car_type = PromSxp \/ h_car = R_MissingArg then
               let (S, l) := CONS S h_car R_NilValue in
               set%cdr tail := l using S in
               result_skip S
@@ -1956,7 +1953,11 @@ Definition promiseArgs S (el rho : SExpRec_pointer) : result SExpRec_pointer :=
               result_skip S using S in
           read%list _, tail_cdr, _ := tail using S in
           let tail := tail_cdr in
-          set%tag tail := h_tag using S in
+          run%success
+            ifb h_tag <> R_NilValue then
+              set%tag tail := h_tag using S in
+              result_skip S
+            else result_skip S using S in
           result_success S tail
         using S, runs, globals in
         result_success S (ans, tail)
@@ -2022,8 +2023,8 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
         along h
         as h_car, h_tag
         do
-          let%success ev := runs_eval runs S h_car rho using S in
-          let (S, ev) := CONS_NR S ev R_NilValue in
+          let%success tmp_ev := runs_eval runs S h_car rho using S in
+          let (S, ev) := CONS_NR S tmp_ev R_NilValue in
           let%success head :=
             ifb head = R_NilValue then
               result_success S ev
