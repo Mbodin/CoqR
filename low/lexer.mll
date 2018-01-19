@@ -43,7 +43,7 @@ let escape_sequence =
   |['0'-'7'] (['0'-'7'] ['0'-'7']?)?
   |'x' hexadecimal_digit hexadecimal_digit?
   (** We ignore multibyte locales for now. **))
-let normal_character = [^ '\\' '\'' '"' '\x00'] (* This may be ameliorable. *)
+let normal_character = [^ '\\' '\'' '"' '\x00'] (* This is improvable. *)
 let character = normal_character | escape_sequence
 let reg_string =
   '\'' ((character | '"')* as str) '\'' | '"' ((character | '\'')* as str) '"'

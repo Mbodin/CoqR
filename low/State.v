@@ -363,9 +363,34 @@ Definition context_with_jumpmask context jumpmask := {|
 
 (** * A Model for R’s Connections **)
 
-(** The following type is left abstract.
-  It is meant to represent the state out of R. **)
-Parameter out_state : Type.
+(** Output and input can perform various side effects, as well as
+  calling function that may not be marshalable.  To avoid any
+  difficulties, we define indirections. **)
+
+Inductive open_type :=
+  | null_open
+  .
+
+Inductive close_type :=
+  | null_close
+  .
+
+Inductive destroy_type :=
+  | null_destroy
+  .
+
+Inductive print_type :=
+  | null_print
+  | stdout_print
+  | stderr_print
+  .
+
+Inductive flush_type :=
+  | null_flush
+  | stdout_flush
+  | stderr_flush
+  .
+
 
 (** The following definition corresponds to the type
   [Rconn]/[Rconnection] in the file include/R_ext/Connections.h]. **)
@@ -382,11 +407,17 @@ Inductive Rconnection := make_Rconnection {
     Rconnection_canseek : bool ;
     Rconnection_blocking : bool ;
     Rconnection_isGzcon : bool ;
-    Rconnection_open : out_state -> option (Rconnection * out_state * bool) ;
-    Rconnection_close : out_state -> option (Rconnection * out_state) ;
-    Rconnection_destroy : out_state -> option (Rconnection * out_state) ;
-    Rconnection_print : out_state -> string -> option out_state (** Corresponds to [vfprintf], but simplified. **) ;
-    Rconnection_fflush : out_state -> option out_state
+    Rconnection_open : open_type ;
+    Rconnection_close : close_type ;
+    Rconnection_destroy : destroy_type ;
+    Rconnection_print : print_type (** Corresponds to [vfprintf], but simplified. **) ;
+    Rconnection_fflush : flush_type ;
+
+    (** We allows connections to store information to represent the
+      external state of the connection.  For instance, for random
+      values, it can be the stream of future values. **)
+    Rconnection_type : Type ;
+    Rconnection_state : Rconnection_type
   }.
 
 Definition Rconnection_with_class c class := {|
@@ -405,7 +436,8 @@ Definition Rconnection_with_class c class := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_isopen c isopen := {|
@@ -424,7 +456,8 @@ Definition Rconnection_with_isopen c isopen := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_canread c canread := {|
@@ -443,7 +476,8 @@ Definition Rconnection_with_canread c canread := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_canwrite c canwrite := {|
@@ -462,7 +496,8 @@ Definition Rconnection_with_canwrite c canwrite := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_destroy c destroy := {|
@@ -481,7 +516,8 @@ Definition Rconnection_with_destroy c destroy := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := destroy ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_print c print := {|
@@ -500,7 +536,8 @@ Definition Rconnection_with_print c print := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := print ;
-    Rconnection_fflush := Rconnection_fflush c
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := Rconnection_state c
   |}.
 
 Definition Rconnection_with_fflush c fflush := {|
@@ -519,9 +556,64 @@ Definition Rconnection_with_fflush c fflush := {|
     Rconnection_close := Rconnection_close c ;
     Rconnection_destroy := Rconnection_destroy c ;
     Rconnection_print := Rconnection_print c ;
-    Rconnection_fflush := fflush
+    Rconnection_fflush := fflush ;
+    Rconnection_state := Rconnection_state c
   |}.
 
+Definition Rconnection_with_external_state c A (state : A) := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c ;
+    Rconnection_state := state
+  |}.
+
+
+(** We now resolve the indirection. **)
+Definition interpret_open t (c : Rconnection) : option (Rconnection * bool) :=
+  match t with
+  | null_open => None
+  end.
+
+Definition interpret_close t (c : Rconnection) : option Rconnection :=
+  match t with
+  | null_close => Some (Rconnection_with_isopen c false)
+  end.
+
+Definition interpret_destroy t (c : Rconnection) : option Rconnection :=
+  match t with
+  | null_destroy => Some c
+  end.
+
+Parameters run_stdout_print run_stderr_print : Rconnection -> string -> option Rconnection.
+
+Definition interpret_print t (c : Rconnection) str : option Rconnection :=
+  match t with
+  | null_print => None
+  | stdout_print => run_stdout_print c str
+  | stderr_print => run_stderr_print c str
+  end.
+
+Parameters run_stdout_flush run_stderr_flush : Rconnection -> option Rconnection.
+
+Definition interpret_flush t (c : Rconnection) : option Rconnection :=
+  match t with
+  | null_print => None
+  | stdout_print => run_stdout_flush c
+  | stderr_print => run_stderr_flush c
+  end.
 
 (** The following functions are translations from functions of main/connections.c. **)
 
@@ -537,11 +629,12 @@ Definition init_con description mode := {|
     Rconnection_canwrite := true ;
     Rconnection_canseek := false ;
     Rconnection_text := true ;
-    Rconnection_open := fun _ => None ;
-    Rconnection_close := fun _ => None ;
-    Rconnection_destroy := fun _ => None ;
-    Rconnection_print := fun _ _ => None ;
-    Rconnection_fflush := fun _ => None
+    Rconnection_open := null_open ;
+    Rconnection_close := null_close ;
+    Rconnection_destroy := null_destroy ;
+    Rconnection_print := null_print ;
+    Rconnection_fflush := null_flush ;
+    Rconnection_state := tt
   |}.
 
 Definition newterminal description mode :=
@@ -549,15 +642,7 @@ Definition newterminal description mode :=
   let c := Rconnection_with_isopen c true in
   let c := Rconnection_with_canread c (decide (mode = "r"%string)) in
   let c := Rconnection_with_canwrite c (decide (mode = "w"%string)) in
-  let c := Rconnection_with_destroy c (fun S => Some (Rconnection_with_isopen c false, S)) in
   c.
-
-
-(** Some hooks. **)
-
-Parameters stdout_print stderr_print : out_state -> string -> option out_state.
-Parameters stdout_flush stderr_flush : out_state -> option out_state.
-
 
 
 (** * A Model for R’s State **)

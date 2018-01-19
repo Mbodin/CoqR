@@ -2,6 +2,7 @@
   A Coq formalisation of additionnal functions of R from its C code. **)
 
 Set Implicit Arguments.
+Require Import Ascii.
 Require Export Rcore.
 
 
@@ -55,6 +56,21 @@ Definition type2rstr S (t : SExpType) :=
   ifb res <> NULL then result_success S res
   else result_success S (R_NilValue : SExpRec_pointer).
 
+Definition isspace c :=
+  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
+
+Definition isBlankString s :=
+  decide (Forall (fun c => negb (isspace c)) (string_to_list s)).
+
+
+(** * attrib.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/attrib.c. **)
+
+Definition classgets (S : state) (vec klass : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[classgets]".
+
 
 (** * coerce.c **)
 
@@ -66,6 +82,68 @@ Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_poi
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
   type2rstr S t.
+
+Definition IntegerFromString S (x : SExpRec_pointer) :=
+  let%success test :=
+    ifb x <> R_NaString then
+      let%success c := CHAR S x using S in
+      result_success S (isBlankString c)
+    else result_success S false using S in
+  if test then
+    result_not_implemented "[IntegerFromString]"
+  else result_success S NA_INTEGER.
+
+Definition IntegerFromLogical x :=
+  ifb x = NA_LOGICAL then
+    NA_INTEGER
+  else x.
+
+Definition IntegerFromReal x :=
+  if ISNAN x then
+    NA_INTEGER
+  else ifb x >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ x <= (INT_MIN : double) then
+    (* A warning has been formalised out here. *)
+    NA_INTEGER
+  else Double.double_to_int_zero x.
+
+Definition IntegerFromComplex x :=
+  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
+    NA_INTEGER
+  else ifb (Rcomplex_r x) >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ (Rcomplex_r x) <= (INT_MIN : double) then
+    (* A warning has been formalised out here. *)
+    NA_INTEGER
+  else Double.double_to_int_zero (Rcomplex_r x).
+
+Definition asInteger S x :=
+  let%success iva := isVectorAtomic S x using S in
+  let%success test :=
+    if iva then
+      let%success l := XLENGTH S x using S in
+      result_success S (decide (l >= 1))
+    else result_success S false using S in
+  let%success t := TYPEOF S x using S in
+  if test then
+    match t with
+    | LglSxp =>
+      read%Logical x0 := x at 0 using S in
+      result_success S (IntegerFromLogical x0)
+    | IntSxp =>
+      read%Integer x0 := x at 0 using S in
+      result_success S x0
+    | RealSxp =>
+      read%Real x0 := x at 0 using S in
+      result_success S (IntegerFromReal x0)
+    | CplxSxp =>
+      read%Complex x0 := x at 0 using S in
+      result_success S (IntegerFromComplex x0)
+    | StrSxp =>
+      read%Pointer x0 := x at 0 using S in
+      IntegerFromString S x0
+    | _ => result_error S "[asInteger] Unimplemented type."
+    end
+  else ifb t = CharSxp then
+    IntegerFromString S x
+  else result_success S NA_INTEGER.
 
 
 (** * dstruct.c **)
@@ -662,6 +740,50 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
   ifb argc <> 2 then
     result_error S "[do_relop] Operator needs two arguments."
   else do_relop_dflt S call op arg1 arg2.
+
+
+(** * connections.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/connections.c. **)
+
+Definition getConnections S (n : int) :=
+  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
+    result_error S "[getConnections] Invalid connection."
+  else
+    match nth_option (Z.to_nat n) (R_Connections S) with
+    | None => result_impossible S "[getConnections] Out of bounds."
+    | Some c => result_success S c
+    end.
+
+Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let%success what := asInteger S args_car using S in
+  ifb what = NA_INTEGER then
+    result_error S "[do_getconnection] There is no connection NA."
+  else ifb what < 0 \/ what >= length (R_Connections S) then
+    result_error S "[do_getconnection] There is no such connection."
+  else
+    let%success con :=
+      match nth_option (Z.to_nat what) (R_Connections S) with
+      | None => result_impossible S "[getConnections] Out of bounds."
+      | Some c => result_success S c
+      end using S in
+    let (S, ans) := ScalarInteger globals S what in
+    let%success class := allocVector globals S StrSxp 2 using S in
+    let (S, class0) := mkChar globals S (Rconnection_class con) in
+    write%Pointer class at 0 := class0 using S in
+    let (S, class1) := mkChar globals S "connection" in
+    write%Pointer class at 1 := class1 using S in
+    run%success classgets S ans class using S in
+    run%success
+      ifb what > 2 then
+        let%success ex_ptr := result_not_implemented "[do_getconnection] External pointer." using S in
+        run%success setAttrib globals runs S ans R_ConnIdSymbol ex_ptr using S in
+        result_skip S
+      else result_skip S using S in
+    result_success S ans.
 
 
 (** * names.c **)
@@ -1557,7 +1679,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "textConnectionValue" (dummy_function "do_textconvalue") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "socketConnection" (dummy_function "do_sockconn") (0)%Z eval11 (7)%Z PP_FUNCALL PREC_FN false ;
               rdecl "sockSelect" (dummy_function "do_sockselect") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "getConnection" (dummy_function "do_getconnection") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "getConnection" do_getconnection (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "getAllConnections" (dummy_function "do_getallconnections") (0)%Z eval11 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "summary.connection" (dummy_function "do_sumconnection") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "gzcon" (dummy_function "do_gzcon") (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;

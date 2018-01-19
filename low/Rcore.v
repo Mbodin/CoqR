@@ -385,7 +385,7 @@ Definition allocVector S type length :=
   | RawSxp =>
     result_not_implemented "[allocVector] Raw type."
   | CharSxp =>
-    alloc alloc_vector_char (Ascii false false false false false false false false)
+    alloc alloc_vector_char Ascii.zero
   | LglSxp =>
     alloc alloc_vector_lgl (NA_LOGICAL)
   | IntSxp =>

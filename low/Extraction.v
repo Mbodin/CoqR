@@ -16,11 +16,10 @@ Set Extraction AccessOpaque.
    (otherwise, useless errors will be launched). *)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
-Extract Constant out_state => "unit".
-Extract Constant stdout_print => "Hooks.stdout_print".
-Extract Constant stderr_print => "Hooks.stderr_print".
-Extract Constant stdout_flush => "Hooks.stdout_flush".
-Extract Constant stderr_flush => "Hooks.stderr_flush".
+Extract Constant run_stdout_print => "Hooks.stdout_print".
+Extract Constant run_stderr_print => "Hooks.stderr_print".
+Extract Constant run_stdout_flush => "Hooks.stdout_flush".
+Extract Constant run_stderr_flush => "Hooks.stderr_flush".
 
 Extract Inductive positive => "int"
 [ "(fun p -> 1 + (2 * p))"
@@ -99,7 +98,13 @@ Extract Constant Double.sub => "(-.)".
 Extract Constant Double.mult => "( *. )".
 Extract Constant Double.div => "(/.)".
 
-Extract Constant int_to_double => "float_of_int".
+Extract Constant Double.ge => "(>=)".
+Extract Constant Double.le => "(<=)".
+Extract Constant Double.gt => "(>)".
+Extract Constant Double.lt => "(<)".
+
+Extract Constant Double.int_to_double => "float_of_int".
+Extract Constant Double.double_to_int_zero => "int_of_float".
 
 Extract Constant HeapList.heap "'a" "'b" => "('a, 'b) PMap.t".
 Extract Constant HeapList.empty => "Obj.magic PMap.create compare".
@@ -128,11 +133,6 @@ Extract Constant ArrayList.empty =>
 Extract Constant lt_int_decidable => "(<)".
 Extract Constant le_int_decidable => "(<=)".
 Extract Constant ge_nat_decidable => "(>=)".*)
-
-(* The following functions make pattern matches with floats and shall thus be removed. *)
-Extraction Inline Fappli_IEEE.Bplus Fappli_IEEE.binary_normalize Fappli_IEEE_bits.b64_plus.
-Extraction Inline Fappli_IEEE.Bmult Fappli_IEEE.Bmult_FF Fappli_IEEE_bits.b64_mult.
-Extraction Inline Fappli_IEEE.Bdiv Fappli_IEEE_bits.b64_div.
 
 (* LATER: When the parser will be in Coq, most of what is forcely being extracted here will be useless. *)
 Extraction "low.ml" all_GlobalVariables

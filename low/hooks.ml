@@ -14,23 +14,23 @@ let string_to_char_list str =
   aux (String.length str - 1) []
 
 
-let generic_print print loc () str =
+let generic_print print loc st str =
   let str = char_list_to_string str in
   let str =
     if !log then
       "Printed message (" ^ loc ^ "): " ^ str
     else str in
   print str ;
-  Some ()
+  Some st
 
-let stdout_print = generic_print print_string "stdout"
-let stderr_print = generic_print prerr_string "stderr"
+let stdout_print st str = generic_print print_string "stdout" st str
+let stderr_print st str = generic_print prerr_string "stderr" st str
 
-let generic_flush channel loc () =
+let generic_flush channel loc st =
   if !log then output_string channel ("Flush (" ^ loc ^ ")") ;
   flush channel ;
   Some ()
 
-let stdout_flush = generic_flush stdout "stdout"
-let stderr_flush = generic_flush stderr "stderr"
+let stdout_flush st = generic_flush stdout "stdout" st
+let stderr_flush st = generic_flush stderr "stderr" st
 
