@@ -931,7 +931,7 @@ Fixpoint R_run_onexits_loop S c cptr :=
         let savecontext := R_ExitContext S in
         let c := context_with_conexit c R_NilValue in
         let c := context_with_returnValue c NULL in
-        let S := state_with_exit_context S (Some c) in
+        let S := update_R_ExitContext S (Some c) in
         fold%success
         along s
         as _, _, s_list do
@@ -940,12 +940,12 @@ Fixpoint R_run_onexits_loop S c cptr :=
           run%success
             runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
             result_skip S using S, runs, globals in
-        let S := state_with_exit_context S savecontext in
+        let S := update_R_ExitContext S savecontext in
         result_skip S
       else result_skip S using S in
     run%success
       ifb R_ExitContext S = Some c then
-        let S := state_with_exit_context S None in
+        let S := update_R_ExitContext S None in
         result_skip S
       else result_skip S using S in
     match nextcontext c with
@@ -976,7 +976,7 @@ Definition endcontext S cptr :=
       let savecontext := R_ExitContext S in
       let cptr := context_with_conexit cptr R_NilValue in
       let cptr := context_with_jumptarget cptr None in
-      let S := state_with_exit_context S (Some cptr) in
+      let S := update_R_ExitContext S (Some cptr) in
       fold%success
       along s
       as _, _, s_list do
@@ -985,12 +985,12 @@ Definition endcontext S cptr :=
         run%success
           runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
         result_skip S using S, runs, globals in
-      let S := state_with_exit_context S savecontext in
+      let S := update_R_ExitContext S savecontext in
       result_skip S
     else result_skip S using S in
   run%success
     ifb R_ExitContext S = Some cptr then
-      let S := state_with_exit_context S None in
+      let S := update_R_ExitContext S None in
       result_skip S
     else result_skip S using S in
   run%success

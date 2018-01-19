@@ -361,92 +361,287 @@ Definition context_with_jumpmask context jumpmask := {|
    |}.
 
 
-(** * A Model for R’s Inputs and Outputs **)
+(** * A Model for R’s Connections **)
 
-(** ** Inputs **)
+(** The following type is left abstract.
+  It is meant to represent the state out of R. **)
+Parameter out_state : Type.
 
-Record input := make_input {
-    prompt_string : stream string ;
-    random_boolean : stream bool
+(** The following definition corresponds to the type
+  [Rconn]/[Rconnection] in the file include/R_ext/Connections.h]. **)
+
+Inductive Rconnection := make_Rconnection {
+    Rconnection_class : string ;
+    Rconnection_description : string ;
+    Rconnection_mode : string ;
+    Rconnection_text : bool ;
+    Rconnection_isopen : bool ;
+    Rconnection_incomplete : bool ;
+    Rconnection_canread : bool ;
+    Rconnection_canwrite : bool ;
+    Rconnection_canseek : bool ;
+    Rconnection_blocking : bool ;
+    Rconnection_isGzcon : bool ;
+    Rconnection_open : out_state -> option (Rconnection * out_state * bool) ;
+    Rconnection_close : out_state -> option (Rconnection * out_state) ;
+    Rconnection_destroy : out_state -> option (Rconnection * out_state) ;
+    Rconnection_print : out_state -> string -> option out_state (** Corresponds to [vfprintf], but simplified. **) ;
+    Rconnection_fflush : out_state -> option out_state
   }.
 
-(** The following parameter is extracted as expected in Extraction.v. **)
-Parameter default_input : input.
-
-
-(** ** Outputs **)
-
-Record output := make_output {
-    output_string : list string
-  }.
-
-Definition default_output : output := {|
-    output_string := nil
+Definition Rconnection_with_class c class := {|
+    Rconnection_class := class ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c
   |}.
+
+Definition Rconnection_with_isopen c isopen := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := isopen ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c
+  |}.
+
+Definition Rconnection_with_canread c canread := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := canread ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c
+  |}.
+
+Definition Rconnection_with_canwrite c canwrite := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := canwrite ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c
+  |}.
+
+Definition Rconnection_with_destroy c destroy := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := destroy ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := Rconnection_fflush c
+  |}.
+
+Definition Rconnection_with_print c print := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := print ;
+    Rconnection_fflush := Rconnection_fflush c
+  |}.
+
+Definition Rconnection_with_fflush c fflush := {|
+    Rconnection_class := Rconnection_class c ;
+    Rconnection_description := Rconnection_description c ;
+    Rconnection_mode := Rconnection_mode c ;
+    Rconnection_text := Rconnection_text c ;
+    Rconnection_isopen := Rconnection_isopen c ;
+    Rconnection_incomplete := Rconnection_incomplete c ;
+    Rconnection_canread := Rconnection_canread c ;
+    Rconnection_canwrite := Rconnection_canwrite c ;
+    Rconnection_canseek := Rconnection_canseek c ;
+    Rconnection_blocking := Rconnection_blocking c ;
+    Rconnection_isGzcon := Rconnection_isGzcon c ;
+    Rconnection_open := Rconnection_open c ;
+    Rconnection_close := Rconnection_close c ;
+    Rconnection_destroy := Rconnection_destroy c ;
+    Rconnection_print := Rconnection_print c ;
+    Rconnection_fflush := fflush
+  |}.
+
+
+(** The following functions are translations from functions of main/connections.c. **)
+
+Definition init_con description mode := {|
+    Rconnection_class := "" ;
+    Rconnection_description := description ;
+    Rconnection_mode := mode ;
+    Rconnection_isopen := false ;
+    Rconnection_incomplete := false ;
+    Rconnection_blocking := false ;
+    Rconnection_isGzcon := false ;
+    Rconnection_canread := true ;
+    Rconnection_canwrite := true ;
+    Rconnection_canseek := false ;
+    Rconnection_text := true ;
+    Rconnection_open := fun _ => None ;
+    Rconnection_close := fun _ => None ;
+    Rconnection_destroy := fun _ => None ;
+    Rconnection_print := fun _ _ => None ;
+    Rconnection_fflush := fun _ => None
+  |}.
+
+Definition newterminal description mode :=
+  let c := init_con description mode in
+  let c := Rconnection_with_isopen c true in
+  let c := Rconnection_with_canread c (decide (mode = "r"%string)) in
+  let c := Rconnection_with_canwrite c (decide (mode = "w"%string)) in
+  let c := Rconnection_with_destroy c (fun S => Some (Rconnection_with_isopen c false, S)) in
+  c.
+
+
+(** Some hooks. **)
+
+Parameters stdout_print stderr_print : out_state -> string -> option out_state.
+Parameters stdout_flush stderr_flush : out_state -> option out_state.
+
 
 
 (** * A Model for R’s State **)
 
 Record state := make_state {
-    inputs :> input ;
-    outputs :> output ;
     state_memory :> memory ;
     state_context : context ;
     R_ExitContext : option context ;
     R_SymbolTable : SExpRec_pointer ;
-    R_ReturnedValue : SExpRec_pointer
+    R_ReturnedValue : SExpRec_pointer ;
+    R_Connections : list Rconnection (** Simply [Connections] in main/connections.c. **) ;
+    R_OutputCon : nat
   }.
 
 Definition R_GlobalContext := state_context.
 
 Definition state_with_memory S m := {|
-    inputs := inputs S ;
-    outputs := outputs S ;
     state_memory := m ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
     R_SymbolTable := R_SymbolTable S ;
-    R_ReturnedValue := R_ReturnedValue S
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S
   |}.
 
 Definition state_with_context S c := {|
-    inputs := inputs S ;
-    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := c ;
     R_ExitContext := R_ExitContext S ;
     R_SymbolTable := R_SymbolTable S ;
-    R_ReturnedValue := R_ReturnedValue S
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S
   |}.
 
-Definition state_with_exit_context S c := {|
-    inputs := inputs S ;
-    outputs := outputs S ;
+Definition update_R_ExitContext S c := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := c ;
     R_SymbolTable := R_SymbolTable S ;
-    R_ReturnedValue := R_ReturnedValue S
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S
   |}.
 
 Definition update_R_SymbolTable S p := {|
-    inputs := inputs S ;
-    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
     R_SymbolTable := p ;
-    R_ReturnedValue := R_ReturnedValue S
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S
   |}.
 
 Definition update_R_ReturnedValue S p := {|
-    inputs := inputs S ;
-    outputs := outputs S ;
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
     R_SymbolTable := R_SymbolTable S ;
-    R_ReturnedValue := p
+    R_ReturnedValue := p ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S
+  |}.
+
+Definition update_R_Connections S cs := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := cs ;
+    R_OutputCon := R_OutputCon S
+  |}.
+
+Definition update_R_OutputCon S outputCon := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := outputCon
   |}.
 
 
@@ -495,12 +690,8 @@ Instance context_Inhab : Inhab context.
   apply prove_Inhab. constructors; typeclass || apply arbitrary.
 Qed.
 
-Instance input_Inhab : Inhab input.
-  apply prove_Inhab. constructors; apply arbitrary.
-Qed.
-
-Instance output_Inhab : Inhab output.
-  apply prove_Inhab. constructors; apply arbitrary.
+Instance state_Rconnection : Inhab Rconnection.
+  apply prove_Inhab. apply (newterminal "dummy" "???").
 Qed.
 
 Instance state_Inhab : Inhab state.

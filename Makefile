@@ -2,6 +2,7 @@
 OCAMLFILES= \
 	low/runR.ml \
 	low/print.ml \
+	low/hooks.ml \
 	low/lexer.mll \
 	low/parser.mly \
 	low/parserUtils.ml \
@@ -45,7 +46,7 @@ tlc:
 clean_tlc:
 	${AT}cd lib/tlc ; make clean ; cd ../..
 
-all_interp: low/runR.native low/runR.d.byte
+all_interp: low/runR.native low/runR.d.byte low/initial.state
 
 run: low/runR.native low/initial.state
 	${AT}low/runR.native -initial-state low/initial.state

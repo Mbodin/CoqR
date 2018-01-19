@@ -24,6 +24,23 @@ Variable runs : runs_type.
   Each sets some global variables. We implement these functions by
   returning the corresponding values. **)
 
+(** [InitConnections], from main/connections.c **)
+Definition InitConnections S :=
+  let stdin := newterminal "stdin" "r" in
+  let stdout :=
+    let c := newterminal "stdout" "w" in
+    let c := Rconnection_with_print c stdout_print in
+    let c := Rconnection_with_fflush c stdout_flush in
+    c in
+  let stderr :=
+    let c := newterminal "stderr" "w" in
+    let c := Rconnection_with_print c stderr_print in
+    let c := Rconnection_with_fflush c stderr_flush in
+    c in
+  let S := update_R_Connections S [stdin ; stdout ; stderr] in
+  let S := update_R_OutputCon S 1 in
+  S.
+
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
 Definition init_R_NilValue S :=
   let nil_obj := {|
@@ -328,6 +345,7 @@ End Globals.
 Definition setup_Rmainloop max_step S : result Globals :=
   let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
   let globals := empty_Globals in
+  let S := InitConnections S in
   let%success NilValue :=
     init_R_NilValue S using S in
   let globals := {{ globals with [ decl R_NilValue NilValue ] }} in
@@ -372,15 +390,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success R_Toplevel :=
     init_R_Toplevel globals (runs max_step globals) S using S in
   (* TODO: [Init_R_Variables]. *)
-  let S := {|
-      state_memory := S ;
-      inputs := S ;
-      outputs := S ;
-      state_context := R_Toplevel ;
-      R_ExitContext := None ;
-      R_SymbolTable := R_SymbolTable S ;
-      R_ReturnedValue := NULL
-    |} in
+  let S := state_with_context S R_Toplevel in
+  let S := update_R_ExitContext S None in
+  let S := update_R_ReturnedValue S NULL in
   (* TODO: Some more initialisation. *)
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
@@ -409,12 +421,12 @@ Definition empty_context := {|
 
 (** An empty (and dummy) state **)
 Definition empty_state := {|
-    inputs := default_input ;
-    outputs := default_output ;
     state_memory := empty_memory ;
     state_context := empty_context ;
     R_ExitContext := None ;
     R_SymbolTable := NULL ;
-    R_ReturnedValue := NULL
+    R_ReturnedValue := NULL ;
+    R_Connections := nil ;
+    R_OutputCon := 0
   |}.
 

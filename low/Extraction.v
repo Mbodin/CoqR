@@ -16,14 +16,11 @@ Set Extraction AccessOpaque.
    (otherwise, useless errors will be launched). *)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
-Extract Constant default_input =>
-  "let string_to_char_list str =
-     let rec aux i acc =
-       if i < 0 then acc
-       else aux (i - 1) (str.[i] :: acc) in
-     aux (String.length str - 1) [] in {
-   prompt_string = (let rec t _ = lazy (Stream_intro (string_to_char_list (input_line stdin), t ())) in t ()) ;
-   random_boolean = (let rec t _ = lazy (Stream_intro (Random.bool (), t ())) in t ()) }".
+Extract Constant out_state => "unit".
+Extract Constant stdout_print => "Hooks.stdout_print".
+Extract Constant stderr_print => "Hooks.stderr_print".
+Extract Constant stdout_flush => "Hooks.stdout_flush".
+Extract Constant stderr_flush => "Hooks.stderr_flush".
 
 Extract Inductive positive => "int"
 [ "(fun p -> 1 + (2 * p))"

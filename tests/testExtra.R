@@ -75,6 +75,9 @@ if (" ") NaN else NULL
 if ("#") NA else NaN
 
 # Tests about typeof.
+# Note: typeof is an internal, and thus should normally not be available in the global state.
+#       However, there is a definition in preloaded R files mapping the global variable typeof to this internal.
+#       As we do not load these files yet, we have to introduce this definition. (TODO)
 typeof <- function (x) .Internal (typeof (x)) ; typeof (1) ; typeof (5i)
 typeof <- function (x) .Internal (typeof (x)) ; typeof (1L)
 typeof <- function (x) .Internal (typeof (x)) ; typeof ("")
@@ -163,4 +166,17 @@ x <- 1 ; y <- x ; x <- 2 ; y ; x
 "<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4
 "function" <- function (x, y, z) y ; function (x) 2
 "+" <- function (x, y) x - y ; 1 + 2
+
+# Tests about cat (for outputs).
+cat ("") ; cat (")") ; cat ("}") ; cat (">") ; cat ("]") ; cat ("(") ; cat ("{") ; cat ("<") ; cat ("[")
+cat ("\n") ; cat (")\n") ; cat ("}\n") ; cat (">\n") ; cat ("]\n") ;cat ("(\n") ; cat ("{\n") ; cat ("<\n") ; cat ("[\n")
+cat (1) ; cat (2L) ; cat (.5) ; cat (TRUE) ; cat (NA) ; cat (Inf) ; cat (NaN) ; cat (NULL) ; cat ("TRUE")
+cat ("function (x) x") ; cat (function (x) x)
+cat (cat) ;
+cat (a <- 1) ; a
+
+# Tests about randomness.
+runif ()
+typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
+length (runif (42))
 

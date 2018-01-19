@@ -119,14 +119,9 @@ let indent d =
   "\n" ^ indent_no_break d
 
 
-let char_list_to_string str =
-  String.concat "" (List.map (String.make 1) str)
+let char_list_to_string = Hooks.char_list_to_string
 
-let string_to_char_list str =
-  let rec aux i acc =
-    if i < 0 then acc
-    else aux (i - 1) (str.[i] :: acc) in
-  aux (String.length str - 1) []
+let string_to_char_list = Hooks.string_to_char_list
 
 let is_prefix str1 str2 =
   let l1 = String.length str1 in
