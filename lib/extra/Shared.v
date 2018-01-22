@@ -303,6 +303,9 @@ Fixpoint string_to_list (str : string) :=
     c :: string_to_list str
   end.
 
+Definition ascii_to_string c := list_to_string [c].
+
+Global Coercion ascii_to_string : Ascii.ascii >-> string.
 
 Fixpoint divide_list {A} (l : list A) :=
   match l with

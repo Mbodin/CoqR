@@ -436,6 +436,92 @@ Definition DispatchGroup (S : state) (group : string) (call op args rho : SExpRe
   result_not_implemented "[DispatchGroup]".
 
 
+(** * connections.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/connections.c. **)
+
+Definition getConnection S (n : int) :=
+  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
+    result_error S "[getConnection] Invalid connection."
+  else
+    match nth_option (Z.to_nat n) (R_Connections S) with
+    | None => result_impossible S "[getConnection] Out of bounds."
+    | Some c => result_success S c
+    end.
+
+Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let%success what := asInteger S args_car using S in
+  ifb what = NA_INTEGER then
+    result_error S "[do_getconnection] There is no connection NA."
+  else ifb what < 0 \/ what >= length (R_Connections S) then
+    result_error S "[do_getconnection] There is no such connection."
+  else
+    let%success con :=
+      match nth_option (Z.to_nat what) (R_Connections S) with
+      | None => result_impossible S "[getConnections] Out of bounds."
+      | Some c => result_success S c
+      end using S in
+    let (S, ans) := ScalarInteger globals S what in
+    let%success class := allocVector globals S StrSxp 2 using S in
+    let (S, class0) := mkChar globals S (Rconnection_class con) in
+    write%Pointer class at 0 := class0 using S in
+    let (S, class1) := mkChar globals S "connection" in
+    write%Pointer class at 1 := class1 using S in
+    run%success classgets S ans class using S in
+    run%success
+      ifb what > 2 then
+        let%success ex_ptr := result_not_implemented "[do_getconnection] External pointer." using S in
+        run%success setAttrib globals runs S ans R_ConnIdSymbol ex_ptr using S in
+        result_skip S
+      else result_skip S using S in
+    result_success S ans.
+
+
+(** * builtin.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/builtin.c. **)
+
+Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  (* Call to [PrintDefaults] formalised out. *)
+  read%list args_car, args_cdr, _ := args using S in
+  let objs := args_car in
+  let args := args_cdr in
+  read%list args_car, args_cdr, _ := args using S in
+  let file := args_car in
+  let%success ifile := asInteger S file using S in
+  let%success con := getConnection S ifile using S in
+  if negb (Rconnection_canwrite con) then
+    result_error S "[do_cat] Cannot write to this connection."
+  else
+    let args := args_cdr in
+    read%list args_car, args_cdr, _ := args using S in
+    let sepr := args_car in
+    let%success seprstr := isString S sepr using S in
+    if seprstr then
+      result_error S "[do_cat] Invalid sep specification."
+    else
+      let%success seprlen := LENGTH globals S sepr using S in
+      let%success nlsep := fold_left (fun r i =>
+          let%success nlsep := r using S in
+          let%success sepri := STRING_ELT S sepr i using S in
+          let%success sepristr := CHAR S sepri using S in
+          result_success S (decide (nlsep \/ sepristr = ("010"%char)%string)))
+        (result_success S false) (seq 0 seprlen) using S in
+      let args := args_cdr in
+      read%list args_car, args_cdr, _ := args using S in
+      let fill := args_car in
+      result_not_implemented "[do_cat] TODO".
+      (*isNumeric
+      isLogical
+      asLogical*)
+
+
+
 (** * complex.c **)
 
 (** The function names of this section corresponds to the function names
@@ -740,50 +826,6 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
   ifb argc <> 2 then
     result_error S "[do_relop] Operator needs two arguments."
   else do_relop_dflt S call op arg1 arg2.
-
-
-(** * connections.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/connections.c. **)
-
-Definition getConnections S (n : int) :=
-  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
-    result_error S "[getConnections] Invalid connection."
-  else
-    match nth_option (Z.to_nat n) (R_Connections S) with
-    | None => result_impossible S "[getConnections] Out of bounds."
-    | Some c => result_success S c
-    end.
-
-Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
-  run%success Rf_checkArityCall S op args call using S in
-  read%list args_car, _, _ := args using S in
-  let%success what := asInteger S args_car using S in
-  ifb what = NA_INTEGER then
-    result_error S "[do_getconnection] There is no connection NA."
-  else ifb what < 0 \/ what >= length (R_Connections S) then
-    result_error S "[do_getconnection] There is no such connection."
-  else
-    let%success con :=
-      match nth_option (Z.to_nat what) (R_Connections S) with
-      | None => result_impossible S "[getConnections] Out of bounds."
-      | Some c => result_success S c
-      end using S in
-    let (S, ans) := ScalarInteger globals S what in
-    let%success class := allocVector globals S StrSxp 2 using S in
-    let (S, class0) := mkChar globals S (Rconnection_class con) in
-    write%Pointer class at 0 := class0 using S in
-    let (S, class1) := mkChar globals S "connection" in
-    write%Pointer class at 1 := class1 using S in
-    run%success classgets S ans class using S in
-    run%success
-      ifb what > 2 then
-        let%success ex_ptr := result_not_implemented "[do_getconnection] External pointer." using S in
-        run%success setAttrib globals runs S ans R_ConnIdSymbol ex_ptr using S in
-        result_skip S
-      else result_skip S using S in
-    result_success S ans.
 
 
 (** * names.c **)
@@ -1354,7 +1396,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "file.path" (dummy_function "do_filepath") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "format" (dummy_function "do_format") (0)%Z eval11 (9)%Z PP_FUNCALL PREC_FN false ;
               rdecl "format.info" (dummy_function "do_formatinfo") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "cat" (dummy_function "do_cat") (0)%Z eval111 (6)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "cat" do_cat (0)%Z eval111 (6)%Z PP_FUNCALL PREC_FN false ;
               rdecl "do.call" (dummy_function "do_docall") (0)%Z eval211 (3)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "nchar" (dummy_function "do_nchar") (1)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;

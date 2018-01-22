@@ -436,22 +436,6 @@ Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
     let (S, s) := alloc_vector_str S (ArrayList.from_list [x]) in
     result_success S s.
 
-Definition isVectorAtomic S s :=
-  let%success s_type := TYPEOF S s using S in
-  match s_type with
-  | LglSxp
-  | IntSxp
-  | RealSxp
-  | CplxSxp
-  | StrSxp
-  | RawSxp => result_success S true
-  | _ => result_success S false
-  end.
-
-Definition isLanguage S s :=
-  let%success s_type := TYPEOF S s using S in
-  result_success S (decide (s = R_NilValue \/ s_type = LangSxp)).
-
 
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
@@ -503,6 +487,18 @@ Definition inherits S s name :=
   else
     result_success S false.
 
+Definition isVectorAtomic S s :=
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | RawSxp => result_success S true
+  | _ => result_success S false
+  end.
+
 Definition isInteger S s :=
   let%success s_type := TYPEOF S s using S in
   let%success inh := inherits S s "factor" using S in
@@ -511,6 +507,35 @@ Definition isInteger S s :=
 Definition isList S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s = R_NilValue \/ s_type = ListSxp)).
+
+Definition isLanguage S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s = R_NilValue \/ s_type = LangSxp)).
+
+Definition isNumeric S s :=
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | IntSxp =>
+    let%success inh := inherits S s "factor" using S in
+    result_success S (negb inh)
+  | LglSxp
+  | RealSxp =>
+    result_success S true
+  | _ => result_success S false
+  end.
+
+Definition isNumber S s :=
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | IntSxp =>
+    let%success inh := inherits S s "factor" using S in
+    result_success S (negb inh)
+  | LglSxp
+  | RealSxp
+  | CplxSxp =>
+    result_success S true
+  | _ => result_success S false
+  end.
 
 Definition SCALAR_LVAL S x :=
   read%Logical r := x at 0 using S in

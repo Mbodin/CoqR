@@ -131,13 +131,21 @@ Notation "'run%success' c 'using' S 'in' cont" :=
 Definition result_skip S :=
   result_success S tt.
 
-Notation "'if%success' b 'then' c 'using' S 'in' cont" :=
-  (run%success
-     ifb b then
-       run%success c using S in
-       result_skip S
-     else result_skip S
-   using S in cont)
+Definition if_then_else_success A (b : result bool) (c1 c2 : state -> result A) :=
+  let%success b := b using S in
+  if b then c1 S else c2 S.
+
+Notation "'if%success' b 'using' S 'then' c1 'else' c2" :=
+  (if_then_else_success b (fun S => c1) (fun S => c2))
+  (at level 50, left associativity) : monad_scope.
+
+Definition if_then_success A b c cont : result A :=
+  run%success
+    if%success b using S then c else result_skip S using S in
+  cont S.
+
+Notation "'if%success' b 'using' S 'then' c 'in' cont" :=
+  (if_then_success b (fun S => c) (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
 

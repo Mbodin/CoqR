@@ -35,24 +35,24 @@ x <- 10 ; while (x > 5) { repeat break ; x <- x - 1 ; next ; x <- x + 1 } ; x
 
 # Tests about if.
 if ("TRUE") 1 else ""
-if ("True") "1" else 2
+if ('True') "1" else 2
 if ("true") 1L else 2
 if ("T") 2 else 3L
-if ("t") "" else NA
-if ("tRUE") "NA" else 2L
+if ('t') '' else NA
+if ("tRUE") 'NA' else 2L
 if ("FALSE") 1 else TRUE
-if ("False") TRUE else 1
-if ("false") FALSE else ""
+if ('False') TRUE else 1
+if ("false") FALSE else ''
 if ("F") "" else FALSE
-if ("f") 2L else TRUE
+if ('f') 2L else TRUE
 if ("fALSE") FALSE else 2L
 if ("") 1 else NULL
 if ("0") NULL else ""
-if ("1") NULL else NA
+if ('1') NULL else NA
 if (c (TRUE, FALSE)) NULL else 1L
 if (0) 1L else NULL
 if (1) NA else NULL
-if (0L) "1" else NULL
+if (0L) '1' else NULL
 if (1L) 1L else NULL
 if (1:3) NA else NULL
 if (function () TRUE) (function () FALSE) else NA
@@ -70,7 +70,7 @@ if (NA) NaN else ""
 if (NaN) 1L else NaN
 if (NULL) NaN else FALSE
 if ("NULL") 1 else NaN
-if ("NA") NA else Inf
+if ('NA') NA else Inf
 if (" ") NaN else NULL
 if ("#") NA else NaN
 
@@ -115,18 +115,19 @@ a <- 1L + ""
 a <- 1L + .Internal
 a <- 1 + 2L ; a ; .Internal (typeof (a))
 a <- 1 + TRUE ; a ; .Internal (typeof (a))
-a <- 1 + ""
+a <- 1 + ''
 a <- 1 + .Internal
 a <- "" + 2
-a <- "" + 2L
+a <- '' + 2L
 a <- "" + TRUE
-a <- "" + .Internal
+a <- '' + .Internal
 a <- FALSE + 2 ; a ; .Internal (typeof (a))
 a <- FALSE + 2L ; a ; .Internal (typeof (a))
 a <- FALSE + ""
 a <- FALSE + .Internal
+"" == '' ; c ('1', "1")
 2 == 2L ; -0 == 0 ; -0 == 0L ; 1 == TRUE ; 1L == TRUE ; 0 == FALSE ; 0L == FALSE
-"FALSE" == FALSE ; "False" == FALSE ; "false" == FALSE ; "F" == FALSE ; "f" == FALSE ; "fALSE" == FALSE
+"FALSE" == FALSE ; 'False' == FALSE ; "false" == FALSE ; 'F' == FALSE ; "f" == FALSE ; 'fALSE' == FALSE
 "TRUE" == TRUE ; "True" == TRUE ; "true" == TRUE ; "T" == TRUE ; "t" == TRUE ; "tRUE" == TRUE
 NA == NA ; NaN == NaN ; NA == NaN ; NaN == 0/0 ; NaN == -0/0 ; NaN == 1 + 0/0 ; NaN == 1 + NaN
 NA_integer_ == NA ; NA_character_ == NA ; NA_integer_ == NA_character_
@@ -134,13 +135,13 @@ NULL == 0 ; NULL == NA ; NULL == NaN ; NULL == FALSE ; NULL == TRUE
 0 == -0 ; 0L == -0L ; 1/Inf == 0 ; -1/Inf == 0 ; NaN == Inf - Inf
 .Internal == .Internal
 c (1, 1L) ; c (1, NULL) ; c (1, TRUE) ; c (1, "a") ; c (1, NA) ; c (1, NaN)
-c (1L, 1L) ; c (1L, NULL) ; c (1L, TRUE) ; c (1L, "a") ; c (1L, NA) ; c (1L, NaN)
+c (1L, 1L) ; c (1L, NULL) ; c (1L, TRUE) ; c (1L, 'a') ; c (1L, NA) ; c (1L, NaN)
 c (NULL, 1L) ; c (NULL, NULL) ; c (NULL, TRUE) ; c (NULL, "a") ; c (NULL, NA) ; c (NULL, NaN)
-c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, "a") ; c (TRUE, NA) ; c (TRUE, NaN)
-c ("b", 1L) ; c ("b", NULL) ; c ("b", TRUE) ; c ("b", "a") ; c ("b", NA) ; c ("b", NaN)
+c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, 'a') ; c (TRUE, NA) ; c (TRUE, NaN)
+c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b', NaN)
 c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN)
 c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN)
-c (1, TRUE, "a") ; c (c (1, TRUE), "a") ; c (1, c (TRUE, "a"))
+c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a')) ;
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y
@@ -152,28 +153,33 @@ x <- 2 ; y <- x + 1 -> x ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y
 (x <- 1) + (x <- 2)
 x <- 1 ; x <- NULL ; x ; x <- NA ; x ; x <- NaN ; x
-x <- 1 ; "x" <- 2 ; x
-y <- 1 ; x <- "y" ; x <- 2 ; y ; x
+x <- 1 ; "x" <- 2 ; x ; 'x' <- 3 ; x
+y <- 1 ; x <- 'y' ; x <- 2 ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y ; x
+c ('a', "b") <- 1
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3
-"if" <- function (x) -x ; if (1) 2 else 3
+'if' <- function (x) -x ; if (1) 2 else 3
 "(" <- function (x) 2 * x ; (2)
-"(" <- function () 1 ; (2)
+'(' <- function () 1 ; (2)
 "{" <- function (x) 2 * x ; {2}
-"<-" <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4
+'<-' <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4
 "<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4
-"function" <- function (x, y, z) y ; function (x) 2
+'function' <- function (x, y, z) y ; function (x) 2
 "+" <- function (x, y) x - y ; 1 + 2
+'1' <- 2 ; "1L" <- 2 ; 1 ; 1L
+"NULL" <- 1 ; NULL ; NULL <- 1
 
 # Tests about cat (for outputs).
-cat ("") ; cat (")") ; cat ("}") ; cat (">") ; cat ("]") ; cat ("(") ; cat ("{") ; cat ("<") ; cat ("[")
-cat ("\n") ; cat (")\n") ; cat ("}\n") ; cat (">\n") ; cat ("]\n") ;cat ("(\n") ; cat ("{\n") ; cat ("<\n") ; cat ("[\n")
+cat ("") ; cat (')') ; cat ("}") ; cat ('>') ; cat ("]") ; cat ('(') ; cat ("{") ; cat ('<') ; cat ("[")
+cat ('\n') ; cat (")\n") ; cat ('}\n') ; cat (">\n") ; cat (']\n') ;cat ("(\n") ; cat ('{\n') ; cat ("<\n") ; cat ('[\n')
 cat (1) ; cat (2L) ; cat (.5) ; cat (TRUE) ; cat (NA) ; cat (Inf) ; cat (NaN) ; cat (NULL) ; cat ("TRUE")
+cat (2) ; cat ("3") ; cat ('[4] 5') ; cat ("[1] 6")
 cat ("function (x) x") ; cat (function (x) x)
-cat (cat) ;
+cat (cat)
 cat (a <- 1) ; a
+cat (cat <- 1) ; cat (cat) ; cat (cat <- function (a) 3)
 
 # Tests about randomness.
 runif ()
