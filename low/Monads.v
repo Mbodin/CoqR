@@ -113,6 +113,26 @@ Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=
   (if_defined S o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'using' S 'in' cont" :=
+  (let%defined x := o using S in
+   let '(a1, a2) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'using' S 'in' cont" :=
+  (let%defined x := o using S in
+   let '(a1, a2, a3) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'using' S 'in' cont" :=
+  (let%defined x := o using S in
+   let '(a1, a2, a3, a4) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'using' S 'in' cont" :=
+  (let%defined x := o using S in
+   let '(a1, a2, a3, a4, a5) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'write%defined' p ':=' p_ 'using' S 'in' cont" :=
   (let%defined S := write_SExp S p p_ using S in cont)
   (at level 50, left associativity) : monad_scope.

@@ -610,9 +610,9 @@ Parameters run_stdout_flush run_stderr_flush : Rconnection -> option Rconnection
 
 Definition interpret_flush t (c : Rconnection) : option Rconnection :=
   match t with
-  | null_print => None
-  | stdout_print => run_stdout_flush c
-  | stderr_print => run_stderr_flush c
+  | null_flush => None
+  | stdout_flush => run_stdout_flush c
+  | stderr_flush => run_stderr_flush c
   end.
 
 (** The following functions are translations from functions of main/connections.c. **)

@@ -175,6 +175,7 @@ c ('a', "b") <- 1 ;
 "NULL" <- 1 ; NULL ; NULL <- 1
 
 # Tests about cat (for outputs).
+.Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))
 cat ("") ; cat (')') ; cat ("}") ; cat ('>') ; cat ("]") ; cat ('(') ; cat ("{") ; cat ('<') ; cat ("[")
 cat ('\n') ; cat (")\n") ; cat ('}\n') ; cat (">\n") ; cat (']\n') ;cat ("(\n") ; cat ('{\n') ; cat ("<\n") ; cat ('[\n')
 cat (1) ; cat (2L) ; cat (.5) ; cat (TRUE) ; cat (NA) ; cat (Inf) ; cat (NaN) ; cat (NULL) ; cat ("TRUE")

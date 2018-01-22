@@ -441,6 +441,51 @@ Definition getConnection S (n : int) :=
     | Some c => result_success S c
     end.
 
+(** The following six functions execute the interpretation function
+  for each action, then replaces the corresponding connection in the
+  global state.  These functions are not in the original C code of R.
+  They correspond to a non-pure call to the corresponding methods of
+  the given connection. **)
+
+Definition putConnection S (n : int) c :=
+  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
+    result_error S "[putConnection] Invalid connection."
+  else
+    let S := update_R_Connections S (update (Z.to_nat n) c (R_Connections S)) in
+    result_skip S.
+
+Definition run_open S n :=
+  let%success con := getConnection S n using S in
+  let%defined (c, r) := interpret_open (Rconnection_open con) con using S in
+  run%success putConnection S n c using S in
+  result_success S r.
+
+Definition run_close S n :=
+  let%success con := getConnection S n using S in
+  let%defined c := interpret_close (Rconnection_close con) con using S in
+  run%success putConnection S n c using S in
+  result_skip S.
+
+Definition run_destroy S n :=
+  let%success con := getConnection S n using S in
+  let%defined c := interpret_destroy (Rconnection_destroy con) con using S in
+  run%success putConnection S n c using S in
+  result_skip S.
+
+Definition run_print S n str :=
+  let%success con := getConnection S n using S in
+  let%defined c := interpret_print (Rconnection_print con) con str using S in
+  run%success putConnection S n c using S in
+  result_skip S.
+
+Definition run_flush S n :=
+  let%success con := getConnection S n using S in
+  let%defined c := interpret_flush (Rconnection_fflush con) con using S in
+  run%success putConnection S n c using S in
+  result_skip S.
+
+(** We now continue with functions translated from main/connections.c. **)
+
 Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
@@ -452,7 +497,7 @@ Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExp
   else
     let%success con :=
       match nth_option (Z.to_nat what) (R_Connections S) with
-      | None => result_impossible S "[getConnections] Out of bounds."
+      | None => result_impossible S "[do_getconnection] Out of bounds."
       | Some c => result_success S c
       end using S in
     let (S, ans) := ScalarInteger globals S what in
@@ -471,10 +516,37 @@ Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExp
     result_success S ans.
 
 
+(** * printutils.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/printutils.c. **)
+
+(** This function is inspired from [Rprintf]. **)
+Definition Rprint S str :=
+  let con_num := R_OutputCon S in
+  run_print S con_num str.
+
+
 (** * builtin.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/builtin.c. **)
+
+Definition trChar S x :=
+  (** We ignore any encoding issue here. **)
+  CHAR S x.
+
+Definition cat_printsep S sep ntot :=
+  let%success len := LENGTH globals S sep using S in
+  ifb sep = R_NilValue \/ len = 0 then
+    result_skip S
+  else
+    let%success str := STRING_ELT S sep (ntot mod len) using S in
+    let%success sepchar := trChar S str using S in
+    Rprint S sepchar.
+
+Definition cat_cleanup S con_num :=
+  run_flush S con_num.
 
 Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -492,7 +564,8 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     let args := args_cdr in
     read%list args_car, args_cdr, _ := args using S in
     let sepr := args_car in
-    if%success isString S sepr using S then
+    let%success sepr_is := isString S sepr using S in
+    if negb sepr_is then
       result_error S "[do_cat] Invalid sep specification."
     else
       let%success seprlen := LENGTH globals S sepr using S in
@@ -501,7 +574,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
             let%success nlsep := r using S in
             let%success sepri := STRING_ELT S sepr i using S in
             let%success sepristr := CHAR S sepri using S in
-            result_success S (decide (nlsep \/ sepristr = ("010"%char)%string)))
+            result_success S (decide (nlsep \/ sepristr = ("010"%char)%string (** '\n' **))))
           (result_success S false) (seq 0 seprlen) using S in
       let args := args_cdr in
       read%list args_car, args_cdr, _ := args using S in
@@ -540,8 +613,65 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
           else
             let%success cntxt :=
               begincontext globals S Ctxt_CCode R_NilValue R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
-            let%success nobs := R_length globals runs S objs using S in
-            result_not_implemented "[do_cat] TODO".
+            let%success nobjs := R_length globals runs S objs using S in
+            run%success
+              fold_left (fun iobj r =>
+                  let%success (ntot, nlines) := r using S in
+                  read%Pointer s := objs at iobj using S in
+                  let%success isn := isNull S s using S in
+                  let%success ntot :=
+                    ifb iobj <> 0 /\ ~ isn then
+                      run%success cat_printsep S sepr ntot using S in
+                      result_success S (1 + ntot)
+                    else result_success S ntot using S in
+                  let%success n := R_length globals runs S s using S in
+                  ifb n > 0 then
+                    let%success fill_in := asInteger S fill using S in
+                    let%success nlines :=
+                      ifb labs <> R_NilValue /\ iobj = 0 /\ fill_in > 0 then
+                        let%success str := STRING_ELT S labs (nlines mod lablen) using S in
+                        let%success str := trChar S str using S in
+                        run%success run_print S ifile str using S in
+                        result_success S (1 + nlines)
+                      else result_success S nlines using S in
+                    let%success p :=
+                      if%success isString S s using S then
+                        let%success str := STRING_ELT S s 0 using S in
+                        trChar S str
+                      else if%success isSymbol S s using S then
+                        let%success str := PRINTNAME S s using S in
+                        CHAR S str
+                      else if%success isVectorAtomic S s using S then
+                        result_not_implemented "[do_cat] [EncodeElement0] (First step)"
+                      else if%success isVectorList S s using S then
+                        result_success S ""%string 
+                      else result_error S "[do_cat] Argument can not be handled by cat." using S in
+                    let%success (ntot, nlines, _) :=
+                      fold_left (fun i r =>
+                          let%success (ntot, nlines, p) := r using S in
+                          run%success run_print S ifile p using S in
+                          ifb i < n - 1 then
+                            run%success cat_printsep S sepr ntot using S in
+                            let%success p :=
+                              if%success isString S s using S then
+                                let%success str := STRING_ELT S s (1 + i) using S in
+                                trChar S str
+                              else
+                                result_not_implemented "[do_cat] [EncodeElement0] (Second loop)"
+                              using S in
+                            result_success S (ntot, nlines, p)
+                          else result_success S (ntot - 1, nlines, p))
+                        (result_success S (ntot, nlines, p)) (seq 0 n) using S in
+                    result_success S (ntot, nlines)
+                  else result_success S (ntot, nlines))
+                (result_success S (0, 0)) (seq 0 nobjs) using S in
+            run%success
+              ifb pwidth <> INT_MAX \/ nlsep then
+                Rprint S ("010"%char (** '\n' **))
+              else result_skip S using S in
+            run%success endcontext globals runs S cntxt using S in
+            run%success cat_cleanup S ifile using S in
+            result_success S (R_NilValue : SExpRec_pointer).
 
 
 

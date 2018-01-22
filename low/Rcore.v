@@ -172,6 +172,10 @@ Definition isString S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = StrSxp)).
 
+Definition isNull S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = NilSxp)).
+
 
 (** ** duplicate.c **)
 

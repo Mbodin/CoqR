@@ -29,7 +29,7 @@ let stderr_print st str = generic_print prerr_string "stderr" st str
 let generic_flush channel loc st =
   if !log then output_string channel ("Flush (" ^ loc ^ ")") ;
   flush channel ;
-  Some ()
+  Some st
 
 let stdout_flush st = generic_flush stdout "stdout" st
 let stderr_flush st = generic_flush stderr "stderr" st
