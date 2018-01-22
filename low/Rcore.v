@@ -247,13 +247,11 @@ Definition R_cycle_detected S s child :=
     run%exit
       read%defined child_ := child using S in
       ifb attrib child_ <> R_NilValue then
-        let%success r :=
-          runs_R_cycle_detected runs S s (attrib child_) using S in
-        if r then result_rreturn S true
+        if%success runs_R_cycle_detected runs S s (attrib child_) using S then
+          result_rreturn S true
         else result_rskip S
       else result_rskip S using S in
-    let%success pl := isPairList S child using S in
-    if pl then
+    if%success isPairList S child using S then
       fold%return
       along child
       as el, el_, el_list do
@@ -270,12 +268,10 @@ Definition R_cycle_detected S s child :=
       using S, runs, globals in
       result_success S false
     else
-      let%success vl := isVectorList S child using S in
-      if vl then
+      if%success isVectorList S child using S then
         read%VectorPointer child_ := child using S in
         fold_left (fun e (r : result bool) =>
-          let%success b := r using S in
-          if b then r
+          if%success r using S then r
           else runs_R_cycle_detected runs S s e)
           (result_success S false) (ArrayList.to_list (VecSxp_data child_))
       else result_success S false.
@@ -476,8 +472,7 @@ Definition inherits S s name :=
     read%VectorPointer klass_vector := klass using S in
     let%success b :=
       fold_left (fun str rb =>
-        let%success b := rb using S in
-        if b : bool then
+        if%success rb using S then
           result_success S true
         else
           let%success str_ := CHAR S str using S in
@@ -617,9 +612,7 @@ Definition lang6 S s t u v w x :=
 Definition R_FixupRHS S x y :=
   read%defined y_ := y using S in
   ifb y <> R_NilValue /\ named y_ <> named_temporary then
-    let%success b :=
-      R_cycle_detected S x y using S in
-    if b then
+    if%success R_cycle_detected S x y using S then
       duplicate S y
     else
       map%pointer y with set_named_plural using S in
@@ -724,18 +717,18 @@ Definition R_IsNAN x :=
   end.
 
 Definition ScalarValue1 S x :=
-  let%success nr := NO_REFERENCES S x using S in
-  if nr then result_success S x
+  if%success NO_REFERENCES S x using S then
+    result_success S x
   else
     let%success x_type := TYPEOF S x using S in
     allocVector S x_type 1.
 
 Definition ScalarValue2 S x y :=
-  let%success nrx := NO_REFERENCES S x using S in
-  if nrx then result_success S x
+  if%success NO_REFERENCES S x using S then
+    result_success S x
   else
-    let%success nry := NO_REFERENCES S y using S in
-    if nry then result_success S y
+    if%success NO_REFERENCES S y using S then
+      result_success S y
     else
       let%success x_type := TYPEOF S x using S in
       allocVector S x_type 1.
@@ -1155,8 +1148,7 @@ Definition matchArgs_second S actuals formals supplied fargused :=
             as b, b_, b_list do
               let b_tag := list_tagval b_list in
               ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
-                let%success pmatch := pmatch S f_tag b_tag seendots using S in
-                if pmatch then
+                if%success pmatch S f_tag b_tag seendots using S then
                   ifb argused b_ <> 0 then
                     result_error S "[matchArgs_second] Actual argument matches several formal arguments."
                   else ifb fargusedi = 1 then
@@ -1297,8 +1289,7 @@ Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   fold%let b := true
   along env_frame env_env
   as frame_car, frame_tag do
-    let%success special := IS_SPECIAL_SYMBOL S frame_tag using S in
-    if special then
+    if%success IS_SPECIAL_SYMBOL S frame_tag using S then
       result_success S false
     else result_success S b using S, runs, globals.
 
@@ -1366,9 +1357,8 @@ Definition getActiveValue S f :=
   runs_eval runs S expr R_GlobalEnv.
 
 Definition SYMBOL_BINDING_VALUE S s :=
-  let%success active := IS_ACTIVE_BINDING S s using S in
   read%sym _, s_sym := s using S in
-  ifb active then
+  if%success IS_ACTIVE_BINDING S s using S then
     getActiveValue S (sym_value s_sym)
   else result_success S (sym_value s_sym).
 
@@ -1381,22 +1371,19 @@ Definition setActiveValue S (f v : SExpRec_pointer) :=
   result_skip S.
 
 Definition SET_BINDING_VALUE S b val :=
-  let%success locked := BINDING_IS_LOCKED S b using S in
-  ifb locked then
+  if%success BINDING_IS_LOCKED S b using S then
     result_error S "[SET_BINDING_VALUE] Can not change value of locked binding."
   else
-    let%success active := IS_ACTIVE_BINDING S b using S in
     read%list b_car, _, _ := b using S in
-    ifb active then
+    if%success IS_ACTIVE_BINDING S b using S then
       setActiveValue S b_car val
     else
       set%car b := val using S in
-    result_skip S.
+      result_skip S.
 
 Definition BINDING_VALUE S b :=
-  let%success active := IS_ACTIVE_BINDING S b using S in
   read%list b_car, _, _ := b using S in
-  ifb active then
+  if%success IS_ACTIVE_BINDING S b using S then
     getActiveValue S b_car
   else result_success S b_car.
 
@@ -1406,21 +1393,16 @@ Definition IS_USER_DATABASE S rho :=
   result_success S (obj rho_ && inh).
 
 Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
-  let%success locked := FRAME_IS_LOCKED S rho using S in
-  run%success
-    if locked then
-      read%sym symbol_, symbol_sym := symbol using S in
-      ifb sym_value symbol_sym = R_UnboundValue then
-        result_error S "[gsetVar] Can not add such a bidding to the base environment."
-      else result_skip S
-    else result_skip S using S in
-  let%success locked := BINDING_IS_LOCKED S symbol using S in
-  ifb locked then
+  if%success FRAME_IS_LOCKED S rho using S then
+    read%sym symbol_, symbol_sym := symbol using S in
+    ifb sym_value symbol_sym = R_UnboundValue then
+      result_error S "[gsetVar] Can not add such a bidding to the base environment."
+    else result_skip S in
+  if%success BINDING_IS_LOCKED S symbol using S then
     result_error S "[gsetVar] Can not change value of locked biding."
   else
-    let%success active := IS_ACTIVE_BINDING S symbol using S in
     read%sym symbol_, symbol_sym := symbol using S in
-    ifb active then
+    if%success IS_ACTIVE_BINDING S symbol using S then
       setActiveValue S (sym_value symbol_sym) value
     else
       let symbol_sym := {|
@@ -1439,19 +1421,15 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
   ifb rho = R_EmptyEnv then
     result_error S "[defineVar] Can not assign values in the empty environment."
   else
-    let%success user_database := IS_USER_DATABASE S rho using S in
-    if user_database then
+    if%success IS_USER_DATABASE S rho using S then
       result_not_implemented "[defineVar] [R_ObjectTable]"
     else
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
         gsetVar S symbol value rho
       else
-        let%success special := IS_SPECIAL_SYMBOL S symbol using S in
-        run%success
-          if special then
-            run%success SET_SPECIAL_SYMBOL S rho false using S in
-            result_skip S
-          else result_skip S using S in
+        if%success IS_SPECIAL_SYMBOL S symbol using S then
+          run%success SET_SPECIAL_SYMBOL S rho false using S in
+          result_skip S in
         (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
         read%env _, rho_env := rho using S in
         fold%return
@@ -1463,8 +1441,7 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
             result_rreturn S tt
           else
             result_rskip S using S, runs, globals in
-        let%success locked := FRAME_IS_LOCKED S rho using S in
-        ifb locked then
+        if%success FRAME_IS_LOCKED S rho using S then
           result_error S "[defineVar] Can not add a binding to a locked environment."
         else
           let (S, l) := CONS S value (env_frame rho_env) in
@@ -1500,8 +1477,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
   else ifb rho = R_EmptyEnv then
     result_success S (R_UnboundValue : SExpRec_pointer)
   else
-    let%success user_database := IS_USER_DATABASE S rho using S in
-    ifb user_database then
+    if%success IS_USER_DATABASE S rho using S then
       result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
     else
       (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
@@ -1538,9 +1514,8 @@ Definition ddfindVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec
 
 
 Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
-  let%success special := IS_SPECIAL_SYMBOL S symbol using S in
   let%success rho :=
-    ifb special then
+    if%success IS_SPECIAL_SYMBOL S symbol using S then
       do%success rho := rho
       while let%success special := NO_SPECIAL_SYMBOLS S rho using S in
             result_success S (decide (rho <> R_EmptyEnv /\ special)) do
@@ -1599,8 +1574,7 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
   run%exit
     ifb name = R_NamesSymbol then
       run%return
-        let%success ioda := isOneDimensionalArray S vec using S in
-        ifb ioda then
+        if%success isOneDimensionalArray S vec using S then
           let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
           let%success s_type := TYPEOF S s using S in
           ifb s_type <> NilSxp then
@@ -1646,8 +1620,7 @@ Definition getAttrib S (vec name : SExpRec_pointer) :=
       ifb name = R_RowNamesSymbol then
         let%success s := getAttrib0 S vec name using S in
         read%defined s_ := s using S in
-        let%success s_int := isInteger S s using S in
-        ifb s_int then
+        if%success isInteger S s using S then
           let%defined s_length := get_VecSxp_length s_ using S in
           ifb s_length = 2 then
             let%Integer s_0 := s_ at 0 using S in
@@ -1818,8 +1791,7 @@ Definition LogicalFromComplex S x : result int :=
                              \/ ~ Double.is_zero (Rcomplex_i x) then 1 : int else 0).
 
 Definition asLogical S x :=
-  let%success iva := isVectorAtomic S x using S in
-  if iva then
+  if%success isVectorAtomic S x using S then
     let%success len := XLENGTH S x using S in
     ifb len < 1 then
       result_success S NA_LOGICAL
@@ -1937,12 +1909,9 @@ Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
       ifb suppliedvars <> R_NilValue then
          addMissingVarsToNewEnv S newrho suppliedvars
        else result_skip S using S in
-    run%success
-      let%success b := R_envHasNoSpecialSymbols S newrho using S in
-      if b then
-        run%success SET_SPECIAL_SYMBOL S newrho false using S in
-        result_skip S
-      else result_skip S using S in
+    if%success R_envHasNoSpecialSymbols S newrho using S then
+      run%success SET_SPECIAL_SYMBOL S newrho false using S in
+      result_skip S in
     R_execClosure S call newrho
       (ifb callflag (R_GlobalContext S) = Ctxt_Generic then
          sysparent (R_GlobalContext S)
@@ -2122,34 +2091,35 @@ Definition eval S (e rho : SExpRec_pointer) :=
         ifb e = R_DotsSymbol then
           result_error S "[eval] ‘...’ used in an incorrect context."
         else
-          let%success ddval := DDVAL S e using S in
           let%success tmp :=
-            if ddval then
+            if%success DDVAL S e using S then
               ddfindVar S e rho
             else
               findVar S e rho using S in
           ifb tmp = R_UnboundValue then
             result_error S "[eval] Object not found."
-          else ifb tmp = R_MissingArg /\ ~ ddval then
-            result_error S "[eval] Argument is missing, with no default."
           else
-            let%success tmp_type := TYPEOF S tmp using S in
-            ifb tmp_type = PromSxp then
-              read%prom _, tmp_prom := tmp using S in
-              let%success tmp :=
-                ifb prom_value tmp_prom = R_UnboundValue then
-                  forcePromise S tmp
-                else result_success S (prom_value tmp_prom) using S in
-              map%pointer tmp with set_named_plural using S in
-              result_success S tmp
+            let%success ddval := DDVAL S e using S in
+            ifb tmp = R_MissingArg /\ ~ ddval then
+              result_error S "[eval] Argument is missing, with no default."
             else
-              read%defined tmp_ := tmp using S in
-              run%success
-                ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
-                  map%pointer tmp with set_named_unique using S in
-                  result_skip S
-                else result_skip S using S in
-              result_success S tmp
+              let%success tmp_type := TYPEOF S tmp using S in
+              ifb tmp_type = PromSxp then
+                read%prom _, tmp_prom := tmp using S in
+                let%success tmp :=
+                  ifb prom_value tmp_prom = R_UnboundValue then
+                    forcePromise S tmp
+                  else result_success S (prom_value tmp_prom) using S in
+                map%pointer tmp with set_named_plural using S in
+                result_success S tmp
+              else
+                read%defined tmp_ := tmp using S in
+                run%success
+                  ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
+                    map%pointer tmp with set_named_unique using S in
+                    result_skip S
+                  else result_skip S using S in
+                result_success S tmp
       | PromSxp =>
         run%success
           read%prom _, e_prom := e using S in

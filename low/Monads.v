@@ -141,7 +141,9 @@ Notation "'if%success' b 'using' S 'then' c1 'else' c2" :=
 
 Definition if_then_success A b c cont : result A :=
   run%success
-    if%success b using S then c else result_skip S using S in
+    if%success b using S then
+      c S
+    else result_skip S using S in
   cont S.
 
 Notation "'if%success' b 'using' S 'then' c 'in' cont" :=

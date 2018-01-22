@@ -31,12 +31,16 @@ let show_state_after_computation = ref false
 let only_parsing = ref false
 let fetch_result = ref true
 
+let show_outputs = Hooks.log
+
 let initial_state = ref ""
+let final_state = ref ""
 
 
 (** * Generating List of Options **)
 
 let boolean_switches =
+  (** These options can be both enabled and disabled. **)
   let make_boolean_switch categories dep verb_small_on verb_small_off verb_verbatim_on verb_verbatim_off pointer command noun expert =
     (categories, dep, verb_small_on, verb_small_off, verb_verbatim_on, verb_verbatim_off, pointer, command, noun, expert) in
   let category_print = ("show", "hide", "all", "Show", "Hide", "every available information about the state", false) in
@@ -73,6 +77,7 @@ let boolean_switches =
     print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" true ;
     show_gp_switch ;
     print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" true ;
+    print_switch [] [print_unlike_R] show_outputs "outputs" "a prefix message before each R output" true ;
     show_data_switch ;
     print_switch [] [] show_details "details" "the pointers stored in each basic language element" true ;
     write_switch [] [] readable_pointers "abr" "pointers in a human readable way" false ;
@@ -111,10 +116,13 @@ let make_options expert prefix default =
   let name_switch_base v b = prefix ^ name_switch_base v b in
   let doc_strict str =
     if expert then str else "" in
-  [(prefix ^ "no-temporary", Arg.Set no_temporary, doc_strict "Do not show basic element with a temporary named field.") ;
-   (prefix ^ "steps", Arg.Set_int max_steps, doc_strict "Set the maximum number of steps of the interpreter.") ;
-   (prefix ^ "only-parsing", Arg.Set only_parsing, doc_strict ("Synonym of " ^ prefix ^ "disable-evaluation.")) ]
-  @ List.concat (List.map (fun b ->
+  [ (** These options do not fit the model of [boolean_switches]: either because they are not booleans, or because they don’t come with an inverse command. **)
+    (prefix ^ "no-temporary", Arg.Set no_temporary, doc_strict "Do not show basic element with a temporary named field.") ;
+    (prefix ^ "steps", Arg.Set_int max_steps, doc_strict "Set the maximum number of steps of the interpreter.") ;
+    (prefix ^ "only-parsing", Arg.Set only_parsing, doc_strict ("Synonym of " ^ prefix ^ "disable-evaluation.")) ;
+    (prefix ^ "final-state", Arg.Set_string final_state, "Once the program ends, save the final state into an external file (this state can be reused using -initial-state).") ]
+  @ (** These options are generated from [boolean_switches]. **)
+    List.concat (List.map (fun b ->
       let (_, d, vsy, vsn, vvy, vvn, p, c, n, e) = b in
       let doc str =
         if e = true && expert = false then ""
@@ -197,6 +205,16 @@ type type_s_globals = Low.state * Low.globals
 
 let expert_mode = ref false
 
+let output_state s globals str =
+  let outchannel = open_out_bin str in
+  Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures]
+
+let exiting_function s globals =
+  if !final_state <> "" then (
+    if !verbose then print_endline ("Saving final state into the file " ^ !final_state ^ "…") ;
+    output_state s globals !final_state) ;
+  if !verbose then print_endline "End of program execution."
+
 let _ =
   let initialising_function =
     if !initial_state = "" then (
@@ -211,7 +229,8 @@ let _ =
     if !show_globals_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
-    | None -> print_endline ("Initialisation of constant global variables failed." ^ if !verbose then " Halting." else "")
+    | None ->
+      print_endline ("Initialisation of constant global variables failed." ^ if !verbose then " Halting." else "")
     | Some globals ->
       let buf = Lexing.from_channel stdin in
       let rec loop s =
@@ -262,8 +281,7 @@ let _ =
               print_endline (Debug.list_all_fun 2) in
             let save_state str =
               if !verbose then print_endline ("Saving current state into the file " ^ str ^ "…") ;
-              let outchannel = open_out_bin str in
-              Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures] in
+              output_state s globals str in
             let set_expert _ =
               expert_mode := true ;
               interactive_options := make_interactive_options () in
@@ -271,15 +289,15 @@ let _ =
               List.map (fun (c, a, d, e) ->
                   if e = true && !expert_mode = false then (c, a, "")
                   else (c, a, d)) (
-                ("#help", Arg.Unit print_help, "Print this list of command", false) ::
-                ("#quit", Arg.Unit dummy, "Exit the interpreter", false) ::
+                ("#help", Arg.Unit print_help, "Print this list of command.", false) ::
+                ("#quit", Arg.Unit dummy, "Exit the interpreter.", false) ::
                 ("#expert-mode", Arg.Unit set_expert, text_expert "#" ^ (if !expert_mode then " (current)" else ""), false) ::
-                ("#state", Arg.Unit print_state, "Print the current state", false) ::
-                ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell", true) ::
+                ("#state", Arg.Unit print_state, "Print the current state.", false) ::
+                ("#show", Arg.String get_and_print_memory_cell, "Print the content of the requested memory cell.", true) ::
                 ("#show-list", Arg.String get_and_print_list, "Assuming that the requested memory cell is a list, print the list.", true) ::
-                ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution)", true) ::
-                ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute", true) ::
-                ("#save-state", Arg.String save_state, "Save the state into an external file (this state can be reused using -initial-state)", true) :: []) @
+                ("#execute", Arg.Unit dummy, "Execute a Coq function for debugging purposes (Warning: using this command may lead to states not reachable in a normal execution).", true) ::
+                ("#list-fun", Arg.Unit print_list_fun, "Lists the available functions for the command #execute.", true) ::
+                ("#save-state", Arg.String save_state, "Save the state into an external file (this state can be reused using -initial-state).", true) :: []) @
                 make_options !expert_mode "#" "current") in
           interactive_options := make_interactive_options () ;
           let check_change_state seen_state_change cmd =
@@ -301,7 +319,7 @@ let _ =
               if at_leat_one then
                 if !verbose then print_endline "Done." ;
               loop s
-            | "#quit" :: l -> ignore (cont s)
+            | "#quit" :: l -> ignore (cont s) ; exiting_function s globals
             | "#execute" as cmd :: l ->
               check_change_state seen_state_change cmd ;
               Debug.parse_arg_fun !verbose
@@ -364,5 +382,5 @@ let _ =
           print_endline ("Error: " ^ msg) ;
           loop s in
       if !interactive then loop s
-      else ())
+      else exiting_function s globals)
 

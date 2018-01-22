@@ -44,8 +44,7 @@ Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
   let%success arity := PRIMARITY runs S op using S in
   let%success len := R_length globals runs S args using S in
   ifb arity >= 0 /\ arity <> len then
-    let%success internal := PRIMINTERNAL runs S op using S in
-    ifb internal then
+    if%success PRIMINTERNAL runs S op using S then
       result_error S "[Rf_checkArityCall] An argument has been passed to an element of .Internal without its requirements."
     else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
   else result_skip S.
@@ -84,13 +83,12 @@ Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_poi
   type2rstr S t.
 
 Definition IntegerFromString S (x : SExpRec_pointer) :=
-  let%success test :=
+  if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
-      result_success S (isBlankString c)
-    else result_success S false using S in
-  if test then
-    result_not_implemented "[IntegerFromString]"
+      result_success S (negb (isBlankString c))
+    else result_success S false using S then
+    result_not_implemented "[IntegerFromString] R_strtod."
   else result_success S NA_INTEGER.
 
 Definition IntegerFromLogical x :=
@@ -115,14 +113,12 @@ Definition IntegerFromComplex x :=
   else Double.double_to_int_zero (Rcomplex_r x).
 
 Definition asInteger S x :=
-  let%success iva := isVectorAtomic S x using S in
-  let%success test :=
-    if iva then
-      let%success l := XLENGTH S x using S in
-      result_success S (decide (l >= 1))
-    else result_success S false using S in
   let%success t := TYPEOF S x using S in
-  if test then
+  if%success
+      if%success isVectorAtomic S x using S then
+        let%success l := XLENGTH S x using S in
+        result_success S (decide (l >= 1))
+      else result_success S false using S then
     match t with
     | LglSxp =>
       read%Logical x0 := x at 0 using S in
@@ -195,8 +191,7 @@ Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
   in the file main/eval.c. **)
 
 Definition CheckFormals S ls :=
-  let%success l := isList globals S ls using S in
-  if l then
+  if%success isList globals S ls using S then
     fold%success
     along ls
     as _, ls_tag do
@@ -231,7 +226,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     | StrSxp
     | SymSxp =>
       let%success lhs :=
-        ifb lhs_type  = StrSxp then
+        ifb lhs_type = StrSxp then
           let%success lhs_char := STRING_ELT S lhs 0 using S in
           installTrChar globals runs S lhs_char
         else result_success S lhs using S in
@@ -321,15 +316,13 @@ Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_poi
 
 Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
   let%exit cond :=
-    let%success scal := IS_SCALAR S s LglSxp using S in
-    if scal then
+    if%success IS_SCALAR S s LglSxp using S then
       let%success cond := SCALAR_LVAL S s using S in
       ifb cond <> NA_LOGICAL then
         result_rreturn S cond
       else result_rsuccess S cond
     else
-      let%success scal := IS_SCALAR S s IntSxp using S in
-      if scal then
+      if%success IS_SCALAR S s IntSxp using S then
         let%success val := SCALAR_IVAL S s using S in
         ifb val <> NA_INTEGER then
           ifb val <> 0 then
@@ -359,15 +352,13 @@ Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
       ifb len = 0 then
         result_error S "[asLogicalNoNA] Argument is of length zero."
       else
-        let%success islog := isLogical S s using S in
-        ifb islog then
+        if%success isLogical S s using S then
           result_error S "[asLogicalNoNA] Missing value where TRUE/FALSE needed."
         else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
     else result_success S cond.
 
 Definition BodyHasBraces S body :=
-  let%success lang := isLanguage globals S body using S in
-  if lang then
+  if%success isLanguage globals S body using S then
     read%list body_car, _, _ := body using S in
     result_success S (decide (body_car = R_BraceSymbol))
   else result_success S false.
@@ -501,24 +492,56 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     let args := args_cdr in
     read%list args_car, args_cdr, _ := args using S in
     let sepr := args_car in
-    let%success seprstr := isString S sepr using S in
-    if seprstr then
+    if%success isString S sepr using S then
       result_error S "[do_cat] Invalid sep specification."
     else
       let%success seprlen := LENGTH globals S sepr using S in
-      let%success nlsep := fold_left (fun r i =>
-          let%success nlsep := r using S in
-          let%success sepri := STRING_ELT S sepr i using S in
-          let%success sepristr := CHAR S sepri using S in
-          result_success S (decide (nlsep \/ sepristr = ("010"%char)%string)))
-        (result_success S false) (seq 0 seprlen) using S in
+      let%success nlsep :=
+        fold_left (fun i (r : result bool) =>
+            let%success nlsep := r using S in
+            let%success sepri := STRING_ELT S sepr i using S in
+            let%success sepristr := CHAR S sepri using S in
+            result_success S (decide (nlsep \/ sepristr = ("010"%char)%string)))
+          (result_success S false) (seq 0 seprlen) using S in
       let args := args_cdr in
       read%list args_car, args_cdr, _ := args using S in
       let fill := args_car in
-      result_not_implemented "[do_cat] TODO".
-      (*isNumeric
-      isLogical
-      asLogical*)
+      let%success isNum := isNumeric globals runs S fill using S in
+      let%success isLog := isLogical S fill using S in
+      let%success len := LENGTH globals S fill using S in
+      ifb ~ isNum /\ ~ isLog /\ len <> 1 then
+        result_error S "[do_cat] Invalid fill argument."
+      else
+        let%success pwidth :=
+          if%success isLogical S fill using S then
+            let%success asLog := asLogical globals S fill using S in
+            ifb asLog = 1 then
+              result_success S INT_MAX (* [R_print.width] formalised out. *)
+            else result_success S INT_MAX
+          else asInteger S fill using S in
+        let pwidth :=
+          ifb pwidth <= 0 then
+            (* A warning has been formalised out here. *)
+            INT_MAX
+          else pwidth in
+        let args := args_cdr in
+        read%list args_car, args_cdr, _ := args using S in
+        let labs := args_car in
+        let%success isStr := isString S labs using S in
+        ifb ~ isStr /\ labs <> R_NilValue then
+          result_error S "[do_cat] Invalid labels argument."
+        else
+          let%success lablen := R_length globals runs S labs using S in
+          let args := args_cdr in
+          read%list args_car, args_cdr, _ := args using S in
+          let%success append := asLogical globals S args_car using S in
+          ifb append = NA_LOGICAL then
+            result_error S "[do_cat] Invalid append specification."
+          else
+            let%success cntxt :=
+              begincontext globals S Ctxt_CCode R_NilValue R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+            let%success nobs := R_length globals runs S objs using S in
+            result_not_implemented "[do_cat] TODO".
 
 
 
@@ -531,9 +554,9 @@ Definition complex_unary S (code : int) s1 :=
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
-    let%success noref := NO_REFERENCES S s1 using S in
     let%success ans :=
-      ifb noref then result_success S s1
+      if%success NO_REFERENCES S s1 using S then
+        result_success S s1
       else duplicate S s1 using S in
     read%VectorComplex s1_ := s1 using S in
     let px := VecSxp_data s1_ in
@@ -589,9 +612,9 @@ Definition integer_unary S (code : int) s1 :=
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
-    let%success noref := NO_REFERENCES S s1 using S in
     let%success ans :=
-      ifb noref then result_success S s1
+      if%success NO_REFERENCES S s1 using S then
+        result_success S s1
       else duplicate S s1 using S in
     read%VectorInteger s1_ := s1 using S in
     let px := VecSxp_data s1_ in
@@ -606,9 +629,9 @@ Definition real_unary S (code : int) s1 :=
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
-    let%success noref := NO_REFERENCES S s1 using S in
     let%success ans :=
-      ifb noref then result_success S s1
+      if%success NO_REFERENCES S s1 using S then
+        result_success S s1
       else duplicate S s1 using S in
     read%VectorReal s1_ := s1 using S in
     let px := VecSxp_data s1_ in
@@ -700,17 +723,14 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
           run%success SET_SCALAR_DVAL S ans (Double.div x1 x2) using S in
           result_rreturn S ans
         else result_rskip S in
-      let%success scal1 := IS_SCALAR S arg1 RealSxp using S in
-      ifb scal1 then
+      if%success IS_SCALAR S arg1 RealSxp using S then
         let%success x1 := SCALAR_DVAL S arg1 using S in
-        let%success scal2 := IS_SCALAR S arg2 RealSxp using S in
-        ifb scal2 then
+        if%success IS_SCALAR S arg2 RealSxp using S then
           let%success x2 := SCALAR_DVAL S arg2 using S in
           let%success ans := ScalarValue2 globals S arg1 arg2 using S in
           double_case S ans x1 x2
         else
-          let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
-          ifb scal2 then
+          if%success IS_SCALAR S arg2 IntSxp using S then
             let%success i2 := SCALAR_IVAL S arg2 using S in
             let x2 :=
               ifb i2 <> NA_INTEGER then
@@ -720,11 +740,9 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
             double_case S ans x1 x2
           else result_rskip S
       else
-        let%success scal1 := IS_SCALAR S arg1 IntSxp using S in
-        ifb scal1 then
+        if%success IS_SCALAR S arg1 IntSxp using S then
           let%success i1 := SCALAR_IVAL S arg1 using S in
-          let%success scal2 := IS_SCALAR S arg2 RealSxp using S in
-          ifb scal2 then
+          if%success IS_SCALAR S arg2 RealSxp using S then
             let x1 :=
               ifb i1 <> NA_INTEGER then
                 (i1 : double)
@@ -733,8 +751,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
             let%success ans := ScalarValue1 globals S arg2 using S in
             double_case S ans x1 x2
           else
-            let%success scal2 := IS_SCALAR S arg2 IntSxp using S in
-            ifb scal2 then
+            if%success IS_SCALAR S arg2 IntSxp using S then
               let%success i2 := SCALAR_IVAL S arg2 using S in
               let%success op_val := PRIMVAL runs S op using S in
               ifb op_val = PLUSOP then
@@ -760,8 +777,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
             else result_rskip S
         else result_rskip S
     else ifb argc = 1 then
-      let%success scal1 := IS_SCALAR S arg1 RealSxp using S in
-      ifb scal1 then
+      if%success IS_SCALAR S arg1 RealSxp using S then
         let%success op_val := PRIMVAL runs S op using S in
         ifb op_val = PLUSOP then
           result_rreturn S arg1
@@ -772,8 +788,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
           result_rreturn S ans
         else result_rskip S
       else
-        let%success scal1 := IS_SCALAR S arg1 IntSxp using S in
-        ifb scal1 then
+        if%success IS_SCALAR S arg1 IntSxp using S then
           let%success op_val := PRIMVAL runs S op using S in
           ifb op_val = PLUSOP then
             result_rreturn S arg1

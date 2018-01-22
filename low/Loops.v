@@ -28,8 +28,7 @@ Record runs_type : Type := runs_type_intro {
 
 (** A basic C-like loop **)
 Definition while_loop runs A S (a : A) expr stat : result A :=
-  let%success b := expr S a using S in
-  if b : bool then
+  if%success expr S a using S then
     let%success a := stat S a using S in
     runs_while_loop runs S a expr stat
   else

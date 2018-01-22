@@ -126,7 +126,9 @@ a <- FALSE + 2L ; a ; .Internal (typeof (a))
 a <- FALSE + ""
 a <- FALSE + .Internal
 "" == '' ; c ('1', "1")
-2 == 2L ; -0 == 0 ; -0 == 0L ; 1 == TRUE ; 1L == TRUE ; 0 == FALSE ; 0L == FALSE
+1. == 1 ; 1.0 == 1 ; 1.00 == 1 ; 1 == 1.000 ; 0.5 == .5 ; 0.5 == 0.50 ; 0.5 == .500
+0.99999999999999999999 == 1 ; 0.99999999999999999999999999999999 == 1.
+2 == 2L ; -0 == 0 ; -0 == 0L ; 0. == -0L ; 1 == TRUE ; 1L == TRUE ; 0 == FALSE ; 0L == FALSE
 "FALSE" == FALSE ; 'False' == FALSE ; "false" == FALSE ; 'F' == FALSE ; "f" == FALSE ; 'fALSE' == FALSE
 "TRUE" == TRUE ; "True" == TRUE ; "true" == TRUE ; "T" == TRUE ; "t" == TRUE ; "tRUE" == TRUE
 NA == NA ; NaN == NaN ; NA == NaN ; NaN == 0/0 ; NaN == -0/0 ; NaN == 1 + 0/0 ; NaN == 1 + NaN
@@ -151,12 +153,13 @@ x <- 2 ; x <- x + 1 -> x ; x
 x <- 2 ; y <- x <- x + 1 ; y ; x
 x <- 2 ; y <- x + 1 -> x ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y
-(x <- 1) + (x <- 2)
+(x <- 1) + (x <- 2) ; x
 x <- 1 ; x <- NULL ; x ; x <- NA ; x ; x <- NaN ; x
 x <- 1 ; "x" <- 2 ; x ; 'x' <- 3 ; x
 y <- 1 ; x <- 'y' ; x <- 2 ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y ; x
-c ('a', "b") <- 1
+c ('a', "b") <- 1 ;
+"<-" (x, 1) ; x
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3

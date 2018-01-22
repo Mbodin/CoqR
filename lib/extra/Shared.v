@@ -479,6 +479,13 @@ Instance positive_le_Decidable : forall n1 n2,
   typeclass.
 Defined.
 
+Instance le_Decidable : forall n1 n2,
+    Decidable (n1 <= n2).
+  intros. applys Decidable_equiv (n1 <= n2)%Z.
+   math.
+   typeclass.
+Defined.
+
 
 Instance positive_Comparable : Comparable positive.
   apply make_comparable. intros.
