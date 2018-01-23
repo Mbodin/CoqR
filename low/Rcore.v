@@ -112,6 +112,10 @@ Definition TYPEOF S x :=
   read%defined x_ := x using S in
   result_success S (type x_).
 
+Definition OBJECT S x :=
+  read%defined x_ := x using S in
+  result_success S (obj x_).
+
 Definition PRINTNAME S x :=
   read%sym _, x_sym := x using S in
   result_success S (sym_pname x_sym).
@@ -125,9 +129,13 @@ Definition SET_MISSING S e (m : nat) I :=
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
-Definition INCREMENT_NAMED S x :=
+Definition NAMED S x :=
   read%defined x_ := x using S in
-  match named x_ with
+  result_success S (named x_).
+
+Definition INCREMENT_NAMED S x :=
+  let%success x_named := NAMED S x using S in
+  match x_named with
   | named_temporary =>
     map%pointer x with set_named_unique using S in
     result_skip S
@@ -139,8 +147,8 @@ Definition INCREMENT_NAMED S x :=
   end.
 
 Definition NO_REFERENCES S x :=
-  read%defined x_ := x using S in
-  result_success S (decide (named x_ = named_temporary)).
+  let%success x_named := NAMED S x using S in
+  result_success S (decide (x_named = named_temporary)).
 
 Definition DDVAL S x :=
   read%defined x_ := x using S in
@@ -175,6 +183,9 @@ Definition isString S s :=
 Definition isNull S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = NilSxp)).
+
+Definition isObject S s :=
+  OBJECT S s.
 
 
 (** ** duplicate.c **)
@@ -310,6 +321,19 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
     read%Pointer r := x at i using S in
     result_success S r.
 
+Definition SET_VECTOR_ELT S x i v :=
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
+    result_error S "[SET_VECTOR_ELT] It can onlybe applied to a list."
+  else
+    let%success x_len := XLENGTH S x using S in
+    ifb i < 0 \/ i >= x_len then
+      result_error S "[SET_VECTOR_ELT] Outbound index."
+    else
+      write%Pointer x at i := v using S in
+      result_success S v.
+
+
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
   the compiled C files references [Rf_NewEnvironment] and not
@@ -338,10 +362,10 @@ Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
   in the file include/Rinlinedfuns.c. **)
 
 (** The way the original functions [allocVector], [allocVector3], etc.
-  from R source code are defined are not compatible with the way the
+  from R source code are defined is not compatible with the way the
   memory of the C language has been formalised here. The functions
-  below are thus slightly different from their C counterparts.
-  The [repeat] function of Coq can be used to initialise their data. **)
+  below are thus slightly different from their C counterparts.  The
+  [repeat] function of Coq can be used to initialise their data. **)
 
 Definition alloc_vector_char S v_data : state * SExpRec_pointer :=
   alloc_SExp S (make_SExpRec_char R_NilValue v_data).
@@ -611,8 +635,8 @@ Definition lang6 S s t u v w x :=
 
 
 Definition R_FixupRHS S x y :=
-  read%defined y_ := y using S in
-  ifb y <> R_NilValue /\ named y_ <> named_temporary then
+  let%success y_named := NAMED S y using S in
+  ifb y <> R_NilValue /\ y_named <> named_temporary then
     if%success R_cycle_detected S x y using S then
       duplicate S y
     else
@@ -1726,8 +1750,8 @@ Definition setAttrib S (vec name val : SExpRec_pointer) :=
       result_error S "[setAttrib] Attempt to set an attribute on NULL."
     else
       let%success val :=
-        read%defined val_ := val using S in
-        ifb named val_ <> named_temporary then
+        let%success val_named := NAMED S val using S in
+        ifb val_named <> named_temporary then
           R_FixupRHS S vec val
         else result_success S val using S in
       ifb name = R_NamesSymbol then
@@ -2114,9 +2138,9 @@ Definition eval S (e rho : SExpRec_pointer) :=
                 map%pointer tmp with set_named_plural using S in
                 result_success S tmp
               else
-                read%defined tmp_ := tmp using S in
+                let%success tmp_named := NAMED S tmp using S in
                 run%success
-                  ifb type tmp_ <> NilSxp /\ named tmp_ = named_temporary then
+                  ifb type tmp_ <> NilSxp /\ tmp_named = named_temporary then
                     map%pointer tmp with set_named_unique using S in
                     result_skip S
                   else result_skip S using S in

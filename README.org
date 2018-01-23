@@ -115,13 +115,9 @@ This file may take some time to compile.
 
 This file provides a model for the C memory.
 
-*** Monads.v
-
-This file provides monads to manipulate R objects easily.
-
 *** InternalTypes.v
 
-This file describes various internal data types used in the source of R/
+This file describes various internal data types used in the source of R.
 
 *** Globals.v
 
@@ -130,11 +126,21 @@ that are initialised, then never changed.
 
 This file may take some time to compile.
 
+*** Monads.v
+
+This file provides monads to manipulate R objects easily.
+
+In some ways, this file provides notations enabling to write
+imperative code in Coq with respect to memory.
+
 *** Loops.v
 
 This file provides looping monads to easily manipulate R objects.
 It also defines the structure used in the interpreter to deal with
 infinite execution.
+
+In some ways, this file provides notations enabling to write
+imperative loops in Coq.
 
 *** Rcore.v
 

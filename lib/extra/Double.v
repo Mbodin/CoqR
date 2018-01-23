@@ -45,6 +45,7 @@ Definition is_zero (x : double) :=
   decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
 
 Parameter opp : double -> double. (* TODO: use Flocq. *)
+Parameter abs : double -> double. (* TODO: use Flocq. *)
 Parameter add : double -> double -> double. (* TODO: use Flocq. *)
 Parameter sub : double -> double -> double. (* TODO: use Flocq. *)
 Parameter mult : double -> double -> double. (* TODO: use Flocq. *)

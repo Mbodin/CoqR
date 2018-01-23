@@ -104,6 +104,20 @@ a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ;
 missing ; missing (x)
 f <- function (x, y, z) x ; g <- function (x, ...) f (..., x) ; g (1) ; g (1, 2) ; g (1, 2, 3)
 
+# Tests about explicit conversions.
+is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
+is.logical (1) ; is.logical (NULL) ; is.logical ("1") ; is.logical (1L) ; is.logical (NA) ; is.logical (NaN) ; is.logical (Inf) ; is.logical (x = -1) ; is.logical ("x" = -1) ; is.logical (y = -1)
+is.integer (1) ; is.integer (NULL) ; is.integer ("1") ; is.integer (1L) ; is.integer (NA) ; is.integer (NaN) ; is.integer (Inf) ; is.integer (x = -1) ; is.integer ("x" = -1) ; is.integer (y = -1)
+is.double (1) ; is.double (NULL) ; is.double ("1") ; is.double (1L) ; is.double (NA) ; is.double (NaN) ; is.double (Inf) ; is.double (5i) ; is.double (1 + 3i) ; is.double (x = -1) ; is.double ("x" = -1) ; is.double (y = -1)
+is.complex (1) ; is.complex (NULL) ; is.complex ("1") ; is.complex (1L) ; is.complex (NA) ; is.complex (NaN) ; is.complex (Inf) ; is.complex (5i) ; is.complex (1 + 3i) ; is.complex (x = -1) ; is.complex ("x" = -1) ; is.complex (y = -1)
+is.character (1) ; is.character (NULL) ; is.character ("1") ; is.character (1L) ; is.character (NA) ; is.character (NaN) ; is.character (Inf) ; is.character (x = -1) ; is.character ("x" = -1) ; is.character (y = -1)
+is.numeric (1) ; is.numeric (NULL) ; is.numeric ("1") ; is.numeric (1L) ; is.numeric (NA) ; is.numeric (NaN) ; is.numeric (Inf) ; is.numeric (5i) ; is.numeric (1 + 3i) ; is.numeric (x = -1) ; is.numeric ("x" = -1) ; is.numeric (y = -1)
+is.atomic (1) ; is.atomic (NULL) ; is.atomic ("1") ; is.atomic (1L) ; is.atomic (NA) ; is.atomic (NaN) ; is.atomic (Inf) ; is.atomic (5i) ; is.atomic (1 + 3i) ; is.atomic (x = -1) ; is.atomic ("x" = -1) ; is.atomic (y = -1)
+is.recursive (1) ; is.recursive (NULL) ; is.recursive ("1") ; is.recursive (1L) ; is.recursive (NA) ; is.recursive (NaN) ; is.recursive (Inf) ; is.recursive (5i) ; is.recursive (1 + 3i) ; is.recursive (x = -1) ; is.recursive ("x" = -1) ; is.recursive (y = -1)
+is.array (1) ; is.array (NULL) ; is.array ("1") ; is.array (1L) ; is.array (NA) ; is.array (NaN) ; is.array (Inf) ; is.array (5i) ; is.array (1 + 3i) ; is.array (x = -1) ; is.array ("x" = -1) ; is.array (y = -1)
+is.vector (1) ; is.vector (NULL) ; is.vector ("1") ; is.vector (1L) ; is.vector (NA) ; is.vector (NaN) ; is.vector (Inf) ; is.vector (5i) ; is.vector (1 + 3i) ; is.vector (x = -1) ; is.vector ("x" = -1) ; is.vector (y = -1)
+is.single (1) ; is.single (NULL) ; is.single ("1") ; is.single (1L) ; is.single (NA) ; is.single (NaN) ; is.single (Inf) ; is.single (5i) ; is.single (1 + 3i) ; is.single (x = -1) ; is.single ("x" = -1) ; is.single (y = -1)
+
 # Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
 TRUE - TRUE ; TRUE - FALSE ; FALSE - FALSE
@@ -125,6 +139,7 @@ a <- FALSE + 2 ; a ; .Internal (typeof (a))
 a <- FALSE + 2L ; a ; .Internal (typeof (a))
 a <- FALSE + ""
 a <- FALSE + .Internal
+1 + 2i ; 1L + 2i ; (1L + 2i) - 2i ; (1L + 2i) - 2i == 1L
 "" == '' ; c ('1', "1")
 1. == 1 ; 1.0 == 1 ; 1.00 == 1 ; 1 == 1.000 ; 0.5 == .5 ; 0.5 == 0.50 ; 0.5 == .500
 0.99999999999999999999 == 1 ; 0.99999999999999999999999999999999 == 1.
@@ -143,7 +158,13 @@ c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, 'a') ; c (TRUE, NA) ; 
 c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b', NaN)
 c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN)
 c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN)
-c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a')) ;
+c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
+-0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1"
+1:NA
+1:NaN
+1:Inf
+TRUE:2 ; 1i:3 ; NULL:1
+-0.5:0.5 ; 0.99999999999999999:1.99999999999999999
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y

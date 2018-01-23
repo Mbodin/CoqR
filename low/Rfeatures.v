@@ -49,6 +49,17 @@ Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
     else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
   else result_skip S.
 
+Definition Rf_check1arg S (arg call : SExpRec_pointer) formal :=
+  read%list _, _, arg_tag := arg using S in
+  ifb arg_tag = R_NilValue then
+    result_skip S
+  else
+    let%success printname := PRINTNAME S arg_tag using S in
+    let%success supplied := CHAR S printname using S in
+    ifb supplied <> formal then
+     result_error S "[Rf_check1arg] Supplied argument name does not match expected name."
+    else result_skip S.
+
 
 Definition type2rstr S (t : SExpType) :=
   let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
@@ -140,6 +151,129 @@ Definition asInteger S x :=
   else ifb t = CharSxp then
     IntegerFromString S x
   else result_success S NA_INTEGER.
+
+Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_check1arg S args call "x" using S in
+  let%success op_val := PRIMVAL runs S op using S in
+  read%list args_car, _, _ := args using S in
+  let%success args_car_obj := isObject S args_car using S in
+  ifb op_val >= 100 /\ op_val < 200 /\ args_car_obj then
+    result_not_implemented "[do_is] [DispatchOrEval]."
+  else
+    let%success ans := allocVector S LglSxp 1 using S in
+    run%success
+      ifb op_val = NILSXP then
+        let%success isn := isNull S args_car using S in
+        write%Logical ans at 0 := isn using S in
+        result_skip S
+      else ifb op_val = LGLSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = LglSxp) using S in
+        result_skip S
+      else ifb op_val = INTSXP then
+        let%success t := TYPEOF S args_car using S in
+        let%success inh := inherits S args_car "factor" using S in
+        write%Logical ans at 0 := decide (t = IntSxp /\ ~ inh) using S in
+        result_skip S
+      else ifb op_val = REALSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = RealSxp) using S in
+        result_skip S
+      else ifb op_val = CPLXSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = CplxSxp) using S in
+        result_skip S
+      else ifb op_val = STRSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = StrSxp) using S in
+        result_skip S
+      else ifb op_val = SYMSXP then
+        result_not_implemented "[do_is] is.symbol, is.name."
+      else ifb op_val = ENVSXP then
+        result_not_implemented "[do_is] is.environment."
+      else ifb op_val = VECSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
+        result_skip S
+      else ifb op_val = LISTSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = ListSxp \/ t = NilSxp) using S in
+        result_skip S
+      else ifb op_val = EXPRSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = ExprSxp) using S in
+        result_skip S
+      else ifb op_val = RAWSXP then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = RawSxp) using S in
+        result_skip S
+      else ifb op_val = 50 then
+        let%success obj := OBJECT S args_car using S in
+        write%Logical ans at 0 := obj using S in
+        result_skip S
+      else ifb op_val = 51 then
+        result_not_implemented "[do_is] isS4."
+      else ifb op_val = 100 then
+        let%success isn := isNumeric S args_car using S in
+        let%success isl := isLogical S args_car using S in
+        write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
+        result_skip S
+      else ifb op_val = 101 then
+        result_not_implemented "[do_is] is.matrix."
+      else ifb op_val = 102 then
+        result_not_implemented "[do_is] is.array."
+      else ifb op_val = 200 then
+        let%success t := TYPEOF S args_car using S in
+        match t with
+          | NilSxp
+          | CharSxp
+          | LglSxp
+          | IntSxp
+          | RealSxp
+          | CplxSxp
+          | StrSxp
+          | RawSxp =>
+            write%Logical ans at 0 := true using S in
+            result_skip S
+          | _ =>
+            write%Logical ans at 0 := false using S in
+            result_skip S
+        end
+      else ifb op_val = 201 then
+        let%success t := TYPEOF S args_car using S in
+        match t with
+          | VecSxp
+          | ListSxp
+          | CloSxp
+          | EnvSxp
+          | PromSxp
+          | LangSxp
+          | SpecialSxp
+          | BuiltinSxp
+          | DotSxp
+          | AnySxp
+          | ExprSxp =>
+            write%Logical ans at 0 := true using S in
+            result_skip S
+          | _ =>
+            write%Logical ans at 0 := false using S in
+            result_skip S
+        end
+      else ifb op_val = 300 then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = LangSxp) using S in
+        result_skip S
+      else ifb op_val = 301 then
+        let%success t := TYPEOF S args_car using S in
+        write%Logical ans at 0 := decide (t = SymSxp \/ t = LangSxp \/ t = ExprSxp) using S in
+        result_skip S
+      else ifb op_val = 302 then
+        result_not_implemented "[do_is] is.function."
+      else ifb op_val = 999 then
+        result_error S "[do_is] is.single."
+      else result_error S "[do_is] Other predicate." using S in
+    result_success S ans.
 
 
 (** * dstruct.c **)
@@ -423,7 +557,7 @@ Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_poi
 (** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
   overwrites its additional argument [ans]. This naturally translates as an option type. **)
 Definition DispatchGroup (S : state) (group : string) (call op args rho : SExpRec_pointer)
-  : result (option SExpRec_pointer) :=
+    : result (option SExpRec_pointer) :=
   result_not_implemented "[DispatchGroup]".
 
 
@@ -531,6 +665,42 @@ Definition Rprint S str :=
 
 (** The function names of this section corresponds to the function names
   in the file main/builtin.c. **)
+
+Definition do_makelist S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  fold%success (n, havenames) := (0, false)
+  along args
+  as _, args_tag do
+    ifb args_tag <> R_NilValue then
+      result_success S (1 + n, true)
+    else result_success S (1 + n, havenames) using S, runs, globals in
+  let%success list := allocVector globals S VecSxp n using S in
+  let%success names :=
+    if havenames then
+      allocVector globals S StrSxp n
+    else R_NilValue using S in
+  do%success args := args
+  for i from 0 to n - 1 do
+    read%list args_car, args_cdr, args_tag := args using S in
+    run%success
+      if havenames then
+        ifb args_tag <> R_NilValue then
+          let%success str := PRINTNAME S args_tag using S in
+          SET_STRING_ELT S names i str
+        else SET_STRING_ELT S names i R_BlankString
+      else result_skip S using S in
+    run%success
+      let%success args_car_named := NAMED S args_car using S in
+      ifb args_car_named <> named_temporary then
+        map%pointer op with set_named_plural using S in
+        result_skip S
+      else result_skip S using S in
+    run%success SET_VECTOR_ELT S list i args_car using S in
+    result_success S args_cdr using S in
+  run%success
+    if havenames then
+      setAttrib S list R_NamesSymbol names
+    else result_skip S using S in
+  result_success S list.
 
 Definition trChar S x :=
   (** We ignore any encoding issue here. **)
@@ -641,7 +811,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
                   else if%success isVectorAtomic S s using S then
                     result_not_implemented "[do_cat] [EncodeElement0] (First step)"
                   else if%success isVectorList S s using S then
-                    result_success S ""%string 
+                    result_success S ""%string
                   else result_error S "[do_cat] Argument can not be handled by cat." using S in
                 do%success (ntot, nlines, p) := (ntot, nlines, p)
                 for i from 0 to n - 1 do
@@ -667,6 +837,71 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
             run%success cat_cleanup S ifile using S in
             result_success S (R_NilValue : SExpRec_pointer).
 
+
+(** * seq.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/seq.c. **)
+
+Definition cross_colon S (call s t : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[cross_colon]".
+
+Definition seq_colon S n1 n2 (call : SExpRec_pointer) : result SExpRec_pointer :=
+  let r := Double.abs (Double.sub n2 n1) in
+  let useInt := decide (n1 <= INT_MAX /\ n1 = ((n1 : int) : double)) in
+  let useInt :=
+    ifb n1 <= INT_MIN \/ n1 > INT_MAX then false
+    else
+      let dn := n : double in
+      let r := n1 + if n1 <= n2 then dn - 1 else -(dn - 1) in
+      decide (r <= INT_MIN \/ r > INT_MAX) in
+  let%success ans :=
+    if useInt then
+      let in1 := n1 : int in
+      let%success ans := allocVector S IntSxp n using S in
+      run%success
+        ifb n1 <= n2 then
+          let%success for i from 0 to n - 1 do
+            write%Integer ans at i := in1 + i using S
+        else
+          let%success for i from 0 to n - 1 do
+            write%Integer ans at i := in1 - i using S using S in
+      result_success S ans
+    else
+      let%success ans := allocVector S RealSxp n using S in
+      run%success
+        ifb n1 <= n2 then
+          let%success for i from 0 to n - 1 do
+            write%Real ans at i := in1 + (i : double) using S
+        else
+          let%success for i from 0 to n - 1 do
+            write%Real ans at i := in1 - (i : double) using S using S in
+      result_success S ans
+    using S in
+  result_success S ans.
+
+Definition do_colon S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let%success args_car_in := inherits S args_car "factor" using S in
+  let%success args_cdr_car_in := inherits S args_cdr_car "factor" using S in
+  ifb args_car_in /\ args_cdr_car_in then
+    cross_colon S call args_car args_cdr_car
+  else
+    let s1 := args_car in
+    let s2 := args_cdr_car in
+    let%success n1 := R_length S s1 in
+    let%success n2 := R_length S s2 in
+    ifb n1 = 0 \/ n2 = 0 then
+      result_error S "[do_colon] Argument of length 0."
+    else
+      (* Warnings have been formalised out here. *)
+      let%success n1 := asReal S s1 using S in
+      let%success n2 := asReal S s2 using S in
+      ifb ISNAN n1 \/ ISNAN n2 then
+        result_error S "[do_colon] NA or NaN argument."
+      else seq_colon S n1 n2 call.
 
 
 (** * complex.c **)
@@ -1237,7 +1472,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "&&" (dummy_function "do_logic2") (1)%Z eval0 (2)%Z PP_BINARY PREC_AND false ;
               rdecl "||" (dummy_function "do_logic2") (2)%Z eval0 (2)%Z PP_BINARY PREC_OR false ;
-              rdecl ":" (dummy_function "do_colon") (0)%Z eval1 (2)%Z PP_BINARY2 PREC_COLON false ;
+              rdecl ":" do_colon (0)%Z eval1 (2)%Z PP_BINARY2 PREC_COLON false ;
 
               rdecl "~" (dummy_function "do_tilde") (0)%Z eval0 (-1)%Z PP_BINARY PREC_TILDE false ;
 
@@ -1581,35 +1816,35 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "strtoi" (dummy_function "do_strtoi") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "strrep" (dummy_function "do_strrep") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.null" (dummy_function "do_is") NilSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.logical" (dummy_function "do_is") LglSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.integer" (dummy_function "do_is") IntSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.double" (dummy_function "do_is") RealSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.complex" (dummy_function "do_is") CplxSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.character" (dummy_function "do_is") StrSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.symbol" (dummy_function "do_is") SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.name" (dummy_function "do_is") SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.environment" (dummy_function "do_is") EnvSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.list" (dummy_function "do_is") VecSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.pairlist" (dummy_function "do_is") ListSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.expression" (dummy_function "do_is") ExprSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.raw" (dummy_function "do_is") RawSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.null" do_is NilSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.logical" do_is LglSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.integer" do_is IntSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.double" do_is RealSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.complex" do_is CplxSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.character" do_is StrSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.symbol" do_is SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.name" do_is SymSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.environment" do_is EnvSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.list" do_is VecSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.pairlist" do_is ListSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.expression" do_is ExprSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.raw" do_is RawSxp eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.object" (dummy_function "do_is") (50)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "isS4" (dummy_function "do_is") (51)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.object" do_is (50)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "isS4" do_is (51)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.numeric" (dummy_function "do_is") (100)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.matrix" (dummy_function "do_is") (101)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.array" (dummy_function "do_is") (102)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.numeric" do_is (100)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.matrix" do_is (101)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.array" do_is (102)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.atomic" (dummy_function "do_is") (200)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.recursive" (dummy_function "do_is") (201)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.atomic" do_is (200)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.recursive" do_is (201)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.call" (dummy_function "do_is") (300)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.language" (dummy_function "do_is") (301)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.function" (dummy_function "do_is") (302)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.call" do_is (300)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.language" do_is (301)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.function" do_is (302)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.single" (dummy_function "do_is") (999)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.single" do_is (999)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "is.na" (dummy_function "do_isna") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "is.nan" (dummy_function "do_isnan") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
@@ -1630,7 +1865,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "seq.int" (dummy_function "do_seq") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "seq_len" (dummy_function "do_seq_len") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "seq_along" (dummy_function "do_seq_along") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "list" (dummy_function "do_makelist") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "list" do_makelist (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "xtfrm" (dummy_function "do_xtfrm") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "enc2native" (dummy_function "do_enc2") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "enc2utf8" (dummy_function "do_enc2") (1)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
