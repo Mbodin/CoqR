@@ -73,7 +73,7 @@ Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
 
 Notation "'let%success' '(' a1 ',' a2 ')' ':=' r 'using' S 'in' cont" :=
   (let%success x := r using S in
-   let '(a1, a2) := x in cont)
+   let (a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%success' '(' a1 ',' a2 ',' a3 ')' ':=' r 'using' S 'in' cont" :=
@@ -115,7 +115,7 @@ Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=
 
 Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'using' S 'in' cont" :=
   (let%defined x := o using S in
-   let '(a1, a2) := x in cont)
+   let (a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'using' S 'in' cont" :=

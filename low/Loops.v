@@ -598,3 +598,186 @@ Notation "'set%longjump' cjmpbuf 'as' ret 'using' S ',' runs 'in' cont" :=
   (set_longjump runs S empty_context_type cjmpbuf (fun S ret => cont))
   (at level 50, left associativity) : monad_scope.
 
+
+(** * Finite Loops **)
+
+(** The following loops terminate in a finite number of steps and thus do not use fuel. **)
+
+(** ** Along Intervals **)
+
+Definition for_loop A B S (a : A) start last body :=
+  fold_left (fun i (r : result B) =>
+      let%success a := r using S in
+      body S a i)
+    (result_success S a) (seq start (1 + last - start)).
+
+Notation "'do%let' a ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (for_loop S e start last (fun S a i => body))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (do%let _ := tt for i from start to last do body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (do%let x := a for i from start to last
+   do let (a1, a2) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (do%let x := a for i from start to last
+   do let '(a1, a2, a3) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (do%let x := a for i from start to last
+   do let '(a1, a2, a3, a4) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'for' i 'from' start 'to' last 'do' body 'using' S" :=
+  (do%let x := a for i from start to last
+   do let '(a1, a2, a3, a4, a5) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' a ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let a := e
+     for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2) := e
+     for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3) := e
+     for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3, a4) := e
+     for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3, a4, a5) := e
+     for i from start to last
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** Along Arrays **)
+
+Definition for_array A B S (a : A) array :=
+  fold_left (fun i (r : result B) =>
+      let%success a := r using S in
+      body S a i)
+    (result_success S a) S (ArrayList.to_list array).
+
+Notation "'do%let' a ':=' e 'for' i 'in' array 'do' body 'using' S" :=
+  (for_array S a array (fun S a i => body))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' 'for' i 'in' array 'do' body 'using' S" :=
+  (do%let _ := tt for i in array do body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'for' i 'in' array 'do' body 'using' S" :=
+  (do%let x := a for i in array
+   do let (a1, a2) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'for' i 'in' array 'do' body 'using' S" :=
+  (do%let x := a for i in array
+   do let '(a1, a2, a3) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'for' i 'in' array 'do' body 'using' S" :=
+  (do%let x := a for i in array
+   do let '(a1, a2, a3, a4) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'for' i 'in' array 'do' body 'using' S" :=
+  (do%let x := a for i in array
+   do let '(a1, a2, a3, a4, a5) := x in body using S)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' a ':=' e 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let a := e
+     for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ')' ':=' e 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2) := e
+     for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3) := e
+     for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3, a4) := e
+     for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'in' array 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%let (a1, a2, a3, a4, a5) := e
+     for i in array
+     do body
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.

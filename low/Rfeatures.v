@@ -569,13 +569,11 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       result_error S "[do_cat] Invalid sep specification."
     else
       let%success seprlen := LENGTH globals S sepr using S in
-      let%success nlsep :=
-        fold_left (fun i (r : result bool) =>
-            let%success nlsep := r using S in
-            let%success sepri := STRING_ELT S sepr i using S in
-            let%success sepristr := CHAR S sepri using S in
-            result_success S (decide (nlsep \/ sepristr = ("010"%char)%string (** '\n' **))))
-          (result_success S false) (seq 0 seprlen) using S in
+      do%success nlsep := false
+      for i from 0 to seprlen - 1 do
+        let%success sepri := STRING_ELT S sepr i using S in
+        let%success sepristr := CHAR S sepri using S in
+        result_success S (decide (nlsep \/ sepristr = ("010"%char)%string (** '\n' **)))) using S in
       let args := args_cdr in
       read%list args_car, args_cdr, _ := args using S in
       let fill := args_car in
@@ -614,57 +612,53 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
             let%success cntxt :=
               begincontext globals S Ctxt_CCode R_NilValue R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
             let%success nobjs := R_length globals runs S objs using S in
-            run%success
-              fold_left (fun iobj r =>
-                  let%success (ntot, nlines) := r using S in
-                  read%Pointer s := objs at iobj using S in
-                  let%success isn := isNull S s using S in
-                  let%success ntot :=
-                    ifb iobj <> 0 /\ ~ isn then
-                      run%success cat_printsep S sepr ntot using S in
-                      result_success S (1 + ntot)
-                    else result_success S ntot using S in
-                  let%success n := R_length globals runs S s using S in
-                  ifb n > 0 then
-                    let%success fill_in := asInteger S fill using S in
-                    let%success nlines :=
-                      ifb labs <> R_NilValue /\ iobj = 0 /\ fill_in > 0 then
-                        let%success str := STRING_ELT S labs (nlines mod lablen) using S in
-                        let%success str := trChar S str using S in
-                        run%success run_print S ifile str using S in
-                        result_success S (1 + nlines)
-                      else result_success S nlines using S in
+            do%success (ntot, nlines) := (0, 0)
+            for iobj from 0 to nobjs do
+              read%Pointer s := objs at iobj using S in
+              let%success isn := isNull S s using S in
+              let%success ntot :=
+                ifb iobj <> 0 /\ ~ isn then
+                  run%success cat_printsep S sepr ntot using S in
+                  result_success S (1 + ntot)
+                else result_success S ntot using S in
+              let%success n := R_length globals runs S s using S in
+              ifb n > 0 then
+                let%success fill_in := asInteger S fill using S in
+                let%success nlines :=
+                  ifb labs <> R_NilValue /\ iobj = 0 /\ fill_in > 0 then
+                    let%success str := STRING_ELT S labs (nlines mod lablen) using S in
+                    let%success str := trChar S str using S in
+                    run%success run_print S ifile str using S in
+                    result_success S (1 + nlines)
+                  else result_success S nlines using S in
+                let%success p :=
+                  if%success isString S s using S then
+                    let%success str := STRING_ELT S s 0 using S in
+                    trChar S str
+                  else if%success isSymbol S s using S then
+                    let%success str := PRINTNAME S s using S in
+                    CHAR S str
+                  else if%success isVectorAtomic S s using S then
+                    result_not_implemented "[do_cat] [EncodeElement0] (First step)"
+                  else if%success isVectorList S s using S then
+                    result_success S ""%string 
+                  else result_error S "[do_cat] Argument can not be handled by cat." using S in
+                do%success (ntot, nlines, p) := (ntot, nlines, p)
+                for i from 0 to n - 1 do
+                  run%success run_print S ifile p using S in
+                  ifb i < n - 1 then
+                    run%success cat_printsep S sepr ntot using S in
                     let%success p :=
                       if%success isString S s using S then
-                        let%success str := STRING_ELT S s 0 using S in
+                        let%success str := STRING_ELT S s (1 + i) using S in
                         trChar S str
-                      else if%success isSymbol S s using S then
-                        let%success str := PRINTNAME S s using S in
-                        CHAR S str
-                      else if%success isVectorAtomic S s using S then
-                        result_not_implemented "[do_cat] [EncodeElement0] (First step)"
-                      else if%success isVectorList S s using S then
-                        result_success S ""%string 
-                      else result_error S "[do_cat] Argument can not be handled by cat." using S in
-                    let%success (ntot, nlines, _) :=
-                      fold_left (fun i r =>
-                          let%success (ntot, nlines, p) := r using S in
-                          run%success run_print S ifile p using S in
-                          ifb i < n - 1 then
-                            run%success cat_printsep S sepr ntot using S in
-                            let%success p :=
-                              if%success isString S s using S then
-                                let%success str := STRING_ELT S s (1 + i) using S in
-                                trChar S str
-                              else
-                                result_not_implemented "[do_cat] [EncodeElement0] (Second loop)"
-                              using S in
-                            result_success S (ntot, nlines, p)
-                          else result_success S (ntot - 1, nlines, p))
-                        (result_success S (ntot, nlines, p)) (seq 0 n) using S in
-                    result_success S (ntot, nlines)
-                  else result_success S (ntot, nlines))
-                (result_success S (0, 0)) (seq 0 nobjs) using S in
+                      else
+                        result_not_implemented "[do_cat] [EncodeElement0] (Second loop)"
+                      using S in
+                    result_success S (ntot, nlines, p)
+                  else result_success S (ntot - 1, nlines, p) using S in
+                result_success S (ntot, nlines)
+              else result_success S (ntot, nlines) using S in
             run%success
               ifb pwidth <> INT_MAX \/ nlsep then
                 Rprint S ("010"%char (** '\n' **))

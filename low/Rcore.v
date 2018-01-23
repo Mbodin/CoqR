@@ -274,10 +274,10 @@ Definition R_cycle_detected S s child :=
     else
       if%success isVectorList S child using S then
         read%VectorPointer child_ := child using S in
-        fold_left (fun e (r : result bool) =>
-          if%success r using S then r
-          else runs_R_cycle_detected runs S s e)
-          (result_success S false) (ArrayList.to_list (VecSxp_data child_))
+        do%let r := false
+        for e in VecSxp_data child_ do
+          if r then result_success S r
+          else runs_R_cycle_detected runs S s e using S
       else result_success S false.
 
 
@@ -474,17 +474,14 @@ Definition inherits S s name :=
   if obj s_ then
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
     read%VectorPointer klass_vector := klass using S in
-    let%success b :=
-      fold_left (fun str rb =>
-        if%success rb using S then
-          result_success S true
-        else
-          let%success str_ := CHAR S str using S in
-          result_success S (decide (str_ = name)))
-        (result_success S false) (ArrayList.to_list (VecSxp_data klass_vector)) using S in
+    do%success b := false
+    for str in VecSxp_data klass_vector do
+      if b then result_success S true
+      else
+        let%success str_ := CHAR S str using S in
+        result_success S (decide (str_ = name)) using S in
     result_success S b
-  else
-    result_success S false.
+  else result_success S false.
 
 Definition isVectorAtomic S s :=
   let%success s_type := TYPEOF S s using S in
