@@ -17,9 +17,10 @@ Lemma length_datatype_length : forall A (l : list A),
   length l = Datatypes.length l.
 Proof. introv. induction~ l. simpl. rewrite~ length_cons. Qed.
 
-Lemma seq_length : forall len start,
+Lemma seq_length : forall start len,
   length (seq start len) = len.
 Proof. introv. rewrite length_datatype_length. apply~ seq_length. Qed.
+
 
 (** * To be added in TLC when the library will be ready. **)
 
@@ -705,4 +706,3 @@ Tactic Notation "orefine" uconstr(term) :=
 
 Tactic Notation "simple" "orefine" uconstr(term) :=
   unshelve oexact term.
-

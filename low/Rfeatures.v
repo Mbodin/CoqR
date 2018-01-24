@@ -70,7 +70,7 @@ Definition isspace c :=
   decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
 
 Definition isBlankString s :=
-  decide (Forall (fun c => negb (isspace c)) (string_to_list s)).
+  decide (Forall (fun c => isspace c) (string_to_list s)).
 
 
 (** * attrib.c **)

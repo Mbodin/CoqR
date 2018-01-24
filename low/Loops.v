@@ -713,10 +713,14 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'in
 
 (** ** Along Intervals **)
 
-Definition for_loop A S (a : A) start last body :=
-  do%let x := a
-  for i in%list seq start (1 + last - start) do
-    body S x i using S.
+Definition for_loop A S (a : A) (start : nat) (last : int) body :=
+  ifb last < start then
+    result_success S a
+  else
+    (** We know that [last >= 0]. **)
+    do%let x := a
+    for i in%list seq start (1 + Z.to_nat last - start) do
+      body S x i using S.
 
 Notation "'do%let' a ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S" :=
   (for_loop S e start last (fun S a i => body))

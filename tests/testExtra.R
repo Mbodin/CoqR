@@ -109,6 +109,19 @@ a <- b <- c <- d <- e <- 1 ; f <- function (x, y, ..., z) 1 ; f () ; f (a <- 2) 
 a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ; b ; f (a <- 4) ; a ; b ; f ()
 missing ; missing (x)
 f <- function (x, y, z) x ; g <- function (x, ...) f (..., x) ; g (1) ; g (1, 2) ; g (1, 2, 3)
+f <- function (x) x ; g <- function (...) g (...) ; g (1) ; g ()
+f <- function (x, y, z) y ; g <- function (...) g (...) ; g (1, 2, 3) ; g (1, 2) ; g (y = 2)
+f <- function (...) ... ; f (1)
+head <- function (x, ...) x ; head (1, 2, 3) ; head ()
+f <- function (x, ...) if (x) TRUE else f (TRUE, x, ...) ; f (FALSE) ; f (FALSE, FALSE)
+f <- function (x, ...) if (x) TRUE else f (..., x) ; f (FALSE, FALSE, TRUE)
+f <- function (...) ..2 ; f (1, 2, 3) ; f (1, 2) ; f (1)
+f <- function (...) ..10 ; f (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11) ; f (10)
+f <- function (...) missing (..2) ; f (1) ; f (1, 2) ; f (1, 2, 3)
+f <- function (...) missing (..100) ; f (1)
+f <- function (...) missing (..999999999) ; f (1)
+f <- function (...) missing (..999999999999999999) ; f () ; f (1) ; f (1, 2)
+f <- function (...) ..0 ; f (1)
 
 # Tests about explicit conversions.
 is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
@@ -165,7 +178,8 @@ c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b
 c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN)
 c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN)
 c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
--0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1"
+-0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1" ; 1:" "
+1:""
 1:NA
 1:NaN
 1:Inf

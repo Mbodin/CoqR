@@ -1219,7 +1219,8 @@ Definition matchArgs_second S actuals formals supplied fargused :=
   along formals
   as _, f_tag do
     match fargused with
-    | nil => result_impossible S "[matchArgs_second] The list/array “fargused” has an unexpected size."
+    | nil =>
+      result_impossible S "[matchArgs_second] The list/array “fargused” has an unexpected size."
     | fargusedi :: fargused =>
       let%success (dots, seendots) :=
         ifb fargusedi = 0 then
