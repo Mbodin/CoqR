@@ -798,7 +798,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
               begincontext globals S Ctxt_CCode R_NilValue R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
             let%success nobjs := R_length globals runs S objs using S in
             do%success (ntot, nlines) := (0, 0)
-            for iobj from 0 to nobjs do
+            for iobj from 0 to nobjs - 1 do
               read%Pointer s := objs at iobj using S in
               let%success isn := isNull S s using S in
               let%success ntot :=
@@ -813,7 +813,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
                   ifb labs <> R_NilValue /\ iobj = 0 /\ fill_in > 0 then
                     let%success str := STRING_ELT S labs (nlines mod lablen) using S in
                     let%success str := trChar S str using S in
-                    run%success run_print S ifile str using S in
+                    run%success Rprint S str using S in
                     result_success S (1 + nlines)
                   else result_success S nlines using S in
                 let%success p :=
@@ -830,7 +830,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
                   else result_error S "[do_cat] Argument can not be handled by cat." using S in
                 do%success (ntot, nlines, p) := (ntot, nlines, p)
                 for i from 0 to n - 1 do
-                  run%success run_print S ifile p using S in
+                  run%success Rprint S p using S in
                   ifb i < n - 1 then
                     run%success cat_printsep S sepr ntot using S in
                     let%success p :=

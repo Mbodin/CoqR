@@ -805,7 +805,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'fr
 Definition for_array A B S (a : A) (array : ArrayList.array B) body :=
   do%let x := a
   for i in%list ArrayList.to_list array do
-    body S a i using S.
+    body S x i using S.
 
 Notation "'do%let' a ':=' e 'for' i 'in%array' array 'do' body 'using' S" :=
   (for_array S e array (fun S a i => body))

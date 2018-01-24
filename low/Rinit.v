@@ -136,12 +136,13 @@ Definition SymbolShortcuts S :=
       decl R_dot_GenericDefEnv ".GenericDefEnv" ;
       decl R_dot_packageName ".packageName"
     ]%string in
-  fold_left (fun sym_str st =>
-    let%success L' := st using S in
+  do%success L' := nil
+  for sym_str in%list L do
     let (sym, str) := sym_str : _ * _ in
     let%success p :=
       install globals runs S str using S in
-    result_success S ((sym, p) :: L')) (result_success S nil) L.
+    result_success S ((sym, p) :: L') using S in
+  result_success S (LibList.rev L'). (* The table has been reversed during the loop. *)
 
 (** The beginning of [InitNames], from main/names.c **)
 Definition InitNames_shorcuts S :=
@@ -173,26 +174,21 @@ Definition mkPRIMSXP_init S :=
 (** The end of [InitNames], from main/names.c **)
 Definition InitNames_install S :=
   let%success R_FunTab := get_R_FunTab runs S using S in
-  run%success
-    fold_left (fun c r =>
-        let%success i := r using S in
-        run%success installFunTab globals runs S c i using S in
-        result_success S (1 + i)) (result_success S 0) (ArrayList.to_list R_FunTab) using S in
-  run%success
-    fold_left (fun c r =>
-        run%success r using S in
-        let%success sym := install globals runs S c using S in
-        SET_SPECIAL_SYMBOL S sym true) (result_skip S) Spec_name using S in
+  do%success i := 0
+  for c in%array R_FunTab do
+    run%success installFunTab globals runs S c i using S in
+    result_success S (1 + i) using S in
+  do%success for c in%list Spec_name do
+    let%success sym := install globals runs S c using S in
+    SET_SPECIAL_SYMBOL S sym true using S in
   result_skip S.
 
 (** Called from [InitNames], defined in main/eval.c **)
 Definition R_initAssignSymbols S :=
-  run%success
-    fold_left (fun c r =>
-      run%success r using S in
-      let%success sym := install globals runs S c using S in
-      (* TODO: Store the result into [asymSymbol]. *)
-      result_skip S) (result_skip S) asym using S in
+  do%success for c in%list asym do
+    let%success sym := install globals runs S c using S in
+    (* TODO: Store the result into [asymSymbol]. *)
+    result_skip S using S in
   (* TODO *)
   result_skip S.
 
@@ -279,27 +275,26 @@ Definition findTypeInTypeTable t :=
 
 (** [InitTypeTables], from main/util.c **)
 Definition InitTypeTables S :=
-  let%success table :=
-    fold_left (fun type st =>
-      let%success L := st using S in
-      match nat_to_SExpType type with
-      | Some type =>
-        let j := findTypeInTypeTable type in
-        ifb (j <> -1)%Z then
-          match nth_option (Z.to_nat j) TypeTable with
-          | Some (cstr, _) =>
-            let (S, rchar) := mkChar globals S cstr in
-            let%success rstr := ScalarString globals S rchar using S in
-            map%pointer rstr with set_named_plural using S in
-            let%success rsym := install globals runs S cstr using S in
-            result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
-          | None => result_impossible S "[InitTypeTables] Out of bound."
-          end
-        else result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
-      | None =>
-        result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
-      end) (result_success S nil) (seq 0 MAX_NUM_SEXPTYPE) using S in
-  let table := LibList.rev table in (* The table has been computed backward. *)
+  do%success L := nil
+  for type from 0 to MAX_NUM_SEXPTYPE - 1 do
+    match nat_to_SExpType type with
+    | Some type =>
+      let j := findTypeInTypeTable type in
+      ifb (j <> -1)%Z then
+        match nth_option (Z.to_nat j) TypeTable with
+        | Some (cstr, _) =>
+          let (S, rchar) := mkChar globals S cstr in
+          let%success rstr := ScalarString globals S rchar using S in
+          map%pointer rstr with set_named_plural using S in
+          let%success rsym := install globals runs S cstr using S in
+          result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
+        | None => result_impossible S "[InitTypeTables] Out of bound."
+        end
+      else result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
+    | None =>
+      result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
+    end using S in
+  let table := LibList.rev L in (* The table has been computed backward. *)
   result_success S (ArrayList.from_list table).
 
 (** [InitS3DefaulTypes], from main/attrib.c **)
