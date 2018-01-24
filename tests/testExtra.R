@@ -4,6 +4,12 @@
 # A test passes if the output of the tested interpreter is the same than R’s.
 # In particular, all step should return the same output.
 
+# These are tests to test the tester and the parser.
+"function" ; 'function' ; 1 # function
+"Error" ; 'Error' ; 1 # Error
+"function (x) x" ; 'function (x) x' ; function (x) x ; 1 # function (x) x
+"" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
+
 # Tests about aborting primitives.
 return
 return (1)
@@ -197,6 +203,7 @@ c ('a', "b") <- 1 ;
 
 # Tests about cat (for outputs).
 .Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))
+.Internal (cat (list (), 1, "-", 1000, "", FALSE))
 cat ("") ; cat (')') ; cat ("}") ; cat ('>') ; cat ("]") ; cat ('(') ; cat ("{") ; cat ('<') ; cat ("[")
 cat ('\n') ; cat (")\n") ; cat ('}\n') ; cat (">\n") ; cat (']\n') ;cat ("(\n") ; cat ('{\n') ; cat ("<\n") ; cat ('[\n')
 cat (1) ; cat (2L) ; cat (.5) ; cat (TRUE) ; cat (NA) ; cat (Inf) ; cat (NaN) ; cat (NULL) ; cat ("TRUE")

@@ -32,6 +32,7 @@ let only_parsing = ref false
 let fetch_result = ref true
 
 let show_outputs = Hooks.log
+let show_outputs_readable = Hooks.log_only_at_newlines
 
 let initial_state = ref ""
 let final_state = ref ""
@@ -77,7 +78,8 @@ let boolean_switches =
     print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" true ;
     show_gp_switch ;
     print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" true ;
-    print_switch [] [print_unlike_R] show_outputs "outputs" "a prefix message before each R output" true ;
+    print_switch [category_read] [] show_outputs "outputs" "a prefix message before each R output" true ;
+    make_boolean_switch [] [] "wait-for" "do-not-wait-for" "Wait" "Do not wait" show_outputs_readable "line" "before printing outputs that a new line has been printed (waiting ease reading the output for both humans and computers)" true ;
     show_data_switch ;
     print_switch [] [] show_details "details" "the pointers stored in each basic language element" true ;
     write_switch [] [] readable_pointers "abr" "pointers in a human readable way" false ;
