@@ -863,44 +863,47 @@ Definition cross_colon (S : state) (call s t : SExpRec_pointer) : result SExpRec
 
 Definition seq_colon S n1 n2 (call : SExpRec_pointer) : result SExpRec_pointer :=
   let r := Double.fabs (Double.sub n2 n1) in
-  let n := Z.to_nat (Double.double_to_int_zero (Double.add (Double.add r (1 : double)) (Double.FLT_EPSILON))) in
-  let useInt := decide (n1 <= (INT_MAX : double) /\ n1 = ((Double.double_to_int_zero n1) : double)) in
-  let useInt :=
-    ifb n1 <= (INT_MIN : double) \/ n1 > (INT_MAX : double) then false
-    else
-      let dn := n : double in
-      let r :=
-        Double.add n1
-          (ifb n1 <= n2 then Double.sub dn (1 : double) else Double.opp (Double.sub dn (1 : double))) in
-      decide (r <= (INT_MIN : double) \/ r > (INT_MAX : double)) in
-  let%success ans :=
-    if useInt then
-      let in1 := Double.double_to_int_zero n1 in
-      let%success ans := allocVector globals S IntSxp n using S in
-      run%success
-        ifb n1 <= n2 then
-          do%let for i from 0 to n - 1 do
-            write%Integer ans at i := in1 + i using S in
-            result_skip S using S
-        else
-          do%let for i from 0 to n - 1 do
-            write%Integer ans at i := in1 - i using S in
-            result_skip S using S using S in
-      result_success S ans
-    else
-      let%success ans := allocVector globals S RealSxp n using S in
-      run%success
-        ifb n1 <= n2 then
-          do%let for i from 0 to n - 1 do
-            write%Real ans at i := Double.add n1 (i : double) using S in
-            result_skip S using S
-        else
-          do%let for i from 0 to n - 1 do
-            write%Real ans at i := Double.sub n1 (i : double) using S in
-            result_skip S using S using S in
-      result_success S ans
-    using S in
-  result_success S ans.
+  ifb r >= (R_XLEN_T_MAX : double) then
+    result_error S "[seq_colon] Result would be too large a vector."
+  else
+    let n := Z.to_nat (Double.double_to_int_zero (Double.add (Double.add r (1 : double)) (Double.FLT_EPSILON))) in
+    let useInt := decide (n1 <= (INT_MAX : double) /\ n1 = ((Double.double_to_int_zero n1) : double)) in
+    let useInt :=
+      ifb n1 <= (INT_MIN : double) \/ n1 > (INT_MAX : double) then false
+      else
+        let dn := n : double in
+        let r :=
+          Double.add n1
+            (ifb n1 <= n2 then Double.sub dn (1 : double) else Double.opp (Double.sub dn (1 : double))) in
+        decide (r <= (INT_MIN : double) \/ r > (INT_MAX : double)) in
+    let%success ans :=
+      if useInt then
+        let in1 := Double.double_to_int_zero n1 in
+        let%success ans := allocVector globals S IntSxp n using S in
+        run%success
+          ifb n1 <= n2 then
+            do%let for i from 0 to n - 1 do
+              write%Integer ans at i := in1 + i using S in
+              result_skip S using S
+          else
+            do%let for i from 0 to n - 1 do
+              write%Integer ans at i := in1 - i using S in
+              result_skip S using S using S in
+        result_success S ans
+      else
+        let%success ans := allocVector globals S RealSxp n using S in
+        run%success
+          ifb n1 <= n2 then
+            do%let for i from 0 to n - 1 do
+              write%Real ans at i := Double.add n1 (i : double) using S in
+              result_skip S using S
+          else
+            do%let for i from 0 to n - 1 do
+              write%Real ans at i := Double.sub n1 (i : double) using S in
+              result_skip S using S using S in
+        result_success S ans
+      using S in
+    result_success S ans.
 
 Definition do_colon S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in

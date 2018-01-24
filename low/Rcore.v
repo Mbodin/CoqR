@@ -61,6 +61,8 @@ Definition NA_REAL := R_NaReal.
 
 Definition R_NaString := NA_STRING.
 
+Definition R_XLEN_T_MAX : int := Zpos 4503599627370496.
+
 Definition PLUSOP := 1.
 Definition MINUSOP := 2.
 Definition TIMESOP := 3.
@@ -422,42 +424,45 @@ Definition alloc_vector_expr S v_data : state * SExpRec_pointer :=
   [allocVector]/[allocVector3] from main/memory.c. **)
 (** Note: using [arbitrary] would here be more natural than these default values
   for the base cases, but it would not behave well in the extraction. **)
-Definition allocVector S type length :=
-  let alloc {T} (allocator : state -> ArrayList.array T -> state * SExpRec_pointer) (base : T) :=
-    let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
-    result_success S v in
-  match type with
-  | NilSxp =>
-    result_success S (R_NilValue : SExpRec_pointer)
-  | RawSxp =>
-    result_not_implemented "[allocVector] Raw type."
-  | CharSxp =>
-    alloc alloc_vector_char Ascii.zero
-  | LglSxp =>
-    alloc alloc_vector_lgl (NA_LOGICAL)
-  | IntSxp =>
-    alloc alloc_vector_int (NA_INTEGER)
-  | RealSxp =>
-    alloc alloc_vector_real (NA_REAL)
-  | CplxSxp =>
-    alloc alloc_vector_cplx (make_Rcomplex NA_REAL NA_REAL)
-  | StrSxp =>
-    alloc alloc_vector_str (R_NilValue : SExpRec_pointer)
-  | ExprSxp =>
-    alloc alloc_vector_expr (R_NilValue : SExpRec_pointer)
-  | VecSxp =>
-    alloc alloc_vector_vec (R_NilValue : SExpRec_pointer)
-  | LangSxp =>
-    ifb length = 0 then result_success S (R_NilValue : SExpRec_pointer)
-    else
+Definition allocVector S type (length : nat) :=
+  ifb (length : int) > R_XLEN_T_MAX then
+    result_error S "[allocVector] Vector is too large"
+  else
+    let alloc {T} (allocator : state -> ArrayList.array T -> state * SExpRec_pointer) (base : T) :=
+      let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
+      result_success S v in
+    match type with
+    | NilSxp =>
+      result_success S (R_NilValue : SExpRec_pointer)
+    | RawSxp =>
+      result_not_implemented "[allocVector] Raw type."
+    | CharSxp =>
+      alloc alloc_vector_char Ascii.zero
+    | LglSxp =>
+      alloc alloc_vector_lgl (NA_LOGICAL)
+    | IntSxp =>
+      alloc alloc_vector_int (NA_INTEGER)
+    | RealSxp =>
+      alloc alloc_vector_real (NA_REAL)
+    | CplxSxp =>
+      alloc alloc_vector_cplx (make_Rcomplex NA_REAL NA_REAL)
+    | StrSxp =>
+      alloc alloc_vector_str (R_NilValue : SExpRec_pointer)
+    | ExprSxp =>
+      alloc alloc_vector_expr (R_NilValue : SExpRec_pointer)
+    | VecSxp =>
+      alloc alloc_vector_vec (R_NilValue : SExpRec_pointer)
+    | LangSxp =>
+      ifb length = 0 then result_success S (R_NilValue : SExpRec_pointer)
+      else
+        let (S, s) := allocList S length in
+        map%pointer s with set_type LangSxp using S in
+        result_success S s
+    | ListSxp =>
       let (S, s) := allocList S length in
-      map%pointer s with set_type LangSxp using S in
       result_success S s
-  | ListSxp =>
-    let (S, s) := allocList S length in
-    result_success S s
-  | _ => result_error S "[allocVector] Invalid type in vector allocation."
-  end.
+    | _ => result_error S "[allocVector] Invalid type in vector allocation."
+    end.
 
 Definition ScalarLogical x : SExpRec_pointer :=
   ifb x = NA_LOGICAL then
@@ -941,19 +946,17 @@ Definition GrowList S l s :=
 
 Definition TagArg S arg tag :=
   let%success tag_type := TYPEOF S tag using S in
-  run%success
-    match tag_type with
-    | StrSxp =>
-      let%success tag_ := STRING_ELT S tag 0 using S in
-      run%success installTrChar S tag_ using S in
-      result_skip S
-    | NilSxp
-    | SymSxp =>
-      result_skip S
-    | _ =>
-      result_error S "[TagArg] Incorrect tag type."
-    end using S in
-  lang2 S arg tag.
+  match tag_type with
+  | StrSxp =>
+    let%success tag_ := STRING_ELT S tag 0 using S in
+    let%success tag := installTrChar S tag_ using S in
+    lang2 S arg tag
+  | NilSxp
+  | SymSxp =>
+    lang2 S arg tag
+  | _ =>
+    result_error S "[TagArg] Incorrect tag type."
+  end.
 
 Definition FirstArg S s tag :=
   let%success tmp := NewList S using S in
