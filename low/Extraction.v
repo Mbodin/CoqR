@@ -93,11 +93,13 @@ Extract Constant Double.double_comparable =>
      else false)".
 
 Extract Constant Double.opp => "(~-.)".
-Extract Constant Double.abs => "abs_float".
+Extract Constant Double.fabs => "abs_float".
 Extract Constant Double.add => "(+.)".
 Extract Constant Double.sub => "(-.)".
 Extract Constant Double.mult => "( *. )".
 Extract Constant Double.div => "(/.)".
+
+Extract Constant Double.FLT_EPSILON => "epsilon_float".
 
 Extract Constant Double.ge => "(>=)".
 Extract Constant Double.le => "(<=)".

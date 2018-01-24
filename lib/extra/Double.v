@@ -1,6 +1,6 @@
 (** This file aims at interfacing with Flocq. **)
 
-(* Any check would be greatly appreciated. *)
+(* Note: Any check on the content of this file would be greatly appreciated. *)
 
 (* LATER: Use file Fappli_IEEE_extra.v of Compcert/lib/? I need to set up a license for this
   (either GPL or something compatible with the INRIA non-commercial license). *)
@@ -22,8 +22,8 @@ Definition int_to_double (i : int) : double :=
   (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
   match i with
   | Z0 => Fappli_IEEE.F754_zero false
-  | Zpos p => Fappli_IEEE.F754_finite false p 64
-  | Zneg p => Fappli_IEEE.F754_finite true p 64
+  | Zpos p => Fappli_IEEE.F754_finite false p 0
+  | Zneg p => Fappli_IEEE.F754_finite true p 0
   end.
 
 Definition double_to_int d : option int :=
@@ -45,7 +45,7 @@ Definition is_zero (x : double) :=
   decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
 
 Parameter opp : double -> double. (* TODO: use Flocq. *)
-Parameter abs : double -> double. (* TODO: use Flocq. *)
+Parameter fabs : double -> double. (* TODO: use Flocq. *) (* FIXME: Why is [abs] refused as a name here? *)
 Parameter add : double -> double -> double. (* TODO: use Flocq. *)
 Parameter sub : double -> double -> double. (* TODO: use Flocq. *)
 Parameter mult : double -> double -> double. (* TODO: use Flocq. *)
@@ -66,12 +66,13 @@ Definition NaN1954 : double :=
 
 Definition isNaN : double -> bool := Fappli_IEEE.is_nan_FF.
 
-
 Definition getNaNData x :=
   match x with
   | Fappli_IEEE.F754_nan _ i => Some i
   | _ => None
   end.
+
+Definition FLT_EPSILON := Fappli_IEEE.F754_finite false 2 (-24).
 
 Parameter ge : double -> double -> bool. (* TODO: use Flocq. *)
 Parameter le : double -> double -> bool. (* TODO: use Flocq. *)

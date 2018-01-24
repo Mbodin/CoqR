@@ -152,6 +152,63 @@ Definition asInteger S x :=
     IntegerFromString S x
   else result_success S NA_INTEGER.
 
+Definition RealFromLogical x :=
+  ifb x = NA_LOGICAL then
+    NA_REAL
+  else (x : double).
+
+Definition RealFromInteger x :=
+  ifb x = NA_INTEGER then
+    NA_REAL
+  else (x : double).
+
+Definition RealFromComplex x :=
+  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
+    NA_REAL
+  else if ISNAN (Rcomplex_r x) then
+    Rcomplex_r x
+  else if ISNAN (Rcomplex_i x) then
+    NA_REAL
+  else Rcomplex_r x.
+
+Definition RealFromString S (x : SExpRec_pointer) :=
+  if%success
+    ifb x <> R_NaString then
+      let%success c := CHAR S x using S in
+      result_success S (negb (isBlankString c))
+    else result_success S false using S then
+    result_not_implemented "[RealFromString] R_strtod."
+  else result_success S NA_REAL.
+
+Definition asReal S x :=
+  let%success t := TYPEOF S x using S in
+  if%success
+      if%success isVectorAtomic S x using S then
+        let%success l := XLENGTH S x using S in
+        result_success S (decide (l >= 1))
+      else result_success S false using S then
+    match t with
+    | LglSxp =>
+      read%Logical x0 := x at 0 using S in
+      result_success S (RealFromLogical x0)
+    | IntSxp =>
+      read%Integer x0 := x at 0 using S in
+      result_success S (RealFromInteger x0)
+    | RealSxp =>
+      read%Real x0 := x at 0 using S in
+      result_success S x0
+    | CplxSxp =>
+      read%Complex x0 := x at 0 using S in
+      result_success S (RealFromComplex x0)
+    | StrSxp =>
+      read%Pointer x0 := x at 0 using S in
+      RealFromString S x0
+    | _ => result_error S "[asReal] Unimplemented type."
+    end
+  else ifb t = CharSxp then
+    RealFromString S x
+  else result_success S NA_REAL.
+
 Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
@@ -161,50 +218,50 @@ Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
   ifb op_val >= 100 /\ op_val < 200 /\ args_car_obj then
     result_not_implemented "[do_is] [DispatchOrEval]."
   else
-    let%success ans := allocVector S LglSxp 1 using S in
+    let%success ans := allocVector globals S LglSxp 1 using S in
     run%success
-      ifb op_val = NILSXP then
+      ifb op_val = NilSxp then
         let%success isn := isNull S args_car using S in
         write%Logical ans at 0 := isn using S in
         result_skip S
-      else ifb op_val = LGLSXP then
+      else ifb op_val = LglSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = LglSxp) using S in
         result_skip S
-      else ifb op_val = INTSXP then
+      else ifb op_val = IntSxp then
         let%success t := TYPEOF S args_car using S in
-        let%success inh := inherits S args_car "factor" using S in
+        let%success inh := inherits globals runs S args_car "factor" using S in
         write%Logical ans at 0 := decide (t = IntSxp /\ ~ inh) using S in
         result_skip S
-      else ifb op_val = REALSXP then
+      else ifb op_val = RealSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = RealSxp) using S in
         result_skip S
-      else ifb op_val = CPLXSXP then
+      else ifb op_val = CplxSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = CplxSxp) using S in
         result_skip S
-      else ifb op_val = STRSXP then
+      else ifb op_val = StrSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = StrSxp) using S in
         result_skip S
-      else ifb op_val = SYMSXP then
+      else ifb op_val = SymSxp then
         result_not_implemented "[do_is] is.symbol, is.name."
-      else ifb op_val = ENVSXP then
+      else ifb op_val = EnvSxp then
         result_not_implemented "[do_is] is.environment."
-      else ifb op_val = VECSXP then
+      else ifb op_val = VecSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
         result_skip S
-      else ifb op_val = LISTSXP then
+      else ifb op_val = ListSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = ListSxp \/ t = NilSxp) using S in
         result_skip S
-      else ifb op_val = EXPRSXP then
+      else ifb op_val = ExprSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = ExprSxp) using S in
         result_skip S
-      else ifb op_val = RAWSXP then
+      else ifb op_val = RawSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = RawSxp) using S in
         result_skip S
@@ -215,7 +272,7 @@ Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
       else ifb op_val = 51 then
         result_not_implemented "[do_is] isS4."
       else ifb op_val = 100 then
-        let%success isn := isNumeric S args_car using S in
+        let%success isn := isNumeric globals runs S args_car using S in
         let%success isl := isLogical S args_car using S in
         write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
         result_skip S
@@ -274,49 +331,6 @@ Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
         result_error S "[do_is] is.single."
       else result_error S "[do_is] Other predicate." using S in
     result_success S ans.
-
-
-(** * dstruct.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/dstruct.c. **)
-
-Definition mkPRIMSXP S (offset : nat) (type : bool) : result SExpRec_pointer :=
-  let type := if type then BuiltinSxp else SpecialSxp in
-  let%success R_FunTab := get_R_FunTab runs S using S in
-  let FunTabSize := ArrayList.length R_FunTab in
-  (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
-  ifb offset >= FunTabSize then
-    result_error S "[mkPRIMSXP] Offset is out of range"
-  else
-    read%Pointer result := mkPRIMSXP_primCache at offset using S in
-    ifb result = R_NilValue then
-      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
-      write%Pointer mkPRIMSXP_primCache at offset := result using S in
-      result_success S result
-    else
-      let%success result_type := TYPEOF S result using S in
-      ifb result_type <> type then
-        result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
-      else result_success S result.
-
-Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
-  let%success body_type := TYPEOF S body using S in
-  match body_type with
-  | CloSxp
-  | BuiltinSxp
-  | SpecialSxp
-  | DotSxp
-  | AnySxp =>
-    result_error S "[mkCLOSXP] Invalid body argument."
-  | _ =>
-    let env :=
-      ifb rho = R_NilValue then
-        (R_GlobalEnv : SExpRec_pointer)
-      else rho in
-    let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
-    result_success S c
-  end.
 
 
 (** * eval.c **)
@@ -394,7 +408,7 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
     run%success CheckFormals S args_car using S in
     read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
     let%success rval :=
-      mkCLOSXP S args_car args_cdr_car rho using S in
+      mkCLOSXP globals S args_car args_cdr_car rho using S in
     read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
     let srcref := args_cdr_cdr_car in
     let%success srcref_type := TYPEOF S srcref using S in
@@ -677,7 +691,7 @@ Definition do_makelist S (call op args rho : SExpRec_pointer) : result SExpRec_p
   let%success names :=
     if havenames then
       allocVector globals S StrSxp n
-    else R_NilValue using S in
+    else result_success S (R_NilValue : SExpRec_pointer) using S in
   do%success args := args
   for i from 0 to n - 1 do
     read%list args_car, args_cdr, args_tag := args using S in
@@ -698,7 +712,8 @@ Definition do_makelist S (call op args rho : SExpRec_pointer) : result SExpRec_p
     result_success S args_cdr using S in
   run%success
     if havenames then
-      setAttrib S list R_NamesSymbol names
+      run%success setAttrib globals runs S list R_NamesSymbol names using S in
+      result_skip S
     else result_skip S using S in
   result_success S list.
 
@@ -743,7 +758,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
       for i from 0 to seprlen - 1 do
         let%success sepri := STRING_ELT S sepr i using S in
         let%success sepristr := CHAR S sepri using S in
-        result_success S (decide (nlsep \/ sepristr = ("010"%char)%string (** '\n' **)))) using S in
+        result_success S (decide (nlsep \/ sepristr = ("010"%char)%string (** '\n' **))) using S in
       let args := args_cdr in
       read%list args_car, args_cdr, _ := args using S in
       let fill := args_car in
@@ -843,39 +858,46 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 (** The function names of this section corresponds to the function names
   in the file main/seq.c. **)
 
-Definition cross_colon S (call s t : SExpRec_pointer) : result SExpRec_pointer :=
+Definition cross_colon (S : state) (call s t : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[cross_colon]".
 
 Definition seq_colon S n1 n2 (call : SExpRec_pointer) : result SExpRec_pointer :=
-  let r := Double.abs (Double.sub n2 n1) in
-  let useInt := decide (n1 <= INT_MAX /\ n1 = ((n1 : int) : double)) in
+  let r := Double.fabs (Double.sub n2 n1) in
+  let n := Z.to_nat (Double.double_to_int_zero (Double.add (Double.add r (1 : double)) (Double.FLT_EPSILON))) in
+  let useInt := decide (n1 <= (INT_MAX : double) /\ n1 = ((Double.double_to_int_zero n1) : double)) in
   let useInt :=
-    ifb n1 <= INT_MIN \/ n1 > INT_MAX then false
+    ifb n1 <= (INT_MIN : double) \/ n1 > (INT_MAX : double) then false
     else
       let dn := n : double in
-      let r := n1 + if n1 <= n2 then dn - 1 else -(dn - 1) in
-      decide (r <= INT_MIN \/ r > INT_MAX) in
+      let r :=
+        Double.add n1
+          (ifb n1 <= n2 then Double.sub dn (1 : double) else Double.opp (Double.sub dn (1 : double))) in
+      decide (r <= (INT_MIN : double) \/ r > (INT_MAX : double)) in
   let%success ans :=
     if useInt then
-      let in1 := n1 : int in
-      let%success ans := allocVector S IntSxp n using S in
+      let in1 := Double.double_to_int_zero n1 in
+      let%success ans := allocVector globals S IntSxp n using S in
       run%success
         ifb n1 <= n2 then
-          let%success for i from 0 to n - 1 do
-            write%Integer ans at i := in1 + i using S
+          do%let for i from 0 to n - 1 do
+            write%Integer ans at i := in1 + i using S in
+            result_skip S using S
         else
-          let%success for i from 0 to n - 1 do
-            write%Integer ans at i := in1 - i using S using S in
+          do%let for i from 0 to n - 1 do
+            write%Integer ans at i := in1 - i using S in
+            result_skip S using S using S in
       result_success S ans
     else
-      let%success ans := allocVector S RealSxp n using S in
+      let%success ans := allocVector globals S RealSxp n using S in
       run%success
         ifb n1 <= n2 then
-          let%success for i from 0 to n - 1 do
-            write%Real ans at i := in1 + (i : double) using S
+          do%let for i from 0 to n - 1 do
+            write%Real ans at i := Double.add n1 (i : double) using S in
+            result_skip S using S
         else
-          let%success for i from 0 to n - 1 do
-            write%Real ans at i := in1 - (i : double) using S using S in
+          do%let for i from 0 to n - 1 do
+            write%Real ans at i := Double.sub n1 (i : double) using S in
+            result_skip S using S using S in
       result_success S ans
     using S in
   result_success S ans.
@@ -884,15 +906,15 @@ Definition do_colon S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
-  let%success args_car_in := inherits S args_car "factor" using S in
-  let%success args_cdr_car_in := inherits S args_cdr_car "factor" using S in
+  let%success args_car_in := inherits globals runs S args_car "factor" using S in
+  let%success args_cdr_car_in := inherits globals runs S args_cdr_car "factor" using S in
   ifb args_car_in /\ args_cdr_car_in then
     cross_colon S call args_car args_cdr_car
   else
     let s1 := args_car in
     let s2 := args_cdr_car in
-    let%success n1 := R_length S s1 in
-    let%success n2 := R_length S s2 in
+    let%success n1 := R_length globals runs S s1 using S in
+    let%success n2 := R_length globals runs S s2 using S in
     ifb n1 = 0 \/ n2 = 0 then
       result_error S "[do_colon] Argument of length 0."
     else
@@ -1252,7 +1274,8 @@ Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
       if funtab_eval_arg_internal (fun_eval c) then
         result_success S (R_NilValue : SExpRec_pointer)
       else
-        let%success prim := mkPRIMSXP S i (funtab_eval_arg_eval (fun_eval c)) using S in
+        let%success prim :=
+          mkPRIMSXP globals runs S i (funtab_eval_arg_eval (fun_eval c)) using S in
         result_success S prim
     else R_Primitive_loop S R_FunTab primname lmi
   end.
@@ -1285,7 +1308,8 @@ Definition do_primitive S (call op args env : SExpRec_pointer) : result SExpRec_
   the structure of type [funtab_cell] in addition to its range in the
   array [R_FunTab]. **)
 Definition installFunTab S c offset : result unit :=
-  let%success prim := mkPRIMSXP S offset (funtab_eval_arg_eval (fun_eval c)) using S in
+  let%success prim :=
+    mkPRIMSXP globals runs S offset (funtab_eval_arg_eval (fun_eval c)) using S in
   let%success p := install globals runs S (fun_name c) using S in
   read%sym p_, p_sym := p using S in
   let p_sym :=

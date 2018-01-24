@@ -26,7 +26,15 @@ Global Arguments nth_bit [m] n.
 (** A tactic to fill out the [n < m] part.
   The call to nth_bit should be on the form [nth_bit n a ltac:nbits_ok]. **)
 Ltac nbits_ok :=
-  clear; abstract
+  clear;
+  repeat match goal with
+  | |- context [ ?a ] =>
+    match type of a with
+    | Z => unfold a
+    | nat => unfold a
+    end
+  end;
+  abstract
     match goal with
     | [ |- (_ < _)%nat ] =>
       (* The [math] tactic does not work with the [^] operator.

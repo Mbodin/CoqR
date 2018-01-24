@@ -76,18 +76,6 @@ Definition LEOP := 4.
 Definition GEOP := 5.
 Definition GTOP := 6.
 
-Definition CTXT_TOPLEVEL := 0.
-Definition CTXT_NEXT := 1.
-Definition CTXT_BREAK := 2.
-Definition CTXT_LOOP := 3.
-Definition CTXT_FUNCTION := 4.
-Definition CTXT_CCODE := 8.
-Definition CTXT_RETURN := 12.
-Definition CTXT_BROWSER := 16.
-Definition CTXT_GENERIC := 20.
-Definition CTXT_RESTART := 32.
-Definition CTXT_BUILTIN := 64.
-
 
 (** * Interpreter functions **)
 
@@ -202,7 +190,9 @@ Definition duplicate1 S s (deep : bool) :=
 Definition duplicate S s :=
   duplicate1 S s true.
 
-(** The following function is actually in the C file include/Rinlinedfuns.h. **)
+(** The following function is actually in the C file
+  include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
+  dependency. **)
 Definition isPairList S s :=
   let%success s_type := TYPEOF S s using S in
   match s_type with
@@ -215,7 +205,9 @@ Definition isPairList S s :=
     result_success S false
   end.
 
-(** The following function is actually in the C file include/Rinlinedfuns.h. **)
+(** The following function is actually in the C file
+  include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
+  dependency.**)
 Definition isVectorList S s :=
   let%success s_type := TYPEOF S s using S in
   match s_type with
@@ -286,7 +278,7 @@ Definition R_cycle_detected S s child :=
       if%success isVectorList S child using S then
         read%VectorPointer child_ := child using S in
         do%let r := false
-        for e in VecSxp_data child_ do
+        for e in%array VecSxp_data child_ do
           if r then result_success S r
           else runs_R_cycle_detected runs S s e using S
       else result_success S false.
@@ -321,18 +313,6 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
     read%Pointer r := x at i using S in
     result_success S r.
 
-Definition SET_VECTOR_ELT S x i v :=
-  let%success x_type := TYPEOF S x using S in
-  ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
-    result_error S "[SET_VECTOR_ELT] It can onlybe applied to a list."
-  else
-    let%success x_len := XLENGTH S x using S in
-    ifb i < 0 \/ i >= x_len then
-      result_error S "[SET_VECTOR_ELT] Outbound index."
-    else
-      write%Pointer x at i := v using S in
-      result_success S v.
-
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
@@ -354,6 +334,49 @@ Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
   map%pointer expr with set_named_plural using S in
   let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
   result_success S s.
+
+
+(** * dstruct.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/dstruct.c. **)
+
+Definition mkPRIMSXP S (offset : nat) (type : bool) : result SExpRec_pointer :=
+  let type := if type then BuiltinSxp else SpecialSxp in
+  let%success R_FunTab := get_R_FunTab S using S in
+  let FunTabSize := ArrayList.length R_FunTab in
+  (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
+  ifb offset >= FunTabSize then
+    result_error S "[mkPRIMSXP] Offset is out of range"
+  else
+    read%Pointer result := mkPRIMSXP_primCache at offset using S in
+    ifb result = R_NilValue then
+      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
+      write%Pointer mkPRIMSXP_primCache at offset := result using S in
+      result_success S result
+    else
+      let%success result_type := TYPEOF S result using S in
+      ifb result_type <> type then
+        result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
+      else result_success S result.
+
+Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
+  let%success body_type := TYPEOF S body using S in
+  match body_type with
+  | CloSxp
+  | BuiltinSxp
+  | SpecialSxp
+  | DotSxp
+  | AnySxp =>
+    result_error S "[mkCLOSXP] Invalid body argument."
+  | _ =>
+    let env :=
+      ifb rho = R_NilValue then
+        (R_GlobalEnv : SExpRec_pointer)
+      else rho in
+    let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
+    result_success S c
+  end.
 
 
 (** ** Rinlinedfuns.c **)
@@ -499,7 +522,7 @@ Definition inherits S s name :=
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
     read%VectorPointer klass_vector := klass using S in
     do%success b := false
-    for str in VecSxp_data klass_vector do
+    for str in%array VecSxp_data klass_vector do
       if b then result_success S true
       else
         let%success str_ := CHAR S str using S in
@@ -725,6 +748,38 @@ Definition RAW_ELT S x i :=
   else
     read%Pointer x_i := x at i using S in
     result_success S x_i.
+
+(** The following function is actually in the C file main/memory.c.
+  It is placed here to solve a cyclic file dependency.**)
+Definition SET_VECTOR_ELT S x i v :=
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
+    result_error S "[SET_VECTOR_ELT] It can onlybe applied to a list."
+  else
+    let%success x_len := XLENGTH S x using S in
+    ifb i < 0 \/ i >= x_len then
+      result_error S "[SET_VECTOR_ELT] Outbound index."
+    else
+      write%Pointer x at i := v using S in
+      result_success S v.
+
+(** The following function is actually in the C file main/memory.c.
+  It is placed here to solve a cyclic file dependency.**)
+Definition SET_STRING_ELT S (x : SExpRec_pointer) i v : result unit :=
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> StrSxp then
+    result_error S "[SET_STRING_ELT] It can only be applied to a character vector."
+  else
+    let%success v_type := TYPEOF S x using S in
+    ifb v_type <> CharSxp then
+      result_error S "[SET_STRING_ELT] The value must be a CharSxp."
+    else
+      let%success x_len := XLENGTH S x using S in
+      ifb i < 0 \/ i >= x_len then
+        result_error S "[SET_STRING_ELT] Outbound index."
+      else
+        write%Pointer x at i := v using S in
+        result_skip S.
 
 
 (** ** arithmetic.c **)
@@ -1804,16 +1859,16 @@ Definition LogicalFromString S (x : SExpRec_pointer) :=
 
 Definition LogicalFromInteger S (x : int) : result int :=
   ifb x = NA_INTEGER then result_success S NA_LOGICAL
-  else result_success S (ifb x <> 0 then 1 : int else 0).
+  else result_success S (decide (x <> 0) : int).
 
 Definition LogicalFromReal S x : result int :=
   ifb ISNAN x then result_success S NA_LOGICAL
-  else result_success S (if negb (Double.is_zero x) then 1 : int else 0).
+  else result_success S (negb (Double.is_zero x) : int).
 
 Definition LogicalFromComplex S x : result int :=
   ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then result_success S NA_LOGICAL
-  else result_success S (ifb ~ Double.is_zero (Rcomplex_r x)
-                             \/ ~ Double.is_zero (Rcomplex_i x) then 1 : int else 0).
+  else result_success S (decide (~ Double.is_zero (Rcomplex_r x)
+                                 \/ ~ Double.is_zero (Rcomplex_i x)) : int).
 
 Definition asLogical S x :=
   if%success isVectorAtomic S x using S then
@@ -2138,9 +2193,10 @@ Definition eval S (e rho : SExpRec_pointer) :=
                 map%pointer tmp with set_named_plural using S in
                 result_success S tmp
               else
+                let%success tmp_type := TYPEOF S tmp using S in
                 let%success tmp_named := NAMED S tmp using S in
                 run%success
-                  ifb type tmp_ <> NilSxp /\ tmp_named = named_temporary then
+                  ifb tmp_type <> NilSxp /\ tmp_named = named_temporary then
                     map%pointer tmp with set_named_unique using S in
                     result_skip S
                   else result_skip S using S in

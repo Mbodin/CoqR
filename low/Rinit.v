@@ -173,13 +173,16 @@ Definition mkPRIMSXP_init S :=
 (** The end of [InitNames], from main/names.c **)
 Definition InitNames_install S :=
   let%success R_FunTab := get_R_FunTab runs S using S in
-  do%success i := 0
-  for c in R_FunTab do
-    run%success installFunTab globals runs S c i using S in
-    result_success S (1 + i) using S in
-  do%success for c in Spec_name do
-    let%success sym := install globals runs S c using S in
-    SET_SPECIAL_SYMBOL S sym true using S in
+  run%success
+    fold_left (fun c r =>
+        let%success i := r using S in
+        run%success installFunTab globals runs S c i using S in
+        result_success S (1 + i)) (result_success S 0) (ArrayList.to_list R_FunTab) using S in
+  run%success
+    fold_left (fun c r =>
+        run%success r using S in
+        let%success sym := install globals runs S c using S in
+        SET_SPECIAL_SYMBOL S sym true) (result_skip S) Spec_name using S in
   result_skip S.
 
 (** Called from [InitNames], defined in main/eval.c **)

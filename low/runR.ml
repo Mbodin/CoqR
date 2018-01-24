@@ -230,7 +230,9 @@ let _ =
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
     | None ->
-      print_endline ("Initialisation of constant global variables failed." ^ if !verbose then " Halting." else "")
+      print_endline ("Initialisation of constant global variables failed." ^ if !verbose then " Halting." else "") ;
+      if !final_state <> "" then
+        print_endline ("Warning: the file “" ^ !final_state ^ "” will not be created" ^ if !verbose then " because the initialisation failed." else ".")
     | Some globals ->
       let buf = Lexing.from_channel stdin in
       let rec loop s =
