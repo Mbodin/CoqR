@@ -1,14 +1,19 @@
-
+# @line
 # This file is meant to be read line-by-line, each line being independent from the other.
-# In particular, if the state at the beginning of each line should always be the initial state.
+# The state at the beginning of each line should always be the initial state.
+# Furthermore, if an error is thrown, the next line should be unaffected by this error, starting back from the initial state.
 # A test passes if the output of the tested interpreter is the same than R’s.
-# In particular, all step should return the same output.
+# All step should return the same output.
 
 # These are tests to test the tester and the parser.
 "function" ; 'function' ; 1 # function
 "Error" ; 'Error' ; 1 # Error
-"function (x) x" ; 'function (x) x' ; function (x) x ; 1 # function (x) x
+"function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
 "" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
+')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
+"[1] 1" ; 1
+"function" <- 42
+"" <- 9
 
 # Tests about aborting primitives.
 return
@@ -93,6 +98,7 @@ typeof <- function (x) .Internal (typeof (x)) ; typeof (NaN) ; typeof (Inf)
 typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof) ; typeof (typeof (1))
 typeof <- function (x) .Internal (typeof (x)) ; typeof (.Internal)
 typeof <- function (x) .Internal (typeof (x)) ; runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
+typeof <- function (x) .Internal (typeof (x)) ; f <- function (...) typeof (...) ; f (1) ; f (list (1, 2)) ; f (NULL)
 
 # Tests about lazy evaluation and function application.
 (function (x, y = x) { x <- 1 ; y ; x <- 2 ; y }) (3)
@@ -109,8 +115,8 @@ a <- b <- c <- d <- e <- 1 ; f <- function (x, y, ..., z) 1 ; f () ; f (a <- 2) 
 a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ; b ; f (a <- 4) ; a ; b ; f ()
 missing ; missing (x)
 f <- function (x, y, z) x ; g <- function (x, ...) f (..., x) ; g (1) ; g (1, 2) ; g (1, 2, 3)
-f <- function (x) x ; g <- function (...) g (...) ; g (1) ; g ()
-f <- function (x, y, z) y ; g <- function (...) g (...) ; g (1, 2, 3) ; g (1, 2) ; g (y = 2)
+f <- function (x) x ; g <- function (...) f (...) ; g (1) ; g ()
+f <- function (x, y, z) y ; g <- function (...) f (...) ; g (1, 2, 3) ; g (1, 2) ; g (y = 2)
 f <- function (...) ... ; f (1)
 head <- function (x, ...) x ; head (1, 2, 3) ; head ()
 f <- function (x, ...) if (x) TRUE else f (TRUE, x, ...) ; f (FALSE) ; f (FALSE, FALSE)
@@ -122,6 +128,30 @@ f <- function (...) missing (..100) ; f (1)
 f <- function (...) missing (..999999999) ; f (1)
 f <- function (...) missing (..999999999999999999) ; f () ; f (1) ; f (1, 2)
 f <- function (...) ..0 ; f (1)
+function (..., x, y, z, ...) x
+function (x, y, z, x) y
+f <- function (x, y) x ; f (x = 1, "x" = 1)
+f <- function (x = x) x ; f (1) ; f ()
+g <- function () 1 ; f <- function (...) g (...) ; f ()
+g <- function (x) x ; f <- function (...) g (...) ; f (2) ; f ()
+g <- function (x) x ; f <- function (...) g (...) ; f (1, 2)
+g <- function (x) x ; f <- function (...) g (...) ; g <- function (x, y) x ; f (1) ; f (1, 2) ; f (1, 2, 3)
+g <- function (x, y) x * y ; f <- function (...) g (...) ; f (2, 3) ; f (2, 3, 5)
+g <- function (x, y) x * y ; f <- function (...) g (...) ; f (list (2, 3))
+g <- function (x, y, z) x * y * z ; f <- function (...) g (...) ; f (2, 3, 5) ; f (2, 3, 5, 7)
+g <- function (x, y, z) x * y * z ; f <- function (...) g (...) ; f (list (2, 3, 5))
+g <- function (x, y, z) x * y * z ; f <- function (...) g (...) ; f (x = 2, y = 3, z = 5) ; f (a = 2, b = 3, c = 5)
+f <- function (ab, abc) ab ; f (a = 1, ab = 2)
+f <- function (ab, abc) abc ; f (a = 1, ab = 2)
+f <- function (..., x) 1 ; f (1, 2, 3, 4, 5) ; f (1) ; f ()
+f <- function (..., x) x ; f (1, 2, 3, 4, 5) ; f (1) ; f ()
+f <- function (..., x) x ; f (x = 2, 3, 5, 7, 5) ; f (1, 2, x = 3, 4, 5) ; f (1, 2, 3, 4, x = 5) ; f ("x" = 1, 2, 3, 4, 5) ; f (1, 2, "x" = 3, 4, 5) ; f (1, 2, 3, 4, "x" = 5) ; f (x = 1, 2, 3, 4, "x" = 5)
+g <- function (x, y, z) x * y * z ; f <- function (..., x) g (...) ; f (2, 3, 5, 7) ; f (x = 2, 3, 5, 7) ; f (2, 3, x = 5, 7) ; f (2, 3, 5, x = 7) ; f ("x" = 2, 3, 5, 7) ; f (2, 3, "x" = 5, 7) ; f (2, 3, 5, "x" = 7) ; f (x = 2, 3, 5, "x" = 7)
+f <- function (x, ...) 1 ; f (1, 2, 3, 4, 5) ; f (1) ; f ()
+f <- function (x, ...) x ; f (1, 2, 3, 4, 5) ; f (1) ; f ()
+f <- function (x, ...) x ; f (x = 2, 3, 5, 7, 5) ; f (1, 2, x = 3, 4, 5) ; f (1, 2, 3, 4, x = 5) ; f ("x" = 1, 2, 3, 4, 5) ; f (1, 2, "x" = 3, 4, 5) ; f (1, 2, 3, 4, "x" = 5) ; f (x = 1, 2, 3, 4, "x" = 5)
+g <- function (x, y, z) x * y * z ; f <- function (x, ...) g (...) ; f (2, 3, 5, 7) ; f (x = 2, 3, 5, 7) ; f (2, 3, x = 5, 7) ; f (2, 3, 5, x = 7) ; f ("x" = 2, 3, 5, 7) ; f (2, 3, "x" = 5, 7) ; f (2, 3, 5, "x" = 7) ; f (x = 2, 3, 5, "x" = 7)
+g <- function (a, b) a ; f <- function (x, ...) g (...) ; f (1, 2, 3) ; f (1, 2) ; f (1, 2, x = 3) ; f (a = 1, 2, 3) ; f (b = 1, 2, x = 3)
 
 # Tests about explicit conversions.
 is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
@@ -185,6 +215,8 @@ c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
 1:Inf
 TRUE:2 ; 1i:3 ; NULL:1
 -0.5:0.5 ; 0.99999999999999999:1.99999999999999999
+(function () 1):3
+.Internal:3
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y
@@ -201,6 +233,10 @@ y <- 1 ; x <- 'y' ; x <- 2 ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y ; x
 c ('a', "b") <- 1 ;
 "<-" (x, 1) ; x
+T <- 1 ; F <- 2 ; T ; F ; TRUE <- 1
+NA <- 1
+"NA" <- 1 ; NA
+"TRUE" <- 1 ; "FALSE" <- 2 ; TRUE ; FALSE
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3

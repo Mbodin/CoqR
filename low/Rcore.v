@@ -1281,8 +1281,7 @@ Definition matchArgs_dots S dots supplied :=
   run%success SET_MISSING S dots 0 ltac:(nbits_ok) using S in
   fold%success i := 0
   along supplied
-  as a, _ do
-    read%defined a_ := a using S in
+  as _, a_, _ do
     ifb argused a_ = 0 then
       result_success S (1 + i)
     else
