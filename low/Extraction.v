@@ -99,6 +99,24 @@ Extract Constant Double.sub => "(-.)".
 Extract Constant Double.mult => "( *. )".
 Extract Constant Double.div => "(/.)".
 
+Extract Constant Double.floor => "floor".
+Extract Constant Double.ceil => "ceil".
+Extract Constant Double.sqrt => "sqrt".
+Extract Constant Double.exp => "exp".
+Extract Constant Double.expm1 => "expm1".
+Extract Constant Double.log => "log".
+Extract Constant Double.logm1 => "logm1".
+Extract Constant Double.log1p => "log1p".
+Extract Constant Double.cos => "cos".
+Extract Constant Double.sin => "sin".
+Extract Constant Double.tan => "tan".
+Extract Constant Double.acos => "acos".
+Extract Constant Double.asin => "asin".
+Extract Constant Double.atan => "atan".
+Extract Constant Double.cosh => "cosh".
+Extract Constant Double.sinh => "sinh".
+Extract Constant Double.tanh => "tanh".
+
 Extract Constant Double.FLT_EPSILON => "epsilon_float".
 
 Extract Constant Double.ge => "(>=)".

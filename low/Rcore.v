@@ -114,6 +114,10 @@ Definition CHAR S x :=
   read%VectorChar x_vector := x using S in
   result_success S (list_to_string (ArrayList.to_list x_vector)).
 
+Definition MISSING S x :=
+  read%defined x_ := x using S in
+  result_success S (nth_bit 4 (gp x_) ltac:(nbits_ok)).
+
 Definition SET_MISSING S e (m : nat) I :=
   map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
   result_skip S.
@@ -174,6 +178,10 @@ Definition isNull S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = NilSxp)).
 
+Definition isComplex S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = CplxSxp)).
+
 Definition isObject S s :=
   OBJECT S s.
 
@@ -191,6 +199,10 @@ Definition duplicate1 S s (deep : bool) :=
 
 Definition duplicate S s :=
   duplicate1 S s true.
+
+Definition shallow_duplicate S s :=
+  duplicate1 S s false.
+
 
 (** The following function is actually in the C file
   include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
@@ -315,6 +327,12 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
     read%Pointer r := x at i using S in
     result_success S r.
 
+Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
+  read%defined vfrom_ := vfrom using S in
+  let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
+  map%pointer vto with set_obj (obj vfrom_) using S in
+  (** The part about S4 object here has been ignored. **)
+  result_skip S.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
@@ -585,6 +603,20 @@ Definition isNumber S s :=
   | _ => result_success S false
   end.
 
+Definition isFrame S s :=
+  if%success OBJECT S s using S then
+    let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
+    let%success klass_len := R_length S klass using S in
+    do%return i := 0
+    while result_success S (decide (i < klass_len)) do
+      let%success str := STRING_ELT S klass i using S in
+      let%success str_ := CHAR S str using S in
+      ifb str_ = "data.frame"%string then
+        result_rreturn S true
+      else result_rsuccess S (1 + i) using S, runs in
+    result_success S false
+  else result_success S false.
+
 Definition SCALAR_LVAL S x :=
   read%Logical r := x at 0 using S in
   result_success S r.
@@ -837,6 +869,14 @@ Definition mkChar S (str : string) : state * SExpRec_pointer :=
 Definition mkString S (str : string) : state * SExpRec_pointer :=
   let (S, c) := mkChar S str in
   alloc_vector_str S (ArrayList.from_list [c]).
+
+Definition ddVal S symbol :=
+  let%success symbol_name := PRINTNAME S symbol using S in
+  let%success buf := CHAR S symbol_name using S in
+  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := substring 2 (String.length buf - 2) in
+    result_not_implemented "[ddVal] [strtol]."
+  else result_success S 0.
 
 
 (** ** dstruct.c **)
@@ -1147,7 +1187,7 @@ Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
       CHAR S str
     | StrSxp =>
       let%success str_ := STRING_ELT S str 0 using S in
-      result_not_implemented "[pmatch] translateChar(str_)" (* TODO *)
+      result_not_implemented "[pmatch] translateChar(str_)"
     | _ =>
       result_error S "[pmatch] Invalid partial string match."
     end in
@@ -1592,6 +1632,25 @@ Definition findVar S symbol rho :=
         result_rsuccess S (env_enclos rho_env) using S, runs in
     result_success S (R_UnboundValue : SExpRec_pointer).
 
+Definition findVarLocInFrame S (rho symbol : SExpRec_pointer) :=
+  ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
+    result_error S "[findVarLocInFrame] It can’t be used in the base environment."
+  else ifb rho = R_EmptyEnv then
+    result_success S (R_NilValue : SExpRec_pointer)
+  else
+    if%success IS_USER_DATABASE S rho using S then
+      result_not_implemented "[findVarLocInFrame] [R_ExternalPtrAddr]"
+    else
+      (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+      read%env _, rho_env := rho using S in
+      fold%return
+      along env_frame rho_env
+      as frame, _, frame_list do
+        ifb list_tagval frame_list = symbol then
+          result_rreturn S frame
+        else result_rskip S using S, runs, globals in
+      result_success S (R_NilValue : SExpRec_pointer).
+
 Definition ddfindVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[ddfindVar]".
 
@@ -1666,7 +1725,7 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
             result_rreturn S s_0
           else result_rskip S
         else result_rskip S using S in
-      result_not_implemented "[getAttrib0] TODO"
+      result_not_implemented "[getAttrib0]"
     else result_rskip S using S in
   read%defined vec_ := vec using S in
   fold%return
@@ -2083,6 +2142,20 @@ Definition PRIMINTERNAL S x :=
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
 
+(** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
+  overwrites its additional argument [ans]. This naturally translates as an option type. **)
+Definition DispatchGroup S group (call op args rho : SExpRec_pointer)
+    : result (option SExpRec_pointer) :=
+  read%list args_car, args_cdr, _ := args using S in
+  let%success args_car_is := isObject S args_car using S in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let%success args_cdr_car_is := isObject S args_cdr_car using S in
+  ifb args_car <> R_NilValue /\ ~ args_car_is /\ (args_cdr = R_NilValue \/ ~ args_cdr_car_is) then
+    result_success S None
+  else
+    let isOps := decide (group = "Ops"%string) in
+    result_not_implemented "[DispatchGroup]".
+
 Definition evalList S (el rho call : SExpRec_pointer) n :=
   fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along el
@@ -2252,10 +2325,8 @@ Definition eval S (e rho : SExpRec_pointer) :=
       end
   end.
 
-
 (** Evaluates the expression in the global environment. **)
 Definition eval_global S e :=
   eval S e R_GlobalEnv.
 
 End Parameterised.
-

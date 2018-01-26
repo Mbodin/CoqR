@@ -51,6 +51,24 @@ Parameter sub : double -> double -> double. (* TODO: use Flocq. *)
 Parameter mult : double -> double -> double. (* TODO: use Flocq. *)
 Parameter div : double -> double -> double. (* TODO: use Flocq. *)
 
+Parameter floor : double -> double. (* FIXME: what to do with these? *)
+Parameter ceil : double -> double. (* FIXME: what to do with these? *)
+Parameter sqrt : double -> double. (* FIXME: what to do with these? *)
+Parameter exp : double -> double. (* FIXME: what to do with these? *)
+Parameter expm1 : double -> double. (* FIXME: what to do with these? *)
+Parameter log : double -> double. (* FIXME: what to do with these? *)
+Parameter logm1 : double -> double. (* FIXME: what to do with these? *)
+Parameter log1p : double -> double. (* FIXME: what to do with these? *)
+Parameter cos : double -> double. (* FIXME: what to do with these? *)
+Parameter sin : double -> double. (* FIXME: what to do with these? *)
+Parameter tan : double -> double. (* FIXME: what to do with these? *)
+Parameter acos : double -> double. (* FIXME: what to do with these? *)
+Parameter asin : double -> double. (* FIXME: what to do with these? *)
+Parameter atan : double -> double. (* FIXME: what to do with these? *)
+Parameter cosh : double -> double. (* FIXME: what to do with these? *)
+Parameter sinh : double -> double. (* FIXME: what to do with these? *)
+Parameter tanh : double -> double. (* FIXME: what to do with these? *)
+
 Definition posInf := Fappli_IEEE.F754_infinity false : double.
 Definition negInf := Fappli_IEEE.F754_infinity true : double.
 

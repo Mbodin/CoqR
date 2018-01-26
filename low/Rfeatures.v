@@ -73,6 +73,23 @@ Definition isBlankString s :=
   decide (Forall (fun c => isspace c) (string_to_list s)).
 
 
+Definition nthcdr S s n :=
+  let%success s_li := isList globals S s using S in
+  let%success s_la := isLanguage globals S s using S in
+  let%success s_fr := isFrame globals runs S s using S in
+  let%success s_t := TYPEOF S s using S in
+  ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
+    do%success (s, n) := (s, n)
+    while result_success S (decide (n > 0)) do
+      ifb s = R_NilValue then
+        result_error S "[nthcdr] List too short."
+      else
+        read%list _, s_cdr, _ := s using S in
+        result_success S (s, n - 1) using S, runs in
+    result_success S s
+  else result_error S "[nthcdr] No CDR.".
+
+
 (** * attrib.c **)
 
 (** The function names of this section corresponds to the function names
@@ -332,6 +349,69 @@ Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
       else result_error S "[do_is] Other predicate." using S in
     result_success S ans.
 
+Definition coerceVector S v type :=
+  let%success v_type := TYPEOF S v using S in
+  ifb v_type = type then
+    result_success S v
+  else result_not_implemented "[coerceVector] [IS_S4_OBJECT].".
+
+
+(** * envir.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/envir.c. **)
+
+Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_check1arg S args call "x" using S in
+  read%list args_car, _, _ := args using S in
+  let%success sym :=
+    let sym := args_car in
+    let%success sym_str := isString S sym using S in
+    let%success sym_len := R_length globals runs S sym using S in
+    ifb sym_str /\ sym_len = 1 then
+      read%Pointer args_car_0 := args_car at 0 using S in
+      installTrChar globals runs S args_car_0
+    else result_success S sym using S in
+  let s := sym in
+  let%success sym_sym := isSymbol S sym using S in
+  if negb sym_sym then
+    result_error S "[do_missing] Invalid use."
+  else
+    let%success (ddv, sym) :=
+      if%success DDVAL S sym using S then
+        let%success ddv := ddVal S sym using S in
+        result_success S (ddv, R_DotsSymbol : SExpRec_pointer)
+      else result_success S (0, sym) using S in
+    let%success t := findVarLocInFrame globals runs S rho sym using S in
+    let%success rval := allocVector globals S LglSxp 1 using S in
+    ifb t <> R_NilValue then
+      read%list t_car, _, _ := t using S in
+      let%exit t :=
+        if%success DDVAL S s using S then
+          let%success t_car_len := R_length globals runs S t_car using S in
+          ifb t_car_len < ddv \/ t_car = R_MissingArg then
+            write%Logical rval at 0 := 1 using S in
+            result_rreturn S rval
+          else
+            let%success t := nthcdr S t_car (ddv - 1) using S in
+            result_rsuccess S t
+        else result_rsuccess S t using S in
+      run%exit
+        let%success t_mis := MISSING S t using S in
+        ifb t_mis \/ t_car = R_MissingArg then
+          write%Logical rval at 0 := 1 using S in
+          result_rreturn S rval
+        else result_rskip S using S in
+      let t := t_car in
+      let%success t_type := TYPEOF S t using S in
+      ifb t_type <> PromSxp then
+        write%Logical rval at 0 := 0 using S in
+        result_success S rval
+      else
+        result_not_implemented "[do_missing] [findRootPromise]."
+    else result_error S "[do_missing] It can only be used for arguments.".
+
 
 (** * eval.c **)
 
@@ -567,12 +647,6 @@ Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_poi
     else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SExpRec_pointer).
-
-(** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
-  overwrites its additional argument [ans]. This naturally translates as an option type. **)
-Definition DispatchGroup (S : state) (group : string) (call op args rho : SExpRec_pointer)
-    : result (option SExpRec_pointer) :=
-  result_not_implemented "[DispatchGroup]".
 
 
 (** * connections.c **)
@@ -950,6 +1024,9 @@ Definition complex_unary S (code : int) s1 :=
     result_success S ans
     else result_error S "[real_unary] Invalid unary operator.".
 
+Definition complex_math1 (S : state) (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[complex_math1]".
+
 
 (** * arithmetic.c **)
 
@@ -1086,7 +1163,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      let%success ans := DispatchGroup S "Ops" call op args env using S in
+      let%success ans := DispatchGroup globals S "Ops" call op args env using S in
       match ans with
       | Some ans => result_rreturn S ans
       | None => result_rskip S
@@ -1190,6 +1267,79 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
     R_unary S call op arg1
   else result_error S "[do_arith] Operator needs one or two arguments.".
 
+Definition math1 S sa f (lcall : SExpRec_pointer) :=
+  let%success sa_in := isNumeric globals runs S sa using S in
+  if negb sa_in then
+    result_error S "[math1] Non-numeric argument to mathematical function."
+  else
+    let%success n := XLENGTH S sa using S in
+    let%success sa := coerceVector S sa RealSxp using S in
+    let%success sy :=
+      if%success NO_REFERENCES S sa using S then
+        result_success S sa
+      else allocVector globals S RealSxp n using S in
+    do%success for i from 0 to n - 1 do
+      read%Real x := sa at i using S in
+      let fx := f x in
+      write%Real sy at i := fx using S in
+      if ISNAN fx then
+        if ISNAN x then
+          write%Real sy at i := x using S in
+          result_skip S
+        else result_skip S
+      else result_skip S using S in
+    (* A warning has been formalised out here. *)
+    read%defined sa_ := sa using S in
+    run%success
+      ifb sa <> sy /\ attrib sa_ <> R_NilValue then
+        SHALLOW_DUPLICATE_ATTRIB S sy sa
+      else result_skip S using S in
+    result_success S sy.
+
+Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_check1arg S args call "x" using S in
+  let%success ans := DispatchGroup globals S "Ops" call op args env using S in
+  match ans with
+  | Some ans => result_success S ans
+  | None =>
+    read%list args_car, _, _ := args using S in
+    if%success isComplex S args_car using S then
+      complex_math1 S call op args env
+    else
+      let%success op_val := PRIMVAL runs S op using S in
+      let MATH1 x := math1 S args_car x call in
+      match Z.to_nat op_val with
+      | 1 => MATH1 Double.floor
+      | 2 => MATH1 Double.ceil
+      | 3 => MATH1 Double.sqrt
+      | 4 => result_not_implemented "[do_math1] [sign]."
+      | 10 => MATH1 Double.exp
+      | 11 => MATH1 Double.expm1
+      | 12 => MATH1 Double.log1p
+      | 20 => MATH1 Double.cos
+      | 21 => MATH1 Double.sin
+      | 22 => MATH1 Double.tan
+      | 23 => MATH1 Double.acos
+      | 24 => MATH1 Double.asin
+      | 25 => MATH1 Double.atan
+      | 30 => MATH1 Double.cosh
+      | 31 => MATH1 Double.sinh
+      | 32 => MATH1 Double.tanh
+      | 33 => result_not_implemented "[do_math1] [acosh]."
+      | 34 => result_not_implemented "[do_math1] [asinh]."
+      | 35 => result_not_implemented "[do_math1] [atanh]."
+      | 40 => result_not_implemented "[do_math1] [lgammafn]."
+      | 41 => result_not_implemented "[do_math1] [gammafn]."
+      | 42 => result_not_implemented "[do_math1] [digamma]."
+      | 43 => result_not_implemented "[do_math1] [trigamma]."
+      | 47 => result_not_implemented "[do_math1] [cospi]."
+      | 48 => result_not_implemented "[do_math1] [sinpi]."
+      | 49 => result_not_implemented "[do_math1] [tanpi]."
+      | _ => result_error S "[do_math1] Unimplemented real function of 1 argument."
+      end
+  end.
+
 
 (** * relop.c **)
 
@@ -1216,7 +1366,7 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      let%success ans := DispatchGroup S "Ops" call op args env using S in
+      let%success ans := DispatchGroup globals S "Ops" call op args env using S in
       match ans with
       | Some ans => result_rreturn S ans
       | None => result_rskip S
@@ -1444,7 +1594,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "call" (dummy_function "do_call") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "quote" (dummy_function "do_quote") (0)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "substitute" (dummy_function "do_substitute") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "missing" (dummy_function "do_missing") (1)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "missing" do_missing (1)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "nargs" (dummy_function "do_nargs") (1)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "on.exit" (dummy_function "do_onexit") (0)%Z eval100 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "forceAndCall" (dummy_function "do_forceAndCall") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
@@ -1581,39 +1731,39 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "log10" (dummy_function "do_log1arg") (10)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "log2" (dummy_function "do_log1arg") (2)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "abs" (dummy_function "do_abs") (6)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "floor" (dummy_function "do_math1") (1)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "ceiling" (dummy_function "do_math1") (2)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "sqrt" (dummy_function "do_math1") (3)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "sign" (dummy_function "do_math1") (4)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "floor" do_math1 (1)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "ceiling" do_math1 (2)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "sqrt" do_math1 (3)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "sign" do_math1 (4)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "trunc" (dummy_function "do_trunc") (5)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "exp" (dummy_function "do_math1") (10)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "expm1" (dummy_function "do_math1") (11)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "log1p" (dummy_function "do_math1") (12)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "exp" do_math1 (10)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "expm1" do_math1 (11)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "log1p" do_math1 (12)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "cos" (dummy_function "do_math1") (20)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "sin" (dummy_function "do_math1") (21)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "tan" (dummy_function "do_math1") (22)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "acos" (dummy_function "do_math1") (23)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "asin" (dummy_function "do_math1") (24)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "atan" (dummy_function "do_math1") (25)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "cos" do_math1 (20)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "sin" do_math1 (21)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "tan" do_math1 (22)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "acos" do_math1 (23)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "asin" do_math1 (24)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "atan" do_math1 (25)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "cosh" (dummy_function "do_math1") (30)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "sinh" (dummy_function "do_math1") (31)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "tanh" (dummy_function "do_math1") (32)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "acosh" (dummy_function "do_math1") (33)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "asinh" (dummy_function "do_math1") (34)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "atanh" (dummy_function "do_math1") (35)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "cosh" do_math1 (30)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "sinh" do_math1 (31)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "tanh" do_math1 (32)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "acosh" do_math1 (33)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "asinh" do_math1 (34)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "atanh" do_math1 (35)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "lgamma" (dummy_function "do_math1") (40)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "gamma" (dummy_function "do_math1") (41)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "lgamma" do_math1 (40)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "gamma" do_math1 (41)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "digamma" (dummy_function "do_math1") (42)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "trigamma" (dummy_function "do_math1") (43)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "digamma" do_math1 (42)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "trigamma" do_math1 (43)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "cospi" (dummy_function "do_math1") (47)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "sinpi" (dummy_function "do_math1") (48)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "tanpi" (dummy_function "do_math1") (49)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "cospi" do_math1 (47)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "sinpi" do_math1 (48)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "tanpi" do_math1 (49)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "atan2" (dummy_function "do_math2") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
 
