@@ -170,6 +170,17 @@ Notation "'if%success' b 'using' S 'then' c 'in' cont" :=
   (if_then_success b (fun S => c) (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
+Definition if_option_defined A B (c : result (option A)) cont_then cont_else : result B :=
+  let%success ans := c using S in
+  match ans with
+  | Some ans => cont_then S ans
+  | None => cont_else S
+  end.
+
+Notation "'if%defined' ans ':=' c 'using' S 'then' cont_then 'else' cont_else" :=
+  (if_option_defined c (fun S ans => cont_then) (fun S => cont_else))
+  (at level 50, left associativity) : monad_scope.
+
 
 (** * Monads to View Objects Differently **)
 

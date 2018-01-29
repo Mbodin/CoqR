@@ -1234,11 +1234,9 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      let%success ans := DispatchGroup globals S "Ops" call op args env using S in
-      match ans with
-      | Some ans => result_rreturn S ans
-      | None => result_rskip S
-      end
+      if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+        result_rreturn S ans
+      else result_rskip S
     else ifb argc = 2 then
       let double_case S ans x1 x2 :=
         let%success op_val := PRIMVAL runs S op using S in
@@ -1370,10 +1368,9 @@ Definition math1 S sa f (lcall : SExpRec_pointer) :=
 Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
-  let%success ans := DispatchGroup globals S "Ops" call op args env using S in
-  match ans with
-  | Some ans => result_success S ans
-  | None =>
+  if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+    result_success S ans
+  else
     read%list args_car, _, _ := args using S in
     if%success isComplex S args_car using S then
       complex_math1 S call op args env
@@ -1408,8 +1405,7 @@ Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_poin
       | 48 => result_not_implemented "[do_math1] [sinpi]."
       | 49 => result_not_implemented "[do_math1] [tanpi]."
       | _ => result_error S "[do_math1] Unimplemented real function of 1 argument."
-      end
-  end.
+      end.
 
 
 (** * relop.c **)
@@ -1437,11 +1433,9 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      let%success ans := DispatchGroup globals S "Ops" call op args env using S in
-      match ans with
-      | Some ans => result_rreturn S ans
-      | None => result_rskip S
-      end
+      if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+        result_rreturn S ans
+      else result_rskip S
     else result_rskip S using S in
   ifb argc <> 2 then
     result_error S "[do_relop] Operator needs two arguments."

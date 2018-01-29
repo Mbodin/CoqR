@@ -241,7 +241,7 @@ let _ =
       let buf = Lexing.from_channel stdin in
       let rec loop s =
         (** The read-eval-print-loop **)
-        print_string "> " ; flush stdout ;
+        if !print_prompt then (print_string "> " ; flush stdout) ;
         let success f =
           let f =
             if !only_parsing then f

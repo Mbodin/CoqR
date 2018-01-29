@@ -25,8 +25,7 @@ Variable runs : runs_type.
 Definition get_R_FunTab S :=
   match runs_R_FunTab runs with
   | None => result_bottom S
-  | Some t =>
-    result_success S t
+  | Some t => result_success S t
   end.
 
 Definition read_R_FunTab S n :=
