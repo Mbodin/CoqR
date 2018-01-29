@@ -185,6 +185,22 @@ Definition isComplex S s :=
 Definition isObject S s :=
   OBJECT S s.
 
+Definition isByteCode S x :=
+  let%success x_type := TYPEOF S x using S in
+  result_success S (decide (x_type = BcodeSxp)).
+
+Definition BCODE_CODE S x :=
+  read%list x_car, _, _ := x using S in
+  result_success S x_car.
+
+Definition BCODE_CONSTS S x :=
+  read%list _, x_cdr, _ := x using S in
+  result_success S x_cdr.
+
+Definition BCODE_EXPR S x :=
+  read%list _, _, x_tag := x using S in
+  result_success S x_tag.
+
 
 (** ** duplicate.c **)
 
@@ -326,6 +342,10 @@ Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
   else
     read%Pointer r := x at i using S in
     result_success S r.
+
+Definition VECTOR_ELT S x i :=
+  read%Pointer x_i := x at i using S in
+  result_success S x_i.
 
 Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
   read%defined vfrom_ := vfrom using S in
@@ -2141,6 +2161,25 @@ Definition PRIMINTERNAL S x :=
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
+
+Definition BCCONSTS S e :=
+  BCODE_CONSTS S e.
+
+Definition bytecodeExpr S e :=
+  if%success isByteCode S e using S then
+    let%success e := BCCONSTS S e using S in
+    let%success e_len := LENGTH S e using S in
+    ifb e_len > 0 then
+      VECTOR_ELT S e 0
+    else result_success S (R_NilValue : SExpRec_pointer)
+  else result_success S e.
+
+Definition R_PromiseExpr S p :=
+  read%prom _, p_prom := p using S in
+  bytecodeExpr S (prom_expr p_prom).
+
+Definition PREXPR S e :=
+  R_PromiseExpr S e.
 
 (** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
   overwrites its additional argument [ans]. This naturally translates as an option type. **)

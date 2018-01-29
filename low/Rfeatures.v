@@ -361,6 +361,63 @@ Definition coerceVector S v type :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
+Definition findRootPromise S p :=
+  let%success p_type := TYPEOF S p using S in
+  ifb p_type = PromSxp then
+    do%success p := p
+    while
+      let%success p := PREXPR globals S p using S in
+      let%success p_type := TYPEOF S p using S in
+      result_success S (decide (p_type = PromSxp))
+    do
+      PREXPR globals S p using S, runs in
+    result_success S p
+  else result_success S p.
+
+Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
+  ifb symbol = R_MissingArg then
+    result_success S 1
+  else
+    let%success (s, ddv) :=
+      if%success DDVAL S symbol using S then
+        let%success d := ddVal S symbol using S in
+        result_success S (R_DotsSymbol : SExpRec_pointer, d)
+      else result_success S (symbol, 0) using S in
+    ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
+      result_success S 0
+    else
+      let%success vl := findVarLocInFrame globals runs S rho s using S in
+      ifb vl <> R_NilValue then
+        let%exit vl :=
+          if%success DDVAL S symbol using S then
+            read%list vl_car, _, _ := vl using S in
+            let%success vl_car_len := R_length globals runs S vl_car using S in
+            ifb vl_car_len < ddv \/ vl_car = R_MissingArg then
+              result_rreturn S 1
+            else
+              let%success n := nthcdr S vl_car (ddv - 1) using S in
+              result_rsuccess S n
+          else result_rsuccess S vl using S in
+        let%success vl_mis := MISSING S vl using S in
+        read%list vl_car, _, _ := vl using S in
+        ifb vl_mis = true \/ vl_car = R_MissingArg then
+          result_success S 1
+        else if%success IS_ACTIVE_BINDING S vl using S then
+          result_success S 0
+        else
+          let%success vl_car_rp := findRootPromise S vl_car using S in
+          set%car vl := vl_car_rp using S in
+          let%success vl_car_type := TYPEOF S vl_car using S in
+          ifb vl_car_type = PromSxp then
+            read%prom _, vl_car_prom := vl_car using S in
+            let%success vl_car_expr := PREXPR globals S vl_car using S in
+            let%success vl_car_expr_type := TYPEOF S vl_car_expr using S in
+            ifb prom_value vl_car_prom = R_UnboundValue /\ vl_car_expr_type = SymSxp then
+              result_not_implemented "[R_isMissing] Loop."
+            else result_success S 0
+          else result_success S 0
+      else result_success S 0.
+
 Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
@@ -409,7 +466,21 @@ Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_po
         write%Logical rval at 0 := 0 using S in
         result_success S rval
       else
-        result_not_implemented "[do_missing] [findRootPromise]."
+        let%success t := findRootPromise S t using S in
+        let%success t_is :=
+          let%success t := PREXPR globals S t using S in
+          isSymbol S t using S in
+        if negb t_is then
+          write%Logical rval at 0 := 0 using S in
+          result_success S rval
+        else
+          let%success t_expr := PREXPR globals S t using S in
+          let%success t_env :=
+             read%prom _, t_prom := t using S in
+             result_success S (prom_env t_prom) using S in
+          let%success ism := R_isMissing S t_expr t_env using S in
+          write%Logical rval at 0 := ism using S in
+          result_success S rval
     else result_error S "[do_missing] It can only be used for arguments.".
 
 

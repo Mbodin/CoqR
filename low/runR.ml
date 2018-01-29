@@ -4,6 +4,7 @@
 (** * References to Options **)
 
 let interactive = ref true
+let print_prompt = ref true
 let verbose = ref false
 let max_steps = ref max_int
 
@@ -91,6 +92,7 @@ let boolean_switches =
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" false ;
     computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" true ;
     make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true ;
+    print_switch [] [] print_prompt "prompt" "the prompt (the “>” shown before inputs)" true ;
     make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false
   ]
 
