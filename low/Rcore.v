@@ -113,12 +113,14 @@ Definition CHAR S x :=
   read%VectorChar x_vector := x using S in
   result_success S (list_to_string (ArrayList.to_list x_vector)).
 
+Definition MISSING_BIT := 4.
+
 Definition MISSING S x :=
   read%defined x_ := x using S in
-  result_success S (nth_bit 4 (gp x_) ltac:(nbits_ok)).
+  result_success S (nth_bit MISSING_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition SET_MISSING S e (m : nat) I :=
-  map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
+  map%gp e with @write_nbits 16 MISSING_BIT 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
@@ -143,21 +145,46 @@ Definition NO_REFERENCES S x :=
   let%success x_named := NAMED S x using S in
   result_success S (decide (x_named = named_temporary)).
 
+Definition DDVAL_BIT := 0.
+
 Definition DDVAL S x :=
   read%defined x_ := x using S in
-  result_success S (nth_bit 0 (gp x_) ltac:(nbits_ok)).
+  result_success S (nth_bit DDVAL_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition SET_DDVAL_BIT S x :=
-  map%gp x with @write_nbit 16 0 ltac:(nbits_ok) true using S in
+  map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) true using S in
   result_skip S.
 
 Definition UNSET_DDVAL_BIT S x :=
-  map%gp x with @write_nbit 16 0 ltac:(nbits_ok) false using S in
+  map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) false using S in
+  result_skip S.
+
+Definition SET_DDVAL S x v :=
+  map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) v using S in
+  result_skip S.
+
+Definition S4_OBJECT_BIT := 4.
+
+Definition IS_S4_OBJECT S x :=
+  read%defined x_ := x using S in
+  result_success S (nth_bit S4_OBJECT_BIT (gp x_) ltac:(nbits_ok)).
+
+Definition SET_S4_OBJECT S x :=
+  map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) true using S in
+  result_skip S.
+
+Definition UNSET_S4_OBJECT S x :=
+  map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) false using S in
   result_skip S.
 
 Definition IS_SCALAR S x t :=
   read%defined x_ := x using S in
   result_success S (decide (type x_ = t /\ scalar x_)).
+
+Definition IS_SIMPLE_SCALAR S x t :=
+  let%success x_scal := IS_SCALAR S x t using S in
+  read%defined x_ := x using S in
+  result_success S (decide (x_scal /\ attrib x_ = R_NilValue)).
 
 Definition isLogical S s :=
   let%success s_type := TYPEOF S s using S in
@@ -201,12 +228,55 @@ Definition BCODE_EXPR S x :=
   result_success S x_tag.
 
 
+(** ** Defn.h **)
+
+(** The function names of this section corresponds to the function names
+  in the file include/Defn.h. **)
+
+Definition SPECIAL_SYMBOL_BIT := 12.
+
+Definition IS_SPECIAL_SYMBOL S b :=
+  read%defined b_ := b using S in
+  result_success S (nth_bit SPECIAL_SYMBOL_BIT (gp b_) ltac:(nbits_ok)).
+
+(** This macro definition was already redundant in C. **)
+Definition NO_SPECIAL_SYMBOLS S x :=
+  read%defined x_ := x using S in
+  result_success S (nth_bit SPECIAL_SYMBOL_BIT (gp x_) ltac:(nbits_ok)).
+
+Definition SET_SPECIAL_SYMBOL S x v :=
+  map%gp x with @write_nbit 16 SPECIAL_SYMBOL_BIT ltac:(nbits_ok) v using S in
+  result_skip S.
+
+Definition ACTIVE_BINDING_BIT := 15.
+
+Definition IS_ACTIVE_BINDING S symbol :=
+  read%defined symbol_ := symbol using S in
+  result_success S (nth_bit ACTIVE_BINDING_BIT (gp symbol_) ltac:(nbits_ok)).
+
+Definition BINDING_LOCK_BIT := 14.
+
+Definition BINDING_IS_LOCKED S symbol :=
+  read%defined symbol_ := symbol using S in
+  result_success S (nth_bit BINDING_LOCK_BIT (gp symbol_) ltac:(nbits_ok)).
+
+Definition CACHED_BIT := 5.
+
+Definition SET_CACHED S x v :=
+  map%gp x with @write_nbit 16 CACHED_BIT ltac:(nbits_ok) v using S in
+  result_skip S.
+
+Definition IS_CACHED S x :=
+  read%defined x_ := x using S in
+  result_success S (nth_bit CACHED_BIT (gp x_) ltac:(nbits_ok)).
+
+
 (** ** duplicate.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/duplicate.c. **)
 
-(** This is a temporary simplification of the real [duplicate1] function. **)
+(** This is a simplification of the real [duplicate1] function. **)
 Definition duplicate1 S s (deep : bool) :=
   read%defined s_ := s using S in
   let (S, s) := alloc_SExp S s_ in
@@ -350,7 +420,10 @@ Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
   read%defined vfrom_ := vfrom using S in
   let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
   map%pointer vto with set_obj (obj vfrom_) using S in
-  (** The part about S4 object here has been ignored. **)
+  run%success
+    if%success IS_S4_OBJECT S vfrom using S then
+      SET_S4_OBJECT S vto
+    else UNSET_S4_OBJECT S vto using S in
   result_skip S.
 
 (** Note: there is a macro definition renaming [NewEnvironment] to
@@ -752,6 +825,34 @@ Definition LENGTH_EX S (x : SExpRec_pointer) :=
 
 Definition LENGTH := LENGTH_EX.
 
+Definition xlength S s :=
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | NilSxp =>
+    result_success S 0
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | CharSxp
+  | VecSxp
+  | ExprSxp
+  | RawSxp =>
+    LENGTH S s
+  | ListSxp
+  | LangSxp
+  | DotSxp =>
+    do%success (s, i) := (s, 0)
+    while result_success S (decide (s <> NULL /\ s <> R_NilValue)) do
+      read%list _, s_cdr, _ := s using S in
+      result_success S (s_cdr, 1 + i) using S, runs in
+    result_success S i
+  | EnvSxp =>
+    result_not_implemented "[xlength] [Rf_envlength]"
+  | _ =>
+    result_success S 1
+  end.
 
 Definition ALTLOGICAL_ELT S x i :=
   read%Logical x_i := x at i using S in
@@ -917,7 +1018,7 @@ Definition iSDDName S (name : SExpRec_pointer) :=
 Definition mkSYMSXP S (name value : SExpRec_pointer) :=
   let%success i := iSDDName S name using S in
   let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
-  map%gp c with @write_nbit 16 0 ltac:(nbits_ok) i using S in
+  run%success SET_DDVAL S c i using S in
   result_success S c.
 
 
@@ -1234,9 +1335,6 @@ Definition set_argused (used : nat) I :=
   set_gp (nat_to_nbits used I).
 Arguments set_argused : clear implicits.
 
-Definition missing e_ :=
-  sub_nbits 0 4 (gp e_) ltac:(nbits_ok).
-
 Definition matchArgs_first S formals actuals supplied : result (list nat) :=
   fold%success (a, fargusedrev) := (actuals, nil)
   along formals
@@ -1412,19 +1510,6 @@ Definition matchArgs S formals supplied (call : SExpRec_pointer) :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
-Definition IS_SPECIAL_SYMBOL S b :=
-  read%defined b_ := b using S in
-  result_success S (nth_bit 12 (gp b_) ltac:(nbits_ok)).
-
-(** This macro definition was already redundant in C. **)
-Definition NO_SPECIAL_SYMBOLS S x :=
-  read%defined x_ := x using S in
-  result_success S (nth_bit 12 (gp x_) ltac:(nbits_ok)).
-
-Definition SET_SPECIAL_SYMBOL S x v :=
-  map%gp x with @write_nbit 16 12 ltac:(nbits_ok) v using S in
-  result_skip S.
-
 Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
   read%env env_, env_env := env using S in
   (** A note about hashtabs has been commented out. **)
@@ -1482,17 +1567,11 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) :=
             else result_success S (addVars, s_cdr, s) using S, runs in
         result_skip S using S, runs, globals.
 
+Definition FRAME_LOCK_BIT := 14.
+
 Definition FRAME_IS_LOCKED S rho :=
   read%defined rho_ := rho using S in
-  result_success S (nth_bit 14 (gp rho_) ltac:(nbits_ok)).
-
-Definition BINDING_IS_LOCKED S symbol :=
-  read%defined symbol_ := symbol using S in
-  result_success S (nth_bit 14 (gp symbol_) ltac:(nbits_ok)).
-
-Definition IS_ACTIVE_BINDING S symbol :=
-  read%defined symbol_ := symbol using S in
-  result_success S (nth_bit 15 (gp symbol_) ltac:(nbits_ok)).
+  result_success S (nth_bit FRAME_LOCK_BIT (gp rho_) ltac:(nbits_ok)).
 
 Definition getActiveValue S f :=
   let%success expr := lcons S f R_NilValue using S in
@@ -1924,6 +2003,12 @@ Definition falsenames : list string :=
 Definition StringFalse name :=
   decide (Mem name falsenames).
 
+Definition isspace c :=
+  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
+
+Definition isBlankString s :=
+  decide (Forall (fun c => isspace c) (string_to_list s)).
+
 
 (** ** coerce.c **)
 
@@ -1982,6 +2067,154 @@ Definition asLogical S x :=
     ifb x_type = CharSxp then
       LogicalFromString S x
     else result_success S NA_LOGICAL.
+
+Definition IntegerFromString S (x : SExpRec_pointer) :=
+  if%success
+    ifb x <> R_NaString then
+      let%success c := CHAR S x using S in
+      result_success S (negb (isBlankString c))
+    else result_success S false using S then
+    result_not_implemented "[IntegerFromString] R_strtod."
+  else result_success S NA_INTEGER.
+
+Definition IntegerFromLogical x :=
+  ifb x = NA_LOGICAL then
+    NA_INTEGER
+  else x.
+
+Definition IntegerFromReal x :=
+  if ISNAN x then
+    NA_INTEGER
+  else ifb x >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ x <= (INT_MIN : double) then
+    (* A warning has been formalised out here. *)
+    NA_INTEGER
+  else Double.double_to_int_zero x.
+
+Definition IntegerFromComplex x :=
+  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
+    NA_INTEGER
+  else ifb (Rcomplex_r x) >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ (Rcomplex_r x) <= (INT_MIN : double) then
+    (* A warning has been formalised out here. *)
+    NA_INTEGER
+  else Double.double_to_int_zero (Rcomplex_r x).
+
+Definition asInteger S x :=
+  let%success t := TYPEOF S x using S in
+  if%success
+      if%success isVectorAtomic S x using S then
+        let%success l := XLENGTH S x using S in
+        result_success S (decide (l >= 1))
+      else result_success S false using S then
+    match t with
+    | LglSxp =>
+      read%Logical x0 := x at 0 using S in
+      result_success S (IntegerFromLogical x0)
+    | IntSxp =>
+      read%Integer x0 := x at 0 using S in
+      result_success S x0
+    | RealSxp =>
+      read%Real x0 := x at 0 using S in
+      result_success S (IntegerFromReal x0)
+    | CplxSxp =>
+      read%Complex x0 := x at 0 using S in
+      result_success S (IntegerFromComplex x0)
+    | StrSxp =>
+      read%Pointer x0 := x at 0 using S in
+      IntegerFromString S x0
+    | _ => result_error S "[asInteger] Unimplemented type."
+    end
+  else ifb t = CharSxp then
+    IntegerFromString S x
+  else result_success S NA_INTEGER.
+
+Definition RealFromLogical x :=
+  ifb x = NA_LOGICAL then
+    NA_REAL
+  else (x : double).
+
+Definition RealFromInteger x :=
+  ifb x = NA_INTEGER then
+    NA_REAL
+  else (x : double).
+
+Definition RealFromComplex x :=
+  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
+    NA_REAL
+  else if ISNAN (Rcomplex_r x) then
+    Rcomplex_r x
+  else if ISNAN (Rcomplex_i x) then
+    NA_REAL
+  else Rcomplex_r x.
+
+Definition RealFromString S (x : SExpRec_pointer) :=
+  if%success
+    ifb x <> R_NaString then
+      let%success c := CHAR S x using S in
+      result_success S (negb (isBlankString c))
+    else result_success S false using S then
+    result_not_implemented "[RealFromString] R_strtod."
+  else result_success S NA_REAL.
+
+Definition asReal S x :=
+  let%success t := TYPEOF S x using S in
+  if%success
+      if%success isVectorAtomic S x using S then
+        let%success l := XLENGTH S x using S in
+        result_success S (decide (l >= 1))
+      else result_success S false using S then
+    match t with
+    | LglSxp =>
+      read%Logical x0 := x at 0 using S in
+      result_success S (RealFromLogical x0)
+    | IntSxp =>
+      read%Integer x0 := x at 0 using S in
+      result_success S (RealFromInteger x0)
+    | RealSxp =>
+      read%Real x0 := x at 0 using S in
+      result_success S x0
+    | CplxSxp =>
+      read%Complex x0 := x at 0 using S in
+      result_success S (RealFromComplex x0)
+    | StrSxp =>
+      read%Pointer x0 := x at 0 using S in
+      RealFromString S x0
+    | _ => result_error S "[asReal] Unimplemented type."
+    end
+  else ifb t = CharSxp then
+    RealFromString S x
+  else result_success S NA_REAL.
+
+Definition CreateTag S x :=
+  let%success x_n := isNull S x using S in
+  let%success x_sy := isSymbol S x using S in
+  ifb x_n \/ x_sy then
+    result_success S x
+  else
+    if%success
+        let%success x_st := isString S x using S in
+        let%success x_len := R_length S x using S in
+        ifb x_st /\ x_len >= 1 then
+          let%success x_0 := STRING_ELT S x 0 using S in
+          let%success x_0_len := R_length S x_0 using S in
+          result_success S (decide (x_0_len >= 1))
+        else result_success S false using S then
+      let%success x_0 := STRING_ELT S x 0 using S in
+      installTrChar S x_0
+    else result_not_implemented "[CreateTag] [deparse1].".
+
+
+(** ** objects.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/objects.c. **)
+
+Definition R_has_methods S (op : SExpRec_pointer) :=
+  (** This definition is oversimplified.  The final value of the
+    original function depends on the value of the global variable
+    [R_standardGeneric].  The way this variable is initialised is not
+    simple.  It is updated in [R_initMethodDispatch] from
+    library/methods/src/methods_list_dispatch.c. **)
+  result_success S false.
 
 
 (** ** eval.c **)
@@ -2180,26 +2413,12 @@ Definition R_PromiseExpr S p :=
 Definition PREXPR S e :=
   R_PromiseExpr S e.
 
-(** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
-  overwrites its additional argument [ans]. This naturally translates as an option type. **)
-Definition DispatchGroup S group (call op args rho : SExpRec_pointer)
-    : result (option SExpRec_pointer) :=
-  read%list args_car, args_cdr, _ := args using S in
-  let%success args_car_is := isObject S args_car using S in
-  read%list args_cdr_car, _, _ := args_cdr using S in
-  let%success args_cdr_car_is := isObject S args_cdr_car using S in
-  ifb args_car <> R_NilValue /\ ~ args_car_is /\ (args_cdr = R_NilValue \/ ~ args_cdr_car_is) then
-    result_success S None
-  else
-    let isOps := decide (group = "Ops"%string) in
-    result_not_implemented "[DispatchGroup]".
-
 Definition evalList S (el rho call : SExpRec_pointer) n :=
   fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
   along el
   as el_car, el_tag
     do
-    let n := n + 1 in
+    let n := 1 + n in
     ifb el_car = R_DotsSymbol then
       let%success h := findVar S el_car rho using S in
       let%success h_type := TYPEOF S h using S in
@@ -2246,6 +2465,79 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
       result_success S (n, head, ev)
   using S, runs, globals in
   result_success S head.
+
+Definition evalListKeepMissing (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[evalListKeepMissing] TODO".
+
+Definition evalArgs S el rho (dropmissing : bool) call n :=
+  if dropmissing then
+    evalList S el rho call n
+  else evalListKeepMissing S el rho.
+
+(** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
+  overwrites its additional argument [ans]. This naturally translates as an option type. **)
+Definition DispatchGroup S group (call op args rho : SExpRec_pointer)
+    : result (option SExpRec_pointer) :=
+  read%list args_car, args_cdr, _ := args using S in
+  let%success args_car_is := isObject S args_car using S in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let%success args_cdr_car_is := isObject S args_cdr_car using S in
+  ifb args_car <> R_NilValue /\ ~ args_car_is /\ (args_cdr = R_NilValue \/ ~ args_cdr_car_is) then
+    result_success S None
+  else
+    let isOps := decide (group = "Ops"%string) in
+    result_not_implemented "[DispatchGroup]".
+
+Definition DispatchOrEval S (call op : SExpRec_pointer) (generic : string) (args rho : SExpRec_pointer)
+    (dropmissing argsevald : bool) : result (bool * SExpRec_pointer) :=
+  let%success (x, dots) :=
+    if argsevald then
+      read%list args_car, _, _ := args using S in
+      result_success S (args_car, false)
+    else
+      fold%return (x, dots) := (R_NilValue : SExpRec_pointer, false)
+      along args as args_car, _ do
+        ifb args_car = R_DotsSymbol then
+          let%success h := findVar S R_DotsSymbol rho using S in
+          let%success h_type := TYPEOF S h using S in
+          ifb h_type = DotSxp then
+            read%list h_car, _, _ := h using S in
+            let%success h_car_type := TYPEOF S h_car using S in
+            ifb h_car_type <> PromSxp then
+              result_error S "[DispatchOrEval] Value in ‘...’ is not a promise."
+            else
+              let%success r := runs_eval runs S h_car rho using S in
+              result_rreturn S (r, true)
+          else ifb h <> R_NilValue /\ h <> R_MissingArg then
+            result_error S "[DispatchOrEval] ‘...’ used in an incorrect context."
+          else result_rsuccess S (x, dots)
+        else
+          let%success r := runs_eval runs S args_car rho using S in
+          result_rreturn S (r, false) using S, runs, globals in
+      result_success S (x, dots) using S in
+  run%exit
+    if%success isObject S x using S then
+      result_not_implemented "[DispatchOrEval] Object case."
+    else result_rskip S using S in
+  let%success ans :=
+    if negb argsevald then
+      if dots then
+        evalArgs S args rho dropmissing call 0
+      else
+        read%list _, args_cdr, args_tag := args using S in
+        let%success r := evalArgs S args_cdr rho dropmissing call 1 using S in
+        let (S, ans) := CONS_NR S x r in
+        let%success t := CreateTag S args_tag using S in
+        set%tag ans := t using S in
+        result_success S ans
+    else result_success S args using S in
+  result_success S (false, ans).
+
+Definition DispatchAnyOrEval S (call op : SExpRec_pointer) (generic : string) (args rho : SExpRec_pointer)
+    (dropmissing argsevald : bool) : result (bool * SExpRec_pointer) :=
+  if%success R_has_methods S op using S then
+    result_not_implemented "[DispatchAnyOrEval] Method case."
+  else DispatchOrEval S call op generic args rho dropmissing argsevald.
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SExpRec_pointer) :=

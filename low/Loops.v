@@ -393,6 +393,28 @@ Notation "'run%return' c 'using' S 'in' cont" :=
   (let%return _ := c using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'let%return' '(' a1 ',' a2 ')' ':=' e 'using' S 'in' cont" :=
+  (let%return a := e using S in
+   let (a1, a2) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'using' S 'in' cont" :=
+  (let%return a := e using S in
+   let '(a1, a2, a3) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'using' S 'in' cont" :=
+  (let%return a := e using S in
+   let '(a1, a2, a3, a4) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'using' S 'in' cont" :=
+  (let%return a := e using S in
+   let '(a1, a2, a3, a4, a5) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+
 (** Exiting the return-monad. **)
 Definition exit_rresult {A B} (r : result (normal_return A B)) cont :=
   let%success res := r using S in
@@ -407,6 +429,26 @@ Notation "'let%exit' a ':=' e 'using' S 'in' cont" :=
 
 Notation "'run%exit' c 'using' S 'in' cont" :=
   (let%exit _ := c using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%exit' '(' a1 ',' a2 ')' ':=' e 'using' S 'in' cont" :=
+  (let%exit a := e using S in
+   let (a1, a2) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%exit' '(' a1 ',' a2 ',' a3 ')' ':=' e 'using' S 'in' cont" :=
+  (let%exit a := e using S in
+   let '(a1, a2, a3) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%exit' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'using' S 'in' cont" :=
+  (let%exit a := e using S in
+   let '(a1, a2, a3, a4) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'using' S 'in' cont" :=
+  (let%exit a := e using S in
+   let '(a1, a2, a3, a4, a5) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 

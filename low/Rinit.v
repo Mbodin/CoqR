@@ -153,7 +153,7 @@ Definition InitNames_shorcuts S :=
   let%success R_RestartToken := mkSymMarker globals S str using S in
   (** Some ignored global values: [R_InBCInterpreter], [R_CurrentExpression] **)
   let (S, NA_STRING) := alloc_vector_char globals S (ArrayList.from_list (string_to_list "NA")) in
-  map%gp NA_STRING with @write_nbit 16 5 ltac:(nbits_ok) true using S in
+  run%success SET_CACHED S NA_STRING true using S in
   let (S, R_BlankString) := mkChar globals S "" in
   let%success R_BlankScalarString := ScalarString globals S R_BlankString using S in
   let R_SymbolTable := R_NilValue in

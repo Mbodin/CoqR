@@ -106,7 +106,7 @@ x <- 1 ; (function (x, y) { if (x) y }) (FALSE, x <- 2) ; x
 x <- 1 ; (function (x, y, z) { z ; if (x) y }) (FALSE, x <- 2, x <- 3) ; x
 x <- 1 ; (function (x, y, z) { z ; if (x) y }) (TRUE, x <- 2, x <- 3) ; x
 x <- 1 ; (function (x, y) { (function (x, y) if (x) y) (x, y) }) (FALSE, x <- 2) ; x
-(function (x, y = x <- 1) { x <- 2 ; y ; x }) (3)
+x <- 0 ; (function (x, y = x <- 1) { x <- 2 ; y ; x }) (3) ; x
 (function (x, y = x <- 1) { x }) (3)
 z <- 1 ; (function (x, y = x) NULL) (z <- 2) ; z
 z <- 1 ; (function (x, y = x) y) (z <- 2) ; z
@@ -114,6 +114,7 @@ apply <- function (f, ...) f (...) ; apply (function () 1) ; apply (function (x)
 a <- b <- c <- d <- e <- 1 ; f <- function (x, y, ..., z) 1 ; f () ; f (a <- 2) ; a; f (a <- 3, b <- 4) ; a ; b ; f (a <- 5, b <- 6, d <- 7, e <- 8) ; a ; b ; c ; d ; e ; f (z = a <- 9, b <- 10, c <- 11, d <- 12, e <- 13) ; a ; b ; c ; d ; e
 a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ; b ; f (a <- 4) ; a ; b ; f ()
 missing ; missing (x)
+missing ("x")
 missing (1 + 2)
 f <- function (x) missing (x) ; f () ; f (1) ; f (1, 2)
 f <- function (x) missing ("x") ; f () ; f (1) ; f (1, 2)
@@ -123,6 +124,11 @@ f <- function (x = NULL) missing (x) ; f () ; f (1) ; f (1, 2)
 f <- function (x = 0) { x ; missing (x) } ; f () ; f (1) ; f (1, 2)
 f <- function (x) { x ; missing (x) } ; f (1) ; f (1, 2) ; f ()
 f <- function (...) missing (...) ; f () ; f (1) ; f (1, 2)
+f <- function (x) missing (y) ; g <- function (y) f (y) ; g (1)
+f <- function (x) missing ("y") ; g <- function (y) f (y) ; g (1)
+f <- function (...) missing ("x") ; g <- function (x) f (x) ; g (1)
+f <- function (x) function (y) missing (x) ; f () ; f ("y") ()
+f <- function (m, x) m (x) ; f (missing) ; f (missing, NULL) ; f (missing, f ())
 f <- function (x, y, z) x ; g <- function (x, ...) f (..., x) ; g (1) ; g (1, 2) ; g (1, 2, 3)
 f <- function (x) x ; g <- function (...) f (...) ; g (1) ; g ()
 f <- function (x, y, z) y ; g <- function (...) f (...) ; g (1, 2, 3) ; g (1, 2) ; g (y = 2)
@@ -162,6 +168,9 @@ f <- function (x, ...) x ; f (x = 2, 3, 5, 7, 5) ; f (1, 2, x = 3, 4, 5) ; f (1,
 g <- function (x, y, z) x * y * z ; f <- function (x, ...) g (...) ; f (2, 3, 5, 7) ; f (x = 2, 3, 5, 7) ; f (2, 3, x = 5, 7) ; f (2, 3, 5, x = 7) ; f ("x" = 2, 3, 5, 7) ; f (2, 3, "x" = 5, 7) ; f (2, 3, 5, "x" = 7) ; f (x = 2, 3, 5, "x" = 7)
 g <- function (a, b) a ; f <- function (x, ...) g (...) ; f (1, 2, 3) ; f (1, 2) ; f (1, 2, x = 3) ; f (a = 1, 2, 3) ; f (b = 1, 2, x = 3)
 f <- function (..., ab) ab ; f (1, 2, ab = 3, 4, 5) ; f (1, 2, a = 3, 4, 5)
+g <- function () 1 ; f <- function (g) g () ; f (2) ; f (function () 3)
+g <- function () 1 ; f <- function (g) { g <- 4 ; g () } ; f (2) ; f (function () 3) ; g <- 5 ; g ()
+g <- function () 1 ; f <- function (g) (g) () ; f (function () 3) ; f (2)
 
 # Tests about explicit conversions.
 is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
@@ -227,6 +236,22 @@ TRUE:2 ; 1i:3 ; NULL:1
 -0.5:0.5 ; 0.99999999999999999:1.99999999999999999
 (function () 1):3
 .Internal:3
+1 > 2 ; 1 < 2 ; 1 <= 2 ; 1 >= 2 ; 1 == 2
+1L > 2 ; 1L < 2 ; 1L <= 2 ; 1L >= 2 ; 1L == 2
+1 > 2L ; 1 < 2L ; 1 <= 2L ; 1 >= 2L ; 1 == 2L
+1L > 2L ; 1L < 2L ; 1L <= 2L ; 1L >= 2L ; 1L == 2L
+TRUE > 2 ; TRUE < 2 ; TRUE <= 2 ; TRUE >= 2 ; TRUE == 2
+0 > FALSE ; 0 < FALSE ; 0 <= FALSE ; 0 >= FALSE ; 0 == FALSE
+TRUE > FALSE ; TRUE < FALSE ; TRUE <= FALSE ; TRUE >= FALSE ; TRUE == FALSE
+"1" > 2 ; '1' < 2 ; "1" <= 2 ; '1' >= 2 ; "1" == 2
+1 > '2' ; 1 < "2" ; 1 <= '2' ; 1 >= "2" ; 1 == '2'
+'1' > "2" ; "1" < "2" ; "1" <= '2' ; '1' >= '2' ; "1" == "2"
+"1" > 'TRUE' ; "1" < "TRUE" ; '1' <= "TRUE" ; '1' >= 'TRUE' ; "1" == "TRUE"
+1 > NA ; 1 < NA ; 1 <= NA ; 1 >= NA ; 1 == NA
+NA > NA ; NA < NA ; NA <= NA ; NA >= NA ; NA == NA
+1 > NaN ; 1 < NaN ; 1 <= NaN ; 1 >= NaN ; 1 == NaN
+NaN > NaN ; NaN < NaN ; NaN <= NaN ; NaN >= NaN ; NaN == NaN
+1 > "" ; 1 < '' ; 1 <= "" ; 1 >= '' ; 1 == ""
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y
@@ -237,6 +262,7 @@ x <- 2 ; y <- x <- x + 1 ; y ; x
 x <- 2 ; y <- x + 1 -> x ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y
 (x <- 1) + (x <- 2) ; x
+x <- 0 ; (x <- x + 1) + (x <- x + 1) ; x
 x <- 1 ; x <- NULL ; x ; x <- NA ; x ; x <- NaN ; x
 x <- 1 ; "x" <- 2 ; x ; 'x' <- 3 ; x
 y <- 1 ; x <- 'y' ; x <- 2 ; y ; x
@@ -247,6 +273,8 @@ T <- 1 ; F <- 2 ; T ; F ; TRUE <- 1
 NA <- 1
 "NA" <- 1 ; NA
 "TRUE" <- 1 ; "FALSE" <- 2 ; TRUE ; FALSE
+f <- function (x) x <- 1 ; x <- 2 ; f (3) ; x
+f <- function (x) function (y) x <- 1 ; x <- 2 ; f (3) (4) ; x
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3

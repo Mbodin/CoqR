@@ -66,12 +66,6 @@ Definition type2rstr S (t : SExpType) :=
   ifb res <> NULL then result_success S res
   else result_success S (R_NilValue : SExpRec_pointer).
 
-Definition isspace c :=
-  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
-
-Definition isBlankString s :=
-  decide (Forall (fun c => isspace c) (string_to_list s)).
-
 
 Definition nthcdr S s n :=
   let%success s_li := isList globals S s using S in
@@ -109,122 +103,6 @@ Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_poi
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
   type2rstr S t.
-
-Definition IntegerFromString S (x : SExpRec_pointer) :=
-  if%success
-    ifb x <> R_NaString then
-      let%success c := CHAR S x using S in
-      result_success S (negb (isBlankString c))
-    else result_success S false using S then
-    result_not_implemented "[IntegerFromString] R_strtod."
-  else result_success S NA_INTEGER.
-
-Definition IntegerFromLogical x :=
-  ifb x = NA_LOGICAL then
-    NA_INTEGER
-  else x.
-
-Definition IntegerFromReal x :=
-  if ISNAN x then
-    NA_INTEGER
-  else ifb x >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ x <= (INT_MIN : double) then
-    (* A warning has been formalised out here. *)
-    NA_INTEGER
-  else Double.double_to_int_zero x.
-
-Definition IntegerFromComplex x :=
-  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
-    NA_INTEGER
-  else ifb (Rcomplex_r x) >= Double.add (int_to_double (INT_MAX)) (1 : double) \/ (Rcomplex_r x) <= (INT_MIN : double) then
-    (* A warning has been formalised out here. *)
-    NA_INTEGER
-  else Double.double_to_int_zero (Rcomplex_r x).
-
-Definition asInteger S x :=
-  let%success t := TYPEOF S x using S in
-  if%success
-      if%success isVectorAtomic S x using S then
-        let%success l := XLENGTH S x using S in
-        result_success S (decide (l >= 1))
-      else result_success S false using S then
-    match t with
-    | LglSxp =>
-      read%Logical x0 := x at 0 using S in
-      result_success S (IntegerFromLogical x0)
-    | IntSxp =>
-      read%Integer x0 := x at 0 using S in
-      result_success S x0
-    | RealSxp =>
-      read%Real x0 := x at 0 using S in
-      result_success S (IntegerFromReal x0)
-    | CplxSxp =>
-      read%Complex x0 := x at 0 using S in
-      result_success S (IntegerFromComplex x0)
-    | StrSxp =>
-      read%Pointer x0 := x at 0 using S in
-      IntegerFromString S x0
-    | _ => result_error S "[asInteger] Unimplemented type."
-    end
-  else ifb t = CharSxp then
-    IntegerFromString S x
-  else result_success S NA_INTEGER.
-
-Definition RealFromLogical x :=
-  ifb x = NA_LOGICAL then
-    NA_REAL
-  else (x : double).
-
-Definition RealFromInteger x :=
-  ifb x = NA_INTEGER then
-    NA_REAL
-  else (x : double).
-
-Definition RealFromComplex x :=
-  ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then
-    NA_REAL
-  else if ISNAN (Rcomplex_r x) then
-    Rcomplex_r x
-  else if ISNAN (Rcomplex_i x) then
-    NA_REAL
-  else Rcomplex_r x.
-
-Definition RealFromString S (x : SExpRec_pointer) :=
-  if%success
-    ifb x <> R_NaString then
-      let%success c := CHAR S x using S in
-      result_success S (negb (isBlankString c))
-    else result_success S false using S then
-    result_not_implemented "[RealFromString] R_strtod."
-  else result_success S NA_REAL.
-
-Definition asReal S x :=
-  let%success t := TYPEOF S x using S in
-  if%success
-      if%success isVectorAtomic S x using S then
-        let%success l := XLENGTH S x using S in
-        result_success S (decide (l >= 1))
-      else result_success S false using S then
-    match t with
-    | LglSxp =>
-      read%Logical x0 := x at 0 using S in
-      result_success S (RealFromLogical x0)
-    | IntSxp =>
-      read%Integer x0 := x at 0 using S in
-      result_success S (RealFromInteger x0)
-    | RealSxp =>
-      read%Real x0 := x at 0 using S in
-      result_success S x0
-    | CplxSxp =>
-      read%Complex x0 := x at 0 using S in
-      result_success S (RealFromComplex x0)
-    | StrSxp =>
-      read%Pointer x0 := x at 0 using S in
-      RealFromString S x0
-    | _ => result_error S "[asReal] Unimplemented type."
-    end
-  else ifb t = CharSxp then
-    RealFromString S x
-  else result_success S NA_REAL.
 
 Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -482,6 +360,22 @@ Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_po
           write%Logical rval at 0 := ism using S in
           result_success S rval
     else result_error S "[do_missing] It can only be used for arguments.".
+
+
+(** * bind.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/bind.c. **)
+
+Definition do_c_dftl (S : state) (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[do_c_dftl]".
+
+Definition do_c S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  let%success (r, ans) := DispatchAnyOrEval globals runs S call op "c" args env true true using S in
+  if r then result_success S ans
+  else do_c_dftl S call op ans env.
+
 
 
 (** * eval.c **)
@@ -782,7 +676,7 @@ Definition run_flush S n :=
 Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
-  let%success what := asInteger S args_car using S in
+  let%success what := asInteger globals S args_car using S in
   ifb what = NA_INTEGER then
     result_error S "[do_getconnection] There is no connection NA."
   else ifb what < 0 \/ what >= length (R_Connections S) then
@@ -886,7 +780,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
   let args := args_cdr in
   read%list args_car, args_cdr, _ := args using S in
   let file := args_car in
-  let%success ifile := asInteger S file using S in
+  let%success ifile := asInteger globals S file using S in
   let%success con := getConnection S ifile using S in
   if negb (Rconnection_canwrite con) then
     result_error S "[do_cat] Cannot write to this connection."
@@ -919,7 +813,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
             ifb asLog = 1 then
               result_success S INT_MAX (* [R_print.width] formalised out. *)
             else result_success S INT_MAX
-          else asInteger S fill using S in
+          else asInteger globals S fill using S in
         let pwidth :=
           ifb pwidth <= 0 then
             (* A warning has been formalised out here. *)
@@ -953,7 +847,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
                 else result_success S ntot using S in
               let%success n := R_length globals runs S s using S in
               ifb n > 0 then
-                let%success fill_in := asInteger S fill using S in
+                let%success fill_in := asInteger globals S fill using S in
                 let%success nlines :=
                   ifb labs <> R_NilValue /\ iobj = 0 /\ fill_in > 0 then
                     let%success str := STRING_ELT S labs (nlines mod lablen) using S in
@@ -1067,8 +961,8 @@ Definition do_colon S (call op args rho : SExpRec_pointer) : result SExpRec_poin
       result_error S "[do_colon] Argument of length 0."
     else
       (* Warnings have been formalised out here. *)
-      let%success n1 := asReal S s1 using S in
-      let%success n2 := asReal S s2 using S in
+      let%success n1 := asReal globals S s1 using S in
+      let%success n2 := asReal globals S s2 using S in
       ifb ISNAN n1 \/ ISNAN n2 then
         result_error S "[do_colon] NA or NaN argument."
       else seq_colon S n1 n2 call.
@@ -1413,8 +1307,163 @@ Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_poin
 (** The function names of this section corresponds to the function names
   in the file main/relop.c. **)
 
-Definition do_relop_dflt (S : state) (call op x y : SExpRec_pointer) : result SExpRec_pointer  :=
-  result_not_implemented "[do_relop_dflt]".
+Definition DO_SCALAR_RELOP_int S (oper x y : int) :=
+  ifb oper = EQOP then
+    result_success S (ScalarLogical globals (decide (x = y)))
+  else ifb oper = NEOP then
+    result_success S (ScalarLogical globals (decide (x <> y)))
+  else ifb oper = LTOP then
+    result_success S (ScalarLogical globals (decide (x < y)))
+  else ifb oper = GTOP then
+    result_success S (ScalarLogical globals (decide (x > y)))
+  else ifb oper = LEOP then
+    result_success S (ScalarLogical globals (decide (x <= y)))
+  else ifb oper = GEOP then
+    result_success S (ScalarLogical globals (decide (x >= y)))
+  else result_impossible S "[DO_SCALAR_RELOP_int] Unknown constructor.".
+
+Definition DO_SCALAR_RELOP_double S (oper : int) (x y : double) :=
+  ifb oper = EQOP then
+    result_success S (ScalarLogical globals (decide (x = y)))
+  else ifb oper = NEOP then
+    result_success S (ScalarLogical globals (decide (x <> y)))
+  else ifb oper = LTOP then
+    result_success S (ScalarLogical globals (decide (x < y)))
+  else ifb oper = GTOP then
+    result_success S (ScalarLogical globals (decide (x > y)))
+  else ifb oper = LEOP then
+    result_success S (ScalarLogical globals (decide (x <= y)))
+  else ifb oper = GEOP then
+    result_success S (ScalarLogical globals (decide (x >= y)))
+  else result_impossible S "[DO_SCALAR_RELOP_double] Unknown constructor.".
+
+Definition ISNA_INT x :=
+  decide (x = NA_INTEGER).
+
+(** The next three functions are originally untyped as they are defined
+  in preprocessor.  Their translations into Coq are thus more flexible. **)
+Definition NR_HELPER T1 T2 S (op : T1 -> T2 -> bool) ans n n1 n2 read1 read2 (ISNA1 ISNA2 : _ -> bool) :=
+  do%let for i from 0 to n - 1 do
+    let i1 := i mod n1 in
+    let i2 := i mod n2 in
+    let%success x1 := read1 S i1 using S in
+    let%success x2 := read2 S i2 using S in
+    ifb ISNA1 x1 \/ ISNA2 x2 then
+      write%Logical ans at i := NA_LOGICAL using S in
+      result_skip S
+    else
+      write%Logical ans at i := op x1 x2 using S in
+      result_skip S using S.
+
+Definition NUMERIC_RELOP_int S (code : int) ans n n1 n2 read1 read2 (ISNA1 ISNA2 : int -> bool) :=
+  ifb code = EQOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 = x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = NEOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 <> x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = LTOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 < x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = GTOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 > x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = LEOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 <= x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = GEOP then
+    NR_HELPER S (fun x1 x2 => decide (x1 >= x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else result_impossible S "[NUMERIC_RELOP_int] Unknown constructor.".
+
+Definition NUMERIC_RELOP_double T1 T2 (id1 : T1 -> double) (id2 : T2 -> double) S
+    (code : int) ans n n1 n2 read1 read2 ISNA1 ISNA2 :=
+  ifb code = EQOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 = id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = NEOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 <> id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = LTOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 < id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = GTOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 > id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = LEOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 <= id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else ifb code = GEOP then
+    NR_HELPER S (fun x1 x2 => decide (id1 x1 >= id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
+  else result_impossible S "[NUMERIC_RELOP_double] Unknown constructor.".
+
+Definition numeric_relop S code s1 s2 :=
+  let%success n1 := XLENGTH S s1 using S in
+  let%success n2 := XLENGTH S s2 using S in
+  let n := ifb n1 > n2 then n1 else n2 in
+  let%success ans := allocVector globals S LglSxp n using S in
+  let%success s1_in := isInteger globals runs S s1 using S in
+  let%success s1_lg := isLogical S s1 using S in
+  let%success s2_in := isInteger globals runs S s2 using S in
+  let%success s2_lg := isLogical S s2 using S in
+  let readINTEGER s S i :=
+    read%Integer r := s at i using S in
+    result_success S r in
+  let readREAL s S i :=
+    read%Real r := s at i using S in
+    result_success S r in
+  run%success
+    ifb s1_in \/ s1_lg then
+      ifb s2_in \/ s2_lg then
+        NUMERIC_RELOP_int S code ans n n1 n2 (readINTEGER s1) (readINTEGER s2) ISNA_INT ISNA_INT
+      else
+        NUMERIC_RELOP_double (id : int -> double) id S code ans n n1 n2 (readINTEGER s1) (readREAL s2) ISNA_INT ISNAN
+    else ifb s2_in \/ s2_lg then
+      NUMERIC_RELOP_double id (id : int -> double) S code ans n n1 n2 (readREAL s1) (readINTEGER s2) ISNAN ISNA_INT
+    else
+      NUMERIC_RELOP_double id id S code ans n n1 n2 (readREAL s1) (readREAL s2) ISNAN ISNAN using S in
+  result_success S ans.
+
+Definition do_relop_dflt S (call op x y : SExpRec_pointer) : result SExpRec_pointer :=
+  let%success op_val := PRIMVAL runs S op using S in
+  run%exit
+    if%success IS_SIMPLE_SCALAR globals S x IntSxp using S then
+      let%success ix := SCALAR_IVAL S x using S in
+      if%success IS_SIMPLE_SCALAR globals S y IntSxp using S then
+        let%success iy := SCALAR_IVAL S y using S in
+        ifb ix = NA_INTEGER \/ iy = NA_INTEGER then
+          result_rreturn S (ScalarLogical globals NA_LOGICAL)
+        else
+          let%success r := DO_SCALAR_RELOP_int S op_val ix iy using S in
+          result_rreturn S r
+      else if%success IS_SIMPLE_SCALAR globals S y RealSxp using S then
+        let%success dy := SCALAR_DVAL S y using S in
+        ifb ix = NA_INTEGER \/ ISNAN dy then
+          result_rreturn S (ScalarLogical globals NA_LOGICAL)
+        else
+          let%success r := DO_SCALAR_RELOP_double S op_val ix dy using S in
+          result_rreturn S r
+      else result_rskip S
+    else if%success IS_SIMPLE_SCALAR globals S x RealSxp using S then
+      let%success dx := SCALAR_DVAL S x using S in
+      if%success IS_SIMPLE_SCALAR globals S y IntSxp using S then
+        let%success iy := SCALAR_IVAL S y using S in
+        ifb ISNAN dx \/ iy = NA_INTEGER then
+          result_rreturn S (ScalarLogical globals NA_LOGICAL)
+        else
+          let%success r := DO_SCALAR_RELOP_double S op_val dx iy using S in
+          result_rreturn S r
+      else if%success IS_SIMPLE_SCALAR globals S y RealSxp using S then
+        let%success dy := SCALAR_DVAL S y using S in
+        ifb ISNAN dx \/ ISNAN dy then
+          result_rreturn S (ScalarLogical globals NA_LOGICAL)
+        else
+          let%success r := DO_SCALAR_RELOP_double S op_val dx dy using S in
+          result_rreturn S r
+      else result_rskip S
+    else result_rskip S using S in
+  let%success nx := xlength globals runs S x using S in
+  let%success ny := xlength globals runs S y using S in
+  let%success typex := TYPEOF S x using S in
+  let%success typey := TYPEOF S y using S in
+  read%defined x_ := x using S in
+  read%defined y_ := y using S in
+  ifb attrib x_ = R_NilValue /\ attrib y_ = R_NilValue
+      /\ (typex = RealSxp \/ typex = IntSxp)
+      /\ (typey = RealSxp \/ typey = IntSxp)
+      /\ nx > 0 /\ ny > 0 /\ (nx = 1 \/ ny = 1) then
+    numeric_relop S op_val x y
+  else
+    result_not_implemented "[do_relop_dflt]".
 
 Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   read%list args_car, args_cdr, _ := args using S in
@@ -1725,7 +1774,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "...length" (dummy_function "do_dotsLength") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "length" (dummy_function "do_length") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "length<-" (dummy_function "do_lengthgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
-              rdecl "c" (dummy_function "do_c") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "c" do_c (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "oldClass" (dummy_function "do_class") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "oldClass<-" (dummy_function "do_classgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "class" (dummy_function "R_do_data_class") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
