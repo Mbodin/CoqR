@@ -158,11 +158,27 @@ Definition BindData_with_ans_flags d f := {|
     BindData_ans_nnames := BindData_ans_nnames d
   |}.
 
+Definition BindData_with_ans_ptr d p := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := p ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
 Definition BindData_with_ans_length d l := {|
     BindData_ans_flags := BindData_ans_flags d ;
     BindData_ans_ptr := BindData_ans_ptr d ;
     BindData_ans_length := l ;
     BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_names d n := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := n ;
     BindData_ans_nnames := BindData_ans_nnames d
   |}.
 

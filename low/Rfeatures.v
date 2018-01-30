@@ -254,7 +254,7 @@ Definition findRootPromise S p :=
 
 Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
   ifb symbol = R_MissingArg then
-    result_success S 1
+    result_success S true
   else
     let%success (s, ddv) :=
       if%success DDVAL S symbol using S then
@@ -262,7 +262,7 @@ Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
         result_success S (R_DotsSymbol : SExpRec_pointer, d)
       else result_success S (symbol, 0) using S in
     ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
-      result_success S 0
+      result_success S false
     else
       let%success vl := findVarLocInFrame globals runs S rho s using S in
       ifb vl <> R_NilValue then
@@ -271,7 +271,7 @@ Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
             read%list vl_car, _, _ := vl using S in
             let%success vl_car_len := R_length globals runs S vl_car using S in
             ifb vl_car_len < ddv \/ vl_car = R_MissingArg then
-              result_rreturn S 1
+              result_rreturn S true
             else
               let%success n := nthcdr S vl_car (ddv - 1) using S in
               result_rsuccess S n
@@ -279,22 +279,34 @@ Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
         let%success vl_mis := MISSING S vl using S in
         read%list vl_car, _, _ := vl using S in
         ifb vl_mis = true \/ vl_car = R_MissingArg then
-          result_success S 1
+          result_success S true
         else if%success IS_ACTIVE_BINDING S vl using S then
-          result_success S 0
+          result_success S false
         else
           let%success vl_car_rp := findRootPromise S vl_car using S in
           set%car vl := vl_car_rp using S in
+          let vl_cat := vl_car_rp in
           let%success vl_car_type := TYPEOF S vl_car using S in
           ifb vl_car_type = PromSxp then
             read%prom _, vl_car_prom := vl_car using S in
             let%success vl_car_expr := PREXPR globals S vl_car using S in
             let%success vl_car_expr_type := TYPEOF S vl_car_expr using S in
             ifb prom_value vl_car_prom = R_UnboundValue /\ vl_car_expr_type = SymSxp then
-              result_not_implemented "[R_isMissing] Loop."
-            else result_success S 0
-          else result_success S 0
-      else result_success S 0.
+              let%success vl_car_prseen := PRSEEN S vl_car using S in
+              ifb vl_car_prseen = 1 then
+                result_success S true
+              else
+                let%success oldseen := PRSEEN_direct S vl_car using S in
+                run%success SET_PRSEEN S vl_car 1 ltac:(nbits_ok) using S in
+                let%success val :=
+                  let%success vl_car_prexpr := PREXPR globals S vl_car using S in
+                  let%success vl_car_prenv := PRENV S vl_car using S in
+                  runs_R_isMissing runs S vl_car_prexpr vl_car_prenv using S in
+                run%success SET_PRSEEN_direct S vl_car oldseen using S in
+                result_success S val
+            else result_success S false
+          else result_success S false
+      else result_success S false.
 
 Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -463,8 +475,8 @@ Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer
         let%success x_i := VECTOR_ELT S x i using S in
         let%success data :=
           ifb usenames /\ BindData_ans_nnames data = 0 then
-            let%success hs := HasNames S x_i using S in
-            result_success S (BindData_with_ans_nnames data hs)
+            let%success hn := HasNames S x_i using S in
+            result_success S (BindData_with_ans_nnames data hn)
           else result_success S data using S in
         runs_AnswerType runs S x_i recurse usenames data call using S
     else
@@ -490,8 +502,8 @@ Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer
             if negb x_tag_n then
               result_success S (BindData_with_ans_nnames data 1)
             else
-              let%success hs := HasNames S x_car using S in
-              result_success S (BindData_with_ans_nnames data hs)
+              let%success hn := HasNames S x_car using S in
+              result_success S (BindData_with_ans_nnames data hn)
           else result_success S data using S in
         runs_AnswerType runs S x_car recurse usenames data call using S, runs, globals
     else
@@ -512,7 +524,7 @@ Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer
   end.
 
 Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
-  fold%success (recurse, usenames, ans, last, n_recurse, n_usenames) := (false : int, true : int, ans, NULL, 0, 0)
+  fold%success (recurse, usenames, ans, last, n_recurse, n_usenames) := (false, true, ans, NULL, 0, 0)
   along ans as a, a_, a_list do
     let n := list_tagval a_list in
     let next := list_cdrval a_list in
@@ -528,7 +540,7 @@ Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
         let%success v := asLogical globals S a_car using S in
         let%success recurse :=
           ifb v <> NA_INTEGER then
-            result_success S v
+            result_success S (decide (v <> 0))
           else result_success S recurse using S in
         let%success ans :=
           ifb last = NULL then
@@ -548,7 +560,7 @@ Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
         let%success v := asLogical globals S a_car using S in
         let%success usenames :=
           ifb v <> NA_INTEGER then
-            result_success S v
+            result_success S (decide (v <> 0))
           else result_success S usenames using S in
         let%success ans :=
           ifb last = NULL then
@@ -560,6 +572,298 @@ Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
     else result_success S (recurse, usenames, ans, a, n_recurse, n_usenames) using S, runs, globals in
   result_success S (ans, recurse, usenames).
 
+Definition ListAnswer S x (recurse : bool) data call :=
+  let LIST_ASSIGN S data x :=
+    run%success SET_VECTOR_ELT S (BindData_ans_ptr data) (BindData_ans_length data) x using S in
+    result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) in
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | LglSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Logical x_i := x at i using S in
+      LIST_ASSIGN S data (ScalarLogical globals x_i) using S
+  | RawSxp => result_not_implemented "[ListAnswer] Raw case."
+  | IntSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Integer x_i := x at i using S in
+      let (S, si) := ScalarInteger globals S x_i in
+      LIST_ASSIGN S data si using S
+  | RealSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Real x_i := x at i using S in
+      let (S, sr) := ScalarReal globals S x_i in
+      LIST_ASSIGN S data sr using S
+  | CplxSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Complex x_i := x at i using S in
+      let (S, sc) := ScalarComplex globals S x_i in
+      LIST_ASSIGN S data sc using S
+  | StrSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := STRING_ELT S x i using S in
+      let%success ss := ScalarString globals S x_i using S in
+      LIST_ASSIGN S data ss using S
+  | VecSxp
+  | ExprSxp =>
+    let%success len := XLENGTH S x using S in
+    if recurse then
+      do%let data := data
+      for i from 0 to len - 1 do
+        let%success x_i := VECTOR_ELT S x i using S in
+        runs_ListAnswer runs S x_i recurse data call using S
+    else
+      do%let data := data
+      for i from 0 to len - 1 do
+        let%success x_i := VECTOR_ELT S x i using S in
+        let%success x_i := lazy_duplicate S x_i using S in
+        LIST_ASSIGN S data x_i using S
+  | ListSxp =>
+    if recurse then
+      fold%let data := data
+      along x
+      as x_car, _ do
+        runs_ListAnswer runs S x_car recurse data call using S, runs, globals
+    else
+      fold%let data := data
+      along x
+      as x_car, _ do
+        let%success x_car := lazy_duplicate S x_car using S in
+        LIST_ASSIGN S data x_car using S, runs, globals
+  | _ =>
+    let%success x := lazy_duplicate S x using S in
+    LIST_ASSIGN S data x
+  end.
+
+Definition StringAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_StringAnswer runs S x_car data call using S, runs, globals
+  | ExprSxp
+  | VecSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_StringAnswer runs S x_i data call using S
+  | _ =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := STRING_ELT S x i using S in
+      run%success SET_STRING_ELT S (BindData_ans_ptr data) (BindData_ans_length data) x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  end.
+
+Definition LogicalAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_LogicalAnswer runs S x_car data call using S, runs, globals
+  | ExprSxp
+  | VecSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_LogicalAnswer runs S x_i data call using S
+  | LglSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Logical x_i := x at i using S in
+      write%Logical BindData_ans_ptr data at BindData_ans_length data := x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | IntSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Integer v := x at i using S in
+      write%Logical BindData_ans_ptr data at BindData_ans_length data :=
+        ifb v = NA_INTEGER then NA_LOGICAL else decide (v <> 0) using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | RawSxp => result_not_implemented "[LogicalAnswer] Raw case."
+  | _ => result_error S "[LogicalAnswer] Unimplemented type."
+  end.
+
+Definition IntegerAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_IntegerAnswer runs S x_car data call using S, runs, globals
+  | ExprSxp
+  | VecSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_IntegerAnswer runs S x_i data call using S
+  | LglSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Logical x_i := x at i using S in
+      write%Integer BindData_ans_ptr data at BindData_ans_length data := x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | IntSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Integer x_i := x at i using S in
+      write%Integer BindData_ans_ptr data at BindData_ans_length data := x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | RawSxp => result_not_implemented "[IntegerAnswer] Raw case."
+  | _ => result_error S "[IntegerAnswer] Unimplemented type."
+  end.
+
+Definition RealAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_RealAnswer runs S x_car data call using S, runs, globals
+  | VecSxp
+  | ExprSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_RealAnswer runs S x_i data call using S
+  | RealSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Real x_i := x at i using S in
+      write%Real BindData_ans_ptr data at BindData_ans_length data := x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | LglSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Logical xi := x at i using S in
+      ifb xi = NA_LOGICAL then
+        write%Real BindData_ans_ptr data at BindData_ans_length data := NA_REAL using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data))
+      else
+        write%Real BindData_ans_ptr data at BindData_ans_length data := xi using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | IntSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Integer xi := x at i using S in
+      ifb xi = NA_INTEGER then
+        write%Real BindData_ans_ptr data at BindData_ans_length data := NA_REAL using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data))
+      else
+        write%Real BindData_ans_ptr data at BindData_ans_length data := xi using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | RawSxp => result_not_implemented "[RealAnswer] Raw case."
+  | _ => result_error S "[RealAnswer] Unimplemented type."
+  end.
+
+Definition ComplexAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_ComplexAnswer runs S x_car data call using S, runs, globals
+  | ExprSxp
+  | VecSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_ComplexAnswer runs S x_i data call using S
+  | RealSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Real x_i := x at i using S in
+      write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex x_i 0 using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | CplxSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Complex x_i := x at i using S in
+      write%Complex BindData_ans_ptr data at BindData_ans_length data := x_i using S in
+      result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | LglSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Logical xi := x at i using S in
+      ifb xi = NA_LOGICAL then
+        write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex NA_REAL NA_REAL using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data))
+      else
+        write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex xi 0 using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | IntSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      read%Integer xi := x at i using S in
+      ifb xi = NA_INTEGER then
+        write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex NA_REAL NA_REAL using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data))
+      else
+        write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex xi 0 using S in
+        result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
+  | RawSxp => result_not_implemented "[ComplexAnswer] Raw case."
+  | _ => result_error S "[ComplexAnswer] Unimplemented type."
+  end.
+
+Definition RawAnswer S x data call :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp => result_success S data
+  | ListSxp =>
+    fold%let data := data
+    along x
+    as x_car, _ do
+      runs_RawAnswer runs S x_car data call using S, runs, globals
+  | ExprSxp
+  | VecSxp =>
+    let%success len := XLENGTH S x using S in
+    do%let data := data
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      runs_RawAnswer runs S x_i data call using S
+  | RawSxp => result_not_implemented "[RawAnswer] Raw case."
+  | _ => result_error S "[RawAnswer] Unimplemented type."
+  end.
+
 Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   let%success (ans, recurse, usenames) := c_Extract_opt S args call using S in
   let data := make_BindData (@nat_to_nbits 10 0 ltac:(nbits_ok)) NULL 0 NULL 0 in
@@ -567,7 +871,7 @@ Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_poi
   along args
   as t_car, t_tag do
     let%success data :=
-      ifb usenames <> 0 /\ BindData_ans_nnames data = 0 then
+      ifb usenames /\ BindData_ans_nnames data = 0 then
         let%success t_tag_n := isNull S t_tag using S in
         if negb t_tag_n then
           result_success S (BindData_with_ans_nnames data 1)
@@ -575,8 +879,56 @@ Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_poi
           let%success hn := HasNames S t_car using S in
           result_success S (BindData_with_ans_nnames data hn)
       else result_success S data using S in
-    AnswerType S t_car (decide (recurse <> 0)) (decide (usenames <> 0)) data call using S, runs, globals in
-  result_not_implemented "[do_c_dftl] [BindData].".
+    AnswerType S t_car recurse usenames data call using S, runs, globals in
+  let mode :=
+    if nth_bit 9 (BindData_ans_flags data) ltac:(nbits_ok) then ExprSxp
+    else if nth_bit 8 (BindData_ans_flags data) ltac:(nbits_ok) then VecSxp
+    else if nth_bit 7 (BindData_ans_flags data) ltac:(nbits_ok) then StrSxp
+    else if nth_bit 6 (BindData_ans_flags data) ltac:(nbits_ok) then CplxSxp
+    else if nth_bit 5 (BindData_ans_flags data) ltac:(nbits_ok) then RealSxp
+    else if nth_bit 4 (BindData_ans_flags data) ltac:(nbits_ok) then IntSxp
+    else if nth_bit 1 (BindData_ans_flags data) ltac:(nbits_ok) then LglSxp
+    else if nth_bit 0 (BindData_ans_flags data) ltac:(nbits_ok) then RawSxp
+    else NilSxp in
+  let%success ans := allocVector globals S mode (BindData_ans_length data) using S in
+  let data := BindData_with_ans_ptr data ans in
+  let data := BindData_with_ans_length data 0 in
+  let t := args in
+  let%success data :=
+    ifb mode = VecSxp \/ mode = ExprSxp then
+      let%success data :=
+        if negb recurse then
+          fold%let data := data
+          along args
+          as args_car, _ do
+            ListAnswer S args_car false data call using S, runs, globals
+        else ListAnswer S args recurse data call using S in
+      let%success len := xlength globals runs S ans using S in
+      result_success S (BindData_with_ans_length data len)
+    else ifb mode = StrSxp then
+      StringAnswer S args data call
+    else ifb mode = CplxSxp then
+      ComplexAnswer S args data call
+    else ifb mode = RealSxp then
+      RealAnswer S args data call
+    else ifb mode = RawSxp then
+      RawAnswer S args data call
+    else ifb mode = LglSxp then
+      LogicalAnswer S args data call
+    else IntegerAnswer S args data call using S in
+  let args := t in
+  let%success data :=
+    ifb BindData_ans_nnames data <> 0 /\ BindData_ans_length data > 0 then
+      let%success data_ans_names := allocVector globals S StrSxp (BindData_ans_length data) using S in
+      let data := BindData_with_ans_names data data_ans_names in
+      fold%success (nameData, data) := (tt, data)
+      along args
+      as args_car, _ do
+        result_not_implemented "[do_c_dftl] [NewExtractNames]." using S, runs, globals in
+      run%success setAttrib globals runs S ans R_NamesSymbol (BindData_ans_names data) using S in
+      result_success S data
+    else result_success S data using S in
+  result_success S ans.
 
 Definition do_c S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -1840,6 +2192,13 @@ Fixpoint runs max_step globals : runs_type :=
       runs_stripAttrib := fun S _ _ => result_bottom S ;
       runs_R_isMissing := fun S _ _ => result_bottom S ;
       runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
+      runs_ListAnswer := fun S _ _ _ _ => result_bottom S ;
+      runs_StringAnswer := fun S _ _ _ => result_bottom S ;
+      runs_LogicalAnswer := fun S _ _ _ => result_bottom S ;
+      runs_IntegerAnswer := fun S _ _ _ => result_bottom S ;
+      runs_RealAnswer := fun S _ _ _ => result_bottom S ;
+      runs_ComplexAnswer := fun S _ _ _ => result_bottom S ;
+      runs_RawAnswer := fun S _ _ _ => result_bottom S ;
       runs_R_FunTab := None
     |}
   | S max_step =>
@@ -1859,8 +2218,15 @@ Fixpoint runs max_step globals : runs_type :=
       runs_getAttrib := wrap getAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
       runs_stripAttrib := wrap stripAttrib ;
-      runs_R_isMissing := fun S _ _ => result_bottom S ;
-      runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
+      runs_R_isMissing := wrap R_isMissing ;
+      runs_AnswerType := wrap AnswerType ;
+      runs_ListAnswer := wrap ListAnswer ;
+      runs_StringAnswer := wrap StringAnswer ;
+      runs_LogicalAnswer := wrap LogicalAnswer ;
+      runs_IntegerAnswer := wrap IntegerAnswer ;
+      runs_RealAnswer := wrap RealAnswer ;
+      runs_ComplexAnswer := wrap ComplexAnswer ;
+      runs_RawAnswer := wrap RawAnswer ;
       runs_R_FunTab :=
 
         let eval0 := make_funtab_eval_arg false false in

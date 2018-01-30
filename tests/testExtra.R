@@ -219,18 +219,22 @@ NA_integer_ == NA ; NA_character_ == NA ; NA_integer_ == NA_character_
 NULL == 0 ; NULL == NA ; NULL == NaN ; NULL == FALSE ; NULL == TRUE
 0 == -0 ; 0L == -0L ; 1/Inf == 0 ; -1/Inf == 0 ; NaN == Inf - Inf
 .Internal == .Internal
-c (1, 1L) ; c (1, NULL) ; c (1, TRUE) ; c (1, "a") ; c (1, NA) ; c (1, NaN)
-c (1L, 1L) ; c (1L, NULL) ; c (1L, TRUE) ; c (1L, 'a') ; c (1L, NA) ; c (1L, NaN)
-c (NULL, 1L) ; c (NULL, NULL) ; c (NULL, TRUE) ; c (NULL, "a") ; c (NULL, NA) ; c (NULL, NaN)
-c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, 'a') ; c (TRUE, NA) ; c (TRUE, NaN)
-c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b', NaN)
-c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN)
-c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN)
+c (1, 1L) ; c (1, NULL) ; c (1, TRUE) ; c (1, "a") ; c (1, NA) ; c (1, NaN) ; c (1, 3i)
+c (1L, 1L) ; c (1L, NULL) ; c (1L, TRUE) ; c (1L, 'a') ; c (1L, NA) ; c (1L, NaN) ; c (1L, 3i)
+c (NULL, 1L) ; c (NULL, NULL) ; c (NULL, TRUE) ; c (NULL, "a") ; c (NULL, NA) ; c (NULL, NaN) ; c (NULL, 3i)
+c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, 'a') ; c (TRUE, NA) ; c (TRUE, NaN) ; c (TRUE, 3i)
+c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b', NaN) ; c ("b", 3i)
+c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN) ; c (NA, 3i)
+c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN) ; c (NaN, 3i)
+c (4i, 1L) ; c (4i, NULL) ; c (4i, TRUE) ; c (4i, "a") ; c (4i, NA) ; c (4i, NaN) ; c (4i, 3i)
 c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
 c (1) ; c (1L) ; c (1i) ; c (TRUE) ; c ("a") ; c (NA) ; c (NaN) ; c (Inf)
 c () ; c (NULL) ; c (NULL, NULL, NULL, NA, NULL, NULL, NULL)
 c (x = 1)
 c (1:10) ; c (c) ; c (function (x) x)
+list (c ()) ; list (c (1)) ; list (c (1, 2), c ("1", "2"))
+list () ; c (list ()) ; c (list (1)) ; c (list (1, 2), list ("1", "2")) ; c (list (1, TRUE, "a")) ; c (list (1, TRUE, "a"), list (), list (NA), list (FALSE))
+c (1, TRUE) ; c (1, TRUE, list ()) ; c (1, TRUE, "a", NULL, list (), NA, list (FALSE), function (x) x)
 -0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1" ; 1:" "
 -10:10 ; -(10:10) ; 1:""
 1:NA

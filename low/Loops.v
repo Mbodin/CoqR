@@ -15,8 +15,15 @@ Record runs_type : Type := runs_type_intro {
     runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
     runs_R_cycle_detected : state -> SExpRec_pointer -> SExpRec_pointer -> result bool ;
     runs_stripAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
-    runs_R_isMissing : state -> SExpRec_pointer -> SExpRec_pointer -> result nat ;
+    runs_R_isMissing : state -> SExpRec_pointer -> SExpRec_pointer -> result bool ;
     runs_AnswerType : state -> SExpRec_pointer -> bool -> bool -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_ListAnswer : state -> SExpRec_pointer -> bool -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_StringAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_LogicalAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_IntegerAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_RealAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_ComplexAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_RawAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
     runs_R_FunTab : funtab
   }.
 

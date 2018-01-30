@@ -270,6 +270,27 @@ Definition IS_CACHED S x :=
   read%defined x_ := x using S in
   result_success S (nth_bit CACHED_BIT (gp x_) ltac:(nbits_ok)).
 
+Definition PRSEEN S x :=
+  read%defined x_ := x using S in
+  result_success S (nbits_to_nat (gp x_)).
+
+Definition SET_PRSEEN S x v I :=
+  set%gp x with @nat_to_nbits 16 v I using S in
+  result_skip S.
+Arguments SET_PRSEEN : clear implicits.
+
+Definition PRSEEN_direct S x :=
+  read%defined x_ := x using S in
+  result_success S (gp x_).
+
+Definition SET_PRSEEN_direct S x v :=
+  set%gp x with v using S in
+  result_skip S.
+
+Definition PRENV S p :=
+  read%prom _, p_prom := p using S in
+  result_success S (prom_env p_prom).
+
 
 (** ** duplicate.c **)
 
@@ -287,6 +308,41 @@ Definition duplicate S s :=
 
 Definition shallow_duplicate S s :=
   duplicate1 S s false.
+
+Definition lazy_duplicate S s :=
+  let%success s_t := TYPEOF S s using S in
+  run%success
+    match s_t with
+    | NilSxp
+    | SymSxp
+    | EnvSxp
+    | SpecialSxp
+    | BuiltinSxp
+    | ExtptrSxp
+    | BcodeSxp
+    | WeakrefSxp
+    | CharSxp
+    | PromSxp =>
+      result_skip S
+    | CloSxp
+    | ListSxp
+    | LangSxp
+    | DotSxp
+    | ExprSxp
+    | VecSxp
+    | LglSxp
+    | IntSxp
+    | RealSxp
+    | CplxSxp
+    | RawSxp
+    | StrSxp
+    | S4Sxp =>
+      map%pointer s with set_named_plural using S in
+      result_skip S
+    | _ =>
+      result_error S "[lazy_duplicate] Unimplemented type."
+    end using S in
+  result_success S s.
 
 
 (** The following function is actually in the C file
@@ -2224,20 +2280,21 @@ Definition R_has_methods S (op : SExpRec_pointer) :=
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
-  read%prom e_, e_prom := e using S in
+  read%prom _, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
     run%success
-      ifb nbits_to_nat (gp e_) <> 0 then
-        ifb nbits_to_nat (gp e_) = 1 then
+      let%success e_prseen := PRSEEN S e using S in
+      ifb e_prseen <> 0 then
+        ifb e_prseen = 1 then
           result_error S "[forcePromise] Promise already under evaluation."
         else
           (** The C code emitted a warning here: restarting interrupted promise evaluation.
             This may be a sign that this part should be ignored. *)
-          result_skip S
+          SET_PRSEEN S e 1 ltac:(nbits_ok)
       else result_skip S using S in
-    set%gp e with @nat_to_nbits 16 1 ltac:(nbits_ok) using S in
+    run%success SET_PRSEEN S e 1 ltac:(nbits_ok) using S in
     let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
-    set%gp e with @nat_to_nbits 16 0 ltac:(nbits_ok) using S in
+    run%success SET_PRSEEN S e 0 ltac:(nbits_ok) using S in
     map%pointer val with set_named_plural using S in
     read%prom e_, e_prom := e using S in
     let e_prom := {|
@@ -2660,3 +2717,6 @@ Definition eval_global S e :=
   eval S e R_GlobalEnv.
 
 End Parameterised.
+
+Arguments SET_MISSING : clear implicits.
+Arguments SET_PRSEEN : clear implicits.
