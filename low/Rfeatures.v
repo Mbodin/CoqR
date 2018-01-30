@@ -227,12 +227,6 @@ Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
       else result_error S "[do_is] Other predicate." using S in
     result_success S ans.
 
-Definition coerceVector S v type :=
-  let%success v_type := TYPEOF S v using S in
-  ifb v_type = type then
-    result_success S v
-  else result_not_implemented "[coerceVector] [IS_S4_OBJECT].".
-
 
 (** * envir.c **)
 
@@ -662,6 +656,7 @@ Definition StringAnswer S x data call :=
       let%success x_i := VECTOR_ELT S x i using S in
       runs_StringAnswer runs S x_i data call using S
   | _ =>
+    let%success x := coerceVector globals runs S x StrSxp using S in
     let%success len := XLENGTH S x using S in
     do%let data := data
     for i from 0 to len - 1 do
@@ -1796,7 +1791,7 @@ Definition math1 S sa f (lcall : SExpRec_pointer) :=
     result_error S "[math1] Non-numeric argument to mathematical function."
   else
     let%success n := XLENGTH S sa using S in
-    let%success sa := coerceVector S sa RealSxp using S in
+    let%success sa := coerceVector globals runs S sa RealSxp using S in
     let%success sy :=
       if%success NO_REFERENCES S sa using S then
         result_success S sa

@@ -142,7 +142,10 @@ f <- function (...) missing (..2) ; f (1) ; f (1, 2) ; f (1, 2, 3)
 f <- function (...) missing (..100) ; f (1)
 f <- function (...) missing (..999999999) ; f (1)
 f <- function (...) missing (..999999999999999999) ; f () ; f (1) ; f (1, 2)
-f <- function (...) ..0 ; f (1)
+f <- function (...) ..0 ; f (1) ; f ()
+f <- function (...) ..1 ; f (1) ; f ()
+f <- function (...) ..01 ; f (1) ; f ()
+f <- function (...) ..00 ; f (1) ; f ()
 function (..., x, y, z, ...) x
 function (x, y, z, x) y
 f <- function (x, y) x ; f (x = 1, "x" = 1)
@@ -241,7 +244,7 @@ c (1, TRUE) ; c (1, TRUE, list ()) ; c (1, TRUE, "a", NULL, list (), NA, list (F
 1:NaN
 1:Inf
 TRUE:2 ; 1i:3 ; NULL:1
--0.5:0.5 ; 0.99999999999999999:1.99999999999999999
+-0.5:0.5 ; -0.5:10 ; 0.99999999999999999:1.99999999999999999
 (function () 1):3
 .Internal:3
 1 > 2 ; 1 < 2 ; 1 <= 2 ; 1 >= 2 ; 1 == 2

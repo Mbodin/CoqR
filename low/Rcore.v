@@ -50,13 +50,13 @@ Definition R_INT_MAX := INT_MAX.
 Definition R_INT_MIN := INT_MIN.
 
 Definition R_NaInt := INT_MIN.
-Definition R_PosInf := Double.posInf.
-Definition R_NegInf := Double.negInf.
-Definition R_NaN := Double.NaN.
 Definition NA_INTEGER := R_NaInt.
 Definition NA_LOGICAL := R_NaInt.
-Definition R_NaReal := Double.NaN1954.
-Definition NA_REAL := R_NaReal.
+Definition R_PosInf : double := Double.posInf.
+Definition R_NegInf : double := Double.negInf.
+Definition R_NaN : double := Double.NaN.
+Definition R_NaReal : double := Double.NaN1954.
+Definition NA_REAL : double := R_NaReal.
 
 Definition R_NaString := NA_STRING.
 
@@ -88,7 +88,7 @@ Definition GTOP := 6.
 (** The function names of this section corresponds to the macro names
   in the file include/Rmath.h. **)
 
-Definition ISNAN x :=
+Definition ISNAN (x : double) :=
   Double.isNaN x.
 
 
@@ -765,6 +765,10 @@ Definition isFrame S s :=
     result_success S false
   else result_success S false.
 
+Definition isNewList S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s = R_NilValue \/ s_type = VecSxp)).
+
 Definition SCALAR_LVAL S x :=
   read%Logical r := x at 0 using S in
   result_success S r.
@@ -962,6 +966,33 @@ Definition RAW_ELT S x i :=
     read%Pointer x_i := x at i using S in
     result_success S x_i.
 
+Definition isVectorizable S (s : SExpRec_pointer) :=
+  ifb s = R_NilValue then
+    result_success S true
+  else if%success isNewList S s using S then
+    let%success n := XLENGTH S s using S in
+    do%return i := 0
+    while result_success S (decide (i < n)) do
+      let%success s_i := VECTOR_ELT S s i using S in
+      let%success s_i_iv := isVector S s_i using S in
+      let%success s_i_len := LENGTH S s_i using S in
+      ifb ~ s_i_iv \/ s_i_len > 1 then
+        result_rreturn S false
+      else result_rsuccess S (1 + i) using S, runs in
+    result_success S true
+  else if%success isList S s using S then
+    fold%return
+    along s
+    as s_car, _ do
+      let%success s_car_iv := isVector S s_car using S in
+      let%success s_car_len := LENGTH S s_car using S in
+      ifb ~ s_car_iv \/ s_car_len > 1 then
+        result_rreturn S false
+      else result_rskip S using S, runs, globals in
+    result_success S true
+  else result_success S false.
+
+
 (** The following function is actually in the C file main/memory.c.
   It is placed here to solve a cyclic file dependency.**)
 Definition SET_VECTOR_ELT S x i v :=
@@ -983,7 +1014,7 @@ Definition SET_STRING_ELT S (x : SExpRec_pointer) i v : result unit :=
   ifb x_type <> StrSxp then
     result_error S "[SET_STRING_ELT] It can only be applied to a character vector."
   else
-    let%success v_type := TYPEOF S x using S in
+    let%success v_type := TYPEOF S v using S in
     ifb v_type <> CharSxp then
       result_error S "[SET_STRING_ELT] The value must be a CharSxp."
     else
@@ -1000,7 +1031,7 @@ Definition SET_STRING_ELT S (x : SExpRec_pointer) i v : result unit :=
 (** The function names of this section corresponds to the function names
   in the file main/arithmetic.c. **)
 
-Definition R_IsNA x :=
+Definition R_IsNA (x : double) :=
   decide (Double.getNaNData x = Some 1954)%positive.
 
 Definition R_IsNAN x :=
@@ -1025,6 +1056,22 @@ Definition ScalarValue2 S x y :=
     else
       let%success x_type := TYPEOF S x using S in
       allocVector S x_type 1.
+
+
+(** * printutils.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/printutils.c. **)
+
+Definition EncodeLogical x :=
+  ifb x = NA_LOGICAL then "NA"%string
+  else ifb x <> 0 then "TRUE"%string
+  else "FALSE"%string.
+
+Definition StringFromReal S x :=
+  if R_IsNA x then
+    result_success S (NA_STRING : SExpRec_pointer)
+  else result_not_implemented "[StringFromReal] [EncodeRealDrop0].".
 
 
 (** ** envir.c **)
@@ -2239,6 +2286,653 @@ Definition asReal S x :=
   else ifb t = CharSxp then
     RealFromString S x
   else result_success S NA_REAL.
+
+Definition coerceSymbol S v type :=
+  let%success rval :=
+    ifb type = ExprSxp then
+      let%success rval := allocVector S type 1 using S in
+      run%success SET_VECTOR_ELT S rval 0 v using S in
+      result_success S rval
+    else ifb type = CharSxp then
+      PRINTNAME S v
+    else ifb type = StrSxp then
+      let%success v_name := PRINTNAME S v using S in
+      ScalarString S v_name
+    else
+      (* A warning has been formalised out here. *)
+      result_success S (R_NilValue : SExpRec_pointer) using S in
+  result_success S rval.
+
+Definition PairToVectorList (S : state) (x : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[PairToVectorList]".
+
+Definition ComplexFromString S (x : SExpRec_pointer) :=
+  if%success
+    ifb x <> R_NaString then
+      let%success c := CHAR S x using S in
+      result_success S (negb (isBlankString c))
+    else result_success S false using S then
+    result_not_implemented "[ComplexFromString] R_strtod."
+  else result_success S (make_Rcomplex NA_REAL NA_REAL).
+
+Definition ComplexFromLogical x :=
+  ifb x = NA_LOGICAL then
+    make_Rcomplex NA_REAL NA_REAL
+  else make_Rcomplex x 0.
+
+Definition ComplexFromInteger x :=
+  ifb x = NA_INTEGER then
+    make_Rcomplex NA_REAL NA_REAL
+  else make_Rcomplex x 0.
+
+Definition ComplexFromReal x :=
+  make_Rcomplex x 0.
+
+Definition asComplex S x :=
+  let%success x_va := isVectorAtomic S x using S in
+  let%success x_len := XLENGTH S x using S in
+  let%success x_type := TYPEOF S x using S in
+  ifb x_va /\ x_len >= 1 then
+    match x_type with
+    | LglSxp =>
+      let%success x_0 := LOGICAL_ELT S x 0 using S in
+      result_success S (ComplexFromLogical x_0)
+    | IntSxp =>
+      let%success x_0 := INTEGER_ELT S x 0 using S in
+      result_success S (ComplexFromInteger x_0)
+    | RealSxp =>
+      let%success x_0 := REAL_ELT S x 0 using S in
+      result_success S (ComplexFromReal x_0)
+    | CplxSxp =>
+      COMPLEX_ELT S x 0
+    | StrSxp =>
+      let%success x_0 := STRING_ELT S x 0 using S in
+      ComplexFromString S x_0
+    | _ =>
+      result_error S "[asComplex] Unimplemented type."
+    end
+  else ifb x_type = CharSxp then
+    ComplexFromString S x
+  else result_success S (make_Rcomplex NA_REAL NA_REAL).
+
+Definition coercePairList S v type :=
+  let%exit (rval, n) :=
+    ifb type = ListSxp then
+      result_rreturn S v
+    else ifb type = ExprSxp then
+      let%success rval := allocVector S type 1 using S in
+      run%success SET_VECTOR_ELT S rval 0 v using S in
+      result_rreturn S rval
+    else ifb type = StrSxp then
+      let%success n := R_length S v using S in
+      let%success rval := allocVector S type n using S in
+      fold%success i := 0
+      along v
+      as v_car, _ do
+        let%success v_car_is := isString S v_car using S in
+        let%success v_car_len := R_length S v_car using S in
+        run%success
+          ifb v_car_is /\ v_car_len = 1 then
+            let%success v_car_0 := STRING_ELT S v_car 0 using S in
+            SET_STRING_ELT S rval i v_car_0
+          else result_not_implemented "[coercePairList] [deparse1line]." using S in
+        result_success S (1 + i) using S, runs, globals in
+      result_rsuccess S (rval, n)
+    else ifb type = VecSxp then
+      let%success rval := PairToVectorList S v using S in
+      result_rreturn S rval
+    else if%success isVectorizable S v using S then
+      let%success n := R_length S v using S in
+      let%success rval := allocVector S type n using S in
+      run%success
+        match type with
+        | LglSxp =>
+          do%let vp := v
+          for i from 0 to n - 1 do
+            read%list vp_car, vp_cdr, _ := vp using S in
+            let%success vp_car_lgl := asLogical S vp_car using S in
+            write%Logical rval at i := vp_car_lgl using S in
+            result_success S vp_cdr using S
+        | IntSxp =>
+          do%let vp := v
+          for i from 0 to n - 1 do
+            read%list vp_car, vp_cdr, _ := vp using S in
+            let%success vp_car_lgl := asInteger S vp_car using S in
+            write%Integer rval at i := vp_car_lgl using S in
+            result_success S vp_cdr using S
+        | RealSxp =>
+          do%let vp := v
+          for i from 0 to n - 1 do
+            read%list vp_car, vp_cdr, _ := vp using S in
+            let%success vp_car_lgl := asReal S vp_car using S in
+            write%Real rval at i := vp_car_lgl using S in
+            result_success S vp_cdr using S
+        | CplxSxp =>
+          do%let vp := v
+          for i from 0 to n - 1 do
+            read%list vp_car, vp_cdr, _ := vp using S in
+            let%success vp_car_lgl := asComplex S vp_car using S in
+            write%Complex rval at i := vp_car_lgl using S in
+            result_success S vp_cdr using S
+        | RawSxp => result_not_implemented "[coercePairList] Raw case."
+        | _ => result_error S "[coercePairList] Unimplemented type."
+        end using S in
+      result_rsuccess S (rval, n)
+    else result_error S "[coercePairList] ‘pairlist’ object cannot be coerce as-is." using S in
+  fold%success i := false
+  along v
+  as _, v_tag do
+    ifb v_tag <> R_NilValue then
+      result_success S true
+    else result_success S i using S, runs, globals in
+  run%success
+    if i then
+      let%success names := allocVector S StrSxp n using S in
+      fold%success i := 0
+      along v
+      as _, v_tag do
+        run%success
+          ifb v_tag <> R_NilValue then
+            let%success v_tag_name := PRINTNAME S v_tag using S in
+            SET_STRING_ELT S names i v_tag_name
+          else result_skip S using S in
+        result_success S (1 + i) using S, runs, globals in
+      result_skip S
+    else result_skip S using S in
+  result_success S rval.
+
+Definition coerceVectorList (S : state) (v : SExpRec_pointer) (type : SExpType) : result SExpRec_pointer :=
+  result_not_implemented "[coerceVectorList].".
+
+Definition StringFromLogical S x :=
+  ifb x = NA_LOGICAL then
+    result_success S (NA_STRING : SExpRec_pointer)
+  else
+    let (S, r) := mkChar S (EncodeLogical x) in
+    result_success S r.
+
+Definition StringFromInteger S x :=
+  ifb x = NA_INTEGER then
+    result_success S (NA_STRING : SExpRec_pointer)
+  else result_not_implemented "[StringFromInteger] [formatInteger].".
+
+Definition StringFromComplex S x :=
+  ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
+    result_success S (NA_STRING : SExpRec_pointer)
+  else result_not_implemented "[StringFromComplex] [EncodeComplex].".
+
+Definition coerceToSymbol S v :=
+  let%success v_len := R_length S v using S in
+  ifb v_len <= 0 then
+    result_error S "[coerceToSymbol] Invalid data."
+  else
+    let%success v_type := TYPEOF S v using S in
+    let%success ans :=
+      match v_type with
+      | LglSxp =>
+        let%success v_0 := LOGICAL_ELT S v 0 using S in
+        StringFromLogical S v_0
+      | IntSxp =>
+        let%success v_0 := INTEGER_ELT S v 0 using S in
+        StringFromInteger S v_0
+      | RealSxp =>
+        let%success v_0 := REAL_ELT S v 0 using S in
+        StringFromReal S v_0
+      | CplxSxp =>
+        let%success v_0 := COMPLEX_ELT S v 0 using S in
+        StringFromComplex S v_0
+      | StrSxp =>
+        STRING_ELT S v 0
+      | RawSxp => result_not_implemented "[coerceToSymbol] Raw case."
+      | _ => result_error S "[coerceToSymbol] Unimplemented type."
+      end using S in
+    installTrChar S ans.
+
+Definition coerceToLogical S v :=
+  let%success n := XLENGTH S v using S in
+  let%success ans := allocVector S LglSxp n using S in
+  run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | IntSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := INTEGER_ELT S v i using S in
+        let%success pa_i := LogicalFromInteger S v_i using S in
+        write%Logical ans at i := pa_i using S in
+        result_skip S using S
+    | RealSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := REAL_ELT S v i using S in
+        let%success pa_i := LogicalFromReal S v_i using S in
+        write%Logical ans at i := pa_i using S in
+        result_skip S using S
+    | CplxSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := COMPLEX_ELT S v i using S in
+        let%success pa_i := LogicalFromComplex S v_i using S in
+        write%Logical ans at i := pa_i using S in
+        result_skip S using S
+    | StrSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := STRING_ELT S v i using S in
+        let%success pa_i := LogicalFromString S v_i using S in
+        write%Logical ans at i := pa_i using S in
+        result_skip S using S
+    | RawSxp => result_not_implemented "[coerceToLogical] Raw case."
+    | _ =>
+      result_error S "[coerceToLogical] Unimplemented type."
+    end using S in
+  result_success S ans.
+
+Definition coerceToInteger S v :=
+  let%success n := XLENGTH S v using S in
+  let%success ans := allocVector S IntSxp n using S in
+  run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | LglSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := LOGICAL_ELT S v i using S in
+        write%Integer ans at i := IntegerFromLogical v_i using S in
+        result_skip S using S
+    | RealSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := REAL_ELT S v i using S in
+        write%Integer ans at i := IntegerFromReal v_i using S in
+        result_skip S using S
+    | CplxSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := COMPLEX_ELT S v i using S in
+        write%Integer ans at i := IntegerFromComplex v_i using S in
+        result_skip S using S
+    | StrSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := STRING_ELT S v i using S in
+        let%success pa_i := IntegerFromString S v_i using S in
+        write%Integer ans at i := pa_i using S in
+        result_skip S using S
+    | RawSxp => result_not_implemented "[coerceToInteger] Raw case."
+    | _ =>
+      result_error S "[coerceToInteger] Unimplemented type."
+    end using S in
+  result_success S ans.
+
+Definition coerceToReal S v :=
+  let%success n := XLENGTH S v using S in
+  let%success ans := allocVector S RealSxp n using S in
+  run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | LglSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := LOGICAL_ELT S v i using S in
+        write%Real ans at i := RealFromLogical v_i using S in
+        result_skip S using S
+    | IntSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := INTEGER_ELT S v i using S in
+        write%Real ans at i := RealFromInteger v_i using S in
+        result_skip S using S
+    | CplxSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := COMPLEX_ELT S v i using S in
+        write%Real ans at i := RealFromComplex v_i using S in
+        result_skip S using S
+    | StrSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := STRING_ELT S v i using S in
+        let%success pa_i := RealFromString S v_i using S in
+        write%Real ans at i := pa_i using S in
+        result_skip S using S
+    | RawSxp => result_not_implemented "[coerceToReal] Raw case."
+    | _ =>
+      result_error S "[coerceToReal] Unimplemented type."
+    end using S in
+  result_success S ans.
+
+Definition coerceToComplex S v :=
+  let%success n := XLENGTH S v using S in
+  let%success ans := allocVector S CplxSxp n using S in
+  run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | LglSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := LOGICAL_ELT S v i using S in
+        write%Complex ans at i := ComplexFromLogical v_i using S in
+        result_skip S using S
+    | IntSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := INTEGER_ELT S v i using S in
+        write%Complex ans at i := ComplexFromInteger v_i using S in
+        result_skip S using S
+    | RealSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := REAL_ELT S v i using S in
+        write%Complex ans at i := ComplexFromReal v_i using S in
+        result_skip S using S
+    | StrSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := STRING_ELT S v i using S in
+        let%success pa_i := ComplexFromString S v_i using S in
+        write%Complex ans at i := pa_i using S in
+        result_skip S using S
+    | RawSxp => result_not_implemented "[coerceToComplex] Raw case."
+    | _ =>
+      result_error S "[coerceToComplex] Unimplemented type."
+    end using S in
+  result_success S ans.
+
+Definition coerceToRaw (S : state) (v : SExpRec_pointer) : result SExpRec_pointer :=
+  result_not_implemented "[coerceToRaw].".
+
+Definition coerceToString S v :=
+  let%success n := XLENGTH S v using S in
+  let%success ans := allocVector S StrSxp n using S in
+  run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | LglSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := LOGICAL_ELT S v i using S in
+        let%success s_i := StringFromLogical S v_i using S in
+        SET_STRING_ELT S ans i s_i using S
+    | IntSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := INTEGER_ELT S v i using S in
+        let%success s_i := StringFromInteger S v_i using S in
+        SET_STRING_ELT S ans i s_i using S
+    | RealSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := REAL_ELT S v i using S in
+        let%success s_i := StringFromReal S v_i using S in
+        SET_STRING_ELT S ans i s_i using S
+    | CplxSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := COMPLEX_ELT S v i using S in
+        let%success s_i := StringFromComplex S v_i using S in
+        SET_STRING_ELT S ans i s_i using S
+    | RawSxp => result_not_implemented "[coerceToString] Raw case."
+    | _ =>
+      result_error S "[coerceToString] Unimplemented type."
+    end using S in
+  result_success S ans.
+
+Definition coerceToExpression S v :=
+  let%success ans :=
+    if%success isVectorAtomic S v using S then
+      let%success n := XLENGTH S v using S in
+      let%success ans := allocVector S ExprSxp n using S in
+      let%success v_type := TYPEOF S v using S in
+      run%success
+        match v_type with
+        | LglSxp =>
+          do%let
+          for i from 0 to n - 1 do
+            let%success v_i := LOGICAL_ELT S v i using S in
+            run%success SET_VECTOR_ELT S ans i (ScalarLogical v_i) using S in
+            result_skip S using S
+        | IntSxp =>
+          do%let
+          for i from 0 to n - 1 do
+            let%success v_i := INTEGER_ELT S v i using S in
+            let (S, s_i) := ScalarInteger S v_i in
+            run%success SET_VECTOR_ELT S ans i s_i using S in
+            result_skip S using S
+        | RealSxp =>
+          do%let
+          for i from 0 to n - 1 do
+            let%success v_i := REAL_ELT S v i using S in
+            let (S, s_i) := ScalarReal S v_i in
+            run%success SET_VECTOR_ELT S ans i s_i using S in
+            result_skip S using S
+        | CplxSxp =>
+          do%let
+          for i from 0 to n - 1 do
+            let%success v_i := COMPLEX_ELT S v i using S in
+            let (S, s_i) := ScalarComplex S v_i in
+            run%success SET_VECTOR_ELT S ans i s_i using S in
+            result_skip S using S
+        | StrSxp =>
+          do%let
+          for i from 0 to n - 1 do
+            let%success v_i := STRING_ELT S v i using S in
+            let%success s_i := ScalarString S v_i using S in
+            run%success SET_VECTOR_ELT S ans i s_i using S in
+            result_skip S using S
+        | RawSxp => result_not_implemented "[coerceToExpression] Raw case."
+        | _ =>
+          result_error S "[coerceToExpression] Unimplemented type."
+        end using S in
+      result_success S ans
+    else
+      let%success ans := allocVector S ExprSxp 1 using S in
+      let%success v_d := duplicate S v using S in
+      run%success SET_VECTOR_ELT S ans 0 v_d using S in
+      result_success S ans using S in
+  result_success S ans.
+
+Definition coerceToVectorList S v :=
+  let%success n := xlength S v using S in
+  let%success ans := allocVector S VecSxp n using S in
+  let%success v_type := TYPEOF S v using S in
+  run%success
+    match v_type with
+    | LglSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := LOGICAL_ELT S v i using S in
+        run%success SET_VECTOR_ELT S ans i (ScalarLogical v_i) using S in
+        result_skip S using S
+    | IntSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := INTEGER_ELT S v i using S in
+        let (S, s_i) := ScalarInteger S v_i in
+        run%success SET_VECTOR_ELT S ans i s_i using S in
+        result_skip S using S
+    | RealSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := REAL_ELT S v i using S in
+        let (S, s_i) := ScalarReal S v_i in
+        run%success SET_VECTOR_ELT S ans i s_i using S in
+        result_skip S using S
+    | CplxSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := COMPLEX_ELT S v i using S in
+        let (S, s_i) := ScalarComplex S v_i in
+        run%success SET_VECTOR_ELT S ans i s_i using S in
+        result_skip S using S
+    | StrSxp =>
+      do%let
+      for i from 0 to n - 1 do
+        let%success v_i := STRING_ELT S v i using S in
+        let%success s_i := ScalarString S v_i using S in
+        run%success SET_VECTOR_ELT S ans i s_i using S in
+        result_skip S using S
+    | RawSxp => result_not_implemented "[coerceToVectorList] Raw case."
+    | ListSxp
+    | LangSxp =>
+      do%success tmp := v
+      for i from 0 to n - 1 do
+        read%list tmp_car, tmp_cdr, _ := tmp using S in
+        run%success SET_VECTOR_ELT S ans i tmp_car using S in
+        result_success S tmp_cdr using S in
+      result_skip S
+    | _ =>
+      result_error S "[coerceToVectorList] Unimplemented type."
+    end using S in
+  let%success tmp := getAttrib S v R_NamesSymbol using S in
+  run%success
+    ifb tmp <> R_NilValue then
+      run%success setAttrib S ans R_NamesSymbol tmp using S in
+      result_skip S
+    else result_skip S using S in
+  result_success S ans.
+
+Definition coerceToPairList S v :=
+  let%success n := LENGTH S v using S in
+  let (S, ans) := allocList S n in
+  do%success ansp := ans
+  for i from 0 to n - 1 do
+    read%list _, ansp_cdr, _ := ansp using S in
+    run%success
+      let%success v_type := TYPEOF S v using S in
+      match v_type with
+      | LglSxp =>
+        let%success ansp_car := allocVector S LglSxp 1 using S in
+        set%car ansp := ansp_car using S in
+        let%success v_i := LOGICAL_ELT S v i using S in
+        write%Logical ansp_car at 0 := v_i using S in
+        result_skip S
+      | IntSxp =>
+        let%success ansp_car := allocVector S IntSxp 1 using S in
+        set%car ansp := ansp_car using S in
+        let%success v_i := INTEGER_ELT S v i using S in
+        write%Integer ansp_car at 0 := v_i using S in
+        result_skip S
+      | RealSxp =>
+        let%success ansp_car := allocVector S RealSxp 1 using S in
+        set%car ansp := ansp_car using S in
+        let%success v_i := REAL_ELT S v i using S in
+        write%Real ansp_car at 0 := v_i using S in
+        result_skip S
+      | CplxSxp =>
+        let%success ansp_car := allocVector S CplxSxp 1 using S in
+        set%car ansp := ansp_car using S in
+        let%success v_i := COMPLEX_ELT S v i using S in
+        write%Complex ansp_car at 0 := v_i using S in
+        result_skip S
+      | StrSxp =>
+        let%success v_i := STRING_ELT S v i using S in
+        let%success ansp_car := ScalarString S v_i using S in
+        set%car ansp := ansp_car using S in
+        result_skip S
+      | RawSxp => result_not_implemented "[coerceToPairList] Raw case."
+      | VecSxp =>
+        let%success v_i := VECTOR_ELT S v i using S in
+        set%car ansp := v_i using S in
+        result_skip S
+      | ExprSxp =>
+        let%success v_i := VECTOR_ELT S v i using S in
+        set%car ansp := v_i using S in
+        result_skip S
+      | _ =>
+        result_error S "[coerceToPairList] Unimplemented type."
+      end using S in
+    result_success S ansp_cdr using S in
+  let%success ansp := getAttrib S v R_NamesSymbol using S in
+  run%success
+    ifb ansp <> R_NilValue then
+      run%success setAttrib S ans R_NamesSymbol ansp using S in
+      result_skip S
+    else result_skip S using S in
+  result_success S ans.
+
+Definition coerceVector S v type :=
+  let%success v_type := TYPEOF S v using S in
+  ifb v_type = type then
+    result_success S v
+  else
+    let%success v_s4 := IS_S4_OBJECT S v using S in
+    let%exit v :=
+      ifb v_s4 /\ v_type = S4Sxp then
+        result_not_implemented "[coerceVector] [R_getS4DataSlot]."
+      else result_rsuccess S v using S in
+    let%success ans :=
+      let%success v_type := TYPEOF S v using S in
+      match v_type with
+      | SymSxp =>
+        coerceSymbol S v type
+      | NilSxp
+      | ListSxp =>
+        coercePairList S v type
+      | LangSxp =>
+        ifb type <> StrSxp then
+          coercePairList S v type
+        else
+          let%success n := R_length S v using S in
+          let%success ans := allocVector S type n using S in
+          ifb n = 0 then
+            result_success S ans
+          else
+            read%list v_car, v_cdr, _ := v using S in
+            let op := v_car in
+            let%success op_type := TYPEOF S op using S in
+            let%success (i, v) :=
+              ifb op_type = SymSxp then
+                let%success op_name := PRINTNAME S op using S in
+                run%success SET_STRING_ELT S ans 0 op_name using S in
+                result_success S (1, v_cdr)
+              else result_success S (0, v) using S in
+            fold%success i := i
+            along v
+            as v_car, _ do
+              let%success v_car_is := isString S v_car using S in
+              let%success v_car_len := R_length S v_car using S in
+              run%success
+                ifb v_car_is /\ v_car_len = 1 then
+                  let%success v_car_0 := STRING_ELT S v_car 0 using S in
+                  SET_STRING_ELT S ans i v_car_0
+                else result_not_implemented "[coerceVector] [deparse1line]." using S in
+              result_success S (1 + i) using S, runs, globals in
+            result_success S ans
+      | VecSxp
+      | ExprSxp =>
+        coerceVectorList S v type
+      | EnvSxp =>
+        result_error S "[coerceVector] Environments can not be coerced."
+      | LglSxp
+      | IntSxp
+      | RealSxp
+      | CplxSxp
+      | StrSxp
+      | RawSxp =>
+        match type with
+        | SymSxp => coerceToSymbol S v
+        | LglSxp => coerceToLogical S v
+        | IntSxp => coerceToInteger S v
+        | RealSxp => coerceToReal S v
+        | CplxSxp => coerceToComplex S v
+        | RawSxp => coerceToRaw S v
+        | StrSxp => coerceToString S v
+        | ExprSxp => coerceToExpression S v
+        | VecSxp => coerceToVectorList S v
+        | ListSxp => coerceToPairList S v
+        | _ =>
+          result_error S "[coerceVector] Cannot coerce to this type."
+        end
+      | _ =>
+        result_error S "[coerceVector] Cannot coerce this type to this other type."
+      end using S in
+    result_success S ans.
 
 Definition CreateTag S x :=
   let%success x_n := isNull S x using S in

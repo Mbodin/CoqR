@@ -332,7 +332,7 @@ let rec print_SExpRec_like_R d s g p e =
       let n = List.fold_left max 0 (List.map (String.length) l) in
       String.concat " " (
         ((*String.make (max (n - 1) 0) ' ' ^*) "[1]")
-        :: List.map (fun str -> String.make (n - String.length str) ' ' ^ str) l) in
+        :: List.map (fun str -> str ^ String.make (n - String.length str) ' ') l) in
   let typeof = function
     | NilSxp -> "NULL"
     | SymSxp -> "symbol"

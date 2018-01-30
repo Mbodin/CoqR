@@ -34,13 +34,16 @@
     stringcontent -> primitive ;
     stringcontent -> stringcontent stringcontent ;
 
-    number -> sign digits ;
+    number -> sign digits decimals ;
     number -> sign digits "L" ;
-    number -> sign digits "i" ;
-    number -> sign digits "e" digits ;
+    number -> sign digits decimals "i" ;
+    number -> sign digits decimals "e" digits ;
     number -rare> sign "Inf" ;
     number -rare> "NaN" ;
     number -rare> "NA" ;
+
+    decimals -often> ;
+    decimals -> "." digits ;
 
     sign -> ;
     sign -> "-" ;
@@ -129,7 +132,7 @@
     expression -> exprbool ;
     expression -> primitive ;
     expression -> exprcst ;
-    expression -rare> ".." digit ;
+    expression -rare> ".." digits ;
     expression -rare> "(" programatom ")" ;
 
     exprarith -often> variable ;
@@ -182,6 +185,7 @@
     primitivebasic -> "seq" ;
     primitivebasic -> "attr" ;
     primitivebasic -> "list" ;
+    primitivebasic -rare> ".Internal" ;
 
     primitiveis -> "is.null" ;
     primitiveis -> "is.logical" ;
