@@ -32,9 +32,9 @@ Definition all_SExpTypes : list SExpType.
   list_all_constructors.
 Defined.
 
-Definition bool_to_int (b : bool) : int :=
+Definition bool_to_nat (b : bool) : nat :=
   if b then 1 else 0.
-Coercion bool_to_int : bool >-> Z.
+Coercion bool_to_nat : bool >-> nat.
 
 Definition SExpType_to_nat t :=
   match t with

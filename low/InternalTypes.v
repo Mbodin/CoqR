@@ -136,3 +136,40 @@ Record Type2Table_type := make_Type2Table_type {
 Instance Type2Table_type_Inhab : Inhab Type2Table_type.
   apply prove_Inhab. constructors; apply arbitrary.
 Qed.
+
+
+(** * BindData **)
+
+(** These definitions can be found in the file main/bind.c. **)
+
+Record BindData := make_BindData {
+    BindData_ans_flags : nbits 10 ;
+    BindData_ans_ptr : SExpRec_pointer ;
+    BindData_ans_length : nat ;
+    BindData_ans_names : SExpRec_pointer ;
+    BindData_ans_nnames : nat
+  }.
+
+Definition BindData_with_ans_flags d f := {|
+    BindData_ans_flags := f ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_length d l := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := l ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_nnames d n := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := n
+  |}.

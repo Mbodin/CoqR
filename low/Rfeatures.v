@@ -367,8 +367,216 @@ Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_po
 (** The function names of this section corresponds to the function names
   in the file main/bind.c. **)
 
-Definition do_c_dftl (S : state) (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
-  result_not_implemented "[do_c_dftl]".
+Definition HasNames S x :=
+  if%success isVector S x using S then
+    let%success att := getAttrib globals runs S x R_NamesSymbol using S in
+    let%success att_n := isNull S att using S in
+    if negb att_n then
+      result_success S true
+    else result_success S false
+  else if%success isList globals S x using S then
+    do%return x := x
+    while
+        let%success x_n := isNull S x using S in
+        result_success S (negb x_n) do
+      read%list _, x_cdr, x_tag := x using S in
+      let%success x_tag_n := isNull S x_tag using S in
+      if negb x_tag_n then
+        result_rreturn S true
+      else result_rsuccess S x_cdr using S, runs in
+    result_success S false
+  else result_success S false.
+
+Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer) :=
+  let%success x_t := TYPEOF S x using S in
+  match x_t with
+  | NilSxp =>
+    result_success S data
+  | RawSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 0 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | LglSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 1 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | IntSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 4 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | RealSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 5 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | CplxSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 6 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | StrSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 7 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let%success len := XLENGTH S x using S in
+    let data :=
+      BindData_with_ans_length data (BindData_ans_length data + len) in
+    result_success S data
+  | SymSxp
+  | LangSxp =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 9 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let data :=
+      BindData_with_ans_length data (1 + BindData_ans_length data) in
+    result_success S data
+  | VecSxp
+  | ExprSxp =>
+    if recurse then
+      let%success n := XLENGTH S x using S in
+      let%success data :=
+        let%success attr := getAttrib globals runs S x R_NamesSymbol using S in
+        let%success attr_n := isNull S attr using S in
+        ifb usenames /\ BindData_ans_nnames data = 0 /\ ~ attr_n then
+          result_success S (BindData_with_ans_nnames data 1)
+        else result_success S data using S in
+      do%let data := data
+      for i from 0 to n - 1 do
+        let%success x_i := VECTOR_ELT S x i using S in
+        let%success data :=
+          ifb usenames /\ BindData_ans_nnames data = 0 then
+            let%success hs := HasNames S x_i using S in
+            result_success S (BindData_with_ans_nnames data hs)
+          else result_success S data using S in
+        runs_AnswerType runs S x_i recurse usenames data call using S
+    else
+      let data :=
+        ifb x_t = ExprSxp then
+          BindData_with_ans_flags data
+            (@write_nbit 10 9 ltac:(nbits_ok) true (BindData_ans_flags data))
+        else
+          BindData_with_ans_flags data
+            (@write_nbit 10 8 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+      let%success len := XLENGTH S x using S in
+      let data :=
+        BindData_with_ans_length data (BindData_ans_length data + len) in
+      result_success S data
+  | ListSxp =>
+    if recurse then
+      fold%let data := data
+      along x
+      as x_car, x_tag do
+        let%success data :=
+          ifb usenames /\ BindData_ans_nnames data = 0 then
+            let%success x_tag_n := isNull S x_tag using S in
+            if negb x_tag_n then
+              result_success S (BindData_with_ans_nnames data 1)
+            else
+              let%success hs := HasNames S x_car using S in
+              result_success S (BindData_with_ans_nnames data hs)
+          else result_success S data using S in
+        runs_AnswerType runs S x_car recurse usenames data call using S, runs, globals
+    else
+      let data :=
+        BindData_with_ans_flags data
+          (@write_nbit 10 8 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+      let%success len := XLENGTH S x using S in
+      let data :=
+        BindData_with_ans_length data (BindData_ans_length data + len) in
+      result_success S data
+  | _ =>
+    let data :=
+      BindData_with_ans_flags data
+        (@write_nbit 10 9 ltac:(nbits_ok) true (BindData_ans_flags data)) in
+    let data :=
+      BindData_with_ans_length data (1 + BindData_ans_length data) in
+    result_success S data
+  end.
+
+Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
+  fold%success (recurse, usenames, ans, last, n_recurse, n_usenames) := (false : int, true : int, ans, NULL, 0, 0)
+  along ans as a, a_, a_list do
+    let n := list_tagval a_list in
+    let next := list_cdrval a_list in
+    let a_car := list_carval a_list in
+    if%success
+        ifb n <> R_NilValue then
+          pmatch S R_RecursiveSymbol n true
+        else result_success S false using S then
+      ifb n_recurse = 1 then
+        result_error S "[c_Extract_opt] Repeated argument ‘recursive’."
+      else
+        let n_recurse := 1 + n_recurse in
+        let%success v := asLogical globals S a_car using S in
+        let%success recurse :=
+          ifb v <> NA_INTEGER then
+            result_success S v
+          else result_success S recurse using S in
+        let%success ans :=
+          ifb last = NULL then
+            result_success S next
+          else
+            set%cdr last := next using S in
+            result_success S ans using S in
+        result_success S (recurse, usenames, ans, last, n_recurse, n_usenames)
+    else if%success
+        ifb n <> R_NilValue then
+          pmatch S R_UseNamesSymbol n true
+        else result_success S false using S then
+      ifb n_usenames = 1 then
+        result_error S "[c_Extract_opt] Repeated argument ‘use.names’."
+      else
+        let n_usenames := 1 + n_usenames in
+        let%success v := asLogical globals S a_car using S in
+        let%success usenames :=
+          ifb v <> NA_INTEGER then
+            result_success S v
+          else result_success S usenames using S in
+        let%success ans :=
+          ifb last = NULL then
+            result_success S next
+          else
+            set%cdr last := next using S in
+            result_success S ans using S in
+        result_success S (recurse, usenames, ans, last, n_recurse, n_usenames)
+    else result_success S (recurse, usenames, ans, a, n_recurse, n_usenames) using S, runs, globals in
+  result_success S (ans, recurse, usenames).
+
+Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+  let%success (ans, recurse, usenames) := c_Extract_opt S args call using S in
+  let data := make_BindData (@nat_to_nbits 10 0 ltac:(nbits_ok)) NULL 0 NULL 0 in
+  fold%success data := data
+  along args
+  as t_car, t_tag do
+    let%success data :=
+      ifb usenames <> 0 /\ BindData_ans_nnames data = 0 then
+        let%success t_tag_n := isNull S t_tag using S in
+        if negb t_tag_n then
+          result_success S (BindData_with_ans_nnames data 1)
+        else
+          let%success hn := HasNames S t_car using S in
+          result_success S (BindData_with_ans_nnames data hn)
+      else result_success S data using S in
+    AnswerType S t_car (decide (recurse <> 0)) (decide (usenames <> 0)) data call using S, runs, globals in
+  result_not_implemented "[do_c_dftl] [BindData].".
 
 Definition do_c S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
   run%success Rf_checkArityCall S op args call using S in
@@ -1630,6 +1838,8 @@ Fixpoint runs max_step globals : runs_type :=
       runs_getAttrib := fun S _ _ => result_bottom S ;
       runs_R_cycle_detected := fun S _ _ => result_bottom S ;
       runs_stripAttrib := fun S _ _ => result_bottom S ;
+      runs_R_isMissing := fun S _ _ => result_bottom S ;
+      runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
       runs_R_FunTab := None
     |}
   | S max_step =>
@@ -1649,6 +1859,8 @@ Fixpoint runs max_step globals : runs_type :=
       runs_getAttrib := wrap getAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
       runs_stripAttrib := wrap stripAttrib ;
+      runs_R_isMissing := fun S _ _ => result_bottom S ;
+      runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
       runs_R_FunTab :=
 
         let eval0 := make_funtab_eval_arg false false in
