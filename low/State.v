@@ -225,18 +225,18 @@ Definition context_type_merge (t1 t2 : context_type) :=
   result (see Monads.v or the repport). **)
 (** RCNTXT, *context **)
 Inductive context := make_context {
-    nextcontext : option context ;
-    cjmpbuf : nat ;
-    callflag : context_type ;
-    promargs : SExpRec_pointer ;
-    callfun : SExpRec_pointer ;
-    sysparent : SExpRec_pointer ;
-    call : SExpRec_pointer ;
-    cloenv : SExpRec_pointer ;
-    conexit : SExpRec_pointer ;
-    returnValue : SExpRec_pointer ;
-    jumptarget : option context ;
-    jumpmask : context_type
+    context_nextcontext : option context ;
+    context_cjmpbuf : nat ;
+    context_callflag : context_type ;
+    context_promargs : SExpRec_pointer ;
+    context_callfun : SExpRec_pointer ;
+    context_sysparent : SExpRec_pointer ;
+    context_call : SExpRec_pointer ;
+    context_cloenv : SExpRec_pointer ;
+    context_conexit : SExpRec_pointer ;
+    context_returnValue : SExpRec_pointer ;
+    context_jumptarget : option context ;
+    context_jumpmask : context_type
   }.
 
 Fixpoint context_rect' (P : context -> Type) HNoneNone HNoneSome HSomeNone HSomeSome c : P c :=
@@ -298,78 +298,78 @@ Instance context_Comparable : Comparable context.
 Defined.
 
 Definition context_with_callflag context callflag := {|
-     nextcontext := nextcontext context ;
-     cjmpbuf := cjmpbuf context ;
-     callflag := callflag ;
-     promargs := promargs context ;
-     callfun := callfun context ;
-     sysparent := sysparent context ;
-     call := call context ;
-     cloenv := cloenv context ;
-     conexit := conexit context ;
-     returnValue := returnValue context ;
-     jumptarget := jumptarget context ;
-     jumpmask := jumpmask context
+     context_nextcontext := context_nextcontext context ;
+     context_cjmpbuf := context_cjmpbuf context ;
+     context_callflag := callflag ;
+     context_promargs := context_promargs context ;
+     context_callfun := context_callfun context ;
+     context_sysparent := context_sysparent context ;
+     context_call := context_call context ;
+     context_cloenv := context_cloenv context ;
+     context_conexit := context_conexit context ;
+     context_returnValue := context_returnValue context ;
+     context_jumptarget := context_jumptarget context ;
+     context_jumpmask := context_jumpmask context
    |}.
 
 Definition context_with_conexit context conexit := {|
-     nextcontext := nextcontext context ;
-     cjmpbuf := cjmpbuf context ;
-     callflag := callflag context ;
-     promargs := promargs context ;
-     callfun := callfun context ;
-     sysparent := sysparent context ;
-     call := call context ;
-     cloenv := cloenv context ;
-     conexit := conexit ;
-     returnValue := returnValue context ;
-     jumptarget := jumptarget context ;
-     jumpmask := jumpmask context
+     context_nextcontext := context_nextcontext context ;
+     context_cjmpbuf := context_cjmpbuf context ;
+     context_callflag := context_callflag context ;
+     context_promargs := context_promargs context ;
+     context_callfun := context_callfun context ;
+     context_sysparent := context_sysparent context ;
+     context_call := context_call context ;
+     context_cloenv := context_cloenv context ;
+     context_conexit := conexit ;
+     context_returnValue := context_returnValue context ;
+     context_jumptarget := context_jumptarget context ;
+     context_jumpmask := context_jumpmask context
    |}.
 
 Definition context_with_returnValue context returnValue := {|
-     nextcontext := nextcontext context ;
-     cjmpbuf := cjmpbuf context ;
-     callflag := callflag context ;
-     promargs := promargs context ;
-     callfun := callfun context ;
-     sysparent := sysparent context ;
-     call := call context ;
-     cloenv := cloenv context ;
-     conexit := conexit context ;
-     returnValue := returnValue ;
-     jumptarget := jumptarget context ;
-     jumpmask := jumpmask context
+     context_nextcontext := context_nextcontext context ;
+     context_cjmpbuf := context_cjmpbuf context ;
+     context_callflag := context_callflag context ;
+     context_promargs := context_promargs context ;
+     context_callfun := context_callfun context ;
+     context_sysparent := context_sysparent context ;
+     context_call := context_call context ;
+     context_cloenv := context_cloenv context ;
+     context_conexit := context_conexit context ;
+     context_returnValue := returnValue ;
+     context_jumptarget := context_jumptarget context ;
+     context_jumpmask := context_jumpmask context
    |}.
 
 Definition context_with_jumptarget context jumptarget := {|
-     nextcontext := nextcontext context ;
-     cjmpbuf := cjmpbuf context ;
-     callflag := callflag context ;
-     promargs := promargs context ;
-     callfun := callfun context ;
-     sysparent := sysparent context ;
-     call := call context ;
-     cloenv := cloenv context ;
-     conexit := conexit context ;
-     returnValue := returnValue context ;
-     jumptarget := jumptarget ;
-     jumpmask := jumpmask context
+     context_nextcontext := context_nextcontext context ;
+     context_cjmpbuf := context_cjmpbuf context ;
+     context_callflag := context_callflag context ;
+     context_promargs := context_promargs context ;
+     context_callfun := context_callfun context ;
+     context_sysparent := context_sysparent context ;
+     context_call := context_call context ;
+     context_cloenv := context_cloenv context ;
+     context_conexit := context_conexit context ;
+     context_returnValue := context_returnValue context ;
+     context_jumptarget := jumptarget ;
+     context_jumpmask := context_jumpmask context
    |}.
 
 Definition context_with_jumpmask context jumpmask := {|
-     nextcontext := nextcontext context ;
-     cjmpbuf := cjmpbuf context ;
-     callflag := callflag context ;
-     promargs := promargs context ;
-     callfun := callfun context ;
-     sysparent := sysparent context ;
-     call := call context ;
-     cloenv := cloenv context ;
-     conexit := conexit context ;
-     returnValue := returnValue context ;
-     jumptarget := jumptarget context ;
-     jumpmask := jumpmask
+     context_nextcontext := context_nextcontext context ;
+     context_cjmpbuf := context_cjmpbuf context ;
+     context_callflag := context_callflag context ;
+     context_promargs := context_promargs context ;
+     context_callfun := context_callfun context ;
+     context_sysparent := context_sysparent context ;
+     context_call := context_call context ;
+     context_cloenv := context_cloenv context ;
+     context_conexit := context_conexit context ;
+     context_returnValue := context_returnValue context ;
+     context_jumptarget := context_jumptarget context ;
+     context_jumpmask := jumpmask
    |}.
 
 

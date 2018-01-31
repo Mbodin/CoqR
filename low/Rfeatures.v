@@ -1095,7 +1095,7 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   let%success bgn := BodyHasBraces S body using S in
   let%success cntxt :=
     begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
-  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   run%success
     ifb jmp <> Ctxt_Break then
       do%let while
@@ -1116,7 +1116,7 @@ Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_poi
   let body := args_car in
   let%success cntxt :=
     begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
-  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   run%success
     ifb jmp <> Ctxt_Break then
       do%let while result_success S true do
@@ -1125,6 +1125,106 @@ Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_poi
     else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SExpRec_pointer).
+
+Definition simple_as_environment S arg :=
+  let%success arg_s4 := IS_S4_OBJECT S arg using S in
+  let%success arg_type := TYPEOF S arg using S in
+  ifb arg_s4 /\ arg_type = S4Sxp then
+    result_not_implemented "[simple_as_environment] [R_getS4DataSlot]."
+  else result_success S (R_NilValue : SExpRec_pointer).
+
+Definition do_eval S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let expr := args_car in
+  read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+  let env := args_cdr_car in
+  read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+  let encl := args_cdr_cdr_car in
+  let%success tEncl := TYPEOF S encl using S in
+  let%success encl :=
+    if%success isNull S encl using S then
+      result_success S (R_BaseEnv : SExpRec_pointer)
+    else
+      let%success encl_ie := isEnvironment S encl using S in
+      ifb negb encl_ie then
+        let%success encl := simple_as_environment S encl using S in
+        let%success encl_ie := isEnvironment S encl using S in
+        if negb encl_ie then
+          result_error S "[do_eval] Invalid argument."
+        else result_success S encl
+      else result_success S encl using S in
+  let%success env :=
+    let%success env_s4 := IS_S4_OBJECT S env using S in
+    let%success env_type := TYPEOF S env using S in
+    ifb env_s4 /\ env_type = S4Sxp then
+      result_not_implemented "[do_eval] [R_getS4DataSlot]."
+    else result_success S env using S in
+  let%success env_type := TYPEOF S env using S in
+  let%success env :=
+    match env_type with
+    | NilSxp =>
+      result_success S encl
+    | EnvSxp =>
+      result_success S env
+    | ListSxp =>
+      let%success d := duplicate S args_cdr_car using S in
+      NewEnvironment globals runs S R_NilValue d encl
+    | VecSxp =>
+      result_not_implemented "[do_eval] [VectorToPairListNamed]."
+    | IntSxp
+    | RealSxp =>
+      let%success env_len := R_length globals runs S env using S in
+      ifb env_len <> 1 then
+        result_error S "[do_eval] Numeric ‘envir’ argument not of length one."
+      else
+        let%success frame := asInteger globals S env using S in
+        ifb frame = NA_INTEGER then
+          result_error S "[do_eval] Invalid argument ‘envir’ after convertion."
+        else result_not_implemented "[do_eval] [R_sysframe]."
+    | _ => result_error S "[do_eval] Invalid argument ‘envir’."
+    end using S in
+  let%success expr :=
+    let%success expr_type := TYPEOF S expr using S in
+    let%success expr_bc := isByteCode S expr using S in
+    ifb expr_type = LangSxp \/ expr_type = SymSxp \/ expr_bc then
+      let%success cntxt :=
+        begincontext globals S Ctxt_Return (context_call (R_GlobalContext S)) env rho args op using S in
+      set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+      let%success expr :=
+        ifb jmp <> empty_context_type then
+          eval globals runs S expr env
+        else
+          let expr := R_ReturnedValue S in
+          ifb expr = R_RestartToken then
+            let S := state_with_context S (context_with_callflag cntxt Ctxt_Return) in
+            result_error S "[do_eval] Restarts not supported in ‘eval’."
+          else result_success S expr using S in
+      run%success endcontext globals runs S cntxt using S in
+      result_success S expr
+    else ifb expr_type = ExprSxp then
+      let%success srcrefs := getBlockSrcrefs S expr using S in
+      let%success n := LENGTH globals S expr using S in
+      let%success cntxt :=
+        begincontext globals S Ctxt_Return (context_call (R_GlobalContext S)) env rho args op using S in
+      set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+      let%success tmp :=
+        ifb jmp <> empty_context_type then
+          do%let tmp := R_NilValue : SExpRec_pointer
+          for i from 0 to n - 1 do
+            result_not_implemented "[do_eval] [getSrcref]." using S
+        else
+          let tmp := R_ReturnedValue S in
+          ifb tmp = R_RestartToken then
+            let S := state_with_context S (context_with_callflag cntxt Ctxt_Return) in
+            result_error S "[do_eval] Restarts not supported in ‘eval’."
+          else result_success S tmp using S in
+      run%success endcontext globals runs S cntxt using S in
+      result_success S tmp
+    else ifb expr_type = PromSxp then
+      eval globals runs S expr rho
+    else result_success S expr using S in
+  result_success S expr.
 
 
 (** * connections.c **)
@@ -1511,6 +1611,11 @@ Definition complex_math1 (S : state) (call op args env : SExpRec_pointer) : resu
 (** The function names of this section corresponds to the function names
   in the file main/arithmetic.c. **)
 
+Definition R_finite (x : double) :=
+  decide (~ Double.isNaN x /\ x <> R_PosInf /\ x <> R_NegInf).
+
+Definition R_FINITE := R_finite.
+
 Definition R_binary (S : state) (call op x y : SExpRec_pointer) : result SExpRec_pointer :=
   result_not_implemented "[R_binary]".
 
@@ -1813,6 +1918,175 @@ Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_poin
       | 49 => result_not_implemented "[do_math1] [tanpi]."
       | _ => result_error S "[do_math1] Unimplemented real function of 1 argument."
       end.
+
+
+(** * subset.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/subset.c. **)
+
+Definition R_DispatchOrEvalSP S call op generic args rho :=
+  read%list args_car, args_cdr, _ := args using S in
+  let%exit (prom, args) :=
+    ifb args <> R_NilValue /\ args_car <> R_DotsSymbol then
+      let%success x := eval globals runs S args_car rho using S in
+      run%success INCREMENT_LINKS S x using S in
+      let%success x_obj := OBJECT S x using S in
+      if negb x_obj then
+        let%success elkm := evalListKeepMissing S args_cdr rho using S in
+        let (S, ans) := CONS_NR globals S x elkm in
+        run%success DECREMENT_LINKS S x using S in
+        result_rreturn S (false, ans)
+      else result_not_implemented "[R_DispatchOrEvalSP] [R_mkEVPROMISE_NR]."
+    else result_rsuccess S (NULL, args) using S in
+  let%success (disp, ans) :=
+    DispatchOrEval globals runs S call op generic args rho false false using S in
+  run%success
+    ifb prom <> NULL then
+      let%success prom_value := PRVALUE S prom using S in
+      DECREMENT_LINKS S prom_value
+    else result_skip S using S in
+  result_success S (disp, ans).
+
+Definition scalarIndex S s :=
+  let%success s_attr := ATTRIB S s using S in
+  ifb s_attr = R_NilValue then
+    if%success IS_SCALAR S s IntSxp using S then
+      let%success ival := SCALAR_IVAL S s using S in
+      ifb ival <> NA_INTEGER then
+        result_success S ival
+      else result_success S (-1)%Z
+    else if%success IS_SCALAR S s RealSxp using S then
+      let%success rval := SCALAR_DVAL S s using S in
+      if R_FINITE rval then
+        result_success S (Double.double_to_int_zero rval)
+      else result_success S (-1)%Z
+    else result_success S (-1)%Z
+  else result_success S (-1)%Z.
+
+Definition ExtractDropArg (S : state) (el : SExpRec_pointer) : result int :=
+  result_not_implemented "[ExtractDropArg].".
+
+Definition do_subset_dflt (S : state) (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  read%list args_car, args_cdr, _ := args using S in
+  let cdrArgs := args_cdr in
+  read%list cdrArgs_car, cdrArgs_cdr, cdrArgs_tag := cdrArgs using S in
+  let cddrArgs := cdrArgs_cdr in
+  read%list cddrArgs_car, cddrArgs_cdr, cddrArgs_tag := cddrArgs using S in
+  run%exit
+    ifb cdrArgs <> R_NilValue /\ cddrArgs = R_NilValue /\ cdrArgs_tag = R_NilValue then
+      let x := args_car in
+      let%success x_attr := ATTRIB S x using S in
+      ifb x_attr = R_NilValue then
+        let s := cdrArgs_car in
+        let%success i := scalarIndex S s using S in
+        let%success x_type := TYPEOF S x using S in
+        match x_type with
+        | RealSxp =>
+          let%success len := XLENGTH S x using S in
+          ifb i >= 1 /\ i <= len then
+            let%success x_imu := REAL_ELT S x (Z.to_nat (i - 1)) using S in
+            let (S, r) := ScalarReal globals S x_imu in
+            result_rreturn S r
+          else result_rskip S
+        | IntSxp =>
+          let%success len := XLENGTH S x using S in
+          ifb i >= 1 /\ i <= len then
+            let%success x_imu := INTEGER_ELT S x (Z.to_nat (i - 1)) using S in
+            let (S, r) := ScalarInteger globals S x_imu in
+            result_rreturn S r
+          else result_rskip S
+        | LglSxp =>
+          let%success len := XLENGTH S x using S in
+          ifb i >= 1 /\ i <= len then
+            let%success x_imu := LOGICAL_ELT S x (Z.to_nat (i - 1)) using S in
+            result_rreturn S (ScalarLogical globals x_imu)
+          else result_rskip S
+        | CplxSxp =>
+          let%success len := XLENGTH S x using S in
+          ifb i >= 1 /\ i <= len then
+            let%success x_imu := COMPLEX_ELT S x (Z.to_nat (i - 1)) using S in
+            let (S, r) := ScalarComplex globals S x_imu in
+            result_rreturn S r
+          else result_rskip S
+        | RawSxp => result_not_implemented "[do_subset_dflt] Raw case."
+        | _ => result_rskip S
+        end
+      else result_rskip S
+    else ifb cddrArgs <> R_NilValue /\ cddrArgs_cdr = R_NilValue
+          /\ cdrArgs_tag = R_NilValue /\ cddrArgs_tag = R_NilValue then
+      let x := args_car in
+      let%success attr := ATTRIB S x using S in
+      read%list attr_car, attr_cdr, attr_tag := attr using S in
+      ifb attr_tag = R_DimSymbol /\ attr_cdr = R_NilValue then
+        let dim := attr_car in
+        let%success dim_type := TYPEOF S dim using S in
+        let%success dim_len := LENGTH globals S dim using S in
+        ifb dim_type = IntSxp /\ dim_len = 2 then
+          let si := cdrArgs_car in
+          let sj := cddrArgs_car in
+          let%success i := scalarIndex S si using S in
+          let%success j := scalarIndex S sj using S in
+          let%success nrow := INTEGER_ELT S dim 0 using S in
+          let%success ncol := INTEGER_ELT S dim 1 using S in
+          ifb i > 0 /\ j > 0 /\ i <= nrow /\ j <= ncol then
+            let k := (i - 1 + nrow * (j - 1))%Z in
+            let%success x_type := TYPEOF S x using S in
+            match x_type with
+            | RealSxp =>
+              let%success len := XLENGTH S x using S in
+              ifb k <= len then
+                let%success x_k := REAL_ELT S x (Z.to_nat k) using S in
+                let (S, r) := ScalarReal globals S x_k in
+                result_rreturn S r
+              else result_rskip S
+            | IntSxp =>
+              let%success len := XLENGTH S x using S in
+              ifb k <= len then
+                let%success x_k := INTEGER_ELT S x (Z.to_nat k) using S in
+                let (S, r) := ScalarInteger globals S x_k in
+                result_rreturn S r
+              else result_rskip S
+            | LglSxp =>
+              let%success len := XLENGTH S x using S in
+              ifb k <= len then
+                let%success x_k := LOGICAL_ELT S x (Z.to_nat k) using S in
+                result_rreturn S (ScalarLogical globals x_k)
+              else result_rskip S
+            | CplxSxp =>
+              let%success len := XLENGTH S x using S in
+              ifb k <= len then
+                let%success x_k := COMPLEX_ELT S x (Z.to_nat k) using S in
+                let (S, r) := ScalarComplex globals S x_k in
+                result_rreturn S r
+              else result_rskip S
+            | RawSxp => result_not_implemented "[do_subset_dflt] Raw case."
+            | _ => result_rskip S
+            end
+          else result_rskip S
+        else result_rskip S
+      else result_rskip S
+    else result_rskip S using S in
+  let%success drop := ExtractDropArg S args using S in
+  let x := args_car in
+  ifb x = R_NilValue then
+    result_success S x
+  else
+    let subs := args_cdr in
+    let%success nsubs := R_length globals runs S subs using S in
+    result_not_implemented "[do_subset_dflt]".
+
+Definition do_subset S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+  let%success (disp, ans) := R_DispatchOrEvalSP S call op "[" args rho using S in
+  if disp then
+    run%success
+      let%success ans_named := NAMED S ans using S in
+      ifb ans_named <> named_temporary then
+        map%pointer ans with set_named_plural using S in
+        result_skip S
+      else result_skip S using S in
+    result_success S ans
+  else do_subset_dflt S call op ans rho.
 
 
 (** * relop.c **)
@@ -2221,9 +2495,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "<<-" do_set 2 eval100 (-1)%Z PP_ASSIGN2 PREC_LEFT true ;
               rdecl "{" do_begin (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
               rdecl "(" do_paren (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
-              rdecl ".subset" (dummy_function "do_subset_dflt") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl ".subset" do_subset_dflt (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "[" (dummy_function "do_subset") (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
+              rdecl "[" do_subset (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "[[" (dummy_function "do_subset2") (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "$" (dummy_function "do_subset3") (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "@" (dummy_function "do_AT") (0)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
@@ -2746,7 +3020,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "dyn.unload" (dummy_function "do_dynunload") (0)%Z eval111 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "ls" (dummy_function "do_ls") (1)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "typeof" do_typeof (1)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "eval" (dummy_function "do_eval") (0)%Z eval211 (3)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "eval" do_eval (0)%Z eval211 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "returnValue" (dummy_function "do_returnValue") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "sys.parent" (dummy_function "do_sys") (1)%Z eval11 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "sys.call" (dummy_function "do_sys") (2)%Z eval11 (-1)%Z PP_FUNCALL PREC_FN false ;

@@ -122,6 +122,10 @@ Definition SET_MISSING S e (m : nat) I :=
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
+Definition ATTRIB S x :=
+  read%defined x_ := x using S in
+  result_success S (attrib x_).
+
 Definition NAMED S x :=
   read%defined x_ := x using S in
   result_success S (named x_).
@@ -138,6 +142,25 @@ Definition INCREMENT_NAMED S x :=
   | named_plural =>
     result_skip S
   end.
+
+Definition INCREMENT_LINKS S x :=
+  INCREMENT_NAMED S x.
+
+Definition DECREMENT_NAMED S x :=
+  let%success x_named := NAMED S x using S in
+  match x_named with
+  | named_temporary =>
+    result_skip S
+  | named_unique =>
+    map%pointer x with set_named_temporary using S in
+    result_skip S
+  | named_plural =>
+    map%pointer x with set_named_unique using S in
+    result_skip S
+  end.
+
+Definition DECREMENT_LINKS S x :=
+  DECREMENT_NAMED S x.
 
 Definition NO_REFERENCES S x :=
   let%success x_named := NAMED S x using S in
@@ -208,6 +231,10 @@ Definition isComplex S s :=
 
 Definition isObject S s :=
   OBJECT S s.
+
+Definition isEnvironment S s :=
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = EnvSxp)).
 
 Definition isByteCode S x :=
   let%success x_type := TYPEOF S x using S in
@@ -288,6 +315,10 @@ Definition SET_PRSEEN_direct S x v :=
 Definition PRENV S p :=
   read%prom _, p_prom := p using S in
   result_success S (prom_env p_prom).
+
+Definition PRVALUE S p :=
+  read%prom _, p_prom := p using S in
+  result_success S (prom_value p_prom).
 
 
 (** ** duplicate.c **)
@@ -1250,18 +1281,18 @@ Definition CheckFormalArgs S formlist new :=
 (** Instead of updating a context given as its first argument, it returns it. **)
 Definition begincontext S flags syscall env sysp promargs callfun :=
   let cptr := {|
-     nextcontext := Some (R_GlobalContext S) ;
-     cjmpbuf := 1 + cjmpbuf (R_GlobalContext S) ;
-     callflag := flags ;
-     promargs := promargs ;
-     callfun := callfun ;
-     sysparent := sysp ;
-     call := syscall ;
-     cloenv := env ;
-     conexit := R_NilValue ;
-     returnValue := NULL ;
-     jumptarget := None ;
-     jumpmask := empty_context_type
+     context_nextcontext := Some (R_GlobalContext S) ;
+     context_cjmpbuf := 1 + context_cjmpbuf (R_GlobalContext S) ;
+     context_callflag := flags ;
+     context_promargs := promargs ;
+     context_callfun := callfun ;
+     context_sysparent := sysp ;
+     context_call := syscall ;
+     context_cloenv := env ;
+     context_conexit := R_NilValue ;
+     context_returnValue := NULL ;
+     context_jumptarget := None ;
+     context_jumpmask := empty_context_type
    |} in
   let S := state_with_context S cptr in
   result_success S cptr.
@@ -1270,12 +1301,12 @@ Fixpoint first_jump_target_loop S c cptr mask :=
   ifb c = cptr then
     result_success S cptr
   else
-    ifb cloenv c <> R_NilValue /\ conexit c <> R_NilValue then
+    ifb context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue then
       let c := context_with_jumptarget c (Some cptr) in
       let c := context_with_jumpmask c mask in
       result_success S c
     else
-      match nextcontext c with
+      match context_nextcontext c with
       | None => result_success S cptr
       | Some c => first_jump_target_loop S c cptr mask
       end.
@@ -1288,8 +1319,8 @@ Fixpoint R_run_onexits_loop S c cptr :=
     result_skip S
   else
     run%success
-      ifb cloenv c <> R_NilValue /\ conexit c <> R_NilValue then
-        let s := conexit c in
+      ifb context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue then
+        let s := context_conexit c in
         let savecontext := R_ExitContext S in
         let c := context_with_conexit c R_NilValue in
         let c := context_with_returnValue c NULL in
@@ -1300,7 +1331,7 @@ Fixpoint R_run_onexits_loop S c cptr :=
           let c := context_with_conexit c (list_cdrval s_list) in
           let S := state_with_context S c in
           run%success
-            runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
+            runs_eval runs S (list_carval s_list) (context_cloenv cptr) using S in
             result_skip S using S, runs, globals in
         let S := update_R_ExitContext S savecontext in
         result_skip S
@@ -1310,7 +1341,7 @@ Fixpoint R_run_onexits_loop S c cptr :=
         let S := update_R_ExitContext S None in
         result_skip S
       else result_skip S using S in
-    match nextcontext c with
+    match context_nextcontext c with
     | None => result_impossible S "[R_run_onexits_loop] Bad target context."
     | Some c => R_run_onexits_loop S c cptr
     end.
@@ -1327,14 +1358,14 @@ Definition R_jumpctxt A S targetcptr mask val : result A :=
   let S := update_R_ReturnedValue S val in
   let S := state_with_context S cptr in
   run%success R_restore_globals S (R_GlobalContext S) using S in
-  result_longjump S (cjmpbuf cptr) mask.
+  result_longjump S (context_cjmpbuf cptr) mask.
 Arguments R_jumpctxt [A].
 
 Definition endcontext S cptr :=
-  let jmptarget := jumptarget cptr in
+  let jmptarget := context_jumptarget cptr in
   run%success
-    ifb cloenv cptr <> R_NilValue /\ conexit cptr <> R_NilValue then
-      let s := conexit cptr in
+    ifb context_cloenv cptr <> R_NilValue /\ context_conexit cptr <> R_NilValue then
+      let s := context_conexit cptr in
       let savecontext := R_ExitContext S in
       let cptr := context_with_conexit cptr R_NilValue in
       let cptr := context_with_jumptarget cptr None in
@@ -1345,7 +1376,7 @@ Definition endcontext S cptr :=
         let cptr := context_with_conexit cptr (list_cdrval s_list) in
         let S := state_with_context S cptr in
         run%success
-          runs_eval runs S (list_carval s_list) (cloenv cptr) using S in
+          runs_eval runs S (list_carval s_list) (context_cloenv cptr) using S in
         result_skip S using S, runs, globals in
       let S := update_R_ExitContext S savecontext in
       result_skip S
@@ -1359,21 +1390,21 @@ Definition endcontext S cptr :=
     match jmptarget with
     | None => result_skip S
     | Some jmptarget =>
-      R_jumpctxt S jmptarget (jumpmask cptr) (R_ReturnedValue S)
+      R_jumpctxt S jmptarget (context_jumpmask cptr) (R_ReturnedValue S)
     end using S in
-  let%defined c := nextcontext cptr using S in
+  let%defined c := context_nextcontext cptr using S in
   let S := state_with_context S c in
   result_skip S.
 
 Fixpoint findcontext_loop A S cptr env mask mask_against val err : result A :=
-  ifb context_type_mask (callflag cptr) mask_against /\ cloenv cptr = env then
+  ifb context_type_mask (context_callflag cptr) mask_against /\ context_cloenv cptr = env then
     R_jumpctxt S cptr mask val
   else
     let error S := result_error S ("[findcontext_loop] " ++ err) in
-    match nextcontext cptr with
+    match context_nextcontext cptr with
     | None => error S
     | Some cptr =>
-      ifb callflag cptr = Ctxt_TopLevel then error S
+      ifb context_callflag cptr = Ctxt_TopLevel then error S
       else findcontext_loop _ S cptr env mask mask_against val err
     end.
 Arguments findcontext_loop [A].
@@ -3053,10 +3084,10 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SExpRec_point
   let body := clo_body op_clo in
   (** JIT functions have been ignored here. **)
   let%success R_srcef := getAttrib S op R_SrcrefSymbol using S in
-  set%longjump cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   let%success cntxt_returnValue :=
     ifb jmp <> empty_context_type then
-      ifb jumptarget cntxt = None then
+      ifb context_jumptarget cntxt = None then
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
           let S := state_with_context S cntxt in
@@ -3068,7 +3099,7 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SExpRec_point
   let cntxt := context_with_returnValue cntxt cntxt_returnValue in
   let S := state_with_context S cntxt in
   run%success endcontext S cntxt using S in
-  result_success S (returnValue cntxt).
+  result_success S (context_returnValue cntxt).
 
 Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
     : result SExpRec_pointer :=
@@ -3099,8 +3130,8 @@ Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
       run%success SET_SPECIAL_SYMBOL S newrho false using S in
       result_skip S in
     R_execClosure S call newrho
-      (ifb callflag (R_GlobalContext S) = Ctxt_Generic then
-         sysparent (R_GlobalContext S)
+      (ifb context_callflag (R_GlobalContext S) = Ctxt_Generic then
+         context_sysparent (R_GlobalContext S)
        else rho)
       rho arglist op.
 
@@ -3414,8 +3445,8 @@ Definition eval S (e rho : SExpRec_pointer) :=
         let%success op :=
           ifb e_car_type = SymSxp then
             let%success ecall :=
-              ifb callflag (R_GlobalContext S) = Ctxt_CCode then
-                result_success S (call (R_GlobalContext S))
+              ifb context_callflag (R_GlobalContext S) = Ctxt_CCode then
+                result_success S (context_call (R_GlobalContext S))
               else result_success S e using S in
             findFun3 S e_car rho ecall
           else runs_eval runs S e_car rho using S in

@@ -83,12 +83,7 @@ Extract Constant Double.NaN1954 =>
   "(let (a, b) = (Obj.magic nan : int * int) in
     let r = (Obj.magic (a, 1954) : float) in
     assert (compare r nan = 0) ; r)".
-Extract Constant Double.isNaN =>
-  "(fun x ->
-     if compare x nan = 0 then
-       let (a, b) = (Obj.magic x : int * int) in
-       b = 1954
-     else false)".
+Extract Constant Double.isNaN => "(fun x -> compare x nan = 0)".
 Extract Constant Double.getNaNData =>
   "(let f x =
       if compare x nan = 0 then

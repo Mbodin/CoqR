@@ -229,7 +229,7 @@ Definition InitGlobalEnv S :=
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
 (*Definition InitOptions runs S :=
-  TODO.*)
+  result_not_implemented.*)
 
 (** [TypeTable], from main/util.c **)
 Definition TypeTable : list (string * SExpType) := [
@@ -300,25 +300,25 @@ Definition InitTypeTables S :=
 (** [InitS3DefaulTypes], from main/attrib.c **)
 (* FIXME: Do we want to model it? *)
 (*Definition InitS3DefaulTypes runs S :=
-  TODO.*)
+  result_not_implemented.*)
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel S :=
   let%success (R_EmptyEnv, R_BaseEnv) :=
     InitBaseEnv S using S in
   result_success S {|
-      nextcontext := None ;
-      cjmpbuf := 1 ;
-      callflag := Ctxt_TopLevel ;
-      promargs := R_NilValue ;
-      callfun := R_NilValue ;
-      sysparent := R_BaseEnv ;
-      call := R_NilValue ;
-      cloenv := R_BaseEnv ;
-      conexit := R_NilValue ;
-      returnValue := NULL ;
-      jumptarget := None ;
-      jumpmask := empty_context_type
+      context_nextcontext := None ;
+      context_cjmpbuf := 1 ;
+      context_callflag := Ctxt_TopLevel ;
+      context_promargs := R_NilValue ;
+      context_callfun := R_NilValue ;
+      context_sysparent := R_BaseEnv ;
+      context_call := R_NilValue ;
+      context_cloenv := R_BaseEnv ;
+      context_conexit := R_NilValue ;
+      context_returnValue := NULL ;
+      context_jumptarget := None ;
+      context_jumpmask := empty_context_type
     |}.
 
 End Globals.
@@ -400,18 +400,18 @@ Definition setup_Rmainloop max_step S : result Globals :=
 
 (** An empty (and dummy) context **)
 Definition empty_context := {|
-    nextcontext := None ;
-    cjmpbuf := 0 ;
-    callflag := Ctxt_TopLevel ;
-    promargs := NULL ;
-    callfun := NULL ;
-    sysparent := NULL ;
-    call := NULL ;
-    cloenv := NULL ;
-    conexit := NULL ;
-    returnValue := NULL ;
-    jumptarget := None ;
-    jumpmask := empty_context_type
+    context_nextcontext := None ;
+    context_cjmpbuf := 0 ;
+    context_callflag := Ctxt_TopLevel ;
+    context_promargs := NULL ;
+    context_callfun := NULL ;
+    context_sysparent := NULL ;
+    context_call := NULL ;
+    context_cloenv := NULL ;
+    context_conexit := NULL ;
+    context_returnValue := NULL ;
+    context_jumptarget := None ;
+    context_jumpmask := empty_context_type
   |}.
 
 (** An empty (and dummy) state **)

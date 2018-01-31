@@ -489,23 +489,23 @@ let rec print_context d ce t s g ctxt =
   let expert str =
     if ce then str else "" in
   "next context:" ^
-    (match ctxt.nextcontext with
+    (match ctxt.context_nextcontext with
      | None -> " None"
      | Some c -> indent (d + 2) ^ print_context (d + 2) ce t s g c) ^
-  expert (indent d ^ "cjmp buffer: " ^ string_of_int ctxt.cjmpbuf) ^
-  indent d ^ "call flag: " ^ print_context_type ctxt.callflag ^
-  expert (indent d ^ "prom args: " ^ print_pointer t s g ctxt.promargs) ^
-  expert (indent d ^ "call fun: " ^ print_pointer t s g ctxt.callfun) ^
-  expert (indent d ^ "sysparent: " ^ print_pointer t s g ctxt.sysparent) ^
-  expert (indent d ^ "call: " ^ print_pointer t s g ctxt.call) ^
-  indent d ^ "cloenv: " ^ print_pointer t s g ctxt.cloenv ^
-  indent d ^ "conexit: " ^ print_pointer t s g ctxt.conexit ^
-  expert (indent d ^ "return value: " ^ print_pointer t s g ctxt.returnValue) ^
+  expert (indent d ^ "cjmp buffer: " ^ string_of_int ctxt.context_cjmpbuf) ^
+  indent d ^ "call flag: " ^ print_context_type ctxt.context_callflag ^
+  expert (indent d ^ "prom args: " ^ print_pointer t s g ctxt.context_promargs) ^
+  expert (indent d ^ "call fun: " ^ print_pointer t s g ctxt.context_callfun) ^
+  expert (indent d ^ "sysparent: " ^ print_pointer t s g ctxt.context_sysparent) ^
+  expert (indent d ^ "call: " ^ print_pointer t s g ctxt.context_call) ^
+  indent d ^ "cloenv: " ^ print_pointer t s g ctxt.context_cloenv ^
+  indent d ^ "conexit: " ^ print_pointer t s g ctxt.context_conexit ^
+  expert (indent d ^ "return value: " ^ print_pointer t s g ctxt.context_returnValue) ^
   expert (indent d ^ "jump target:" ^
-    (match ctxt.nextcontext with
+    (match ctxt.context_nextcontext with
      | None -> " None"
-     | Some c -> " cjmp buffer: " ^ string_of_int c.cjmpbuf (*indent (d + 2) ^ print_context (d + 2) ce t s g c*))) ^
-  expert (indent d ^ "jump mask: " ^ print_context_type ctxt.jumpmask)
+     | Some c -> " cjmp buffer: " ^ string_of_int c.context_cjmpbuf (*indent (d + 2) ^ print_context (d + 2) ce t s g c*))) ^
+  expert (indent d ^ "jump mask: " ^ print_context_type ctxt.context_jumpmask)
 
 let print_state d (context, all_context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
   (if memory then
