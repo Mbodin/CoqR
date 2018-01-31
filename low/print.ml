@@ -143,7 +143,7 @@ let split_on_char c str =
 
 let print_unit () = "tt"
 let print_bool b = if b then "true" else "false"
-let print_string str = "\"" ^ str ^ "\""
+let print_str str = "\"" ^ String.escaped str ^ "\""
 
 
 let print_raw_pointer = function
@@ -392,7 +392,7 @@ let rec print_SExpRec_like_R d s g p e =
       if p = read_globals g NA_STRING then "NA"
       else
         let v = vector_SExpRec_vecsxp v in
-        "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
+        print_str (char_list_to_string (ArrayList.to_list (vecSxp_data v)))
     | SExpRec_VectorLogical v ->
       print_vector "logical" print_logical v
     | SExpRec_VectorInteger v ->

@@ -68,7 +68,7 @@ Extract Constant N.max => "max".
 Extract Constant N.div => "(fun x y -> if x = 0 then 0 else (x / y)".
 Extract Constant N.modulo => "mod".
 Extract Constant N.compare =>
- "fun x y -> if x=y then Eq else if x<y then Lt else Gt".
+ "fun x y -> if x = y then Eq else if x < y then Lt else Gt".
 
 (* FIXME: The additional information carried by the NaN value has to be remembered because of the
   difference between R_NaReal_ and R_NaN. *)

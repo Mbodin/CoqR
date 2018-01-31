@@ -11,6 +11,7 @@
 "function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
 "" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
 ')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
+'\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
 "[1] 1" ; 1
 "function" <- 42
 "" <- 9
@@ -116,16 +117,21 @@ a <- b <- 1 ; f <- function (x, y) if (missing (y)) x ; f (a <- 2, b <- 3) ; a ;
 missing ; missing (x)
 missing ("x")
 missing (1 + 2)
-f <- function (x) missing (x) ; f () ; f (1) ; f (1, 2)
-f <- function (x) missing ("x") ; f () ; f (1) ; f (1, 2)
-f <- function (x) { y <- "x" ; missing (y) } ; f () ; f (1) ; f (1, 2)
-f <- function (x = 0) missing (x) ; f () ; f (1) ; f (1, 2)
-f <- function (x = NULL) missing (x) ; f () ; f (1) ; f (1, 2)
-f <- function (x = 0) { x ; missing (x) } ; f () ; f (1) ; f (1, 2)
-f <- function (x) { x ; missing (x) } ; f (1) ; f (1, 2) ; f ()
-f <- function (...) missing (...) ; f () ; f (1) ; f (1, 2)
+f <- function (x) missing (x) ; f () ; f (1) ; f (x = 1) ; f (1, 2)
+f <- function (x) missing ("x") ; f () ; f (1) ; f (x = 1) ; f (1, 2)
+f <- function (x) { y <- "x" ; missing (y) } ; f () ; f (1) ; f (x = 1) ; f (1, 2)
+f <- function (x = 0) missing (x) ; f () ; f (1) ; f (x = 1) ; f (1, 2)
+f <- function (x = NULL) missing (x) ; f () ; f (NULL) ; f (x = NULL) ; f (NULL, NULL)
+f <- function (x = 0) { x ; missing (x) } ; f () ; f (1) ; f (x = 1) ; f (1, 2)
+f <- function (x) { x ; missing (x) } ; f (1) ; f (x = 1) ; f (1, 2) ; f ()
+f <- function (...) missing (...) ; f () ; f (1) ; f (1, 2) ; f (x = 1)
+f <- function (x) missing (y) ; g <- function (y) f (y) ; g (x = 1)
+f <- function (x) missing (y) ; g <- function (y) f (y) ; g (y = 1)
 f <- function (x) missing (y) ; g <- function (y) f (y) ; g (1)
+f <- function (x) missing ("y") ; g <- function (y) f (y) ; g (x = 1)
+f <- function (x) missing ("y") ; g <- function (y) f (y) ; g (y = 1)
 f <- function (x) missing ("y") ; g <- function (y) f (y) ; g (1)
+f <- function (...) missing ("x") ; g <- function (x) f (x) ; g (x = 1)
 f <- function (...) missing ("x") ; g <- function (x) f (x) ; g (1)
 f <- function (x) function (y) missing (x) ; f () ; f ("y") ()
 f <- function (m, x) m (x) ; f (missing) ; f (missing, NULL) ; f (missing, f ())

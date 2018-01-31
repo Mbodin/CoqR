@@ -122,6 +122,6 @@ Defined.
 
 Global Instance lt_double_Decidable : forall x1 x2 : double,
     Decidable (x1 < x2).
-  intros. refine (decidable_make _ (decide := le x1 x2) _).
+  intros. refine (decidable_make _ (decide := lt x1 x2) _).
   skip. (* Admitted. *)
 Defined.
