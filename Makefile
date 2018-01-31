@@ -53,6 +53,7 @@ run: low/runR.native low/initial.state
 
 # To launch the program faster through the “make run” command.
 low/initial.state: low/runR.native
+	${AT}# Note: the following command may take some time to execute.
 	${AT}low/runR.native -non-interactive -final-state low/initial.state > /dev/null
 
 clean_interp:

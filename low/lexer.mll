@@ -116,7 +116,7 @@ rule lex = parse
 
   (** ** Special Values **)
   | reg_special_operator as name    { eatLines := true ; SPECIAL (install_and_save name) }
-  | reg_string                      { eatLines := false ; STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (Print.string_to_char_list (Scanf.unescaped str))))) }
+  | reg_string                      { eatLines := false ; STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (unescaped_R (Print.string_to_char_list str))))) }
   | reg_integer                     { eatLines := false ; NUM_CONST (mkIntCheck value) }
   | reg_numeric as value            { eatLines := false ; NUM_CONST (mkFloat value) }
   | reg_imaginary                   { eatLines := false ; NUM_CONST (mkComplex value) }

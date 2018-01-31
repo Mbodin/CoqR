@@ -340,10 +340,11 @@ Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_po
         else result_rsuccess S t using S in
       run%exit
         let%success t_mis := MISSING S t using S in
-        ifb t_mis \/ t_car = R_MissingArg then
+        ifb t_mis <> 0 \/ t_car = R_MissingArg then
           write%Logical rval at 0 := 1 using S in
           result_rreturn S rval
         else result_rskip S using S in
+      (** This is the translation of the [havebinding] label. **)
       let t := t_car in
       let%success t_type := TYPEOF S t using S in
       ifb t_type <> PromSxp then
@@ -1062,49 +1063,6 @@ Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_poi
       else result_error S "[do_return] Multi-argument returns are not permitted." using S in
   findcontext globals runs _ S (context_type_merge Ctxt_Browser Ctxt_Function) rho v.
 
-Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
-  let%exit cond :=
-    if%success IS_SCALAR S s LglSxp using S then
-      let%success cond := SCALAR_LVAL S s using S in
-      ifb cond <> NA_LOGICAL then
-        result_rreturn S cond
-      else result_rsuccess S cond
-    else
-      if%success IS_SCALAR S s IntSxp using S then
-        let%success val := SCALAR_IVAL S s using S in
-        ifb val <> NA_INTEGER then
-          ifb val <> 0 then
-            result_rreturn S (1 : int)
-          else result_rreturn S (0 : int)
-        else result_rsuccess S NA_LOGICAL
-      else result_rsuccess S NA_LOGICAL using S in
-  let%success len := R_length globals runs S s using S in
-  ifb len > 1 then
-    result_error S "[asLogicalNoNA] The condition has length > 1."
-  else
-    let%success cond :=
-      ifb len > 0 then
-        let%success s_type := TYPEOF S s using S in
-        match s_type with
-        | LglSxp =>
-          read%Logical cond := s at 0 using S in
-          result_success S cond
-        | IntSxp =>
-          read%Integer cond := s at 0 using S in
-          result_success S cond
-        | _ =>
-          asLogical globals S s
-        end
-      else result_success S cond using S in
-    ifb cond = NA_LOGICAL then
-      ifb len = 0 then
-        result_error S "[asLogicalNoNA] Argument is of length zero."
-      else
-        if%success isLogical S s using S then
-          result_error S "[asLogicalNoNA] Missing value where TRUE/FALSE needed."
-        else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
-    else result_success S cond.
-
 Definition BodyHasBraces S body :=
   if%success isLanguage globals S body using S then
     read%list body_car, _, _ := body using S in
@@ -1115,7 +1073,7 @@ Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
   read%list args_car, args_cdr, _ := args using S in
   let%success Cond := eval globals runs S args_car rho using S in
   let%success (Stmt, vis) :=
-    let%success asLogical := asLogicalNoNA S Cond call using S in
+    let%success asLogical := asLogicalNoNA globals runs S Cond call using S in
     read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
     ifb asLogical <> 0 then
       result_success S (args_cdr_car, false)
@@ -1143,7 +1101,7 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
       do%let while
         read%list args_car, _, _ := args using S in
         let%success ev := eval globals runs S args_car rho using S in
-        let%success al := asLogicalNoNA S ev call using S in
+        let%success al := asLogicalNoNA globals runs S ev call using S in
         result_success S (decide (al <> 0))
       do
         run%success eval globals runs S body rho using S in

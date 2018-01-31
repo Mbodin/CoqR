@@ -113,14 +113,12 @@ Definition CHAR S x :=
   read%VectorChar x_vector := x using S in
   result_success S (list_to_string (ArrayList.to_list x_vector)).
 
-Definition MISSING_BIT := 4.
-
 Definition MISSING S x :=
   read%defined x_ := x using S in
-  result_success S (nth_bit MISSING_BIT (gp x_) ltac:(nbits_ok)).
+  result_success S (nbits_to_nat (sub_nbits 0 4 (gp x_) ltac:(nbits_ok))).
 
 Definition SET_MISSING S e (m : nat) I :=
-  map%gp e with @write_nbits 16 MISSING_BIT 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
+  map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
@@ -2971,6 +2969,49 @@ Definition R_has_methods S (op : SExpRec_pointer) :=
 
 (** The function names of this section corresponds to the function names
   in the file main/eval.c. **)
+
+Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
+  let%exit cond :=
+    if%success IS_SCALAR S s LglSxp using S then
+      let%success cond := SCALAR_LVAL S s using S in
+      ifb cond <> NA_LOGICAL then
+        result_rreturn S cond
+      else result_rsuccess S cond
+    else
+      if%success IS_SCALAR S s IntSxp using S then
+        let%success val := SCALAR_IVAL S s using S in
+        ifb val <> NA_INTEGER then
+          ifb val <> 0 then
+            result_rreturn S (1 : int)
+          else result_rreturn S (0 : int)
+        else result_rsuccess S NA_LOGICAL
+      else result_rsuccess S NA_LOGICAL using S in
+  let%success len := R_length S s using S in
+  ifb len > 1 then
+    result_error S "[asLogicalNoNA] The condition has length > 1."
+  else
+    let%success cond :=
+      ifb len > 0 then
+        let%success s_type := TYPEOF S s using S in
+        match s_type with
+        | LglSxp =>
+          read%Logical cond := s at 0 using S in
+          result_success S cond
+        | IntSxp =>
+          read%Integer cond := s at 0 using S in
+          result_success S cond
+        | _ =>
+          asLogical S s
+        end
+      else result_success S cond using S in
+    ifb cond = NA_LOGICAL then
+      ifb len = 0 then
+        result_error S "[asLogicalNoNA] Argument is of length zero."
+      else
+        if%success isLogical S s using S then
+          result_error S "[asLogicalNoNA] Missing value where TRUE/FALSE needed."
+        else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
+    else result_success S cond.
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=

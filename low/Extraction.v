@@ -80,17 +80,30 @@ Extract Inductive Fappli_IEEE.full_float => "float" [
 ].
 Extract Constant Double.NaN => "nan".
 Extract Constant Double.NaN1954 =>
-  "(let (a, b) = (Obj.magic nan : int * int) in (Obj.magic (a, 1954) : float))".
+  "(let (a, b) = (Obj.magic nan : int * int) in
+    let r = (Obj.magic (a, 1954) : float) in
+    assert (compare r nan = 0) ; r)".
 Extract Constant Double.isNaN =>
-  "(fun x -> if compare x nan = 0 then let (a, b) = (Obj.magic x : int * int) in b = 1954 else false)".
+  "(fun x ->
+     if compare x nan = 0 then
+       let (a, b) = (Obj.magic x : int * int) in
+       b = 1954
+     else false)".
 Extract Constant Double.getNaNData =>
-  "(fun x -> if compare x nan = 0 then let (_, b) = (Obj.magic x : int * int) in Some b else None)".
-Extract Constant Double.isNaN => "(fun x -> compare x nan = 0)".
+  "(let f x =
+      if compare x nan = 0 then
+        let (_, b) = (Obj.magic x : int * int) in
+        Some b
+      else None in
+    assert (f naN1954 = Some 1954) ;
+    f)".
 Extract Constant Double.double_comparable =>
   "(fun x y ->
-     if compare x y = 0 then
-      if compare x nan = 0 then (Obj.magic x : int * int) = (Obj.magic y : int * int) else true
-     else false)".
+     if compare x nan = 0 then
+       if compare y nan = 0 then
+         (Obj.magic x : int * int) = (Obj.magic y : int * int)
+       else false
+     else (compare x y = 0))".
 
 Extract Constant Double.opp => "(~-.)".
 Extract Constant Double.fabs => "abs_float".

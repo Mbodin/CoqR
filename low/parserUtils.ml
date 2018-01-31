@@ -102,6 +102,57 @@ let mkIntCheck str =
   else mkFloat str
 
 
+(** * Interfacing functions **)
+
+let unescaped_char = function
+  | '\\' -> Some '\\'
+  | '"' -> Some '"'
+  | '\'' -> Some '\''
+  | 'n' -> Some '\n'
+  | 'r' -> Some '\r'
+  | 't' -> Some '\t'
+  | 'b' -> Some '\b'
+  | 'a' -> Some '\007'
+  | 'f' -> Some '\012'
+  | 'v' -> Some '\011'
+  | '\n' -> Some '\n'
+  | '`' -> Some '`'
+  | _ -> None
+
+let is_hexa c =
+  (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+
+let is_octal c =
+  c >= '0' && c <= '7'
+
+let hex_meaning c =
+  if c >= '0' && c <= '9' then int_of_char c - int_of_char '0'
+  else if c >= 'a' && c <= 'f' then 10 + int_of_char c - int_of_char 'a'
+  else if c >= 'A' && c <= 'F' then 10 + int_of_char c - int_of_char 'A'
+  else assert false
+
+let octal_meaning c =
+  assert (is_octal c) ;
+  hex_meaning c
+
+let rec unescaped_R = function
+  | [] -> []
+  | '\\' :: 'x' :: h1 :: h2 :: l when is_hexa h1 && is_hexa h2 ->
+    char_of_int (16 * hex_meaning h1 + hex_meaning h2) :: unescaped_R l
+  | '\\' :: 'x' :: h1 :: l when is_hexa h1 ->
+    char_of_int (hex_meaning h1) :: unescaped_R l
+  | '\\' :: o1 :: o2 :: o3 :: l when is_octal o1 && is_octal o2 && is_octal o3 ->
+    char_of_int (8 * 8 * octal_meaning o1 + 8 * octal_meaning o2 + octal_meaning o3) :: unescaped_R l
+  | '\\' :: o1 :: o2 :: l when is_octal o1 && is_octal o2 ->
+    char_of_int (8 * octal_meaning o1 + octal_meaning o2) :: unescaped_R l
+  | '\\' :: c :: l when unescaped_char c <> None ->
+    (match unescaped_char c with
+     | Some c -> c :: unescaped_R l
+     | None -> assert false)
+  | '\\' :: l -> failwith "Unrecognised escape in character string."
+  | c :: l -> c :: unescaped_R l
+
+
 (** * Global variables used in the parser **)
 
 (** The original file main/gram.y heavily uses imperative features of C.

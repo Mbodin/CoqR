@@ -5,17 +5,6 @@
 # A test passes if the output of the tested interpreter is the same than R’s.
 # All step should return the same output.
 
-# These are tests to test the tester and the parser.
-"function" ; 'function' ; 1 # function
-"Error" ; 'Error' ; 1 # Error
-"function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
-"" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
-')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
-'\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
-"[1] 1" ; 1
-"function" <- 42
-"" <- 9
-
 # Tests about aborting primitives.
 return
 return (1)
@@ -156,6 +145,8 @@ function (..., x, y, z, ...) x
 function (x, y, z, x) y
 f <- function (x, y) x ; f (x = 1, "x" = 1)
 f <- function (x = x) x ; f (1) ; f ()
+f <- function (x = 0, ...) x ; f () ; f (1, 2, 3) ; f (1, 2, x = 3)
+g <- function (x) x ; f <- function (y = 0, ...) g (...) ; f (1, 2) ; f (1)
 g <- function () 1 ; f <- function (...) g (...) ; f ()
 g <- function (x) x ; f <- function (...) g (...) ; f (2) ; f ()
 g <- function (x) x ; f <- function (...) g (...) ; f (1, 2)
@@ -217,6 +208,9 @@ a <- FALSE + 2L ; a ; .Internal (typeof (a))
 a <- FALSE + ""
 a <- FALSE + .Internal
 1 + 2i ; 1L + 2i ; (1L + 2i) - 2i ; (1L + 2i) - 2i == 1L
+NaN + 3i ; NA + 3i ; Inf + 3i ; 3i + 1/0 ; NaN + 0i ; NA + 0i
+(1 + 1i) * NaN ; 1i * NaN ; 1 * NaN ; 1i * c (NaN, 0i)[1] ; (1 + 1i) * c (NaN, 0i)[1]
+(1 + 1i) * NA ; 1i * NA ; 1 * NA ; 1i * c (NA, 0i)[1] ; (1 + 1i) * c (NA, 0i)[1]
 "" == '' ; c ('1', "1")
 1. == 1 ; 1.0 == 1 ; 1.00 == 1 ; 1 == 1.000 ; 0.5 == .5 ; 0.5 == 0.50 ; 0.5 == .500
 0.99999999999999999999 == 1 ; 0.99999999999999999999999999999999 == 1.
@@ -224,7 +218,12 @@ a <- FALSE + .Internal
 "FALSE" == FALSE ; 'False' == FALSE ; "false" == FALSE ; 'F' == FALSE ; "f" == FALSE ; 'fALSE' == FALSE
 "TRUE" == TRUE ; "True" == TRUE ; "true" == TRUE ; "T" == TRUE ; "t" == TRUE ; "tRUE" == TRUE
 NA == NA ; NaN == NaN ; NA == NaN ; NaN == 0/0 ; NaN == -0/0 ; NaN == 1 + 0/0 ; NaN == 1 + NaN
-NA_integer_ == NA ; NA_character_ == NA ; NA_integer_ == NA_character_
+NA_integer_ == NA ; NA_character_ == NA ; NA_complex_ == NA ; NA_real_ == NA
+NA_complex_ == NA_complex_ ; NA_complex_ = NA_integer_ ; NA_complex_ = NA_character_ ; NA_complex_ = NA_real_
+NA_integer_ == NA_complex_ ; NA_integer_ = NA_integer_ ; NA_integer_ = NA_character_ ; NA_integer_ = NA_real_
+NA_character_ == NA_complex_ ; NA_character_ = NA_integer_ ; NA_character_ = NA_character_ ; NA_character_ = NA_real_
+NA_real_ == NA_complex_ ; NA_real_ = NA_integer_ ; NA_real_ = NA_character_ ; NA_real_ = NA_real_
+NA_complex_ ; NA_integer_ ; NA_character_ ; NA_real_
 NULL == 0 ; NULL == NA ; NULL == NaN ; NULL == FALSE ; NULL == TRUE
 0 == -0 ; 0L == -0L ; 1/Inf == 0 ; -1/Inf == 0 ; NaN == Inf - Inf
 .Internal == .Internal
@@ -243,14 +242,20 @@ c (x = 1)
 c (1:10) ; c (c) ; c (function (x) x)
 list (c ()) ; list (c (1)) ; list (c (1, 2), c ("1", "2"))
 list () ; c (list ()) ; c (list (1)) ; c (list (1, 2), list ("1", "2")) ; c (list (1, TRUE, "a")) ; c (list (1, TRUE, "a"), list (), list (NA), list (FALSE))
+list (1, 2) ; list (list (1, 2), list (3, 4)) ; list (NULL) ; list (NA) ; list (NaN) ; list (FALSE) ; list (NULL, NA, NaN, FALSE) ; list (NULL, NA, NaN, FALSE, list (list (list (list ()), 9)), '', list)
 c (1, TRUE) ; c (1, TRUE, list ()) ; c (1, TRUE, "a", NULL, list (), NA, list (FALSE), function (x) x)
+list () == list () ; list () == c () ; list () == 1 ; list () == NA ; list () == NaN ; list == list
+list (1) == c (1) ; list (1) == 1 ; list (1) == c (1L) ; list (1) == c (1i) ; list (1L) == c (1i) ; list (1) == list (1)
+NA == "NA" ; list (NA) == NA ; list (NA) == "NA" ; list ("NA") == "NA" ; list ("NA") == NA
+list (1, TRUE) == c ("1", "TRUE") ; list (TRUE, TRUE) == c ("true", "T") ; list (TRUE, TRUE) == c (1) ; list (TRUE, "") == c (1) ; list ("") == c (1) ; list (" ") == c (1) ; list (1, TRUE) == c (TRUE, "")
+1 == 1i ; 1 == 1 + 0i
 -0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1" ; 1:" "
 -10:10 ; -(10:10) ; 1:""
 1:NA
 1:NaN
 1:Inf
 TRUE:2 ; 1i:3 ; NULL:1
--0.5:0.5 ; -0.5:10 ; 0.99999999999999999:1.99999999999999999
+-0.5:0.5 ; -0.5:10 ; 0.99999999999999999:1.99999999999999999 ; 0.99999999999999999:4
 (function () 1):3
 .Internal:3
 1 > 2 ; 1 < 2 ; 1 <= 2 ; 1 >= 2 ; 1 == 2
@@ -332,4 +337,16 @@ cat (cat <- 1) ; cat (cat) ; cat (cat <- function (a) 3)
 runif ()
 typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
+
+# These are tests to test the tester and the parser.
+"function" ; 'function' ; 1 # function
+"Error" ; 'Error' ; 1 # Error
+"function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
+"" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
+')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
+'\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
+"[1] 1" ; 1
+"function" <- 42
+"" <- 9
+# q ("no")
 

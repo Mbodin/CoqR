@@ -143,11 +143,14 @@ let split_on_char c str =
 
 let print_unit () = "tt"
 let print_bool b = if b then "true" else "false"
-let print_str str = "\"" ^ String.escaped str ^ "\""
+let print_str str =
+  (* Warning: this produces OCaml escapes and not R escapes, which are slightly different
+   * (OCaml uses decimal escapes and R octal and hexadecimal, typically). *)
+  "\"" ^ String.escaped str ^ "\""
 
 
 let print_raw_pointer = function
-  | None -> "NULL"
+  | None -> "<NULL>"
   | Some i -> string_of_int i
 
 
@@ -208,7 +211,7 @@ let print_float x =
   else Printf.sprintf "%g" x
 
 let print_rComplex c =
-  if compare c.rcomplex_r nan = 0 || compare c.rcomplex_i nan = 0 then "NA"
+  if r_IsNA c.rcomplex_r || r_IsNA c.rcomplex_i then "NA"
   else print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"
 
 let print_character c =
@@ -318,11 +321,11 @@ let rec iterate_on_list failure f f_end s g p =
         )
       | _ -> failure "[iterate_on_list] Vector element found instead of a list."
 
-let rec print_SExpRec_like_R d s g p e =
-  let fetch_print_SExpRec_like_R p =
+let rec print_SExpRec_like_R_aux prefix_list d s g p e =
+  let fetch_print_SExpRec_like_R ?(prefix_list=prefix_list) p =
     match get_memory_cell s p with
     | None -> "(Invalid pointer)"
-    | Some e -> print_SExpRec_like_R d s g p e in
+    | Some e -> print_SExpRec_like_R_aux prefix_list d s g p e in
   let print_vector t f v =
     let v = ArrayList.to_list (vecSxp_data (vector_SExpRec_vecsxp v)) in
     if v = [] then
@@ -331,8 +334,20 @@ let rec print_SExpRec_like_R d s g p e =
       let l = List.map f v in
       let n = List.fold_left max 0 (List.map (String.length) l) in
       String.concat " " (
-        ((*String.make (max (n - 1) 0) ' ' ^*) "[1]")
+        "[1]"
         :: List.map (fun str -> str ^ String.make (n - String.length str) ' ') l) in
+  let print_vectorlist t f v =
+    let v = ArrayList.to_list (vecSxp_data (vector_SExpRec_vecsxp v)) in
+    if v = [] then
+      t ^ "()"
+    else
+      let (_, l) =
+        List.fold_left (fun (i, l) v ->
+          let prefix = prefix_list ^ "[[" ^ string_of_int i ^ "]]" in
+          let suffix = "" in
+          (1 + i, suffix :: f prefix v :: prefix :: l)) (1, []) v in
+      let l = List.rev l in
+      String.concat "\n" l in
   let typeof = function
     | NilSxp -> "NULL"
     | SymSxp -> "symbol"
@@ -402,7 +417,9 @@ let rec print_SExpRec_like_R d s g p e =
     | SExpRec_VectorReal v ->
       print_vector "numeric" print_float v
     | SExpRec_VectorPointer v ->
-      print_vector t fetch_print_SExpRec_like_R v in
+      if ty = VecSxp then
+        print_vectorlist t (fun p -> fetch_print_SExpRec_like_R ~prefix_list:p) v
+      else print_vector t fetch_print_SExpRec_like_R v in
   let attrs =
     iterate_on_list (fun msg ->
         prerr_endline ("[print_SExpRec_like_R] Error when trying to display attributes: " ^ msg) ;
@@ -412,6 +429,8 @@ let rec print_SExpRec_like_R d s g p e =
         ^ indent d ^ fetch_print_SExpRec_like_R v ^ n)
       "" s g (attrib (get_SExpRecHeader e)) in
   base ^ attrs
+
+let print_SExpRec_like_R = print_SExpRec_like_R_aux ""
 
 let print_SExpRec d (opts, print_unlike_R) t s g p e =
   if print_unlike_R then
