@@ -123,8 +123,8 @@ while (my $row = <PIPE>){
                 $acc =~ s/^ runs_type ->// ;
             }
 
-            my $argReg = "(unit|bool|nat|int|float|double|SExpRec_pointer)" ;
-            my $resultReg = "(unit|bool|nat|int|\\(list nat\\)|\\(list int\\\)|float|double|string|SExpRec_pointer)" ;
+            my $argReg = "(unit|bool|nat|int|float|double|SEXP|SExpRec_pointer)" ;
+            my $resultReg = "(unit|bool|nat|int|\\(list nat\\)|\\(list int\\\)|float|double|string|SEXP|SExpRec_pointer)" ;
 
             if ($acc =~ /^ state ->( $argReg ->)* result $resultReg$/){
                 # This function is of interest for us.
@@ -155,7 +155,7 @@ while (my $row = <PIPE>){
                     elsif ($endType eq "(list nat)" or $endType eq "(list int)") { $beginFunction = "Result_int_list " . $beginFunction ; }
                     elsif ($endType eq "float" or $endType eq "double") { $beginFunction = "Result_float " . $beginFunction ; }
                     elsif ($endType eq "string") { $beginFunction = "Result_string " . $beginFunction ; }
-                    elsif ($endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
+                    elsif ($endType eq "SEXP" or $endType eq "SExpRec_pointer") { $beginFunction = "Result_pointer " . $beginFunction ; }
                     else { die "Unknown result type: " . $endType . ". This should not happen." ; }
 
                     my $argNum = 0 ;
@@ -180,7 +180,7 @@ while (my $row = <PIPE>){
                         } elsif ($argType eq "float" or $argType eq "double") {
                             $beginFunction = "Argument_float (fun f" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " f" . $argNum . $endFunction ;
-                        } elsif ($argType eq "SExpRec_pointer") {
+                        } elsif ($argType eq "SEXP" or $argType eq "SExpRec_pointer") {
                             $beginFunction = "Argument_pointer (fun p" . $argNum . " -> " . $beginFunction ;
                             $endFunction = " p" . $argNum . $endFunction ;
                         } else { die "Unknown argument type: " . $argType . ". This should not happen." ; }

@@ -246,7 +246,7 @@ Notation "'let%prom' a_ ',' a_prom ':=' e_ 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_prim A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_prim A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%prim e_, e_prim := e_ using S in
   cont e_ e_prim.
@@ -256,7 +256,7 @@ Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_sym A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_sym A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%sym e_, e_sym := e_ using S in
   cont e_ e_sym.
@@ -266,7 +266,7 @@ Notation "'read%sym' e_ ',' e_sym ':=' e 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_list A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_list A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%list e_, e_list := e_ using S in
   cont e_ e_list.
@@ -275,7 +275,7 @@ Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   (read_as_list S e (fun e_ e_list => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_list_all A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_list_all A S (e : SEXP) cont : result A :=
   read%list e_, e_list := e using S in
   cont e_ (list_carval e_list) (list_cdrval e_list) (list_tagval e_list).
 
@@ -283,7 +283,7 @@ Notation "'read%list' e_ ',' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' con
   (read_as_list_all S e (fun e_ e_car e_cdr e_tag => cont))
     (at level 50, left associativity) : monad_scope.
 
-Definition read_as_list_components A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_list_components A S (e : SEXP) cont : result A :=
   read%list _, e_car, e_cdr, e_tag := e using S in
   cont e_car e_cdr e_tag.
 
@@ -292,7 +292,7 @@ Notation "'read%list' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_env A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_env A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%env e_, e_env := e_ using S in
   cont e_ e_env.
@@ -302,7 +302,7 @@ Notation "'read%env' e_ ',' e_env ':=' e 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_clo A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_clo A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%clo e_, e_clo := e_ using S in
   cont e_ e_clo.
@@ -312,7 +312,7 @@ Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_prom A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_prom A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%prom e_, e_prom := e_ using S in
   cont e_ e_prom.
@@ -351,7 +351,7 @@ Notation "'let%VectorChar' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorChar e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorChar A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorChar A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorChar e_vector := e_ using S in
   cont e_vector.
@@ -403,7 +403,7 @@ Notation "'let%VectorLogical' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorLogical e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorLogical A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorLogical A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorLogical e_vector := e_ using S in
   cont e_vector.
@@ -455,7 +455,7 @@ Notation "'let%VectorInteger' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorInteger e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorInteger A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorInteger A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorInteger e_vector := e_ using S in
   cont e_vector.
@@ -507,7 +507,7 @@ Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorComplex e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorComplex A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorComplex A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorComplex e_vector := e_ using S in
   cont e_vector.
@@ -559,7 +559,7 @@ Notation "'let%VectorReal' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorReal e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorReal A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorReal A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorReal e_vector := e_ using S in
   cont e_vector.
@@ -611,7 +611,7 @@ Notation "'let%VectorPointer' e_vector ':=' e_ 'using' S 'in' cont" :=
   (let%defined e_vector := get_VectorPointer e_ using S in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorPointer A S (e : SExpRec_pointer) cont : result A :=
+Definition read_as_VectorPointer A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e using S in
   let%VectorPointer e_vector := e_ using S in
   cont e_vector.
@@ -665,7 +665,7 @@ Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
 
 (** Mapping on-place the content of a pointer is a frequent scheme.
   Here is a monad for it. **)
-Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SExpRec_pointer)
+Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SEXP)
     (cont : state -> result A) : result A :=
   read%defined p_ := p using S in
   write%defined p := map p_ using S in
@@ -693,7 +693,7 @@ Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
 
 
 (** Updating a list. **)
-Definition map_list A S f (p : SExpRec_pointer) (cont : state -> result A) : result A :=
+Definition map_list A S f (p : SEXP) (cont : state -> result A) : result A :=
   read%list p_, p_list := p using S in
   let p_ := {|
       NonVector_SExpRec_header := p_ ;
@@ -707,7 +707,7 @@ Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the first element of a list. **)
-Definition set_car A S car (p : SExpRec_pointer) (f : state -> result A) : result A :=
+Definition set_car A S car (p : SEXP) (f : state -> result A) : result A :=
   map%list p with set_car_list car using S in f S.
 
 Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
@@ -715,7 +715,7 @@ Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tail of a list. **)
-Definition set_cdr A S cdr (p : SExpRec_pointer) (f : state -> result A) : result A :=
+Definition set_cdr A S cdr (p : SEXP) (f : state -> result A) : result A :=
   map%list p with set_cdr_list cdr using S in f S.
 
 Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
@@ -723,9 +723,10 @@ Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tag of a list. **)
-Definition set_tag A S tag (p : SExpRec_pointer) (f : state -> result A) : result A :=
+Definition set_tag A S tag (p : SEXP) (f : state -> result A) : result A :=
   map%list p with set_tag_list tag using S in f S.
 
 Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
   (set_tag S tag p (fun S => cont))
   (at level 50, left associativity) : monad_scope.
+

@@ -22,7 +22,7 @@ Variable globals : Globals.
 
 Let read_globals := read_globals globals.
 
-Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
+Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
@@ -38,7 +38,7 @@ Definition xxparen S n1 n2 :=
 
 Definition xxdefun S fname formals body :=
   read%list _, formals_cdr, _ := formals using S in
-  let srcref := R_NilValue : SExpRec_pointer in
+  let srcref := R_NilValue : SEXP in
   lang4 globals S fname formals_cdr body srcref.
 
 Definition xxexprlist S a1 a2 :=
@@ -71,10 +71,10 @@ Definition xxfuncall S expr args :=
   else
     lcons globals S expr args_cdr.
 
-Definition xxcond S expr : result SExpRec_pointer :=
+Definition xxcond S expr : result SEXP :=
   result_success S expr.
 
-Definition xxifcond S expr : result SExpRec_pointer :=
+Definition xxifcond S expr : result SEXP :=
   result_success S expr.
 
 Definition xxif S ifsym cond expr :=
@@ -125,7 +125,7 @@ Definition xxnullsub1 S expr :=
   TagArg globals runs S expr ans.
 
 Definition xxnullformal S :=
-  result_success S (R_NilValue : SExpRec_pointer).
+  result_success S (R_NilValue : SEXP).
 
 Definition xxfirstformal0 S sym :=
   FirstArg globals S R_MissingArg sym.

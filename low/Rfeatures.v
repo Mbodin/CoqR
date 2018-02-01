@@ -12,7 +12,7 @@ Variable globals : Globals.
 
 Let read_globals := read_globals globals.
 
-Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
+Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
@@ -40,7 +40,7 @@ Arguments WrongArgCount [A].
   [Rf_checkArityCall (a, b, call)]. This macro is not convertible in
   Coq as the [call] argument is not available in scope. We thus unfold
   this macro during the translation. **)
-Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
+Definition Rf_checkArityCall S (op args call : SEXP) :=
   let%success arity := PRIMARITY runs S op using S in
   let%success len := R_length globals runs S args using S in
   ifb arity >= 0 /\ arity <> len then
@@ -49,7 +49,7 @@ Definition Rf_checkArityCall S (op args call : SExpRec_pointer) :=
     else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
   else result_skip S.
 
-Definition Rf_check1arg S (arg call : SExpRec_pointer) formal :=
+Definition Rf_check1arg S (arg call : SEXP) formal :=
   read%list _, _, arg_tag := arg using S in
   ifb arg_tag = R_NilValue then
     result_skip S
@@ -64,7 +64,7 @@ Definition Rf_check1arg S (arg call : SExpRec_pointer) formal :=
 Definition type2rstr S (t : SExpType) :=
   let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
   ifb res <> NULL then result_success S res
-  else result_success S (R_NilValue : SExpRec_pointer).
+  else result_success S (R_NilValue : SEXP).
 
 
 Definition nthcdr S s n :=
@@ -89,7 +89,7 @@ Definition nthcdr S s n :=
 (** The function names of this section corresponds to the function names
   in the file main/attrib.c. **)
 
-Definition classgets (S : state) (vec klass : SExpRec_pointer) : result SExpRec_pointer :=
+Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
   result_not_implemented "[classgets]".
 
 
@@ -98,13 +98,13 @@ Definition classgets (S : state) (vec klass : SExpRec_pointer) : result SExpRec_
 (** The function names of this section corresponds to the function names
   in the file main/coerce.c. **)
 
-Definition do_typeof S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_typeof S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
   type2rstr S t.
 
-Definition do_is S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_is S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   let%success op_val := PRIMVAL runs S op using S in
@@ -246,14 +246,14 @@ Definition findRootPromise S p :=
     result_success S p
   else result_success S p.
 
-Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
+Definition R_isMissing S (symbol rho : SEXP) :=
   ifb symbol = R_MissingArg then
     result_success S true
   else
     let%success (s, ddv) :=
       if%success DDVAL S symbol using S then
         let%success d := ddVal S symbol using S in
-        result_success S (R_DotsSymbol : SExpRec_pointer, d)
+        result_success S (R_DotsSymbol : SEXP, d)
       else result_success S (symbol, 0) using S in
     ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
       result_success S false
@@ -302,7 +302,7 @@ Definition R_isMissing S (symbol rho : SExpRec_pointer) :=
           else result_success S false
       else result_success S false.
 
-Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_missing S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   read%list args_car, _, _ := args using S in
@@ -322,7 +322,7 @@ Definition do_missing S (call op args rho : SExpRec_pointer) : result SExpRec_po
     let%success (ddv, sym) :=
       if%success DDVAL S sym using S then
         let%success ddv := ddVal S sym using S in
-        result_success S (ddv, R_DotsSymbol : SExpRec_pointer)
+        result_success S (ddv, R_DotsSymbol : SEXP)
       else result_success S (0, sym) using S in
     let%success t := findVarLocInFrame globals runs S rho sym using S in
     let%success rval := allocVector globals S LglSxp 1 using S in
@@ -394,7 +394,7 @@ Definition HasNames S x :=
     result_success S false
   else result_success S false.
 
-Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer) :=
+Definition AnswerType S x (recurse usenames : bool) data (call : SEXP) :=
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp =>
@@ -518,7 +518,7 @@ Definition AnswerType S x (recurse usenames : bool) data (call : SExpRec_pointer
     result_success S data
   end.
 
-Definition c_Extract_opt S (ans call : SExpRec_pointer) :=
+Definition c_Extract_opt S (ans call : SEXP) :=
   fold%success (recurse, usenames, ans, last, n_recurse, n_usenames) := (false, true, ans, NULL, 0, 0)
   along ans as a, a_, a_list do
     let n := list_tagval a_list in
@@ -860,7 +860,7 @@ Definition RawAnswer S x data call :=
   | _ => result_error S "[RawAnswer] Unimplemented type."
   end.
 
-Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
   let%success (ans, recurse, usenames) := c_Extract_opt S args call using S in
   let data := make_BindData (@nat_to_nbits 10 0 ltac:(nbits_ok)) NULL 0 NULL 0 in
   fold%success data := data
@@ -926,7 +926,7 @@ Definition do_c_dftl S (call op args env : SExpRec_pointer) : result SExpRec_poi
     else result_success S data using S in
   result_success S ans.
 
-Definition do_c S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_c S (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   let%success (r, ans) := DispatchAnyOrEval globals runs S call op "c" args env true true using S in
   if r then result_success S ans
@@ -953,7 +953,7 @@ Definition CheckFormals S ls :=
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
-Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_set S (call op args rho : SEXP) : result SEXP :=
   let wrong S :=
     let%success op_val := PRIMVAL runs S op using S in
     ifb op_val < 0 then
@@ -993,7 +993,7 @@ Definition do_set S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
     | _ => result_error S "[do_set] Invalid left-hand side to assignment."
     end.
 
-Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_function S (call op args rho : SEXP) : result SEXP :=
   let%success op :=
     let%success op_type := TYPEOF S op using S in
     ifb op_type = PromSxp then
@@ -1021,7 +1021,7 @@ Definition do_function S (call op args rho : SExpRec_pointer) : result SExpRec_p
       else result_skip S using S in
     result_success S rval.
 
-Definition do_break S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_break S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   let%success op_val := PRIMVAL runs S op using S in
   match int_to_nbits_check op_val with
@@ -1029,33 +1029,33 @@ Definition do_break S (call op args rho : SExpRec_pointer) : result SExpRec_poin
   | Some c => findcontext globals runs _ S c rho R_NilValue
   end.
 
-Definition do_paren S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_paren S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   result_success S args_car.
 
-Definition getBlockSrcrefs S call : result SExpRec_pointer :=
+Definition getBlockSrcrefs S call : result SEXP :=
   let%success srcrefs := getAttrib globals runs S call R_SrcrefSymbol using S in
   let%success srcrefs_type := TYPEOF S srcrefs using S in
   ifb srcrefs_type = VecSxp then
     result_success S srcrefs
-  else result_success S (R_NilValue : SExpRec_pointer).
+  else result_success S (R_NilValue : SEXP).
 
-Definition do_begin S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_begin S (call op args rho : SEXP) : result SEXP :=
   ifb args <> R_NilValue then
     let%success srcrefs := getBlockSrcrefs S call using S in
-    fold%success s := R_NilValue : SExpRec_pointer
+    fold%success s := R_NilValue : SEXP
     along args
     as args_car, _ do
       let%success s := eval globals runs S args_car rho using S in
       result_success S s using S, runs, globals in
     result_success S s
-  else result_success S (R_NilValue : SExpRec_pointer).
+  else result_success S (R_NilValue : SEXP).
 
-Definition do_return S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_return S (call op args rho : SEXP) : result SEXP :=
   let%success v :=
     ifb args = R_NilValue then
-      result_success S (R_NilValue : SExpRec_pointer)
+      result_success S (R_NilValue : SEXP)
     else
       read%list args_car, args_cdr, _ := args using S in
       ifb args_cdr = R_NilValue then
@@ -1069,7 +1069,7 @@ Definition BodyHasBraces S body :=
     result_success S (decide (body_car = R_BraceSymbol))
   else result_success S false.
 
-Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_if S (call op args rho : SEXP) : result SEXP :=
   read%list args_car, args_cdr, _ := args using S in
   let%success Cond := eval globals runs S args_car rho using S in
   let%success (Stmt, vis) :=
@@ -1082,12 +1082,12 @@ Definition do_if S (call op args rho : SExpRec_pointer) : result SExpRec_pointer
       ifb l > 2 then
         read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
         result_success S (args_cdr_cdr_car, false)
-      else result_success S (R_NilValue : SExpRec_pointer, true) using S in
+      else result_success S (R_NilValue : SEXP, true) using S in
   if vis then
     result_success S Stmt
   else eval globals runs S Stmt rho.
 
-Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_while S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list _, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -1108,9 +1108,9 @@ Definition do_while S (call op args rho : SExpRec_pointer) : result SExpRec_poin
         result_skip S using S, runs
     else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
-  result_success S (R_NilValue : SExpRec_pointer).
+  result_success S (R_NilValue : SEXP).
 
-Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let body := args_car in
@@ -1124,16 +1124,16 @@ Definition do_repeat S (call op args rho : SExpRec_pointer) : result SExpRec_poi
         result_skip S using S, runs
     else result_skip S using S in
   run%success endcontext globals runs S cntxt using S in
-  result_success S (R_NilValue : SExpRec_pointer).
+  result_success S (R_NilValue : SEXP).
 
 Definition simple_as_environment S arg :=
   let%success arg_s4 := IS_S4_OBJECT S arg using S in
   let%success arg_type := TYPEOF S arg using S in
   ifb arg_s4 /\ arg_type = S4Sxp then
     result_not_implemented "[simple_as_environment] [R_getS4DataSlot]."
-  else result_success S (R_NilValue : SExpRec_pointer).
+  else result_success S (R_NilValue : SEXP).
 
-Definition do_eval S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_eval S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let expr := args_car in
@@ -1144,7 +1144,7 @@ Definition do_eval S (call op args rho : SExpRec_pointer) : result SExpRec_point
   let%success tEncl := TYPEOF S encl using S in
   let%success encl :=
     if%success isNull S encl using S then
-      result_success S (R_BaseEnv : SExpRec_pointer)
+      result_success S (R_BaseEnv : SEXP)
     else
       let%success encl_ie := isEnvironment S encl using S in
       ifb negb encl_ie then
@@ -1210,7 +1210,7 @@ Definition do_eval S (call op args rho : SExpRec_pointer) : result SExpRec_point
       set%longjump context_cjmpbuf cntxt as jmp using S, runs in
       let%success tmp :=
         ifb jmp <> empty_context_type then
-          do%let tmp := R_NilValue : SExpRec_pointer
+          do%let tmp := R_NilValue : SEXP
           for i from 0 to n - 1 do
             result_not_implemented "[do_eval] [getSrcref]." using S
         else
@@ -1286,7 +1286,7 @@ Definition run_flush S n :=
 
 (** We now continue with functions translated from main/connections.c. **)
 
-Definition do_getconnection S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success what := asInteger globals S args_car using S in
@@ -1332,7 +1332,7 @@ Definition Rprint S str :=
 (** The function names of this section corresponds to the function names
   in the file main/builtin.c. **)
 
-Definition do_makelist S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_makelist S (call op args rho : SEXP) : result SEXP :=
   fold%success (n, havenames) := (0, false)
   along args
   as _, args_tag do
@@ -1343,7 +1343,7 @@ Definition do_makelist S (call op args rho : SExpRec_pointer) : result SExpRec_p
   let%success names :=
     if havenames then
       allocVector globals S StrSxp n
-    else result_success S (R_NilValue : SExpRec_pointer) using S in
+    else result_success S (R_NilValue : SEXP) using S in
   do%success args := args
   for i from 0 to n - 1 do
     read%list args_car, args_cdr, args_tag := args using S in
@@ -1385,7 +1385,7 @@ Definition cat_printsep S sep ntot :=
 Definition cat_cleanup S con_num :=
   run_flush S con_num.
 
-Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_cat S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   (* Call to [PrintDefaults] formalised out. *)
   read%list args_car, args_cdr, _ := args using S in
@@ -1502,7 +1502,7 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
               else result_skip S using S in
             run%success endcontext globals runs S cntxt using S in
             run%success cat_cleanup S ifile using S in
-            result_success S (R_NilValue : SExpRec_pointer).
+            result_success S (R_NilValue : SEXP).
 
 
 (** * seq.c **)
@@ -1510,10 +1510,10 @@ Definition do_cat S (call op args rho : SExpRec_pointer) : result SExpRec_pointe
 (** The function names of this section corresponds to the function names
   in the file main/seq.c. **)
 
-Definition cross_colon (S : state) (call s t : SExpRec_pointer) : result SExpRec_pointer :=
+Definition cross_colon (S : state) (call s t : SEXP) : result SEXP :=
   result_not_implemented "[cross_colon]".
 
-Definition seq_colon S n1 n2 (call : SExpRec_pointer) : result SExpRec_pointer :=
+Definition seq_colon S n1 n2 (call : SEXP) : result SEXP :=
   let r := Double.fabs (Double.sub n2 n1) in
   ifb r >= (R_XLEN_T_MAX : double) then
     result_error S "[seq_colon] Result would be too large a vector."
@@ -1557,7 +1557,7 @@ Definition seq_colon S n1 n2 (call : SExpRec_pointer) : result SExpRec_pointer :
       using S in
     result_success S ans.
 
-Definition do_colon S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_colon S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -1602,7 +1602,7 @@ Definition complex_unary S (code : int) s1 :=
     result_success S ans
     else result_error S "[real_unary] Invalid unary operator.".
 
-Definition complex_math1 (S : state) (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition complex_math1 (S : state) (call op args env : SEXP) : result SEXP :=
   result_not_implemented "[complex_math1]".
 
 
@@ -1616,7 +1616,7 @@ Definition R_finite (x : double) :=
 
 Definition R_FINITE := R_finite.
 
-Definition R_binary (S : state) (call op x y : SExpRec_pointer) : result SExpRec_pointer :=
+Definition R_binary (S : state) (call op x y : SEXP) : result SEXP :=
   result_not_implemented "[R_binary]".
 
 Definition logical_unary S (code : int) s1 :=
@@ -1684,7 +1684,7 @@ Definition real_unary S (code : int) s1 :=
     result_success S ans
   else result_error S "[real_unary] Invalid unary operator.".
 
-Definition R_unary S (call op s1 : SExpRec_pointer) : result SExpRec_pointer :=
+Definition R_unary S (call op s1 : SEXP) : result SEXP :=
   let%success operation := PRIMVAL runs S op using S in
   let%success s1_type := TYPEOF S s1 using S in
   match s1_type with
@@ -1729,7 +1729,7 @@ Definition R_integer_divide S x y :=
     result_success S NA_REAL
   else result_success S (Double.div (x : double) (y : double)).
 
-Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_arith S (call op args env : SEXP) : result SEXP :=
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
   let%success argc :=
@@ -1848,7 +1848,7 @@ Definition do_arith S (call op args env : SExpRec_pointer) : result SExpRec_poin
     R_unary S call op arg1
   else result_error S "[do_arith] Operator needs one or two arguments.".
 
-Definition math1 S sa f (lcall : SExpRec_pointer) :=
+Definition math1 S sa f (lcall : SEXP) :=
   let%success sa_in := isNumeric globals runs S sa using S in
   if negb sa_in then
     result_error S "[math1] Non-numeric argument to mathematical function."
@@ -1877,7 +1877,7 @@ Definition math1 S sa f (lcall : SExpRec_pointer) :=
       else result_skip S using S in
     result_success S sy.
 
-Definition do_math1 S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_math1 S (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
@@ -1964,10 +1964,10 @@ Definition scalarIndex S s :=
     else result_success S (-1)%Z
   else result_success S (-1)%Z.
 
-Definition ExtractDropArg (S : state) (el : SExpRec_pointer) : result int :=
+Definition ExtractDropArg (S : state) (el : SEXP) : result int :=
   result_not_implemented "[ExtractDropArg].".
 
-Definition do_subset_dflt (S : state) (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
   read%list args_car, args_cdr, _ := args using S in
   let cdrArgs := args_cdr in
   read%list cdrArgs_car, cdrArgs_cdr, cdrArgs_tag := cdrArgs using S in
@@ -2076,7 +2076,7 @@ Definition do_subset_dflt (S : state) (call op args rho : SExpRec_pointer) : res
     let%success nsubs := R_length globals runs S subs using S in
     result_not_implemented "[do_subset_dflt]".
 
-Definition do_subset S (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_subset S (call op args rho : SEXP) : result SEXP :=
   let%success (disp, ans) := R_DispatchOrEvalSP S call op "[" args rho using S in
   if disp then
     run%success
@@ -2200,7 +2200,7 @@ Definition numeric_relop S code s1 s2 :=
       NUMERIC_RELOP_double id id S code ans n n1 n2 (readREAL s1) (readREAL s2) ISNAN ISNAN using S in
   result_success S ans.
 
-Definition do_relop_dflt S (call op x y : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
   let%success op_val := PRIMVAL runs S op using S in
   run%exit
     if%success IS_SIMPLE_SCALAR globals S x IntSxp using S then
@@ -2252,7 +2252,7 @@ Definition do_relop_dflt S (call op x y : SExpRec_pointer) : result SExpRec_poin
   else
     result_not_implemented "[do_relop_dflt]".
 
-Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_relop S (call op args env : SEXP) : result SEXP :=
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
   let%success argc :=
@@ -2283,7 +2283,7 @@ Definition do_relop S (call op args env : SExpRec_pointer) : result SExpRec_poin
 (** The function names of this section corresponds to the function names
   in the file main/names.c. **)
 
-Definition do_internal S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_internal S (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let s := args_car in
@@ -2321,12 +2321,12 @@ Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
   match lmi with
   | 0 =>
     (** [i = ArrayList.length R_FunTab] **)
-    result_success S (R_NilValue : SExpRec_pointer)
+    result_success S (R_NilValue : SEXP)
   | S lmi =>
     let c := ArrayList.read R_FunTab i in
     ifb fun_name c = primname then
       if funtab_eval_arg_internal (fun_eval c) then
-        result_success S (R_NilValue : SExpRec_pointer)
+        result_success S (R_NilValue : SEXP)
       else
         let%success prim :=
           mkPRIMSXP globals runs S i (funtab_eval_arg_eval (fun_eval c)) using S in
@@ -2338,7 +2338,7 @@ Definition R_Primitive S primname :=
   let%success R_FunTab := get_R_FunTab runs S using S in
   R_Primitive_loop S R_FunTab primname (ArrayList.length R_FunTab).
 
-Definition do_primitive S (call op args env : SExpRec_pointer) : result SExpRec_pointer :=
+Definition do_primitive S (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let name := args_car in
@@ -2400,7 +2400,7 @@ End Parameters.
 (** * Closing the Loop **)
 
 Definition dummy_function name (_ : Globals) (_ : runs_type)
-    (S : state) (call op args rho : SExpRec_pointer) : result SExpRec_pointer :=
+    (S : state) (call op args rho : SEXP) : result SEXP :=
   result_not_implemented ("[" ++ name ++ "]").
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.

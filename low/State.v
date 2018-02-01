@@ -32,7 +32,7 @@ Definition alloc_memory_SExp_nat (S : memory) (e_ : SExpRec) : memory * nat.
   - introv D. repeat rewrite stream_tail_nth. applys* state_fresh_locations_different.
 Defined.
 
-Definition alloc_memory_SExp S e_ : memory * SExpRec_pointer :=
+Definition alloc_memory_SExp S e_ : memory * SEXP :=
   let (S, p) := alloc_memory_SExp_nat S e_ in
   (S, Some p).
 
@@ -51,7 +51,7 @@ Definition write_memory_SExp_nat (S : memory) (e : nat) (e_ : SExpRec) : option 
   - apply* state_fresh_locations_different.
 Defined.
 
-Definition write_memory_SExp (S : memory) (e : SExpRec_pointer) (e_ : SExpRec) :=
+Definition write_memory_SExp (S : memory) (e : SEXP) (e_ : SExpRec) :=
   match e with
   | None => None
   | Some e => write_memory_SExp_nat S e e_
@@ -61,7 +61,7 @@ Definition read_SExp_nat (S : memory) (e : nat) : option SExpRec :=
   read_option S e.
 
 (** Reads a value in the state. **)
-Definition read_SExp (S : memory) (e : SExpRec_pointer) :=
+Definition read_SExp (S : memory) (e : SEXP) :=
   match e with
   | None => None
   | Some e => read_SExp_nat S e
@@ -228,13 +228,13 @@ Inductive context := make_context {
     context_nextcontext : option context ;
     context_cjmpbuf : nat ;
     context_callflag : context_type ;
-    context_promargs : SExpRec_pointer ;
-    context_callfun : SExpRec_pointer ;
-    context_sysparent : SExpRec_pointer ;
-    context_call : SExpRec_pointer ;
-    context_cloenv : SExpRec_pointer ;
-    context_conexit : SExpRec_pointer ;
-    context_returnValue : SExpRec_pointer ;
+    context_promargs : SEXP ;
+    context_callfun : SEXP ;
+    context_sysparent : SEXP ;
+    context_call : SEXP ;
+    context_cloenv : SEXP ;
+    context_conexit : SEXP ;
+    context_returnValue : SEXP ;
     context_jumptarget : option context ;
     context_jumpmask : context_type
   }.
@@ -663,8 +663,8 @@ Record state := make_state {
     state_memory :> memory ;
     state_context : context ;
     R_ExitContext : option context ;
-    R_SymbolTable : SExpRec_pointer ;
-    R_ReturnedValue : SExpRec_pointer ;
+    R_SymbolTable : SEXP ;
+    R_ReturnedValue : SEXP ;
     R_Connections : list Rconnection (** Simply [Connections] in main/connections.c. **) ;
     R_OutputCon : nat
   }.

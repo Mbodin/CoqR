@@ -76,9 +76,11 @@ Definition defined_pointer := nat.
   [Some p] yields that the pointer [p] points to something. **)
 Definition SExpRec_pointer := option defined_pointer.
 
-Definition NULL : SExpRec_pointer := None.
+Definition SEXP := SExpRec_pointer.
 
-Definition R_UnboundValue : SExpRec_pointer := NULL.
+Definition NULL : SEXP := None.
+
+Definition R_UnboundValue : SEXP := NULL.
 
 (** primsxp_struct **)
 Record PrimSxp_struct := make_PrimSxp_struct {
@@ -87,37 +89,37 @@ Record PrimSxp_struct := make_PrimSxp_struct {
 
 (** symsxp_struct **)
 Record SymSxp_struct := make_SymSxp_struct {
-    sym_pname : SExpRec_pointer ;
-    sym_value : SExpRec_pointer ;
-    sym_internal : SExpRec_pointer
+    sym_pname : SEXP ;
+    sym_value : SEXP ;
+    sym_internal : SEXP
   }.
 
 (** listsxp_struct **)
 Record ListSxp_struct := make_ListSxp_struct {
-    list_carval : SExpRec_pointer ;
-    list_cdrval : SExpRec_pointer ;
-    list_tagval : SExpRec_pointer
+    list_carval : SEXP ;
+    list_cdrval : SEXP ;
+    list_tagval : SEXP
   }.
 
 (** envsxp_struct **)
 Record EnvSxp_struct := make_EnvSxp_struct {
-    env_frame : SExpRec_pointer ;
-    env_enclos : SExpRec_pointer
-    (** env_hashtab : SExpRec_pointer **)
+    env_frame : SEXP ;
+    env_enclos : SEXP
+    (** env_hashtab : SEXP **)
   }.
 
 (** closxp_struct **)
 Record CloSxp_struct := make_CloSxp_struct {
-    clo_formals : SExpRec_pointer ;
-    clo_body : SExpRec_pointer ;
-    clo_env : SExpRec_pointer
+    clo_formals : SEXP ;
+    clo_body : SEXP ;
+    clo_env : SEXP
   }.
 
 (** promsxp_struct **)
 Record PromSxp_struct := make_PromSxp_struct {
-    prom_value : SExpRec_pointer ;
-    prom_expr : SExpRec_pointer ;
-    prom_env : SExpRec_pointer
+    prom_value : SEXP ;
+    prom_expr : SEXP ;
+    prom_env : SEXP
   }.
 
 Inductive SExpRec_union :=
@@ -138,9 +140,9 @@ Coercion promSxp : PromSxp_struct >-> SExpRec_union.
 (** SEXPREC_HEADER **)
 Record SExpRecHeader := make_SExpRecHeader {
     sxpinfo :> SxpInfo ;
-    attrib : SExpRec_pointer
-    (* gengc_next_node : SExpRec_pointer ; *)
-    (* gengc_prev_node : SExpRec_pointer *)
+    attrib : SEXP
+    (* gengc_next_node : SEXP ; *)
+    (* gengc_prev_node : SEXP *)
   }.
 
 (** SEXPREC **)
@@ -180,6 +182,7 @@ Inductive SExpRec :=
   (* | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec *)
   | SExpRec_VectorComplex : Vector_SExpRec Rcomplex -> SExpRec
   | SExpRec_VectorReal : Vector_SExpRec double -> SExpRec
-  | SExpRec_VectorPointer : Vector_SExpRec SExpRec_pointer -> SExpRec
+  | SExpRec_VectorPointer : Vector_SExpRec SEXP -> SExpRec
   .
 Coercion SExpRec_NonVector : NonVector_SExpRec >-> SExpRec.
+

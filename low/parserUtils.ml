@@ -6,7 +6,7 @@ open Low
 type 'a monad_type = globals -> runs_type -> state -> 'a
 
 (** The main type carried in the parser. **)
-type token_type = sExpRec_pointer result monad_type
+type token_type = sEXP result monad_type
 
 type parser_result =
   | Success of token_type
@@ -41,7 +41,7 @@ let make_Rcomplex r i = { rcomplex_r = r; rcomplex_i = i }
 
 (** * Composing Functions **)
 
-let bind (comp : token_type) (cont : (sExpRec_pointer -> 'a result) monad_type) : 'a result monad_type =
+let bind (comp : token_type) (cont : (sEXP -> 'a result) monad_type) : 'a result monad_type =
   fun g r s -> if_success (comp g r s) (cont g r)
 
 let shift (f : 'a -> 'b monad_type) : ('a -> 'b) monad_type =

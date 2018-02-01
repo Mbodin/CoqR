@@ -14,11 +14,11 @@ Require Import Rinternals Monads.
 (** All function in the array [R_FunTab] have the same type. **)
 Definition function_code :=
   state ->
-  SExpRec_pointer -> (** call **)
-  SExpRec_pointer -> (** op **)
-  SExpRec_pointer -> (** args **)
-  SExpRec_pointer -> (** rho **)
-  result SExpRec_pointer.
+  SEXP -> (** call **)
+  SEXP -> (** op **)
+  SEXP -> (** args **)
+  SEXP -> (** rho **)
+  result SEXP.
 
 (** The following type is represented in C as an integer, each of its figure
   (in base 10) representing a different bit of information. **)
@@ -128,9 +128,9 @@ Definition funtab := option (ArrayList.array funtab_cell).
 
 Record Type2Table_type := make_Type2Table_type {
     Type2Table_cstrName : string ;
-    Type2Table_rcharName : SExpRec_pointer ;
-    Type2Table_rstrName : SExpRec_pointer ;
-    Type2Table_rsymName : SExpRec_pointer ;
+    Type2Table_rcharName : SEXP ;
+    Type2Table_rstrName : SEXP ;
+    Type2Table_rsymName : SEXP ;
   }.
 
 Instance Type2Table_type_Inhab : Inhab Type2Table_type.
@@ -144,9 +144,9 @@ Qed.
 
 Record BindData := make_BindData {
     BindData_ans_flags : nbits 10 ;
-    BindData_ans_ptr : SExpRec_pointer ;
+    BindData_ans_ptr : SEXP ;
     BindData_ans_length : nat ;
-    BindData_ans_names : SExpRec_pointer ;
+    BindData_ans_names : SEXP ;
     BindData_ans_nnames : nat
   }.
 
@@ -189,3 +189,4 @@ Definition BindData_with_ans_nnames d n := {|
     BindData_ans_names := BindData_ans_names d ;
     BindData_ans_nnames := n
   |}.
+

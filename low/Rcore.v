@@ -18,7 +18,7 @@ Variable globals : Globals.
 
 Let read_globals := read_globals globals.
 
-Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
+Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
@@ -473,13 +473,13 @@ Definition R_cycle_detected S s child :=
 (** The function names of this section corresponds to the function names
   in the file main/memory.c. **)
 
-Definition CONS S (car cdr : SExpRec_pointer) : state * SExpRec_pointer :=
+Definition CONS S (car cdr : SEXP) : state * SEXP :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
   alloc_SExp S e_.
 
 Definition CONS_NR := CONS.
 
-Definition allocList S (n : nat) : state * SExpRec_pointer :=
+Definition allocList S (n : nat) : state * SEXP :=
   let fix aux S n p :=
     match n with
     | 0 => (S, p)
@@ -489,7 +489,7 @@ Definition allocList S (n : nat) : state * SExpRec_pointer :=
     end
   in aux S n R_NilValue.
 
-Definition STRING_ELT S (x : SExpRec_pointer) i : result SExpRec_pointer :=
+Definition STRING_ELT S (x : SEXP) i : result SEXP :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> StrSxp then
     result_error S "[STRING_ELT] Not a character vector."
@@ -516,7 +516,7 @@ Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
   the compiled C files references [Rf_NewEnvironment] and not
   [NewEnvironment]. These two functions are exactly the same.
   This is a relatively frequent scheme in R source code. **)
-Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition NewEnvironment S (namelist valuelist rho : SEXP) : result SEXP :=
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
   while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
@@ -527,7 +527,7 @@ Definition NewEnvironment S (namelist valuelist rho : SExpRec_pointer) : result 
   result_success S newrho.
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
-Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition mkPromise S (expr rho : SEXP) : result SEXP :=
   map%pointer expr with set_named_plural using S in
   let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
   result_success S s.
@@ -538,7 +538,7 @@ Definition mkPromise S (expr rho : SExpRec_pointer) : result SExpRec_pointer :=
 (** The function names of this section corresponds to the function names
   in the file main/dstruct.c. **)
 
-Definition mkPRIMSXP S (offset : nat) (type : bool) : result SExpRec_pointer :=
+Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
   let type := if type then BuiltinSxp else SpecialSxp in
   let%success R_FunTab := get_R_FunTab S using S in
   let FunTabSize := ArrayList.length R_FunTab in
@@ -557,7 +557,7 @@ Definition mkPRIMSXP S (offset : nat) (type : bool) : result SExpRec_pointer :=
         result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
       else result_success S result.
 
-Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
+Definition mkCLOSXP S (formals body rho : SEXP) :=
   let%success body_type := TYPEOF S body using S in
   match body_type with
   | CloSxp
@@ -569,7 +569,7 @@ Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
   | _ =>
     let env :=
       ifb rho = R_NilValue then
-        (R_GlobalEnv : SExpRec_pointer)
+        (R_GlobalEnv : SEXP)
       else rho in
     let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
     result_success S c
@@ -587,32 +587,32 @@ Definition mkCLOSXP S (formals body rho : SExpRec_pointer) :=
   below are thus slightly different from their C counterparts.  The
   [repeat] function of Coq can be used to initialise their data. **)
 
-Definition alloc_vector_char S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_char S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_char R_NilValue v_data).
 
-Definition alloc_vector_lgl S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_lgl S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_lgl R_NilValue v_data).
 
-Definition alloc_vector_int S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_int S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_int R_NilValue v_data).
 
-Definition alloc_vector_real S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_real S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_real R_NilValue v_data).
 
-Definition alloc_vector_cplx S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_cplx S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_cplx R_NilValue v_data).
 
 (** The following allocators uses pointers. Note that the original
   [allocVector] function initialises them to [R_NilValue] (and not
   [NULL], for instance) by default. **)
 
-Definition alloc_vector_str S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_str S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_str R_NilValue v_data).
 
-Definition alloc_vector_vec S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_vec S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_vec R_NilValue v_data).
 
-Definition alloc_vector_expr S v_data : state * SExpRec_pointer :=
+Definition alloc_vector_expr S v_data : state * SEXP :=
   alloc_SExp S (make_SExpRec_expr R_NilValue v_data).
 
 (** We however propose the following smart constructor, based on
@@ -623,12 +623,12 @@ Definition allocVector S type (length : nat) :=
   ifb (length : int) > R_XLEN_T_MAX then
     result_error S "[allocVector] Vector is too large"
   else
-    let alloc {T} (allocator : state -> ArrayList.array T -> state * SExpRec_pointer) (base : T) :=
+    let alloc {T} (allocator : state -> ArrayList.array T -> state * SEXP) (base : T) :=
       let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
       result_success S v in
     match type with
     | NilSxp =>
-      result_success S (R_NilValue : SExpRec_pointer)
+      result_success S (R_NilValue : SEXP)
     | RawSxp =>
       result_not_implemented "[allocVector] Raw type."
     | CharSxp =>
@@ -642,13 +642,13 @@ Definition allocVector S type (length : nat) :=
     | CplxSxp =>
       alloc alloc_vector_cplx (make_Rcomplex NA_REAL NA_REAL)
     | StrSxp =>
-      alloc alloc_vector_str (R_NilValue : SExpRec_pointer)
+      alloc alloc_vector_str (R_NilValue : SEXP)
     | ExprSxp =>
-      alloc alloc_vector_expr (R_NilValue : SExpRec_pointer)
+      alloc alloc_vector_expr (R_NilValue : SEXP)
     | VecSxp =>
-      alloc alloc_vector_vec (R_NilValue : SExpRec_pointer)
+      alloc alloc_vector_vec (R_NilValue : SEXP)
     | LangSxp =>
-      ifb length = 0 then result_success S (R_NilValue : SExpRec_pointer)
+      ifb length = 0 then result_success S (R_NilValue : SEXP)
       else
         let (S, s) := allocList S length in
         map%pointer s with set_type LangSxp using S in
@@ -659,23 +659,23 @@ Definition allocVector S type (length : nat) :=
     | _ => result_error S "[allocVector] Invalid type in vector allocation."
     end.
 
-Definition ScalarLogical x : SExpRec_pointer :=
+Definition ScalarLogical x : SEXP :=
   ifb x = NA_LOGICAL then
     R_LogicalNAValue
   else ifb x <> 0 then
     R_TrueValue
   else R_FalseValue.
 
-Definition ScalarInteger S x : state * SExpRec_pointer :=
+Definition ScalarInteger S x : state * SEXP :=
   alloc_vector_int S (ArrayList.from_list [x]).
 
-Definition ScalarReal S x : state * SExpRec_pointer :=
+Definition ScalarReal S x : state * SEXP :=
   alloc_vector_real S (ArrayList.from_list [x]).
 
-Definition ScalarComplex S x : state * SExpRec_pointer :=
+Definition ScalarComplex S x : state * SEXP :=
   alloc_vector_cplx S (ArrayList.from_list [x]).
 
-Definition ScalarString S (x : SExpRec_pointer) : result SExpRec_pointer :=
+Definition ScalarString S (x : SEXP) : result SEXP :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
     result_error S "[ScalarString] The given argument is not of type ‘CharSxp’."
@@ -885,7 +885,7 @@ Definition R_FixupRHS S x y :=
       result_success S y
   else result_success S y.
 
-Definition ALTREP_LENGTH (S : state) (x : SExpRec_pointer) : result nat :=
+Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
   result_not_implemented "[ALTREP_LENGTH]".
 
 Definition STDVEC_LENGTH S x :=
@@ -907,7 +907,7 @@ Definition XLENGTH_EX S x :=
 
 Definition XLENGTH := XLENGTH_EX.
 
-Definition LENGTH_EX S (x : SExpRec_pointer) :=
+Definition LENGTH_EX S (x : SEXP) :=
   ifb x = R_NilValue then
     result_success S 0
   else XLENGTH S x.
@@ -954,7 +954,7 @@ Definition LOGICAL_ELT S x i :=
     read%Logical x_i := x at i using S in
     result_success S x_i.
 
-Definition ALTINTEGER_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result int :=
+Definition ALTINTEGER_ELT (S : state) (x : SEXP) (i : nat) : result int :=
   result_not_implemented "[ALTINTEGER_ELT]".
 
 Definition INTEGER_ELT S x i :=
@@ -964,7 +964,7 @@ Definition INTEGER_ELT S x i :=
     read%Integer x_i := x at i using S in
     result_success S x_i.
 
-Definition ALTREAL_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result double :=
+Definition ALTREAL_ELT (S : state) (x : SEXP) (i : nat) : result double :=
   result_not_implemented "[ALTREAL_ELT]".
 
 Definition REAL_ELT S x i :=
@@ -974,7 +974,7 @@ Definition REAL_ELT S x i :=
     read%Real x_i := x at i using S in
     result_success S x_i.
 
-Definition ALTCOMPLEX_ELT (S : state) (x : SExpRec_pointer) (i : nat) : result Rcomplex :=
+Definition ALTCOMPLEX_ELT (S : state) (x : SEXP) (i : nat) : result Rcomplex :=
   result_not_implemented "[ALTCOMPLEX_ELT]".
 
 Definition COMPLEX_ELT S x i :=
@@ -995,7 +995,7 @@ Definition RAW_ELT S x i :=
     read%Pointer x_i := x at i using S in
     result_success S x_i.
 
-Definition isVectorizable S (s : SExpRec_pointer) :=
+Definition isVectorizable S (s : SEXP) :=
   ifb s = R_NilValue then
     result_success S true
   else if%success isNewList S s using S then
@@ -1038,7 +1038,7 @@ Definition SET_VECTOR_ELT S x i v :=
 
 (** The following function is actually in the C file main/memory.c.
   It is placed here to solve a cyclic file dependency.**)
-Definition SET_STRING_ELT S (x : SExpRec_pointer) i v : result unit :=
+Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> StrSxp then
     result_error S "[SET_STRING_ELT] It can only be applied to a character vector."
@@ -1099,7 +1099,7 @@ Definition EncodeLogical x :=
 
 Definition StringFromReal S x :=
   if R_IsNA x then
-    result_success S (NA_STRING : SExpRec_pointer)
+    result_success S (NA_STRING : SEXP)
   else result_not_implemented "[StringFromReal] [EncodeRealDrop0].".
 
 
@@ -1114,11 +1114,11 @@ Definition StringFromReal S x :=
   allocated twice the same string, by looking through the already
   allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
-Definition mkChar S (str : string) : state * SExpRec_pointer :=
+Definition mkChar S (str : string) : state * SEXP :=
   (* Note that values are not cached, in contrary to the original code. *)
   alloc_vector_char S (ArrayList.from_list (string_to_list str)).
 
-Definition mkString S (str : string) : state * SExpRec_pointer :=
+Definition mkString S (str : string) : state * SEXP :=
   let (S, c) := mkChar S str in
   alloc_vector_str S (ArrayList.from_list [c]).
 
@@ -1136,7 +1136,7 @@ Definition ddVal S symbol :=
 (** The function names of this section corresponds to the function names
   in the file main/dstruct.c. **)
 
-Definition iSDDName S (name : SExpRec_pointer) :=
+Definition iSDDName S (name : SEXP) :=
   let%success buf := CHAR S name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf) buf in
@@ -1147,7 +1147,7 @@ Definition iSDDName S (name : SExpRec_pointer) :=
   else
   result_success S false.
 
-Definition mkSYMSXP S (name value : SExpRec_pointer) :=
+Definition mkSYMSXP S (name value : SEXP) :=
   let%success i := iSDDName S name using S in
   let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
   run%success SET_DDVAL S c i using S in
@@ -1164,7 +1164,7 @@ Definition mkSymMarker S pname :=
   write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
   result_success S ans.
 
-Definition install S name_ : result SExpRec_pointer :=
+Definition install S name_ : result SEXP :=
   (** As said in the description of [InitNames] in Rinit.v,
     the hash table present in [R_SymbolTable] has not been
     formalised as such.
@@ -1428,7 +1428,7 @@ Definition psmatch f t exact :=
   else
     String.prefix t f.
 
-Definition pmatch S (formal tag : SExpRec_pointer) exact : result bool :=
+Definition pmatch S (formal tag : SEXP) exact : result bool :=
   let get_name str :=
     let%success str_type := TYPEOF S str using S in
     match str_type with
@@ -1504,7 +1504,7 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
 
 Definition matchArgs_second S actuals formals supplied fargused :=
   fold%success (a, fargused, dots, seendots) :=
-    (actuals, fargused, R_NilValue : SExpRec_pointer, false)
+    (actuals, fargused, R_NilValue : SEXP, false)
   along formals
   as _, f_tag do
     match fargused with
@@ -1543,7 +1543,7 @@ Definition matchArgs_second S actuals formals supplied fargused :=
     end using S, runs, globals in
   result_success S dots.
 
-Definition matchArgs_third S (formals actuals supplied : SExpRec_pointer) :=
+Definition matchArgs_third S (formals actuals supplied : SEXP) :=
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
   while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
     read%list _, f_cdr, f_tag := f using S in
@@ -1592,7 +1592,7 @@ Definition matchArgs_dots S dots supplied :=
   else result_skip S.
 
 Definition matchArgs_check S supplied :=
-  fold%success (unused, last) := (R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
+  fold%success (unused, last) := (R_NilValue : SEXP, R_NilValue : SEXP)
   along supplied
   as _, b_, b_list do
     ifb argused b_ = 0 then
@@ -1614,8 +1614,8 @@ Definition matchArgs_check S supplied :=
     result_skip S.
 
 
-Definition matchArgs S formals supplied (call : SExpRec_pointer) :=
-  fold%success (actuals, argi) := (R_NilValue : SExpRec_pointer, 0)
+Definition matchArgs S formals supplied (call : SEXP) :=
+  fold%success (actuals, argi) := (R_NilValue : SEXP, 0)
   along formals
   as _, _ do
     let (S, actuals) := CONS_NR S R_MissingArg actuals in
@@ -1642,7 +1642,7 @@ Definition matchArgs S formals supplied (call : SExpRec_pointer) :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
-Definition R_envHasNoSpecialSymbols S (env : SExpRec_pointer) : result bool :=
+Definition R_envHasNoSpecialSymbols S (env : SEXP) : result bool :=
   read%env env_, env_env := env using S in
   (** A note about hashtabs has been commented out. **)
   fold%let b := true
@@ -1665,7 +1665,7 @@ Definition SET_FRAME S x v :=
   write%defined x := x_ using S in
   result_success S tt.
 
-Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) :=
+Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
   ifb addVars = R_NilValue then
     result_skip S
   else
@@ -1685,7 +1685,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SExpRec_pointer) :=
       along addVars_cdr
       as endp, _, endp_list do
         let endTag := list_tagval endp_list in
-        do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SExpRec_pointer)
+        do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SEXP)
         while result_success S (decide (s <> endp)) do
           read%list _, s_cdr, s_tag := s using S in
             ifb s_tag = endTag then
@@ -1715,7 +1715,7 @@ Definition SYMBOL_BINDING_VALUE S s :=
     getActiveValue S (sym_value s_sym)
   else result_success S (sym_value s_sym).
 
-Definition setActiveValue S (f v : SExpRec_pointer) :=
+Definition setActiveValue S (f v : SEXP) :=
   let%success arg_tail := lcons S v R_NilValue using S in
   let%success arg := lcons S R_QuoteSymbol arg_tail using S in
   let%success expr_tail := lcons S arg R_NilValue using S in
@@ -1745,7 +1745,7 @@ Definition IS_USER_DATABASE S rho :=
   let%success inh := inherits S rho "UserDefinedDatabase" using S in
   result_success S (obj rho_ && inh).
 
-Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
+Definition gsetVar S (symbol value rho : SEXP) : result unit :=
   if%success FRAME_IS_LOCKED S rho using S then
     read%sym symbol_, symbol_sym := symbol using S in
     ifb sym_value symbol_sym = R_UnboundValue then
@@ -1770,7 +1770,7 @@ Definition gsetVar S (symbol value rho : SExpRec_pointer) : result unit :=
       write%defined symbol := symbol_ using S in
       result_skip S.
 
-Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
+Definition defineVar S (symbol value rho : SEXP) : result unit :=
   ifb rho = R_EmptyEnv then
     result_error S "[defineVar] Can not assign values in the empty environment."
   else
@@ -1802,19 +1802,19 @@ Definition defineVar S (symbol value rho : SExpRec_pointer) : result unit :=
           set%tag l := symbol using S in
           result_skip S.
 
-Definition setVarInFrame S (rho symbol value : SExpRec_pointer) :=
+Definition setVarInFrame S (rho symbol value : SEXP) :=
   ifb rho = R_EmptyEnv then
-    result_success S (R_NilValue : SExpRec_pointer)
+    result_success S (R_NilValue : SEXP)
   else
     result_not_implemented "[setVarInFrame]".
 
-Definition setVar S (symbol value rho : SExpRec_pointer) :=
+Definition setVar S (symbol value rho : SEXP) :=
   do%success rho := rho
   while result_success S (decide (rho <> R_EmptyEnv)) do
     let%success vl :=
       setVarInFrame S rho symbol value using S in
     ifb vl <> R_NilValue then
-      result_success S (R_EmptyEnv : SExpRec_pointer)
+      result_success S (R_EmptyEnv : SEXP)
     else
       read%env rho_, rho_env := rho using S in
       result_success S (env_enclos rho_env)
@@ -1828,7 +1828,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
   else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
     SYMBOL_BINDING_VALUE S symbol
   else ifb rho = R_EmptyEnv then
-    result_success S (R_UnboundValue : SExpRec_pointer)
+    result_success S (R_UnboundValue : SEXP)
   else
     if%success IS_USER_DATABASE S rho using S then
       result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
@@ -1843,7 +1843,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
           let%success r := BINDING_VALUE S frame using S in
           result_rreturn S r
         else result_rskip S using S, runs, globals in
-      result_success S (R_UnboundValue : SExpRec_pointer).
+      result_success S (R_UnboundValue : SEXP).
 
 Definition findVar S symbol rho :=
   let%success rho_type := TYPEOF S rho using S in
@@ -1860,13 +1860,13 @@ Definition findVar S symbol rho :=
       else
         read%env _, rho_env := rho using S in
         result_rsuccess S (env_enclos rho_env) using S, runs in
-    result_success S (R_UnboundValue : SExpRec_pointer).
+    result_success S (R_UnboundValue : SEXP).
 
-Definition findVarLocInFrame S (rho symbol : SExpRec_pointer) :=
+Definition findVarLocInFrame S (rho symbol : SEXP) :=
   ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
     result_error S "[findVarLocInFrame] It can’t be used in the base environment."
   else ifb rho = R_EmptyEnv then
-    result_success S (R_NilValue : SExpRec_pointer)
+    result_success S (R_NilValue : SEXP)
   else
     if%success IS_USER_DATABASE S rho using S then
       result_not_implemented "[findVarLocInFrame] [R_ExternalPtrAddr]"
@@ -1879,13 +1879,13 @@ Definition findVarLocInFrame S (rho symbol : SExpRec_pointer) :=
         ifb list_tagval frame_list = symbol then
           result_rreturn S frame
         else result_rskip S using S, runs, globals in
-      result_success S (R_NilValue : SExpRec_pointer).
+      result_success S (R_NilValue : SEXP).
 
-Definition ddfindVar (S : state) (symbol rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
   result_not_implemented "[ddfindVar]".
 
 
-Definition findFun3 S symbol rho (call : SExpRec_pointer) : result SExpRec_pointer :=
+Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
   let%success rho :=
     if%success IS_SPECIAL_SYMBOL S symbol using S then
       do%success rho := rho
@@ -1942,7 +1942,7 @@ Definition isOneDimensionalArray S vec :=
     else result_success S false
   else result_success S false.
 
-Definition getAttrib0 S (vec name : SExpRec_pointer) :=
+Definition getAttrib0 S (vec name : SEXP) :=
   run%exit
     ifb name = R_NamesSymbol then
       run%return
@@ -1970,16 +1970,16 @@ Definition getAttrib0 S (vec name : SExpRec_pointer) :=
         result_rreturn S (list_carval s_list)
     else result_rskip S
   using S, runs, globals in
-  result_success S (R_NilValue : SExpRec_pointer).
+  result_success S (R_NilValue : SEXP).
 
-Definition getAttrib S (vec name : SExpRec_pointer) :=
+Definition getAttrib S (vec name : SEXP) :=
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
     result_error S "[getAttrib] Can not have attributes on a [CharSxp]."
   else
     read%defined vec_ := vec using S in
     ifb attrib vec_ = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
-      result_success S (R_NilValue : SExpRec_pointer)
+      result_success S (R_NilValue : SEXP)
     else
       let%success name_type := TYPEOF S name using S in
       let%success name :=
@@ -2016,7 +2016,7 @@ Definition installAttrib S vec name val :=
     result_error S "[installAttrib] Cannot set attribute on a symbol."
   else
     read%defined vec_ := vec using S in
-    fold%return t := R_NilValue : SExpRec_pointer
+    fold%return t := R_NilValue : SEXP
     along attrib vec_
     as s, _, s_list do
       ifb list_tagval s_list = name then
@@ -2035,7 +2035,7 @@ Definition installAttrib S vec name val :=
         result_skip S using S in
     result_success S val.
 
-Definition stripAttrib S (tag lst : SExpRec_pointer) :=
+Definition stripAttrib S (tag lst : SEXP) :=
   ifb lst = R_NilValue then
     result_success S lst
   else
@@ -2048,7 +2048,7 @@ Definition stripAttrib S (tag lst : SExpRec_pointer) :=
       set%cdr lst := r using S in
       result_success S lst.
 
-Definition removeAttrib S (vec name : SExpRec_pointer) :=
+Definition removeAttrib S (vec name : SEXP) :=
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
     result_error S "[removeAttrib] Cannot set attribute on a CharSxp."
@@ -2061,7 +2061,7 @@ Definition removeAttrib S (vec name : SExpRec_pointer) :=
         set%tag t := R_NilValue using S in
         result_skip S
       using S, runs, globals in
-      result_success S (R_NilValue : SExpRec_pointer)
+      result_success S (R_NilValue : SEXP)
     else
       read%defined vec_ := vec using S in
       run%success
@@ -2081,9 +2081,9 @@ Definition removeAttrib S (vec name : SExpRec_pointer) :=
           result_skip S
         else
           result_skip S using S in
-      result_success S (R_NilValue : SExpRec_pointer).
+      result_success S (R_NilValue : SEXP).
 
-Definition setAttrib S (vec name val : SExpRec_pointer) :=
+Definition setAttrib S (vec name val : SEXP) :=
   let%success name :=
     let%success name_type := TYPEOF S name using S in
     ifb name_type = StrSxp then
@@ -2147,7 +2147,7 @@ Definition isBlankString s :=
 (** The function names of this section corresponds to the function names
   in the file main/coerce.c. **)
 
-Definition LogicalFromString S (x : SExpRec_pointer) :=
+Definition LogicalFromString S (x : SEXP) :=
   ifb x <> R_NaString then
     let%success c := CHAR S x using S in
     if StringTrue c then result_success S (1 : int)
@@ -2200,7 +2200,7 @@ Definition asLogical S x :=
       LogicalFromString S x
     else result_success S NA_LOGICAL.
 
-Definition IntegerFromString S (x : SExpRec_pointer) :=
+Definition IntegerFromString S (x : SEXP) :=
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
@@ -2278,7 +2278,7 @@ Definition RealFromComplex x :=
     NA_REAL
   else Rcomplex_r x.
 
-Definition RealFromString S (x : SExpRec_pointer) :=
+Definition RealFromString S (x : SEXP) :=
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
@@ -2329,13 +2329,13 @@ Definition coerceSymbol S v type :=
       ScalarString S v_name
     else
       (* A warning has been formalised out here. *)
-      result_success S (R_NilValue : SExpRec_pointer) using S in
+      result_success S (R_NilValue : SEXP) using S in
   result_success S rval.
 
-Definition PairToVectorList (S : state) (x : SExpRec_pointer) : result SExpRec_pointer :=
+Definition PairToVectorList (S : state) (x : SEXP) : result SEXP :=
   result_not_implemented "[PairToVectorList]".
 
-Definition ComplexFromString S (x : SExpRec_pointer) :=
+Definition ComplexFromString S (x : SEXP) :=
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
@@ -2470,24 +2470,24 @@ Definition coercePairList S v type :=
     else result_skip S using S in
   result_success S rval.
 
-Definition coerceVectorList (S : state) (v : SExpRec_pointer) (type : SExpType) : result SExpRec_pointer :=
+Definition coerceVectorList (S : state) (v : SEXP) (type : SExpType) : result SEXP :=
   result_not_implemented "[coerceVectorList].".
 
 Definition StringFromLogical S x :=
   ifb x = NA_LOGICAL then
-    result_success S (NA_STRING : SExpRec_pointer)
+    result_success S (NA_STRING : SEXP)
   else
     let (S, r) := mkChar S (EncodeLogical x) in
     result_success S r.
 
 Definition StringFromInteger S x :=
   ifb x = NA_INTEGER then
-    result_success S (NA_STRING : SExpRec_pointer)
+    result_success S (NA_STRING : SEXP)
   else result_not_implemented "[StringFromInteger] [formatInteger].".
 
 Definition StringFromComplex S x :=
   ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
-    result_success S (NA_STRING : SExpRec_pointer)
+    result_success S (NA_STRING : SEXP)
   else result_not_implemented "[StringFromComplex] [EncodeComplex].".
 
 Definition coerceToSymbol S v :=
@@ -2672,7 +2672,7 @@ Definition coerceToComplex S v :=
     end using S in
   result_success S ans.
 
-Definition coerceToRaw (S : state) (v : SExpRec_pointer) : result SExpRec_pointer :=
+Definition coerceToRaw (S : state) (v : SEXP) : result SEXP :=
   result_not_implemented "[coerceToRaw].".
 
 Definition coerceToString S v :=
@@ -2987,7 +2987,7 @@ Definition CreateTag S x :=
 (** The function names of this section corresponds to the function names
   in the file main/objects.c. **)
 
-Definition R_has_methods S (op : SExpRec_pointer) :=
+Definition R_has_methods S (op : SEXP) :=
   (** This definition is oversimplified.  The final value of the
     original function depends on the value of the global variable
     [R_standardGeneric].  The way this variable is initialised is not
@@ -3001,7 +3001,7 @@ Definition R_has_methods S (op : SExpRec_pointer) :=
 (** The function names of this section corresponds to the function names
   in the file main/eval.c. **)
 
-Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
+Definition asLogicalNoNA S (s call : SEXP) :=
   let%exit cond :=
     if%success IS_SCALAR S s LglSxp using S then
       let%success cond := SCALAR_LVAL S s using S in
@@ -3045,7 +3045,7 @@ Definition asLogicalNoNA S (s call : SExpRec_pointer) :=
     else result_success S cond.
 
 (** The function [forcePromise] evaluates a promise if needed. **)
-Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
+Definition forcePromise S (e : SEXP) : result SEXP :=
   read%prom _, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
     run%success
@@ -3076,8 +3076,8 @@ Definition forcePromise S (e : SExpRec_pointer) : result SExpRec_pointer :=
     result_success S val
   else result_success S (prom_value e_prom).
 
-Definition R_execClosure S (call newrho sysparent rho arglist op : SExpRec_pointer)
-    : result SExpRec_pointer :=
+Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
+    : result SEXP :=
   let%success cntxt :=
     begincontext S Ctxt_Return call newrho sysparent arglist op using S in
   read%clo op_, op_clo := op using S in
@@ -3101,8 +3101,8 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SExpRec_point
   run%success endcontext S cntxt using S in
   result_success S (context_returnValue cntxt).
 
-Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
-    : result SExpRec_pointer :=
+Definition applyClosure S (call op arglist rho suppliedvars : SEXP)
+    : result SEXP :=
   let%success rho_type := TYPEOF S rho using S in
   ifb rho_type <> EnvSxp then
     result_error S "[applyClosure] ‘rho’ must be an environment."
@@ -3135,7 +3135,7 @@ Definition applyClosure S (call op arglist rho suppliedvars : SExpRec_pointer)
        else rho)
       rho arglist op.
 
-Definition promiseArgs S (el rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition promiseArgs S (el rho : SEXP) : result SEXP :=
   let (S, tail) := CONS S R_NilValue R_NilValue in
   fold%success (ans, tail) := (tail, tail)
   along el
@@ -3226,7 +3226,7 @@ Definition bytecodeExpr S e :=
     let%success e_len := LENGTH S e using S in
     ifb e_len > 0 then
       VECTOR_ELT S e 0
-    else result_success S (R_NilValue : SExpRec_pointer)
+    else result_success S (R_NilValue : SEXP)
   else result_success S e.
 
 Definition R_PromiseExpr S p :=
@@ -3236,8 +3236,8 @@ Definition R_PromiseExpr S p :=
 Definition PREXPR S e :=
   R_PromiseExpr S e.
 
-Definition evalList S (el rho call : SExpRec_pointer) n :=
-  fold%success (n, head, tail) := (n, R_NilValue : SExpRec_pointer, R_NilValue : SExpRec_pointer)
+Definition evalList S (el rho call : SEXP) n :=
+  fold%success (n, head, tail) := (n, R_NilValue : SEXP, R_NilValue : SEXP)
   along el
   as el_car, el_tag
     do
@@ -3289,7 +3289,7 @@ Definition evalList S (el rho call : SExpRec_pointer) n :=
   using S, runs, globals in
   result_success S head.
 
-Definition evalListKeepMissing (S : state) (el rho : SExpRec_pointer) : result SExpRec_pointer :=
+Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
   result_not_implemented "[evalListKeepMissing] TODO".
 
 Definition evalArgs S el rho (dropmissing : bool) call n :=
@@ -3299,8 +3299,8 @@ Definition evalArgs S el rho (dropmissing : bool) call n :=
 
 (** The original function [DispatchGroup] returns a boolean and, if this boolean is true,
   overwrites its additional argument [ans]. This naturally translates as an option type. **)
-Definition DispatchGroup S group (call op args rho : SExpRec_pointer)
-    : result (option SExpRec_pointer) :=
+Definition DispatchGroup S group (call op args rho : SEXP)
+    : result (option SEXP) :=
   read%list args_car, args_cdr, _ := args using S in
   let%success args_car_is := isObject S args_car using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -3311,14 +3311,14 @@ Definition DispatchGroup S group (call op args rho : SExpRec_pointer)
     let isOps := decide (group = "Ops"%string) in
     result_not_implemented "[DispatchGroup]".
 
-Definition DispatchOrEval S (call op : SExpRec_pointer) (generic : string) (args rho : SExpRec_pointer)
-    (dropmissing argsevald : bool) : result (bool * SExpRec_pointer) :=
+Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP)
+    (dropmissing argsevald : bool) : result (bool * SEXP) :=
   let%success (x, dots) :=
     if argsevald then
       read%list args_car, _, _ := args using S in
       result_success S (args_car, false)
     else
-      fold%return (x, dots) := (R_NilValue : SExpRec_pointer, false)
+      fold%return (x, dots) := (R_NilValue : SEXP, false)
       along args as args_car, _ do
         ifb args_car = R_DotsSymbol then
           let%success h := findVar S R_DotsSymbol rho using S in
@@ -3356,14 +3356,14 @@ Definition DispatchOrEval S (call op : SExpRec_pointer) (generic : string) (args
     else result_success S args using S in
   result_success S (false, ans).
 
-Definition DispatchAnyOrEval S (call op : SExpRec_pointer) (generic : string) (args rho : SExpRec_pointer)
-    (dropmissing argsevald : bool) : result (bool * SExpRec_pointer) :=
+Definition DispatchAnyOrEval S (call op : SEXP) (generic : string) (args rho : SEXP)
+    (dropmissing argsevald : bool) : result (bool * SEXP) :=
   if%success R_has_methods S op using S then
     result_not_implemented "[DispatchAnyOrEval] Method case."
   else DispatchOrEval S call op generic args rho dropmissing argsevald.
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
-Definition eval S (e rho : SExpRec_pointer) :=
+Definition eval S (e rho : SEXP) :=
   let%success e_type := TYPEOF S e using S in
   match e_type with
   | NilSxp
@@ -3486,3 +3486,4 @@ End Parameterised.
 
 Arguments SET_MISSING : clear implicits.
 Arguments SET_PRSEEN : clear implicits.
+

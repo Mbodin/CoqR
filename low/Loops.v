@@ -10,20 +10,20 @@ Require Export Monads Globals.
 Record runs_type : Type := runs_type_intro {
     runs_while_loop : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
     runs_set_longjump : forall A, state -> context_type -> nat -> (state -> context_type -> result A) -> result A ;
-    runs_eval : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
-    runs_inherits : state -> SExpRec_pointer -> string -> result bool ;
-    runs_getAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
-    runs_R_cycle_detected : state -> SExpRec_pointer -> SExpRec_pointer -> result bool ;
-    runs_stripAttrib : state -> SExpRec_pointer -> SExpRec_pointer -> result SExpRec_pointer ;
-    runs_R_isMissing : state -> SExpRec_pointer -> SExpRec_pointer -> result bool ;
-    runs_AnswerType : state -> SExpRec_pointer -> bool -> bool -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_ListAnswer : state -> SExpRec_pointer -> bool -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_StringAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_LogicalAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_IntegerAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_RealAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_ComplexAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
-    runs_RawAnswer : state -> SExpRec_pointer -> BindData -> SExpRec_pointer -> result BindData ;
+    runs_eval : state -> SEXP -> SEXP -> result SEXP ;
+    runs_inherits : state -> SEXP -> string -> result bool ;
+    runs_getAttrib : state -> SEXP -> SEXP -> result SEXP ;
+    runs_R_cycle_detected : state -> SEXP -> SEXP -> result bool ;
+    runs_stripAttrib : state -> SEXP -> SEXP -> result SEXP ;
+    runs_R_isMissing : state -> SEXP -> SEXP -> result bool ;
+    runs_AnswerType : state -> SEXP -> bool -> bool -> BindData -> SEXP -> result BindData ;
+    runs_ListAnswer : state -> SEXP -> bool -> BindData -> SEXP -> result BindData ;
+    runs_StringAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_LogicalAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_IntegerAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_RealAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_ComplexAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_RawAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
     runs_R_FunTab : funtab
   }.
 
@@ -154,8 +154,8 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
 (** Looping through a list is a frequent pattern in R source code.
   [fold_left_listSxp_gen] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen runs (globals : Globals) A S (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec -> ListSxp_struct -> result A) : result A :=
+Definition fold_left_listSxp_gen runs (globals : Globals) A S (l : SEXP) (a : A)
+    (iterate : state -> A -> SEXP -> SExpRec -> ListSxp_struct -> result A) : result A :=
   do%success (l, a) := (l, a)
   while result_success S (decide (l <> global_mapping globals R_NilValue))
   do
@@ -290,8 +290,8 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'a
 
 (** [fold_left_listSxp] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp runs globals A S (l : SExpRec_pointer) (a : A)
-    (iterate : state -> A -> SExpRec_pointer -> SExpRec_pointer -> result A) : result A :=
+Definition fold_left_listSxp runs globals A S (l : SEXP) (a : A)
+    (iterate : state -> A -> SEXP -> SEXP -> result A) : result A :=
   fold%let a := a
   along l
   as _, _, l_list
@@ -1074,3 +1074,4 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for
      using S using S in
    cont)
   (at level 50, left associativity) : monad_scope.
+

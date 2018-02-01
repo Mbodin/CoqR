@@ -10,7 +10,7 @@ Require Export Rinternals InternalTypes Shared.
   constants.  They are initialised in the file Rinit.v.
   Each of these syntactic global variables are then associated
   with the natural coercion (using the current context of type
-  [Globals], see below) to their value, of type [SExpRec_pointer].
+  [Globals], see below) to their value, of type [SEXP].
   See the beginning of the files Rcore.v, Rinit.v or Rfeatures.v
   for more details. **)
 
@@ -97,14 +97,14 @@ Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
   prove_comparable_trivial_inductive_faster.
 Defined.
 
-Definition Global_mapping : Type := GlobalVariable -> SExpRec_pointer.
+Definition Global_mapping : Type := GlobalVariable -> SEXP.
 
 Record Globals := make_Globals {
     global_mapping :> Global_mapping ;
     global_Type2Table : ArrayList.array Type2Table_type
   }.
 
-Definition read_globals (globals : Globals) : GlobalVariable -> SExpRec_pointer := globals : Global_mapping.
+Definition read_globals (globals : Globals) : GlobalVariable -> SEXP := globals : Global_mapping.
 
 Definition Globals_with_mapping (g : Globals) m :=
   make_Globals m (global_Type2Table g).
@@ -118,12 +118,12 @@ Definition empty_global_mapping : Global_mapping :=
 Definition empty_Globals : Globals :=
   make_Globals empty_global_mapping ArrayList.empty.
 
-Definition Global_mapping_with (g : Global_mapping) (C : GlobalVariable) (p : SExpRec_pointer) : Global_mapping :=
+Definition Global_mapping_with (g : Global_mapping) (C : GlobalVariable) (p : SEXP) : Global_mapping :=
   fun C' =>
     ifb C = C' then p
     else g C'.
 
-Definition GlobalsWith (g : Globals) (C : GlobalVariable) (p : SExpRec_pointer) : Globals :=
+Definition GlobalsWith (g : Globals) (C : GlobalVariable) (p : SEXP) : Globals :=
   Globals_with_mapping g (Global_mapping_with g C p).
 
 
@@ -159,7 +159,7 @@ Definition flatten_Global_mapping (g : Global_mapping) : Global_mapping.
     | @nil _ =>
       let rec build_match l :=
         match l with
-        | @nil _ => exact (GlobalVariable_rect (fun _ => SExpRec_pointer))
+        | @nil _ => exact (GlobalVariable_rect (fun _ => SEXP))
         | ?x :: ?l => exact (ltac:(build_match l) x)
         end in
       build_match l
@@ -168,7 +168,7 @@ Definition flatten_Global_mapping (g : Global_mapping) : Global_mapping.
       exact (let a := g C in ltac:(build_let (a :: l) t))
     end in
   let l := eval unfold all_GlobalVariables in all_GlobalVariables in
-  build_let (@nil SExpRec_pointer) l.
+  build_let (@nil SEXP) l.
 Defined.
 
 Lemma flatten_Global_mapping_correct : forall g C,
@@ -179,3 +179,4 @@ Qed.
 
 Definition flatten_Globals (g : Globals) : Globals :=
   Globals_with_mapping g (flatten_Global_mapping g).
+

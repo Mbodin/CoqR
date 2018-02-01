@@ -13,7 +13,7 @@ Variable globals : Globals.
 
 Let read_globals := read_globals globals.
 
-Local Coercion read_globals : GlobalVariable >-> SExpRec_pointer.
+Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
@@ -168,7 +168,7 @@ Definition mkPRIMSXP_init S :=
   let%success R_FunTab := get_R_FunTab runs S using S in
   let FunTabSize := ArrayList.length R_FunTab in
   let (S, primCache) :=
-    alloc_vector_vec globals S (ArrayList.from_list (repeat (R_NilValue : SExpRec_pointer) FunTabSize)) in
+    alloc_vector_vec globals S (ArrayList.from_list (repeat (R_NilValue : SEXP) FunTabSize)) in
   result_success S primCache.
 
 (** The end of [InitNames], from main/names.c **)
@@ -338,7 +338,7 @@ End Globals.
   [max_step] argument from [runs], and recomputing it at each step with
   the updated [globals]. **)
 Definition setup_Rmainloop max_step S : result Globals :=
-  let decl x p := (x, p) : GlobalVariable * SExpRec_pointer in
+  let decl x p := (x, p) : GlobalVariable * SEXP in
   let globals := empty_Globals in
   let S := InitConnections S in
   let%success NilValue :=

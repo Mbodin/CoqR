@@ -432,7 +432,7 @@ Instance SExpRec_Inhab : Inhab SExpRec.
             (make_ListSxp_struct None None None)).
 Defined.
 
-Instance SExpRec_pointer_Comparable : Comparable SExpRec_pointer.
+Instance SEXP_Comparable : Comparable SEXP.
   prove_comparable_simple_inductive.
 Defined.
 
@@ -448,3 +448,4 @@ Proof. apply prove_Inhab. repeat constructors. Qed.
 Instance Rcomplex_comparable : Comparable Rcomplex.
   prove_comparable_simple_inductive.
 Defined.
+
