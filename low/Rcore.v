@@ -1022,8 +1022,12 @@ Definition isVectorizable S (s : SEXP) :=
   else result_success S false.
 
 
-(** The following function is actually in the C file main/memory.c.
-  It is placed here to solve a cyclic file dependency.**)
+(** ** memory.c **)
+
+(** The function names of this section corresponds to the function
+  names in the file main/memory.c. The most important functions of
+  memory.c are however only shown in a later section. **)
+
 Definition SET_VECTOR_ELT S x i v :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
@@ -1036,8 +1040,6 @@ Definition SET_VECTOR_ELT S x i v :=
       write%Pointer x at i := v using S in
       result_success S v.
 
-(** The following function is actually in the C file main/memory.c.
-  It is placed here to solve a cyclic file dependency.**)
 Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> StrSxp then
@@ -1053,6 +1055,32 @@ Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
       else
         write%Pointer x at i := v using S in
         result_skip S.
+
+
+(** ** eval.c **)
+
+(** The function names of this section corresponds to the function
+  names in the file main/eval.c. The most important functions of
+  eval.c are however only shown in a later section. **)
+
+Definition BCCONSTS S e :=
+  BCODE_CONSTS S e.
+
+Definition bytecodeExpr S e :=
+  if%success isByteCode S e using S then
+    let%success e := BCCONSTS S e using S in
+    let%success e_len := LENGTH S e using S in
+    ifb e_len > 0 then
+      VECTOR_ELT S e 0
+    else result_success S (R_NilValue : SEXP)
+  else result_success S e.
+
+Definition R_PromiseExpr S p :=
+  read%prom _, p_prom := p using S in
+  bytecodeExpr S (prom_expr p_prom).
+
+Definition PREXPR S e :=
+  R_PromiseExpr S e.
 
 
 (** ** arithmetic.c **)
@@ -1087,6 +1115,33 @@ Definition ScalarValue2 S x y :=
       allocVector S x_type 1.
 
 
+(** * util.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/util.c. **)
+
+Definition type2rstr S (t : SExpType) :=
+  let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
+  ifb res <> NULL then result_success S res
+  else result_success S (R_NilValue : SEXP).
+
+Definition nthcdr S s n :=
+  let%success s_li := isList S s using S in
+  let%success s_la := isLanguage S s using S in
+  let%success s_fr := isFrame S s using S in
+  let%success s_t := TYPEOF S s using S in
+  ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
+    do%success (s, n) := (s, n)
+    while result_success S (decide (n > 0)) do
+      ifb s = R_NilValue then
+        result_error S "[nthcdr] List too short."
+      else
+        read%list _, s_cdr, _ := s using S in
+        result_success S (s, n - 1) using S, runs in
+    result_success S s
+  else result_error S "[nthcdr] No CDR.".
+
+
 (** * printutils.c **)
 
 (** The function names of this section corresponds to the function names
@@ -1105,9 +1160,9 @@ Definition StringFromReal S x :=
 
 (** ** envir.c **)
 
-(** The function names of this section corresponds to the function names
-  in the file main/envir.c. The most important functions of envir.c
-  are shown in a later section. **)
+(** The function names of this section corresponds to the function
+  names in the file main/envir.c. The most important functions of
+  envir.c are however only shown in a later section. **)
 
 (** The function [mkChar] from the R source code performs a lot of things.
   It deals with encoding, for embedded zero-characters, as well as avoid
@@ -1121,14 +1176,6 @@ Definition mkChar S (str : string) : state * SEXP :=
 Definition mkString S (str : string) : state * SEXP :=
   let (S, c) := mkChar S str in
   alloc_vector_str S (ArrayList.from_list [c]).
-
-Definition ddVal S symbol :=
-  let%success symbol_name := PRINTNAME S symbol using S in
-  let%success buf := CHAR S symbol_name using S in
-  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
-    let buf := substring 2 (String.length buf - 2) in
-    result_not_implemented "[ddVal] [strtol]."
-  else result_success S 0.
 
 
 (** ** dstruct.c **)
@@ -1881,6 +1928,14 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
         else result_rskip S using S, runs, globals in
       result_success S (R_NilValue : SEXP).
 
+Definition ddVal S symbol :=
+  let%success symbol_name := PRINTNAME S symbol using S in
+  let%success buf := CHAR S symbol_name using S in
+  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := substring 2 (String.length buf - 2) in
+    result_not_implemented "[ddVal] [strtol]."
+  else result_success S 0.
+
 Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
   result_not_implemented "[ddfindVar]".
 
@@ -1921,6 +1976,75 @@ Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
   let%success str_symbol := PRINTNAME S symbol using S in
   let%success str_symbol_ := CHAR S str_symbol using S in
   result_error S ("[findFun3] Could not find function “" ++ str_symbol_ ++ "”.").
+
+Definition findRootPromise S p :=
+  let%success p_type := TYPEOF S p using S in
+  ifb p_type = PromSxp then
+    do%success p := p
+    while
+      let%success p := PREXPR S p using S in
+      let%success p_type := TYPEOF S p using S in
+      result_success S (decide (p_type = PromSxp))
+    do
+      PREXPR S p using S, runs in
+    result_success S p
+  else result_success S p.
+
+Definition R_isMissing S (symbol rho : SEXP) :=
+  ifb symbol = R_MissingArg then
+    result_success S true
+  else
+    let%success (s, ddv) :=
+      if%success DDVAL S symbol using S then
+        let%success d := ddVal S symbol using S in
+        result_success S (R_DotsSymbol : SEXP, d)
+      else result_success S (symbol, 0) using S in
+    ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
+      result_success S false
+    else
+      let%success vl := findVarLocInFrame S rho s using S in
+      ifb vl <> R_NilValue then
+        let%exit vl :=
+          if%success DDVAL S symbol using S then
+            read%list vl_car, _, _ := vl using S in
+            let%success vl_car_len := R_length S vl_car using S in
+            ifb vl_car_len < ddv \/ vl_car = R_MissingArg then
+              result_rreturn S true
+            else
+              let%success n := nthcdr S vl_car (ddv - 1) using S in
+              result_rsuccess S n
+          else result_rsuccess S vl using S in
+        let%success vl_mis := MISSING S vl using S in
+        read%list vl_car, _, _ := vl using S in
+        ifb vl_mis = true \/ vl_car = R_MissingArg then
+          result_success S true
+        else if%success IS_ACTIVE_BINDING S vl using S then
+          result_success S false
+        else
+          let%success vl_car_rp := findRootPromise S vl_car using S in
+          set%car vl := vl_car_rp using S in
+          let vl_cat := vl_car_rp in
+          let%success vl_car_type := TYPEOF S vl_car using S in
+          ifb vl_car_type = PromSxp then
+            read%prom _, vl_car_prom := vl_car using S in
+            let%success vl_car_expr := PREXPR S vl_car using S in
+            let%success vl_car_expr_type := TYPEOF S vl_car_expr using S in
+            ifb prom_value vl_car_prom = R_UnboundValue /\ vl_car_expr_type = SymSxp then
+              let%success vl_car_prseen := PRSEEN S vl_car using S in
+              ifb vl_car_prseen = 1 then
+                result_success S true
+              else
+                let%success oldseen := PRSEEN_direct S vl_car using S in
+                run%success SET_PRSEEN S vl_car 1 ltac:(nbits_ok) using S in
+                let%success val :=
+                  let%success vl_car_prexpr := PREXPR S vl_car using S in
+                  let%success vl_car_prenv := PRENV S vl_car using S in
+                  runs_R_isMissing runs S vl_car_prexpr vl_car_prenv using S in
+                run%success SET_PRSEEN_direct S vl_car oldseen using S in
+                result_success S val
+            else result_success S false
+          else result_success S false
+      else result_success S false.
 
 
 (** ** attrib.c **)
@@ -3001,6 +3125,13 @@ Definition R_has_methods S (op : SEXP) :=
 (** The function names of this section corresponds to the function names
   in the file main/eval.c. **)
 
+Definition COPY_TAG S vto vfrom :=
+  read%list _, _, vfrom_tag := vfrom using S in
+  ifb vfrom_tag <> R_NilValue then
+    set%tag vto := vfrom_tag using S in
+    result_skip S
+  else result_skip S.
+
 Definition asLogicalNoNA S (s call : SEXP) :=
   let%exit cond :=
     if%success IS_SCALAR S s LglSxp using S then
@@ -3217,25 +3348,6 @@ Definition PRIMINTERNAL S x :=
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
 
-Definition BCCONSTS S e :=
-  BCODE_CONSTS S e.
-
-Definition bytecodeExpr S e :=
-  if%success isByteCode S e using S then
-    let%success e := BCCONSTS S e using S in
-    let%success e_len := LENGTH S e using S in
-    ifb e_len > 0 then
-      VECTOR_ELT S e 0
-    else result_success S (R_NilValue : SEXP)
-  else result_success S e.
-
-Definition R_PromiseExpr S p :=
-  read%prom _, p_prom := p using S in
-  bytecodeExpr S (prom_expr p_prom).
-
-Definition PREXPR S e :=
-  R_PromiseExpr S e.
-
 Definition evalList S (el rho call : SEXP) n :=
   fold%success (n, head, tail) := (n, R_NilValue : SEXP, R_NilValue : SEXP)
   along el
@@ -3290,7 +3402,65 @@ Definition evalList S (el rho call : SEXP) n :=
   result_success S head.
 
 Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
-  result_not_implemented "[evalListKeepMissing] TODO".
+  fold%success (head, tail) := (R_NilValue : SEXP, R_NilValue : SEXP)
+  along el
+  as _, _, el_list do
+    let el_car := list_carval el_list in
+    let el_cdr := list_cdrval el_list in
+    ifb el_car = R_DotsSymbol then
+      let%success h := findVar S el_car rho using S in
+      let%success h_type := TYPEOF S h using S in
+      ifb h_type = DotSxp \/ h = R_NilValue then
+        fold%let (head, tail) := (head, tail)
+        along h
+        as _, _, h_list do
+          let h_car := list_carval h_list in
+          let%success val :=
+            ifb h_car = R_MissingArg then
+              result_success S (R_MissingArg : SEXP)
+            else runs_eval runs S h_car rho using S in
+          run%success INCREMENT_LINKS S val using S in
+          let (S, ev) := CONS_NR S val R_NilValue in
+          let%success head :=
+            ifb head = R_NilValue then
+              result_success S ev
+            else
+              set%cdr tail := ev using S in
+              result_success S head using S in
+          run%success COPY_TAG S ev h using S in
+          result_success S (head, ev) using S, runs, globals
+      else ifb h <> R_MissingArg then
+        result_error S "[evalListKeepMissing] ‘...’ used in an incorrect context."
+      else result_success S (head, tail)
+    else
+      let%success val :=
+        let%success el_car_sy := isSymbol S el_car using S in
+        let%success el_car_mi := R_isMissing S el_car rho using S in
+        ifb el_car = R_MissingArg \/ (el_car_sy /\ el_car_mi) then
+          result_success S (R_MissingArg : SEXP)
+        else runs_eval runs S el_car rho using S in
+      run%success
+        ifb el_cdr <> R_NilValue then
+          INCREMENT_LINKS S val
+        else result_skip S using S in
+      let (S, ev) := CONS_NR S val R_NilValue in
+      let%success head :=
+        ifb head = R_NilValue then
+          result_success S ev
+        else
+          set%cdr tail := ev using S in
+          result_success S head using S in
+      run%success COPY_TAG S ev el using S in
+      result_success S (head, ev) using S, runs, globals in
+  fold%success
+  along head
+  as _, _, head_list do
+    let el_cdr := list_cdrval head_list in
+    let el_car := list_carval head_list in
+    ifb el_cdr <> R_NilValue then
+      DECREMENT_LINKS S el_car
+    else result_skip S using S, runs, globals in
+  result_success S head.
 
 Definition evalArgs S el rho (dropmissing : bool) call n :=
   if dropmissing then

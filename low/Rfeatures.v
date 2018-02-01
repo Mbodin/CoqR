@@ -61,29 +61,6 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
     else result_skip S.
 
 
-Definition type2rstr S (t : SExpType) :=
-  let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
-  ifb res <> NULL then result_success S res
-  else result_success S (R_NilValue : SEXP).
-
-
-Definition nthcdr S s n :=
-  let%success s_li := isList globals S s using S in
-  let%success s_la := isLanguage globals S s using S in
-  let%success s_fr := isFrame globals runs S s using S in
-  let%success s_t := TYPEOF S s using S in
-  ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
-    do%success (s, n) := (s, n)
-    while result_success S (decide (n > 0)) do
-      ifb s = R_NilValue then
-        result_error S "[nthcdr] List too short."
-      else
-        read%list _, s_cdr, _ := s using S in
-        result_success S (s, n - 1) using S, runs in
-    result_success S s
-  else result_error S "[nthcdr] No CDR.".
-
-
 (** * attrib.c **)
 
 (** The function names of this section corresponds to the function names
@@ -102,7 +79,7 @@ Definition do_typeof S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
-  type2rstr S t.
+  type2rstr globals S t.
 
 Definition do_is S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
@@ -233,75 +210,6 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
-Definition findRootPromise S p :=
-  let%success p_type := TYPEOF S p using S in
-  ifb p_type = PromSxp then
-    do%success p := p
-    while
-      let%success p := PREXPR globals S p using S in
-      let%success p_type := TYPEOF S p using S in
-      result_success S (decide (p_type = PromSxp))
-    do
-      PREXPR globals S p using S, runs in
-    result_success S p
-  else result_success S p.
-
-Definition R_isMissing S (symbol rho : SEXP) :=
-  ifb symbol = R_MissingArg then
-    result_success S true
-  else
-    let%success (s, ddv) :=
-      if%success DDVAL S symbol using S then
-        let%success d := ddVal S symbol using S in
-        result_success S (R_DotsSymbol : SEXP, d)
-      else result_success S (symbol, 0) using S in
-    ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
-      result_success S false
-    else
-      let%success vl := findVarLocInFrame globals runs S rho s using S in
-      ifb vl <> R_NilValue then
-        let%exit vl :=
-          if%success DDVAL S symbol using S then
-            read%list vl_car, _, _ := vl using S in
-            let%success vl_car_len := R_length globals runs S vl_car using S in
-            ifb vl_car_len < ddv \/ vl_car = R_MissingArg then
-              result_rreturn S true
-            else
-              let%success n := nthcdr S vl_car (ddv - 1) using S in
-              result_rsuccess S n
-          else result_rsuccess S vl using S in
-        let%success vl_mis := MISSING S vl using S in
-        read%list vl_car, _, _ := vl using S in
-        ifb vl_mis = true \/ vl_car = R_MissingArg then
-          result_success S true
-        else if%success IS_ACTIVE_BINDING S vl using S then
-          result_success S false
-        else
-          let%success vl_car_rp := findRootPromise S vl_car using S in
-          set%car vl := vl_car_rp using S in
-          let vl_cat := vl_car_rp in
-          let%success vl_car_type := TYPEOF S vl_car using S in
-          ifb vl_car_type = PromSxp then
-            read%prom _, vl_car_prom := vl_car using S in
-            let%success vl_car_expr := PREXPR globals S vl_car using S in
-            let%success vl_car_expr_type := TYPEOF S vl_car_expr using S in
-            ifb prom_value vl_car_prom = R_UnboundValue /\ vl_car_expr_type = SymSxp then
-              let%success vl_car_prseen := PRSEEN S vl_car using S in
-              ifb vl_car_prseen = 1 then
-                result_success S true
-              else
-                let%success oldseen := PRSEEN_direct S vl_car using S in
-                run%success SET_PRSEEN S vl_car 1 ltac:(nbits_ok) using S in
-                let%success val :=
-                  let%success vl_car_prexpr := PREXPR globals S vl_car using S in
-                  let%success vl_car_prenv := PRENV S vl_car using S in
-                  runs_R_isMissing runs S vl_car_prexpr vl_car_prenv using S in
-                run%success SET_PRSEEN_direct S vl_car oldseen using S in
-                result_success S val
-            else result_success S false
-          else result_success S false
-      else result_success S false.
-
 Definition do_missing S (call op args rho : SEXP) : result SEXP :=
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
@@ -335,7 +243,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
             write%Logical rval at 0 := 1 using S in
             result_rreturn S rval
           else
-            let%success t := nthcdr S t_car (ddv - 1) using S in
+            let%success t := nthcdr globals runs S t_car (ddv - 1) using S in
             result_rsuccess S t
         else result_rsuccess S t using S in
       run%exit
@@ -351,7 +259,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
         write%Logical rval at 0 := 0 using S in
         result_success S rval
       else
-        let%success t := findRootPromise S t using S in
+        let%success t := findRootPromise globals runs S t using S in
         let%success t_is :=
           let%success t := PREXPR globals S t using S in
           isSymbol S t using S in
@@ -363,7 +271,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
           let%success t_env :=
              read%prom _, t_prom := t using S in
              result_success S (prom_env t_prom) using S in
-          let%success ism := R_isMissing S t_expr t_env using S in
+          let%success ism := R_isMissing globals runs S t_expr t_env using S in
           write%Logical rval at 0 := ism using S in
           result_success S rval
     else result_error S "[do_missing] It can only be used for arguments.".
@@ -1933,7 +1841,8 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
       run%success INCREMENT_LINKS S x using S in
       let%success x_obj := OBJECT S x using S in
       if negb x_obj then
-        let%success elkm := evalListKeepMissing S args_cdr rho using S in
+        let%success elkm :=
+          evalListKeepMissing globals runs S args_cdr rho using S in
         let (S, ans) := CONS_NR globals S x elkm in
         run%success DECREMENT_LINKS S x using S in
         result_rreturn S (false, ans)

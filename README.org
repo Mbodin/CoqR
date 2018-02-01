@@ -29,7 +29,7 @@ More information for other systems can be found
 and [[https://git-scm.com/][here for Git]].
 #+BEGIN_SRC bash
     sudo apt install opam aspcud m4 perl git
-    opam init
+    opam init # This is not needed if you have already installed and initialised Opam before.
 #+END_SRC
 
 It is advised to add the following line into your .bashrc file.

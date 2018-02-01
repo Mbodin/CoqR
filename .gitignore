@@ -8,6 +8,8 @@
 *.glob
 *.v.d
 
+.*.cache
+
 Makefile.coq
 
 html
