@@ -6,6 +6,7 @@
 let interactive = ref true
 let print_prompt = ref true
 let verbose = ref false
+let print_stack = ref true
 let max_steps = ref max_int
 
 let readable_pointers = ref true
@@ -93,6 +94,7 @@ let boolean_switches =
     computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" true ;
     make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true ;
     print_switch [] [] print_prompt "prompt" "the prompt (the “>” shown before inputs)" true ;
+    print_switch [] [] print_stack "stack" "the execution stack in case of an error" true ;
     make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false
   ]
 
@@ -229,7 +231,7 @@ let _ =
       let inchannel = open_in_bin !initial_state in
       let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
       Low.Result_success (s, globals)) in
-  Print.print_defined !verbose initialising_function Low.empty_state (fun s globals ->
+  Print.print_defined !verbose !print_stack initialising_function Low.empty_state (fun s globals ->
     if !show_globals_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
@@ -247,7 +249,7 @@ let _ =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
               Low.eval_global g r s p) in
-          Print.print_and_continue !verbose
+          Print.print_and_continue !verbose !print_stack
             (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
             globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
               if !print_unlike_R then
@@ -328,7 +330,7 @@ let _ =
             | "#quit" :: l -> ignore (cont s) ; exiting_function s globals
             | "#execute" as cmd :: l ->
               check_change_state seen_state_change cmd ;
-              Debug.parse_arg_fun !verbose
+              Debug.parse_arg_fun !verbose !print_stack
                 (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
                 !readable_pointers !fetch_result s globals (Low.runs !max_steps globals)
                 (fun l f ->

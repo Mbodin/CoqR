@@ -338,6 +338,12 @@ runif ()
 typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
 
+# Miscellaneous
+levels
+mode
+a::b
+a:::b
+
 # These are tests to test the tester and the parser.
 "function" ; 'function' ; 1 # function
 "Error" ; 'Error' ; 1 # Error

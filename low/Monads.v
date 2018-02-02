@@ -10,16 +10,16 @@ Require Export State.
 (** A monad type for results. **)
 Inductive result (A : Type) :=
   | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
-  | result_error : state -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
   | result_longjump : state -> nat -> context_type -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
-  | result_impossible : state -> string -> result A (** This result should never happen. We provide a string to help debugging. **)
-  | result_not_implemented : string -> result A (** The result relies on a feature not yet implemented. **)
+  | result_error_stack : state -> list string -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
+  | result_impossible_stack : state -> list string -> string -> result A (** This result should never happen. We provide a string and a call stack to help debugging. **)
+  | result_not_implemented_stack : list string -> string -> result A (** The result relies on a feature not yet implemented. **)
   | result_bottom : state -> result A (** We went out of fuel during the computation. **)
   .
-Arguments result_error [A].
 Arguments result_longjump [A].
-Arguments result_impossible [A].
-Arguments result_not_implemented [A].
+Arguments result_error_stack [A].
+Arguments result_impossible_stack [A].
+Arguments result_not_implemented_stack [A].
 Arguments result_bottom [A].
 
 (** A precision about [result_not_implemented] and [result_error]:
@@ -44,6 +44,19 @@ Arguments result_bottom [A].
   [e] actually maps to a valid expression), the Coq interpreter will
   return [result_impossible]. **)
 
+
+Definition result_error (A : Type) S msg : result A :=
+  result_error_stack S nil msg.
+Arguments result_error [A].
+
+Definition result_impossible (A : Type) S msg : result A :=
+  result_impossible_stack S nil msg.
+Arguments result_impossible [A].
+
+Definition result_not_implemented (A : Type) msg : result A :=
+  result_not_implemented_stack nil msg.
+Arguments result_not_implemented [A].
+
 Global Instance result_Inhab : forall A, Inhab (result A) :=
   fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
 
@@ -54,18 +67,35 @@ Open Scope monad_scope.
 
 (** * Generic Monads **)
 
+(** ** Function definitions **)
+
+Definition add_stack (A : Type) fname (r : result A) : result A :=
+  match r with
+  | result_success S0 a => result_success S0 a
+  | result_longjump S0 n t => result_longjump S0 n t
+  | result_error_stack S0 stack s => result_error_stack S0 (fname :: stack) s
+  | result_impossible_stack S0 stack s => result_impossible_stack S0 (fname :: stack) s
+  | result_not_implemented_stack stack s => result_not_implemented_stack (fname :: stack) s
+  | result_bottom S0 => result_bottom S0
+  end.
+
+Notation "'add%stack' fname 'in' cont" :=
+  (add_stack fname cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** [let]-monads **)
+
 (** The monad for result. **)
 Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=
   match r with
   | result_success S0 a => f S0 a
-  | result_error S0 s => result_error S0 s
   | result_longjump S0 n t => result_longjump S0 n t
-  | result_impossible S0 s => result_impossible S0 s
-  | result_not_implemented s => result_not_implemented s
+  | result_error_stack S0 stack s => result_error_stack S0 stack s
+  | result_impossible_stack S0 stack s => result_impossible_stack S0 stack s
+  | result_not_implemented_stack stack s => result_not_implemented_stack stack s
   | result_bottom S0 => result_bottom S0
   end.
-
-(** ** [let]-monads **)
 
 Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
   (if_success r (fun S a => cont))
@@ -106,7 +136,9 @@ Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ')' ':=
 Definition if_defined (A B : Type) S (o : option A) (f : A -> result B) : result B :=
   match o with
   | Some x => f x
-  | None => result_impossible S "[if_defined] got an undefined result."
+  | None =>
+    add%stack "if_defined" in
+    result_impossible S "got an undefined result."
   end.
 
 Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=

@@ -27,7 +27,8 @@ Local Coercion int_to_double : Z >-> double.
   in the file main/errors.c. **)
 
 Definition WrongArgCount A S s : result A :=
-  result_error S ("[WrongArgCount] Incorrect number of arguments to " ++ s ++ ".").
+  add%stack "WrongArgCount" in
+  result_error S ("Incorrect number of arguments to " ++ s ++ ".").
 Arguments WrongArgCount [A].
 
 
@@ -41,15 +42,17 @@ Arguments WrongArgCount [A].
   Coq as the [call] argument is not available in scope. We thus unfold
   this macro during the translation. **)
 Definition Rf_checkArityCall S (op args call : SEXP) :=
+  add%stack "Rf_checkArityCall" in
   let%success arity := PRIMARITY runs S op using S in
   let%success len := R_length globals runs S args using S in
   ifb arity >= 0 /\ arity <> len then
     if%success PRIMINTERNAL runs S op using S then
-      result_error S "[Rf_checkArityCall] An argument has been passed to an element of .Internal without its requirements."
-    else result_error S "[Rf_checkArityCall] An argument has been passed to something without its requirements."
+      result_error S "An argument has been passed to an element of .Internal without its requirements."
+    else result_error S "An argument has been passed to something without its requirements."
   else result_skip S.
 
 Definition Rf_check1arg S (arg call : SEXP) formal :=
+  add%stack "Rf_check1arg" in
   read%list _, _, arg_tag := arg using S in
   ifb arg_tag = R_NilValue then
     result_skip S
@@ -57,7 +60,7 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
     let%success printname := PRINTNAME S arg_tag using S in
     let%success supplied := CHAR S printname using S in
     ifb supplied <> formal then
-     result_error S "[Rf_check1arg] Supplied argument name does not match expected name."
+     result_error S "Supplied argument name does not match expected name."
     else result_skip S.
 
 
@@ -67,7 +70,8 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
   in the file main/attrib.c. **)
 
 Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
-  result_not_implemented "[classgets]".
+  add%stack "classgets" in
+  result_not_implemented "".
 
 
 (** * coerce.c **)
@@ -76,19 +80,21 @@ Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
   in the file main/coerce.c. **)
 
 Definition do_typeof S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_typeof" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
   type2rstr globals S t.
 
 Definition do_is S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_is" in
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   let%success op_val := PRIMVAL runs S op using S in
   read%list args_car, _, _ := args using S in
   let%success args_car_obj := isObject S args_car using S in
   ifb op_val >= 100 /\ op_val < 200 /\ args_car_obj then
-    result_not_implemented "[do_is] [DispatchOrEval]."
+    result_not_implemented "[DispatchOrEval]."
   else
     let%success ans := allocVector globals S LglSxp 1 using S in
     run%success
@@ -118,9 +124,9 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
         write%Logical ans at 0 := decide (t = StrSxp) using S in
         result_skip S
       else ifb op_val = SymSxp then
-        result_not_implemented "[do_is] is.symbol, is.name."
+        result_not_implemented "is.symbol, is.name."
       else ifb op_val = EnvSxp then
-        result_not_implemented "[do_is] is.environment."
+        result_not_implemented "is.environment."
       else ifb op_val = VecSxp then
         let%success t := TYPEOF S args_car using S in
         write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
@@ -142,16 +148,16 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
         write%Logical ans at 0 := obj using S in
         result_skip S
       else ifb op_val = 51 then
-        result_not_implemented "[do_is] isS4."
+        result_not_implemented "isS4."
       else ifb op_val = 100 then
         let%success isn := isNumeric globals runs S args_car using S in
         let%success isl := isLogical S args_car using S in
         write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
         result_skip S
       else ifb op_val = 101 then
-        result_not_implemented "[do_is] is.matrix."
+        result_not_implemented "is.matrix."
       else ifb op_val = 102 then
-        result_not_implemented "[do_is] is.array."
+        result_not_implemented "is.array."
       else ifb op_val = 200 then
         let%success t := TYPEOF S args_car using S in
         match t with
@@ -198,10 +204,10 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
         write%Logical ans at 0 := decide (t = SymSxp \/ t = LangSxp \/ t = ExprSxp) using S in
         result_skip S
       else ifb op_val = 302 then
-        result_not_implemented "[do_is] is.function."
+        result_not_implemented "is.function."
       else ifb op_val = 999 then
-        result_error S "[do_is] is.single."
-      else result_error S "[do_is] Other predicate." using S in
+        result_error S "is.single."
+      else result_error S "Other predicate." using S in
     result_success S ans.
 
 
@@ -211,6 +217,7 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
   in the file main/envir.c. **)
 
 Definition do_missing S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_missing" in
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   read%list args_car, _, _ := args using S in
@@ -225,7 +232,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
   let s := sym in
   let%success sym_sym := isSymbol S sym using S in
   if negb sym_sym then
-    result_error S "[do_missing] Invalid use."
+    result_error S "Invalid use."
   else
     let%success (ddv, sym) :=
       if%success DDVAL S sym using S then
@@ -274,7 +281,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
           let%success ism := R_isMissing globals runs S t_expr t_env using S in
           write%Logical rval at 0 := ism using S in
           result_success S rval
-    else result_error S "[do_missing] It can only be used for arguments.".
+    else result_error S "It can only be used for arguments.".
 
 
 (** * bind.c **)
@@ -283,6 +290,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
   in the file main/bind.c. **)
 
 Definition HasNames S x :=
+  add%stack "HasNames" in
   if%success isVector S x using S then
     let%success att := getAttrib globals runs S x R_NamesSymbol using S in
     let%success att_n := isNull S att using S in
@@ -303,6 +311,7 @@ Definition HasNames S x :=
   else result_success S false.
 
 Definition AnswerType S x (recurse usenames : bool) data (call : SEXP) :=
+  add%stack "AnswerType" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp =>
@@ -427,6 +436,7 @@ Definition AnswerType S x (recurse usenames : bool) data (call : SEXP) :=
   end.
 
 Definition c_Extract_opt S (ans call : SEXP) :=
+  add%stack "c_Extract_opt" in
   fold%success (recurse, usenames, ans, last, n_recurse, n_usenames) := (false, true, ans, NULL, 0, 0)
   along ans as a, a_, a_list do
     let n := list_tagval a_list in
@@ -437,7 +447,7 @@ Definition c_Extract_opt S (ans call : SEXP) :=
           pmatch S R_RecursiveSymbol n true
         else result_success S false using S then
       ifb n_recurse = 1 then
-        result_error S "[c_Extract_opt] Repeated argument ‘recursive’."
+        result_error S "Repeated argument ‘recursive’."
       else
         let n_recurse := 1 + n_recurse in
         let%success v := asLogical globals S a_car using S in
@@ -457,7 +467,7 @@ Definition c_Extract_opt S (ans call : SEXP) :=
           pmatch S R_UseNamesSymbol n true
         else result_success S false using S then
       ifb n_usenames = 1 then
-        result_error S "[c_Extract_opt] Repeated argument ‘use.names’."
+        result_error S "Repeated argument ‘use.names’."
       else
         let n_usenames := 1 + n_usenames in
         let%success v := asLogical globals S a_car using S in
@@ -476,6 +486,7 @@ Definition c_Extract_opt S (ans call : SEXP) :=
   result_success S (ans, recurse, usenames).
 
 Definition ListAnswer S x (recurse : bool) data call :=
+  add%stack "ListAnswer" in
   let LIST_ASSIGN S data x :=
     run%success SET_VECTOR_ELT S (BindData_ans_ptr data) (BindData_ans_length data) x using S in
     result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) in
@@ -488,7 +499,7 @@ Definition ListAnswer S x (recurse : bool) data call :=
     for i from 0 to len - 1 do
       read%Logical x_i := x at i using S in
       LIST_ASSIGN S data (ScalarLogical globals x_i) using S
-  | RawSxp => result_not_implemented "[ListAnswer] Raw case."
+  | RawSxp => result_not_implemented "Raw case."
   | IntSxp =>
     let%success len := XLENGTH S x using S in
     do%let data := data
@@ -549,6 +560,7 @@ Definition ListAnswer S x (recurse : bool) data call :=
   end.
 
 Definition StringAnswer S x data call :=
+  add%stack "StringAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -575,6 +587,7 @@ Definition StringAnswer S x data call :=
   end.
 
 Definition LogicalAnswer S x data call :=
+  add%stack "LogicalAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -605,11 +618,12 @@ Definition LogicalAnswer S x data call :=
       write%Logical BindData_ans_ptr data at BindData_ans_length data :=
         ifb v = NA_INTEGER then NA_LOGICAL else decide (v <> 0) using S in
       result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
-  | RawSxp => result_not_implemented "[LogicalAnswer] Raw case."
-  | _ => result_error S "[LogicalAnswer] Unimplemented type."
+  | RawSxp => result_not_implemented "Raw case."
+  | _ => result_error S "Unimplemented type."
   end.
 
 Definition IntegerAnswer S x data call :=
+  add%stack "IntegerAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -639,11 +653,12 @@ Definition IntegerAnswer S x data call :=
       read%Integer x_i := x at i using S in
       write%Integer BindData_ans_ptr data at BindData_ans_length data := x_i using S in
       result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
-  | RawSxp => result_not_implemented "[IntegerAnswer] Raw case."
-  | _ => result_error S "[IntegerAnswer] Unimplemented type."
+  | RawSxp => result_not_implemented "Raw case."
+  | _ => result_error S "Unimplemented type."
   end.
 
 Definition RealAnswer S x data call :=
+  add%stack "RealAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -688,11 +703,12 @@ Definition RealAnswer S x data call :=
       else
         write%Real BindData_ans_ptr data at BindData_ans_length data := xi using S in
         result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
-  | RawSxp => result_not_implemented "[RealAnswer] Raw case."
-  | _ => result_error S "[RealAnswer] Unimplemented type."
+  | RawSxp => result_not_implemented "Raw case."
+  | _ => result_error S "Unimplemented type."
   end.
 
 Definition ComplexAnswer S x data call :=
+  add%stack "ComplexAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -744,11 +760,12 @@ Definition ComplexAnswer S x data call :=
       else
         write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex xi 0 using S in
         result_success S (BindData_with_ans_length data (1 + BindData_ans_length data)) using S
-  | RawSxp => result_not_implemented "[ComplexAnswer] Raw case."
-  | _ => result_error S "[ComplexAnswer] Unimplemented type."
+  | RawSxp => result_not_implemented "Raw case."
+  | _ => result_error S "Unimplemented type."
   end.
 
 Definition RawAnswer S x data call :=
+  add%stack "RawAnswer" in
   let%success x_t := TYPEOF S x using S in
   match x_t with
   | NilSxp => result_success S data
@@ -764,11 +781,12 @@ Definition RawAnswer S x data call :=
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT S x i using S in
       runs_RawAnswer runs S x_i data call using S
-  | RawSxp => result_not_implemented "[RawAnswer] Raw case."
-  | _ => result_error S "[RawAnswer] Unimplemented type."
+  | RawSxp => result_not_implemented "Raw case."
+  | _ => result_error S "Unimplemented type."
   end.
 
 Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_c_dftl" in
   let%success (ans, recurse, usenames) := c_Extract_opt S args call using S in
   let data := make_BindData (@nat_to_nbits 10 0 ltac:(nbits_ok)) NULL 0 NULL 0 in
   fold%success data := data
@@ -828,13 +846,14 @@ Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
       fold%success (nameData, data) := (tt, data)
       along args
       as args_car, _ do
-        result_not_implemented "[do_c_dftl] [NewExtractNames]." using S, runs, globals in
+        result_not_implemented "[NewExtractNames]." using S, runs, globals in
       run%success setAttrib globals runs S ans R_NamesSymbol (BindData_ans_names data) using S in
       result_success S data
     else result_success S data using S in
   result_success S ans.
 
 Definition do_c S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_c" in
   run%success Rf_checkArityCall S op args call using S in
   let%success (r, ans) := DispatchAnyOrEval globals runs S call op "c" args env true true using S in
   if r then result_success S ans
@@ -848,27 +867,29 @@ Definition do_c S (call op args env : SEXP) : result SEXP :=
   in the file main/eval.c. **)
 
 Definition CheckFormals S ls :=
+  add%stack "CheckFormals" in
   if%success isList globals S ls using S then
     fold%success
     along ls
     as _, ls_tag do
       let%success ls_tag_type := TYPEOF S ls_tag using S in
       ifb ls_tag_type <> SymSxp then
-        result_error S "[CheckFormals] Invalid formal argument list (not a symbol)."
+        result_error S "Invalid formal argument list (not a symbol)."
       else result_skip S using S, runs, globals in
     result_skip S
-  else result_error S "[CheckFormals] Invalid formal argument list (not a list).".
+  else result_error S "Invalid formal argument list (not a list).".
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
 Definition do_set S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_set" in
   let wrong S :=
     let%success op_val := PRIMVAL runs S op using S in
     ifb op_val < 0 then
-      result_error S "[do_set] Negative offset."
+      result_error S "Negative offset."
     else
       match nth_option (Z.to_nat op_val) asym with
-      | None => result_error S "[do_set] [PRIMVAL] out of bound in [asym]."
+      | None => result_error S "[PRIMVAL] out of bound in [asym]."
       | Some n => WrongArgCount S n
       end in
   ifb args = R_NilValue then wrong S
@@ -897,11 +918,12 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
       else
         run%success defineVar globals runs S lhs rhs rho using S in
         result_success S rhs
-    | LangSxp => result_not_implemented "[do_set] applydefine"
-    | _ => result_error S "[do_set] Invalid left-hand side to assignment."
+    | LangSxp => result_not_implemented "applydefine"
+    | _ => result_error S "Invalid left-hand side to assignment."
     end.
 
 Definition do_function S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_function" in
   let%success op :=
     let%success op_type := TYPEOF S op using S in
     ifb op_type = PromSxp then
@@ -930,19 +952,22 @@ Definition do_function S (call op args rho : SEXP) : result SEXP :=
     result_success S rval.
 
 Definition do_break S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_break" in
   run%success Rf_checkArityCall S op args call using S in
   let%success op_val := PRIMVAL runs S op using S in
   match int_to_nbits_check op_val with
-  | None => result_impossible S "[do_break] The variable “op_val” should be of type “context_type”."
+  | None => result_impossible S "The variable “op_val” should be of type “context_type”."
   | Some c => findcontext globals runs _ S c rho R_NilValue
   end.
 
 Definition do_paren S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_paren" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   result_success S args_car.
 
 Definition getBlockSrcrefs S call : result SEXP :=
+  add%stack "getBlockSrcrefs" in
   let%success srcrefs := getAttrib globals runs S call R_SrcrefSymbol using S in
   let%success srcrefs_type := TYPEOF S srcrefs using S in
   ifb srcrefs_type = VecSxp then
@@ -950,6 +975,7 @@ Definition getBlockSrcrefs S call : result SEXP :=
   else result_success S (R_NilValue : SEXP).
 
 Definition do_begin S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_begin" in
   ifb args <> R_NilValue then
     let%success srcrefs := getBlockSrcrefs S call using S in
     fold%success s := R_NilValue : SEXP
@@ -961,6 +987,7 @@ Definition do_begin S (call op args rho : SEXP) : result SEXP :=
   else result_success S (R_NilValue : SEXP).
 
 Definition do_return S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_return" in
   let%success v :=
     ifb args = R_NilValue then
       result_success S (R_NilValue : SEXP)
@@ -968,16 +995,18 @@ Definition do_return S (call op args rho : SEXP) : result SEXP :=
       read%list args_car, args_cdr, _ := args using S in
       ifb args_cdr = R_NilValue then
         eval globals runs S args_car rho
-      else result_error S "[do_return] Multi-argument returns are not permitted." using S in
+      else result_error S "Multi-argument returns are not permitted." using S in
   findcontext globals runs _ S (context_type_merge Ctxt_Browser Ctxt_Function) rho v.
 
 Definition BodyHasBraces S body :=
+  add%stack "BodyHasBraces" in
   if%success isLanguage globals S body using S then
     read%list body_car, _, _ := body using S in
     result_success S (decide (body_car = R_BraceSymbol))
   else result_success S false.
 
 Definition do_if S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_if" in
   read%list args_car, args_cdr, _ := args using S in
   let%success Cond := eval globals runs S args_car rho using S in
   let%success (Stmt, vis) :=
@@ -996,6 +1025,7 @@ Definition do_if S (call op args rho : SEXP) : result SEXP :=
   else eval globals runs S Stmt rho.
 
 Definition do_while S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_while" in
   run%success Rf_checkArityCall S op args call using S in
   read%list _, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -1019,6 +1049,7 @@ Definition do_while S (call op args rho : SEXP) : result SEXP :=
   result_success S (R_NilValue : SEXP).
 
 Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_repeat" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let body := args_car in
@@ -1035,13 +1066,15 @@ Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   result_success S (R_NilValue : SEXP).
 
 Definition simple_as_environment S arg :=
+  add%stack "simple_as_environment" in
   let%success arg_s4 := IS_S4_OBJECT S arg using S in
   let%success arg_type := TYPEOF S arg using S in
   ifb arg_s4 /\ arg_type = S4Sxp then
-    result_not_implemented "[simple_as_environment] [R_getS4DataSlot]."
+    result_not_implemented "[R_getS4DataSlot]."
   else result_success S (R_NilValue : SEXP).
 
 Definition do_eval S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_eval" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let expr := args_car in
@@ -1059,14 +1092,14 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         let%success encl := simple_as_environment S encl using S in
         let%success encl_ie := isEnvironment S encl using S in
         if negb encl_ie then
-          result_error S "[do_eval] Invalid argument."
+          result_error S "Invalid argument."
         else result_success S encl
       else result_success S encl using S in
   let%success env :=
     let%success env_s4 := IS_S4_OBJECT S env using S in
     let%success env_type := TYPEOF S env using S in
     ifb env_s4 /\ env_type = S4Sxp then
-      result_not_implemented "[do_eval] [R_getS4DataSlot]."
+      result_not_implemented "[R_getS4DataSlot]."
     else result_success S env using S in
   let%success env_type := TYPEOF S env using S in
   let%success env :=
@@ -1079,18 +1112,18 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
       let%success d := duplicate S args_cdr_car using S in
       NewEnvironment globals runs S R_NilValue d encl
     | VecSxp =>
-      result_not_implemented "[do_eval] [VectorToPairListNamed]."
+      result_not_implemented "[VectorToPairListNamed]."
     | IntSxp
     | RealSxp =>
       let%success env_len := R_length globals runs S env using S in
       ifb env_len <> 1 then
-        result_error S "[do_eval] Numeric ‘envir’ argument not of length one."
+        result_error S "Numeric ‘envir’ argument not of length one."
       else
         let%success frame := asInteger globals S env using S in
         ifb frame = NA_INTEGER then
-          result_error S "[do_eval] Invalid argument ‘envir’ after convertion."
-        else result_not_implemented "[do_eval] [R_sysframe]."
-    | _ => result_error S "[do_eval] Invalid argument ‘envir’."
+          result_error S "Invalid argument ‘envir’ after convertion."
+        else result_not_implemented "[R_sysframe]."
+    | _ => result_error S "Invalid argument ‘envir’."
     end using S in
   let%success expr :=
     let%success expr_type := TYPEOF S expr using S in
@@ -1106,7 +1139,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
           let expr := R_ReturnedValue S in
           ifb expr = R_RestartToken then
             let S := state_with_context S (context_with_callflag cntxt Ctxt_Return) in
-            result_error S "[do_eval] Restarts not supported in ‘eval’."
+            result_error S "Restarts not supported in ‘eval’."
           else result_success S expr using S in
       run%success endcontext globals runs S cntxt using S in
       result_success S expr
@@ -1120,12 +1153,12 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         ifb jmp <> empty_context_type then
           do%let tmp := R_NilValue : SEXP
           for i from 0 to n - 1 do
-            result_not_implemented "[do_eval] [getSrcref]." using S
+            result_not_implemented "[getSrcref]." using S
         else
           let tmp := R_ReturnedValue S in
           ifb tmp = R_RestartToken then
             let S := state_with_context S (context_with_callflag cntxt Ctxt_Return) in
-            result_error S "[do_eval] Restarts not supported in ‘eval’."
+            result_error S "Restarts not supported in ‘eval’."
           else result_success S tmp using S in
       run%success endcontext globals runs S cntxt using S in
       result_success S tmp
@@ -1141,11 +1174,12 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
   in the file main/connections.c. **)
 
 Definition getConnection S (n : int) :=
+  add%stack "getConnection" in
   ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
-    result_error S "[getConnection] Invalid connection."
+    result_error S "Invalid connection."
   else
     match nth_option (Z.to_nat n) (R_Connections S) with
-    | None => result_impossible S "[getConnection] Out of bounds."
+    | None => result_impossible S "Out of bounds."
     | Some c => result_success S c
     end.
 
@@ -1156,37 +1190,43 @@ Definition getConnection S (n : int) :=
   the given connection. **)
 
 Definition putConnection S (n : int) c :=
+  add%stack "putConnection" in
   ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
-    result_error S "[putConnection] Invalid connection."
+    result_error S "Invalid connection."
   else
     let S := update_R_Connections S (update (Z.to_nat n) c (R_Connections S)) in
     result_skip S.
 
 Definition run_open S n :=
+  add%stack "run_open" in
   let%success con := getConnection S n using S in
   let%defined (c, r) := interpret_open (Rconnection_open con) con using S in
   run%success putConnection S n c using S in
   result_success S r.
 
 Definition run_close S n :=
+  add%stack "run_close" in
   let%success con := getConnection S n using S in
   let%defined c := interpret_close (Rconnection_close con) con using S in
   run%success putConnection S n c using S in
   result_skip S.
 
 Definition run_destroy S n :=
+  add%stack "run_destroy" in
   let%success con := getConnection S n using S in
   let%defined c := interpret_destroy (Rconnection_destroy con) con using S in
   run%success putConnection S n c using S in
   result_skip S.
 
 Definition run_print S n str :=
+  add%stack "run_print" in
   let%success con := getConnection S n using S in
   let%defined c := interpret_print (Rconnection_print con) con str using S in
   run%success putConnection S n c using S in
   result_skip S.
 
 Definition run_flush S n :=
+  add%stack "run_flush" in
   let%success con := getConnection S n using S in
   let%defined c := interpret_flush (Rconnection_fflush con) con using S in
   run%success putConnection S n c using S in
@@ -1195,17 +1235,18 @@ Definition run_flush S n :=
 (** We now continue with functions translated from main/connections.c. **)
 
 Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_getconnection" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success what := asInteger globals S args_car using S in
   ifb what = NA_INTEGER then
-    result_error S "[do_getconnection] There is no connection NA."
+    result_error S "There is no connection NA."
   else ifb what < 0 \/ what >= length (R_Connections S) then
-    result_error S "[do_getconnection] There is no such connection."
+    result_error S "There is no such connection."
   else
     let%success con :=
       match nth_option (Z.to_nat what) (R_Connections S) with
-      | None => result_impossible S "[do_getconnection] Out of bounds."
+      | None => result_impossible S "Out of bounds."
       | Some c => result_success S c
       end using S in
     let (S, ans) := ScalarInteger globals S what in
@@ -1217,7 +1258,7 @@ Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
     run%success classgets S ans class using S in
     run%success
       ifb what > 2 then
-        let%success ex_ptr := result_not_implemented "[do_getconnection] External pointer." using S in
+        let%success ex_ptr := result_not_implemented "External pointer." using S in
         run%success setAttrib globals runs S ans R_ConnIdSymbol ex_ptr using S in
         result_skip S
       else result_skip S using S in
@@ -1231,6 +1272,7 @@ Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
 
 (** This function is inspired from [Rprintf]. **)
 Definition Rprint S str :=
+  add%stack "Rprint" in
   let con_num := R_OutputCon S in
   run_print S con_num str.
 
@@ -1241,6 +1283,7 @@ Definition Rprint S str :=
   in the file main/builtin.c. **)
 
 Definition do_makelist S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_makelist" in
   fold%success (n, havenames) := (0, false)
   along args
   as _, args_tag do
@@ -1278,10 +1321,12 @@ Definition do_makelist S (call op args rho : SEXP) : result SEXP :=
   result_success S list.
 
 Definition trChar S x :=
+  add%stack "trChar" in
   (** We ignore any encoding issue here. **)
   CHAR S x.
 
 Definition cat_printsep S sep ntot :=
+  add%stack "cat_printsep" in
   let%success len := LENGTH globals S sep using S in
   ifb sep = R_NilValue \/ len = 0 then
     result_skip S
@@ -1291,9 +1336,11 @@ Definition cat_printsep S sep ntot :=
     Rprint S sepchar.
 
 Definition cat_cleanup S con_num :=
+  add%stack "cat_cleanup" in
   run_flush S con_num.
 
 Definition do_cat S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_cat" in
   run%success Rf_checkArityCall S op args call using S in
   (* Call to [PrintDefaults] formalised out. *)
   read%list args_car, args_cdr, _ := args using S in
@@ -1304,14 +1351,14 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
   let%success ifile := asInteger globals S file using S in
   let%success con := getConnection S ifile using S in
   if negb (Rconnection_canwrite con) then
-    result_error S "[do_cat] Cannot write to this connection."
+    result_error S "Cannot write to this connection."
   else
     let args := args_cdr in
     read%list args_car, args_cdr, _ := args using S in
     let sepr := args_car in
     let%success sepr_is := isString S sepr using S in
     if negb sepr_is then
-      result_error S "[do_cat] Invalid sep specification."
+      result_error S "Invalid sep specification."
     else
       let%success seprlen := LENGTH globals S sepr using S in
       do%success nlsep := false
@@ -1326,7 +1373,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
       let%success isLog := isLogical S fill using S in
       let%success len := LENGTH globals S fill using S in
       ifb ~ isNum /\ ~ isLog /\ len <> 1 then
-        result_error S "[do_cat] Invalid fill argument."
+        result_error S "Invalid fill argument."
       else
         let%success pwidth :=
           if%success isLogical S fill using S then
@@ -1345,14 +1392,14 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
         let labs := args_car in
         let%success isStr := isString S labs using S in
         ifb ~ isStr /\ labs <> R_NilValue then
-          result_error S "[do_cat] Invalid labels argument."
+          result_error S "Invalid labels argument."
         else
           let%success lablen := R_length globals runs S labs using S in
           let args := args_cdr in
           read%list args_car, args_cdr, _ := args using S in
           let%success append := asLogical globals S args_car using S in
           ifb append = NA_LOGICAL then
-            result_error S "[do_cat] Invalid append specification."
+            result_error S "Invalid append specification."
           else
             let%success cntxt :=
               begincontext globals S Ctxt_CCode R_NilValue R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
@@ -1384,10 +1431,10 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                     let%success str := PRINTNAME S s using S in
                     CHAR S str
                   else if%success isVectorAtomic S s using S then
-                    result_not_implemented "[do_cat] [EncodeElement0] (First step)"
+                    result_not_implemented "[EncodeElement0] (First step)"
                   else if%success isVectorList S s using S then
                     result_success S ""%string
-                  else result_error S "[do_cat] Argument can not be handled by cat." using S in
+                  else result_error S "Argument can not be handled by cat." using S in
                 do%success (ntot, nlines, p) := (ntot, nlines, p)
                 for i from 0 to n - 1 do
                   run%success Rprint S p using S in
@@ -1398,7 +1445,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                         let%success str := STRING_ELT S s (1 + i) using S in
                         trChar S str
                       else
-                        result_not_implemented "[do_cat] [EncodeElement0] (Second loop)"
+                        result_not_implemented "[EncodeElement0] (Second loop)"
                       using S in
                     result_success S (ntot, nlines, p)
                   else result_success S (ntot - 1, nlines, p) using S in
@@ -1419,12 +1466,14 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
   in the file main/seq.c. **)
 
 Definition cross_colon (S : state) (call s t : SEXP) : result SEXP :=
-  result_not_implemented "[cross_colon]".
+  add%stack "cross_colon" in
+  result_not_implemented "".
 
 Definition seq_colon S n1 n2 (call : SEXP) : result SEXP :=
+  add%stack "seq_colon" in
   let r := Double.fabs (Double.sub n2 n1) in
   ifb r >= (R_XLEN_T_MAX : double) then
-    result_error S "[seq_colon] Result would be too large a vector."
+    result_error S "Result would be too large a vector."
   else
     let n := Z.to_nat (Double.double_to_int_zero (Double.add (Double.add r (1 : double)) (Double.FLT_EPSILON))) in
     let useInt := decide (n1 <= (INT_MAX : double) /\ n1 = ((Double.double_to_int_zero n1) : double)) in
@@ -1466,6 +1515,7 @@ Definition seq_colon S n1 n2 (call : SEXP) : result SEXP :=
     result_success S ans.
 
 Definition do_colon S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_colon" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -1479,13 +1529,13 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
     let%success n1 := R_length globals runs S s1 using S in
     let%success n2 := R_length globals runs S s2 using S in
     ifb n1 = 0 \/ n2 = 0 then
-      result_error S "[do_colon] Argument of length 0."
+      result_error S "Argument of length 0."
     else
       (* Warnings have been formalised out here. *)
       let%success n1 := asReal globals S s1 using S in
       let%success n2 := asReal globals S s2 using S in
       ifb ISNAN n1 \/ ISNAN n2 then
-        result_error S "[do_colon] NA or NaN argument."
+        result_error S "NA or NaN argument."
       else seq_colon S n1 n2 call.
 
 
@@ -1495,6 +1545,7 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
   in the file main/complex.c. **)
 
 Definition complex_unary S (code : int) s1 :=
+  add%stack "complex_unary" in
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
@@ -1508,10 +1559,11 @@ Definition complex_unary S (code : int) s1 :=
       make_Rcomplex (Double.opp (Rcomplex_r x)) (Double.opp (Rcomplex_i x))) px in
     write%VectorComplex ans := pa using S in
     result_success S ans
-    else result_error S "[real_unary] Invalid unary operator.".
+    else result_error S "Invalid unary operator.".
 
 Definition complex_math1 (S : state) (call op args env : SEXP) : result SEXP :=
-  result_not_implemented "[complex_math1]".
+  add%stack "complex_math1" in
+  result_not_implemented "".
 
 
 (** * arithmetic.c **)
@@ -1525,9 +1577,11 @@ Definition R_finite (x : double) :=
 Definition R_FINITE := R_finite.
 
 Definition R_binary (S : state) (call op x y : SEXP) : result SEXP :=
-  result_not_implemented "[R_binary]".
+  add%stack "R_binary" in
+  result_not_implemented "".
 
 Definition logical_unary S (code : int) s1 :=
+  add%stack "logical_unary" in
   let%success n := XLENGTH S s1 using S in
   let%success names := getAttrib globals runs S s1 R_NamesSymbol using S in
   let%success dim := getAttrib globals runs S s1 R_DimSymbol using S in
@@ -1541,7 +1595,7 @@ Definition logical_unary S (code : int) s1 :=
       result_success S (ArrayListExtra.map (fun x =>
         ifb x = NA_INTEGER then NA_INTEGER
         else ifb x = 0 then 0 else -x) px)
-    else result_error S "[logical_unary] Invalid unary operator." using S in
+    else result_error S "Invalid unary operator." using S in
   let (S, ans) := alloc_vector_int globals S pa in
   run%success
     ifb names <> R_NilValue then
@@ -1561,6 +1615,7 @@ Definition logical_unary S (code : int) s1 :=
   result_success S ans.
 
 Definition integer_unary S (code : int) s1 :=
+  add%stack "integer_unary" in
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
@@ -1575,9 +1630,10 @@ Definition integer_unary S (code : int) s1 :=
       else ifb x = 0 then 0 else -x) px in
     write%VectorInteger ans := pa using S in
     result_success S ans
-  else result_error S "[integer_unary] Invalid unary operator.".
+  else result_error S "Invalid unary operator.".
 
 Definition real_unary S (code : int) s1 :=
+  add%stack "real_unary" in
   ifb code = PLUSOP then
     result_success S s1
   else ifb code = MINUSOP then
@@ -1590,9 +1646,10 @@ Definition real_unary S (code : int) s1 :=
     let pa := ArrayListExtra.map (fun x => Double.opp x) px in
     write%VectorReal ans := pa using S in
     result_success S ans
-  else result_error S "[real_unary] Invalid unary operator.".
+  else result_error S "Invalid unary operator.".
 
 Definition R_unary S (call op s1 : SEXP) : result SEXP :=
+  add%stack "R_unary" in
   let%success operation := PRIMVAL runs S op using S in
   let%success s1_type := TYPEOF S s1 using S in
   match s1_type with
@@ -1600,10 +1657,11 @@ Definition R_unary S (call op s1 : SEXP) : result SEXP :=
   | IntSxp => integer_unary S operation s1
   | RealSxp => real_unary S operation s1
   | CplxSxp => complex_unary S operation s1
-  | _ => result_error S "[R_unary] Invalid argument to unary operator."
+  | _ => result_error S "Invalid argument to unary operator."
   end.
 
 Definition R_integer_plus S x y :=
+  add%stack "R_integer_plus" in
   ifb x = NA_INTEGER \/ y = NA_INTEGER then
     result_success S NA_INTEGER
   else
@@ -1613,6 +1671,7 @@ Definition R_integer_plus S x y :=
     else result_success S (x + y)%Z.
 
 Definition R_integer_minus S x y :=
+  add%stack "R_integer_minus" in
   ifb x = NA_INTEGER \/ y = NA_INTEGER then
     result_success S NA_INTEGER
   else
@@ -1622,6 +1681,7 @@ Definition R_integer_minus S x y :=
     else result_success S (x - y)%Z.
 
 Definition R_integer_times S x y :=
+  add%stack "R_integer_times" in
   ifb x = NA_INTEGER \/ y = NA_INTEGER then
     result_success S NA_INTEGER
   else
@@ -1633,11 +1693,13 @@ Definition R_integer_times S x y :=
       result_success S NA_INTEGER.
 
 Definition R_integer_divide S x y :=
+  add%stack "R_integer_divide" in
   ifb x = NA_INTEGER \/ y = NA_INTEGER then
     result_success S NA_REAL
   else result_success S (Double.div (x : double) (y : double)).
 
 Definition do_arith S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_arith" in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
   let%success argc :=
@@ -1754,12 +1816,13 @@ Definition do_arith S (call op args env : SEXP) : result SEXP :=
     R_binary S call op arg1 arg2
   else ifb argc = 1 then
     R_unary S call op arg1
-  else result_error S "[do_arith] Operator needs one or two arguments.".
+  else result_error S "Operator needs one or two arguments.".
 
 Definition math1 S sa f (lcall : SEXP) :=
+  add%stack "math1" in
   let%success sa_in := isNumeric globals runs S sa using S in
   if negb sa_in then
-    result_error S "[math1] Non-numeric argument to mathematical function."
+    result_error S "Non-numeric argument to mathematical function."
   else
     let%success n := XLENGTH S sa using S in
     let%success sa := coerceVector globals runs S sa RealSxp using S in
@@ -1786,6 +1849,7 @@ Definition math1 S sa f (lcall : SEXP) :=
     result_success S sy.
 
 Definition do_math1 S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_math1" in
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
   if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
@@ -1801,7 +1865,7 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
       | 1 => MATH1 Double.floor
       | 2 => MATH1 Double.ceil
       | 3 => MATH1 Double.sqrt
-      | 4 => result_not_implemented "[do_math1] [sign]."
+      | 4 => result_not_implemented "[sign]."
       | 10 => MATH1 Double.exp
       | 11 => MATH1 Double.expm1
       | 12 => MATH1 Double.log1p
@@ -1814,17 +1878,17 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
       | 30 => MATH1 Double.cosh
       | 31 => MATH1 Double.sinh
       | 32 => MATH1 Double.tanh
-      | 33 => result_not_implemented "[do_math1] [acosh]."
-      | 34 => result_not_implemented "[do_math1] [asinh]."
-      | 35 => result_not_implemented "[do_math1] [atanh]."
-      | 40 => result_not_implemented "[do_math1] [lgammafn]."
-      | 41 => result_not_implemented "[do_math1] [gammafn]."
-      | 42 => result_not_implemented "[do_math1] [digamma]."
-      | 43 => result_not_implemented "[do_math1] [trigamma]."
-      | 47 => result_not_implemented "[do_math1] [cospi]."
-      | 48 => result_not_implemented "[do_math1] [sinpi]."
-      | 49 => result_not_implemented "[do_math1] [tanpi]."
-      | _ => result_error S "[do_math1] Unimplemented real function of 1 argument."
+      | 33 => result_not_implemented "[acosh]."
+      | 34 => result_not_implemented "[asinh]."
+      | 35 => result_not_implemented "[atanh]."
+      | 40 => result_not_implemented "[lgammafn]."
+      | 41 => result_not_implemented "[gammafn]."
+      | 42 => result_not_implemented "[digamma]."
+      | 43 => result_not_implemented "[trigamma]."
+      | 47 => result_not_implemented "[cospi]."
+      | 48 => result_not_implemented "[sinpi]."
+      | 49 => result_not_implemented "[tanpi]."
+      | _ => result_error S "Unimplemented real function of 1 argument."
       end.
 
 
@@ -1834,6 +1898,7 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
   in the file main/subset.c. **)
 
 Definition R_DispatchOrEvalSP S call op generic args rho :=
+  add%stack "R_DispatchOrEvalSP" in
   read%list args_car, args_cdr, _ := args using S in
   let%exit (prom, args) :=
     ifb args <> R_NilValue /\ args_car <> R_DotsSymbol then
@@ -1846,7 +1911,7 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
         let (S, ans) := CONS_NR globals S x elkm in
         run%success DECREMENT_LINKS S x using S in
         result_rreturn S (false, ans)
-      else result_not_implemented "[R_DispatchOrEvalSP] [R_mkEVPROMISE_NR]."
+      else result_not_implemented "[R_mkEVPROMISE_NR]."
     else result_rsuccess S (NULL, args) using S in
   let%success (disp, ans) :=
     DispatchOrEval globals runs S call op generic args rho false false using S in
@@ -1858,6 +1923,7 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
   result_success S (disp, ans).
 
 Definition scalarIndex S s :=
+  add%stack "scalarIndex" in
   let%success s_attr := ATTRIB S s using S in
   ifb s_attr = R_NilValue then
     if%success IS_SCALAR S s IntSxp using S then
@@ -1874,9 +1940,11 @@ Definition scalarIndex S s :=
   else result_success S (-1)%Z.
 
 Definition ExtractDropArg (S : state) (el : SEXP) : result int :=
-  result_not_implemented "[ExtractDropArg].".
+  add%stack "ExtractDropArg" in
+  result_not_implemented "".
 
 Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_subset_dflt" in
   read%list args_car, args_cdr, _ := args using S in
   let cdrArgs := args_cdr in
   read%list cdrArgs_car, cdrArgs_cdr, cdrArgs_tag := cdrArgs using S in
@@ -1918,7 +1986,7 @@ Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
             let (S, r) := ScalarComplex globals S x_imu in
             result_rreturn S r
           else result_rskip S
-        | RawSxp => result_not_implemented "[do_subset_dflt] Raw case."
+        | RawSxp => result_not_implemented "Raw case."
         | _ => result_rskip S
         end
       else result_rskip S
@@ -1969,7 +2037,7 @@ Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
                 let (S, r) := ScalarComplex globals S x_k in
                 result_rreturn S r
               else result_rskip S
-            | RawSxp => result_not_implemented "[do_subset_dflt] Raw case."
+            | RawSxp => result_not_implemented "Raw case."
             | _ => result_rskip S
             end
           else result_rskip S
@@ -1983,9 +2051,10 @@ Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
   else
     let subs := args_cdr in
     let%success nsubs := R_length globals runs S subs using S in
-    result_not_implemented "[do_subset_dflt]".
+    result_not_implemented "".
 
 Definition do_subset S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_subset" in
   let%success (disp, ans) := R_DispatchOrEvalSP S call op "[" args rho using S in
   if disp then
     run%success
@@ -2004,6 +2073,7 @@ Definition do_subset S (call op args rho : SEXP) : result SEXP :=
   in the file main/relop.c. **)
 
 Definition DO_SCALAR_RELOP_int S (oper x y : int) :=
+  add%stack "DO_SCALAR_RELOP_int" in
   ifb oper = EQOP then
     result_success S (ScalarLogical globals (decide (x = y)))
   else ifb oper = NEOP then
@@ -2016,9 +2086,10 @@ Definition DO_SCALAR_RELOP_int S (oper x y : int) :=
     result_success S (ScalarLogical globals (decide (x <= y)))
   else ifb oper = GEOP then
     result_success S (ScalarLogical globals (decide (x >= y)))
-  else result_impossible S "[DO_SCALAR_RELOP_int] Unknown constructor.".
+  else result_impossible S "Unknown constructor.".
 
 Definition DO_SCALAR_RELOP_double S (oper : int) (x y : double) :=
+  add%stack "DO_SCALAR_RELOP_double" in
   ifb oper = EQOP then
     result_success S (ScalarLogical globals (decide (x = y)))
   else ifb oper = NEOP then
@@ -2031,7 +2102,7 @@ Definition DO_SCALAR_RELOP_double S (oper : int) (x y : double) :=
     result_success S (ScalarLogical globals (decide (x <= y)))
   else ifb oper = GEOP then
     result_success S (ScalarLogical globals (decide (x >= y)))
-  else result_impossible S "[DO_SCALAR_RELOP_double] Unknown constructor.".
+  else result_impossible S "Unknown constructor.".
 
 Definition ISNA_INT x :=
   decide (x = NA_INTEGER).
@@ -2039,6 +2110,7 @@ Definition ISNA_INT x :=
 (** The next three functions are originally untyped as they are defined
   in preprocessor.  Their translations into Coq are thus more flexible. **)
 Definition NR_HELPER T1 T2 S (op : T1 -> T2 -> bool) ans n n1 n2 read1 read2 (ISNA1 ISNA2 : _ -> bool) :=
+  add%stack "NR_HELPER" in
   do%let for i from 0 to n - 1 do
     let i1 := i mod n1 in
     let i2 := i mod n2 in
@@ -2052,6 +2124,7 @@ Definition NR_HELPER T1 T2 S (op : T1 -> T2 -> bool) ans n n1 n2 read1 read2 (IS
       result_skip S using S.
 
 Definition NUMERIC_RELOP_int S (code : int) ans n n1 n2 read1 read2 (ISNA1 ISNA2 : int -> bool) :=
+  add%stack "NUMERIC_RELOP_int" in
   ifb code = EQOP then
     NR_HELPER S (fun x1 x2 => decide (x1 = x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
   else ifb code = NEOP then
@@ -2064,10 +2137,11 @@ Definition NUMERIC_RELOP_int S (code : int) ans n n1 n2 read1 read2 (ISNA1 ISNA2
     NR_HELPER S (fun x1 x2 => decide (x1 <= x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
   else ifb code = GEOP then
     NR_HELPER S (fun x1 x2 => decide (x1 >= x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
-  else result_impossible S "[NUMERIC_RELOP_int] Unknown constructor.".
+  else result_impossible S "Unknown constructor.".
 
 Definition NUMERIC_RELOP_double T1 T2 (id1 : T1 -> double) (id2 : T2 -> double) S
     (code : int) ans n n1 n2 read1 read2 ISNA1 ISNA2 :=
+  add%stack "NUMERIC_RELOP_double" in
   ifb code = EQOP then
     NR_HELPER S (fun x1 x2 => decide (id1 x1 = id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
   else ifb code = NEOP then
@@ -2080,9 +2154,10 @@ Definition NUMERIC_RELOP_double T1 T2 (id1 : T1 -> double) (id2 : T2 -> double) 
     NR_HELPER S (fun x1 x2 => decide (id1 x1 <= id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
   else ifb code = GEOP then
     NR_HELPER S (fun x1 x2 => decide (id1 x1 >= id2 x2)) ans n n1 n2 read1 read2 ISNA1 ISNA2
-  else result_impossible S "[NUMERIC_RELOP_double] Unknown constructor.".
+  else result_impossible S "Unknown constructor.".
 
 Definition numeric_relop S code s1 s2 :=
+  add%stack "numeric_relop" in
   let%success n1 := XLENGTH S s1 using S in
   let%success n2 := XLENGTH S s2 using S in
   let n := ifb n1 > n2 then n1 else n2 in
@@ -2110,6 +2185,7 @@ Definition numeric_relop S code s1 s2 :=
   result_success S ans.
 
 Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
+  add%stack "do_relop_dflt" in
   let%success op_val := PRIMVAL runs S op using S in
   run%exit
     if%success IS_SIMPLE_SCALAR globals S x IntSxp using S then
@@ -2159,9 +2235,10 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
       /\ nx > 0 /\ ny > 0 /\ (nx = 1 \/ ny = 1) then
     numeric_relop S op_val x y
   else
-    result_not_implemented "[do_relop_dflt]".
+    result_not_implemented "".
 
 Definition do_relop S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_relop" in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
   let%success argc :=
@@ -2183,7 +2260,7 @@ Definition do_relop S (call op args env : SEXP) : result SEXP :=
       else result_rskip S
     else result_rskip S using S in
   ifb argc <> 2 then
-    result_error S "[do_relop] Operator needs two arguments."
+    result_error S "Operator needs two arguments."
   else do_relop_dflt S call op arg1 arg2.
 
 
@@ -2193,25 +2270,26 @@ Definition do_relop S (call op args env : SEXP) : result SEXP :=
   in the file main/names.c. **)
 
 Definition do_internal S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_internal" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let s := args_car in
   let%success pl := isPairList S s using S in
   run%success
     ifb ~ pl then
-      result_error S "[do_internal] Invalid .Internal() argument."
+      result_error S "Invalid .Internal() argument."
     else result_skip S using S in
   read%list s_car, s_cdr, _ := s using S in
   let sfun := s_car in
   let%success isym := isSymbol S sfun using S in
   run%success
     ifb ~ isym then
-      result_error S "[do_internal] Invalid .Internal() argument."
+      result_error S "Invalid .Internal() argument."
     else result_skip S using S in
   read%sym _, sfun_sym := sfun using S in
   run%success
     ifb sym_internal sfun_sym = R_NilValue then
-      result_error S "[do_internal] There is no such .Internal() function."
+      result_error S "There is no such .Internal() function."
     else result_skip S using S in
   let%success args :=
     let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
@@ -2244,26 +2322,28 @@ Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
   end.
 
 Definition R_Primitive S primname :=
+  add%stack "R_Primitive" in
   let%success R_FunTab := get_R_FunTab runs S using S in
   R_Primitive_loop S R_FunTab primname (ArrayList.length R_FunTab).
 
 Definition do_primitive S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_primitive" in
   run%success Rf_checkArityCall S op args call using S in
   read%list args_car, _, _ := args using S in
   let name := args_car in
   let%success ist := isString S name using S in
   let%success len := LENGTH globals S name using S in
   ifb ~ ist \/ len <> 1 then
-    result_error S "[do_primitive] String argument required."
+    result_error S "String argument required."
   else
     let%success strel := STRING_ELT S name 0 using S in
     ifb strel = R_NilValue then
-      result_error S "[do_primitive] String argument required."
+      result_error S "String argument required."
     else
       let%success strel_ := CHAR S strel using S in
       let%success prim := R_Primitive S strel_ using S in
       ifb prim = R_NilValue then
-        result_error S "[do_primitive] No such primitive function."
+        result_error S "No such primitive function."
       else result_success S prim.
 
 
@@ -2271,6 +2351,7 @@ Definition do_primitive S (call op args env : SEXP) : result SEXP :=
   the structure of type [funtab_cell] in addition to its range in the
   array [R_FunTab]. **)
 Definition installFunTab S c offset : result unit :=
+  add%stack "installFunTab" in
   let%success prim :=
     mkPRIMSXP globals runs S offset (funtab_eval_arg_eval (fun_eval c)) using S in
   let%success p := install globals runs S (fun_name c) using S in
@@ -2310,7 +2391,8 @@ End Parameters.
 
 Definition dummy_function name (_ : Globals) (_ : runs_type)
     (S : state) (call op args rho : SEXP) : result SEXP :=
-  result_not_implemented ("[" ++ name ++ "]").
+  add%stack name in
+  result_not_implemented "".
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; try typeclass; constructors; typeclass.

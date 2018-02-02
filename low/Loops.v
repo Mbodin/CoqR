@@ -537,15 +537,6 @@ Definition get_success {A B} S (r : normal_return A B) cont
   end.
 
 
-Notation "'do%return' 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
-  (run%exit
-     do%let ret := normal_result tt
-     while continue_and_condition S ret (fun S _ => expr)
-     do stat
-     using S, runs
-   using S in cont)
-  (at level 50, left associativity) : monad_scope.
-
 Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
   (let%exit a :=
      do%let a := normal_result e
@@ -553,6 +544,14 @@ Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' S ',' runs 'in' co
      do get_success S a (fun S a => stat)
      using S, runs
    using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return _ := tt
+   while expr
+   do stat
+   using S, runs
+   in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%return' '(' a1 ',' a2 ')' ':=' e 'while' expr 'do' stat 'using' S ',' runs 'in' cont" :=
@@ -743,13 +742,13 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'al
 Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> context_type -> result A) : result A :=
   match f S mask with
   | result_success S0 a => result_success S0 a
-  | result_error S0 s => result_error S0 s
   | result_longjump S0 n mask =>
     ifb cjmpbuf = n then
       runs_set_longjump runs S0 mask cjmpbuf f
     else result_longjump S0 n mask
-  | result_impossible S0 s => result_impossible S0 s
-  | result_not_implemented s => result_not_implemented s
+  | result_error_stack S0 stack s => result_error_stack S0 stack s
+  | result_impossible_stack S0 stack s => result_impossible_stack S0 stack s
+  | result_not_implemented_stack stack s => result_not_implemented_stack stack s
   | result_bottom S0 => result_bottom S0
   end.
 
@@ -970,6 +969,57 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for
      do body
      using S using S in
    cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' a ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%exit a :=
+     do%let ret := normal_result e
+     for i from start to last
+     do get_success S ret (fun S a => body)
+     using S using S in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit _ := tt
+   for i from start to last
+   do body using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' '(' a1 ',' a2 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit a := e
+   for i from start to last
+   do let (a1, a2) := a in body using S
+   in let (a1, a2) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' '(' a1 ',' a2 ',' a3 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit a := e
+   for i from start to last
+   do let '(a1, a2, a3) := a in body using S
+   in let '(a1, a2, a3) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit a := e
+   for i from start to last
+   do let '(a1, a2, a3, a4) := a in body using S
+   in let '(a1, a2, a3, a4) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit a := e
+   for i from start to last
+   do let '(a1, a2, a3, a4, a5) := a in body using S
+   in let '(a1, a2, a3, a4, a5) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (do%exit a := e
+   for i from start to last
+   do let '(a1, a2, a3, a4, a5, a6) := a in body using S
+   in let '(a1, a2, a3, a4, a5, a6) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 

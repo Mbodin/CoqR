@@ -23,15 +23,17 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 Definition get_R_FunTab S :=
+  add%stack "get_R_FunTab" in
   match runs_R_FunTab runs with
   | None => result_bottom S
   | Some t => result_success S t
   end.
 
 Definition read_R_FunTab S n :=
+  add%stack "read_R_FunTab" in
   let%success t := get_R_FunTab S using S in
   ifb n >= ArrayList.length t then
-    result_impossible S "[read_R_FunTab] Out of bounds."
+    result_impossible S "Out of bounds."
   else
     let c := ArrayList.read t n in
     result_success S c.
@@ -98,39 +100,48 @@ Definition ISNAN (x : double) :=
   in the file include/Rinternals.h. **)
 
 Definition TYPEOF S x :=
+  add%stack "TYPEOF" in
   read%defined x_ := x using S in
   result_success S (type x_).
 
 Definition OBJECT S x :=
+  add%stack "OBJECT" in
   read%defined x_ := x using S in
   result_success S (obj x_).
 
 Definition PRINTNAME S x :=
+  add%stack "PRINTNAME" in
   read%sym _, x_sym := x using S in
   result_success S (sym_pname x_sym).
 
 Definition CHAR S x :=
+  add%stack "CHAR" in
   read%VectorChar x_vector := x using S in
   result_success S (list_to_string (ArrayList.to_list x_vector)).
 
 Definition MISSING S x :=
+  add%stack "MISSING" in
   read%defined x_ := x using S in
   result_success S (nbits_to_nat (sub_nbits 0 4 (gp x_) ltac:(nbits_ok))).
 
 Definition SET_MISSING S e (m : nat) I :=
+  add%stack "SET_MISSING" in
   map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) using S in
   result_skip S.
 Arguments SET_MISSING : clear implicits.
 
 Definition ATTRIB S x :=
+  add%stack "ATTRIB" in
   read%defined x_ := x using S in
   result_success S (attrib x_).
 
 Definition NAMED S x :=
+  add%stack "NAMED" in
   read%defined x_ := x using S in
   result_success S (named x_).
 
 Definition INCREMENT_NAMED S x :=
+  add%stack "INCREMENT_NAMED" in
   let%success x_named := NAMED S x using S in
   match x_named with
   | named_temporary =>
@@ -144,9 +155,11 @@ Definition INCREMENT_NAMED S x :=
   end.
 
 Definition INCREMENT_LINKS S x :=
+  add%stack "INCREMENT_LINKS" in
   INCREMENT_NAMED S x.
 
 Definition DECREMENT_NAMED S x :=
+  add%stack "DECREMENT_NAMED" in
   let%success x_named := NAMED S x using S in
   match x_named with
   | named_temporary =>
@@ -160,95 +173,117 @@ Definition DECREMENT_NAMED S x :=
   end.
 
 Definition DECREMENT_LINKS S x :=
+  add%stack "DECREMENT_LINKS" in
   DECREMENT_NAMED S x.
 
 Definition NO_REFERENCES S x :=
+  add%stack "NO_REFERENCES" in
   let%success x_named := NAMED S x using S in
   result_success S (decide (x_named = named_temporary)).
 
 Definition DDVAL_BIT := 0.
 
 Definition DDVAL S x :=
+  add%stack "DDVAL" in
   read%defined x_ := x using S in
   result_success S (nth_bit DDVAL_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition SET_DDVAL_BIT S x :=
+  add%stack "SET_DDVAL_BIT" in
   map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) true using S in
   result_skip S.
 
 Definition UNSET_DDVAL_BIT S x :=
+  add%stack "UNSET_DDVAL_BIT" in
   map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) false using S in
   result_skip S.
 
 Definition SET_DDVAL S x v :=
+  add%stack "SET_DDVAL" in
   map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) v using S in
   result_skip S.
 
 Definition S4_OBJECT_BIT := 4.
 
 Definition IS_S4_OBJECT S x :=
+  add%stack "IS_S4_OBJECT" in
   read%defined x_ := x using S in
   result_success S (nth_bit S4_OBJECT_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition SET_S4_OBJECT S x :=
+  add%stack "SET_S4_OBJECT" in
   map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) true using S in
   result_skip S.
 
 Definition UNSET_S4_OBJECT S x :=
+  add%stack "UNSET_S4_OBJECT" in
   map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) false using S in
   result_skip S.
 
 Definition IS_SCALAR S x t :=
+  add%stack "IS_SCALAR" in
   read%defined x_ := x using S in
   result_success S (decide (type x_ = t /\ scalar x_)).
 
 Definition IS_SIMPLE_SCALAR S x t :=
+  add%stack "IS_SIMPLE_SCALAR" in
   let%success x_scal := IS_SCALAR S x t using S in
   read%defined x_ := x using S in
   result_success S (decide (x_scal /\ attrib x_ = R_NilValue)).
 
 Definition isLogical S s :=
+  add%stack "isLogical" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = LglSxp)).
 
 Definition IS_LOGICAL := isLogical.
 
 Definition isSymbol S s :=
+  add%stack "isSymbol" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = SymSxp)).
 
 Definition isString S s :=
+  add%stack "isString" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = StrSxp)).
 
 Definition isNull S s :=
+  add%stack "isNull" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = NilSxp)).
 
 Definition isComplex S s :=
+  add%stack "isComplex" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = CplxSxp)).
 
 Definition isObject S s :=
+  add%stack "isObject" in
   OBJECT S s.
 
 Definition isEnvironment S s :=
+  add%stack "isEnvironment" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = EnvSxp)).
 
 Definition isByteCode S x :=
+  add%stack "isByteCode" in
   let%success x_type := TYPEOF S x using S in
   result_success S (decide (x_type = BcodeSxp)).
 
 Definition BCODE_CODE S x :=
+  add%stack "BCODE_CODE" in
   read%list x_car, _, _ := x using S in
   result_success S x_car.
 
 Definition BCODE_CONSTS S x :=
+  add%stack "BCODE_CONSTS" in
   read%list _, x_cdr, _ := x using S in
   result_success S x_cdr.
 
 Definition BCODE_EXPR S x :=
+  add%stack "BCODE_EXPR" in
   read%list _, _, x_tag := x using S in
   result_success S x_tag.
 
@@ -261,62 +296,75 @@ Definition BCODE_EXPR S x :=
 Definition SPECIAL_SYMBOL_BIT := 12.
 
 Definition IS_SPECIAL_SYMBOL S b :=
+  add%stack "IS_SPECIAL_SYMBOL" in
   read%defined b_ := b using S in
   result_success S (nth_bit SPECIAL_SYMBOL_BIT (gp b_) ltac:(nbits_ok)).
 
 (** This macro definition was already redundant in C. **)
 Definition NO_SPECIAL_SYMBOLS S x :=
+  add%stack "NO_SPECIAL_SYMBOLS" in
   read%defined x_ := x using S in
   result_success S (nth_bit SPECIAL_SYMBOL_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition SET_SPECIAL_SYMBOL S x v :=
+  add%stack "SET_SPECIAL_SYMBOL" in
   map%gp x with @write_nbit 16 SPECIAL_SYMBOL_BIT ltac:(nbits_ok) v using S in
   result_skip S.
 
 Definition ACTIVE_BINDING_BIT := 15.
 
 Definition IS_ACTIVE_BINDING S symbol :=
+  add%stack "IS_ACTIVE_BINDING" in
   read%defined symbol_ := symbol using S in
   result_success S (nth_bit ACTIVE_BINDING_BIT (gp symbol_) ltac:(nbits_ok)).
 
 Definition BINDING_LOCK_BIT := 14.
 
 Definition BINDING_IS_LOCKED S symbol :=
+  add%stack "BINDING_IS_LOCKED" in
   read%defined symbol_ := symbol using S in
   result_success S (nth_bit BINDING_LOCK_BIT (gp symbol_) ltac:(nbits_ok)).
 
 Definition CACHED_BIT := 5.
 
 Definition SET_CACHED S x v :=
+  add%stack "SET_CACHED" in
   map%gp x with @write_nbit 16 CACHED_BIT ltac:(nbits_ok) v using S in
   result_skip S.
 
 Definition IS_CACHED S x :=
+  add%stack "IS_CACHED" in
   read%defined x_ := x using S in
   result_success S (nth_bit CACHED_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition PRSEEN S x :=
+  add%stack "PRSEEN" in
   read%defined x_ := x using S in
   result_success S (nbits_to_nat (gp x_)).
 
 Definition SET_PRSEEN S x v I :=
+  add%stack "SET_PRSEEN" in
   set%gp x with @nat_to_nbits 16 v I using S in
   result_skip S.
 Arguments SET_PRSEEN : clear implicits.
 
 Definition PRSEEN_direct S x :=
+  add%stack "PRSEEN_direct" in
   read%defined x_ := x using S in
   result_success S (gp x_).
 
 Definition SET_PRSEEN_direct S x v :=
+  add%stack "SET_PRSEEN_direct" in
   set%gp x with v using S in
   result_skip S.
 
 Definition PRENV S p :=
+  add%stack "PRENV" in
   read%prom _, p_prom := p using S in
   result_success S (prom_env p_prom).
 
 Definition PRVALUE S p :=
+  add%stack "PRVALUE" in
   read%prom _, p_prom := p using S in
   result_success S (prom_value p_prom).
 
@@ -328,17 +376,21 @@ Definition PRVALUE S p :=
 
 (** This is a simplification of the real [duplicate1] function. **)
 Definition duplicate1 S s (deep : bool) :=
+  add%stack "duplicate1" in
   read%defined s_ := s using S in
   let (S, s) := alloc_SExp S s_ in
   result_success S s.
 
 Definition duplicate S s :=
+  add%stack "duplicate" in
   duplicate1 S s true.
 
 Definition shallow_duplicate S s :=
+  add%stack "shallow_duplicate" in
   duplicate1 S s false.
 
 Definition lazy_duplicate S s :=
+  add%stack "lazy_duplicate" in
   let%success s_t := TYPEOF S s using S in
   run%success
     match s_t with
@@ -369,7 +421,7 @@ Definition lazy_duplicate S s :=
       map%pointer s with set_named_plural using S in
       result_skip S
     | _ =>
-      result_error S "[lazy_duplicate] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S s.
 
@@ -378,6 +430,7 @@ Definition lazy_duplicate S s :=
   include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
   dependency. **)
 Definition isPairList S s :=
+  add%stack "isPairList" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | NilSxp
@@ -393,6 +446,7 @@ Definition isPairList S s :=
   include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
   dependency.**)
 Definition isVectorList S s :=
+  add%stack "isVectorList" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | VecSxp
@@ -403,6 +457,7 @@ Definition isVectorList S s :=
   end.
 
 Definition isVector S s :=
+  add%stack "isVector" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | LglSxp
@@ -419,6 +474,7 @@ Definition isVector S s :=
   end.
 
 Definition R_cycle_detected S s child :=
+  add%stack "R_cycle_detected" in
   let%success child_type := TYPEOF S child using S in
   ifb s = child then
     match child_type with
@@ -490,18 +546,21 @@ Definition allocList S (n : nat) : state * SEXP :=
   in aux S n R_NilValue.
 
 Definition STRING_ELT S (x : SEXP) i : result SEXP :=
+  add%stack "STRING_ELT" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> StrSxp then
-    result_error S "[STRING_ELT] Not a character vector."
+    result_error S "Not a character vector."
   else
     read%Pointer r := x at i using S in
     result_success S r.
 
 Definition VECTOR_ELT S x i :=
+  add%stack "VECTOR_ELT" in
   read%Pointer x_i := x at i using S in
   result_success S x_i.
 
 Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
+  add%stack "SHALLOW_DUPLICATE_ATTRIB" in
   read%defined vfrom_ := vfrom using S in
   let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
   map%pointer vto with set_obj (obj vfrom_) using S in
@@ -517,6 +576,7 @@ Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
   [NewEnvironment]. These two functions are exactly the same.
   This is a relatively frequent scheme in R source code. **)
 Definition NewEnvironment S (namelist valuelist rho : SEXP) : result SEXP :=
+  add%stack "NewEnvironment" in
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
   while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
@@ -528,6 +588,7 @@ Definition NewEnvironment S (namelist valuelist rho : SEXP) : result SEXP :=
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
 Definition mkPromise S (expr rho : SEXP) : result SEXP :=
+  add%stack "mkPromise" in
   map%pointer expr with set_named_plural using S in
   let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
   result_success S s.
@@ -539,12 +600,13 @@ Definition mkPromise S (expr rho : SEXP) : result SEXP :=
   in the file main/dstruct.c. **)
 
 Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
+  add%stack "mkPRIMSXP" in
   let type := if type then BuiltinSxp else SpecialSxp in
   let%success R_FunTab := get_R_FunTab S using S in
   let FunTabSize := ArrayList.length R_FunTab in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
   ifb offset >= FunTabSize then
-    result_error S "[mkPRIMSXP] Offset is out of range"
+    result_error S "Offset is out of range"
   else
     read%Pointer result := mkPRIMSXP_primCache at offset using S in
     ifb result = R_NilValue then
@@ -554,10 +616,11 @@ Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
     else
       let%success result_type := TYPEOF S result using S in
       ifb result_type <> type then
-        result_error S "[mkPRIMSXP] Requested primitive type is not consistent with cached value."
+        result_error S "Requested primitive type is not consistent with cached value."
       else result_success S result.
 
 Definition mkCLOSXP S (formals body rho : SEXP) :=
+  add%stack "mkCLOSXP" in
   let%success body_type := TYPEOF S body using S in
   match body_type with
   | CloSxp
@@ -565,7 +628,7 @@ Definition mkCLOSXP S (formals body rho : SEXP) :=
   | SpecialSxp
   | DotSxp
   | AnySxp =>
-    result_error S "[mkCLOSXP] Invalid body argument."
+    result_error S "Invalid body argument."
   | _ =>
     let env :=
       ifb rho = R_NilValue then
@@ -620,8 +683,9 @@ Definition alloc_vector_expr S v_data : state * SEXP :=
 (** Note: using [arbitrary] would here be more natural than these default values
   for the base cases, but it would not behave well in the extraction. **)
 Definition allocVector S type (length : nat) :=
+  add%stack "allocVector" in
   ifb (length : int) > R_XLEN_T_MAX then
-    result_error S "[allocVector] Vector is too large"
+    result_error S "Vector is too large"
   else
     let alloc {T} (allocator : state -> ArrayList.array T -> state * SEXP) (base : T) :=
       let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
@@ -630,7 +694,7 @@ Definition allocVector S type (length : nat) :=
     | NilSxp =>
       result_success S (R_NilValue : SEXP)
     | RawSxp =>
-      result_not_implemented "[allocVector] Raw type."
+      result_not_implemented "Raw type."
     | CharSxp =>
       alloc alloc_vector_char Ascii.zero
     | LglSxp =>
@@ -656,7 +720,7 @@ Definition allocVector S type (length : nat) :=
     | ListSxp =>
       let (S, s) := allocList S length in
       result_success S s
-    | _ => result_error S "[allocVector] Invalid type in vector allocation."
+    | _ => result_error S "Invalid type in vector allocation."
     end.
 
 Definition ScalarLogical x : SEXP :=
@@ -676,9 +740,10 @@ Definition ScalarComplex S x : state * SEXP :=
   alloc_vector_cplx S (ArrayList.from_list [x]).
 
 Definition ScalarString S (x : SEXP) : result SEXP :=
+  add%stack "ScalarString" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
-    result_error S "[ScalarString] The given argument is not of type ‘CharSxp’."
+    result_error S "The given argument is not of type ‘CharSxp’."
   else
     let (S, s) := alloc_vector_str S (ArrayList.from_list [x]) in
     result_success S s.
@@ -686,6 +751,7 @@ Definition ScalarString S (x : SEXP) : result SEXP :=
 
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
+  add%stack "R_length" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | NilSxp => result_success S 0
@@ -711,12 +777,13 @@ Definition R_length S s :=
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
-    result_not_implemented "[R_length] Rf_envlength"
+    result_not_implemented "Rf_envlength"
   | _ =>
     result_success S 1
   end.
 
 Definition inherits S s name :=
+  add%stack "inherits" in
   read%defined s_ := s using S in
   if obj s_ then
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
@@ -731,6 +798,7 @@ Definition inherits S s name :=
   else result_success S false.
 
 Definition isVectorAtomic S s :=
+  add%stack "isVectorAtomic" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | LglSxp
@@ -743,19 +811,23 @@ Definition isVectorAtomic S s :=
   end.
 
 Definition isInteger S s :=
+  add%stack "isInteger" in
   let%success s_type := TYPEOF S s using S in
   let%success inh := inherits S s "factor" using S in
   result_success S (decide (s_type = IntSxp /\ ~ inh)).
 
 Definition isList S s :=
+  add%stack "isList" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s = R_NilValue \/ s_type = ListSxp)).
 
 Definition isLanguage S s :=
+  add%stack "isLanguage" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s = R_NilValue \/ s_type = LangSxp)).
 
 Definition isNumeric S s :=
+  add%stack "isNumeric" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | IntSxp =>
@@ -768,6 +840,7 @@ Definition isNumeric S s :=
   end.
 
 Definition isNumber S s :=
+  add%stack "isNumber" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | IntSxp =>
@@ -781,49 +854,58 @@ Definition isNumber S s :=
   end.
 
 Definition isFrame S s :=
+  add%stack "isFrame" in
   if%success OBJECT S s using S then
     let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
     let%success klass_len := R_length S klass using S in
-    do%return i := 0
-    while result_success S (decide (i < klass_len)) do
+    do%exit
+    for i from 0 to klass_len - 1 do
       let%success str := STRING_ELT S klass i using S in
       let%success str_ := CHAR S str using S in
       ifb str_ = "data.frame"%string then
         result_rreturn S true
-      else result_rsuccess S (1 + i) using S, runs in
+      else result_rskip S using S in
     result_success S false
   else result_success S false.
 
 Definition isNewList S s :=
+  add%stack "isNewList" in
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s = R_NilValue \/ s_type = VecSxp)).
 
 Definition SCALAR_LVAL S x :=
+  add%stack "SCALAR_LVAL" in
   read%Logical r := x at 0 using S in
   result_success S r.
 
 Definition SCALAR_IVAL S x :=
+  add%stack "SCALAR_IVAL" in
   read%Integer r := x at 0 using S in
   result_success S r.
 
 Definition SCALAR_DVAL S x :=
+  add%stack "SCALAR_DVAL" in
   read%Real r := x at 0 using S in
   result_success S r.
 
 Definition SET_SCALAR_LVAL S x v :=
+  add%stack "SET_SCALAR_LVAL" in
   write%Logical x at 0 := v using S in
   result_skip S.
 
 Definition SET_SCALAR_IVAL S x v :=
+  add%stack "SET_SCALAR_IVAL" in
   write%Integer x at 0 := v using S in
   result_skip S.
 
 Definition SET_SCALAR_DVAL S x v :=
+  add%stack "SET_SCALAR_DVAL" in
   write%Real x at 0 := v using S in
   result_skip S.
 
 
 Definition lcons S car cdr :=
+  add%stack "lcons" in
   let (S, e) := CONS S car cdr in
   map%pointer e with set_type LangSxp using S in
   result_success S e.
@@ -852,30 +934,37 @@ Definition list6 S s t u v w x :=
   CONS S s l.
 
 Definition lang1 S s :=
+  add%stack "lang1" in
   lcons S s R_NilValue.
 
 Definition lang2 S s t :=
+  add%stack "lang2" in
   let (S, l) := list1 S t in
   lcons S s l.
 
 Definition lang3 S s t u :=
+  add%stack "lang3" in
   let (S, l) := list2 S t u in
   lcons S s l.
 
 Definition lang4 S s t u v :=
+  add%stack "lang4" in
   let (S, l) := list3 S t u v in
   lcons S s l.
 
 Definition lang5 S s t u v w :=
+  add%stack "lang5" in
   let (S, l) := list4 S t u v w in
   lcons S s l.
 
 Definition lang6 S s t u v w x :=
+  add%stack "lang6" in
   let (S, l) := list5 S t u v w x in
   lcons S s l.
 
 
 Definition R_FixupRHS S x y :=
+  add%stack "R_FixupRHS" in
   let%success y_named := NAMED S y using S in
   ifb y <> R_NilValue /\ y_named <> named_temporary then
     if%success R_cycle_detected S x y using S then
@@ -886,12 +975,14 @@ Definition R_FixupRHS S x y :=
   else result_success S y.
 
 Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
-  result_not_implemented "[ALTREP_LENGTH]".
+  add%stack "ALTREP_LENGTH" in
+  result_not_implemented "".
 
 Definition STDVEC_LENGTH S x :=
+  add%stack "STDVEC_LENGTH" in
   read%defined x_ := x using S in
   match x_ with
-  | SExpRec_NonVector _ => result_impossible S "[STDVEC_LENGTH] Not a vector."
+  | SExpRec_NonVector _ => result_impossible S "Not a vector."
   | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
   | SExpRec_VectorLogical x_ => result_success S (VecSxp_length x_)
   | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
@@ -901,6 +992,7 @@ Definition STDVEC_LENGTH S x :=
   end.
 
 Definition XLENGTH_EX S x :=
+  add%stack "XLENGTH_EX" in
   read%defined x_ := x using S in
   if alt x_ then ALTREP_LENGTH S x
   else STDVEC_LENGTH S x.
@@ -908,6 +1000,7 @@ Definition XLENGTH_EX S x :=
 Definition XLENGTH := XLENGTH_EX.
 
 Definition LENGTH_EX S (x : SEXP) :=
+  add%stack "LENGTH_EX" in
   ifb x = R_NilValue then
     result_success S 0
   else XLENGTH S x.
@@ -915,6 +1008,7 @@ Definition LENGTH_EX S (x : SEXP) :=
 Definition LENGTH := LENGTH_EX.
 
 Definition xlength S s :=
+  add%stack "xlength" in
   let%success s_type := TYPEOF S s using S in
   match s_type with
   | NilSxp =>
@@ -938,16 +1032,18 @@ Definition xlength S s :=
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
-    result_not_implemented "[xlength] [Rf_envlength]"
+    result_not_implemented "[Rf_envlength]."
   | _ =>
     result_success S 1
   end.
 
 Definition ALTLOGICAL_ELT S x i :=
+  add%stack "ALTLOGICAL_ELT" in
   read%Logical x_i := x at i using S in
   result_success S x_i.
 
 Definition LOGICAL_ELT S x i :=
+  add%stack "LOGICAL_ELT" in
   read%defined x_ := x using S in
   ifb alt x_ then ALTLOGICAL_ELT S x i
   else
@@ -955,9 +1051,11 @@ Definition LOGICAL_ELT S x i :=
     result_success S x_i.
 
 Definition ALTINTEGER_ELT (S : state) (x : SEXP) (i : nat) : result int :=
-  result_not_implemented "[ALTINTEGER_ELT]".
+  add%stack "ALTINTEGER_ELT" in
+  result_not_implemented "".
 
 Definition INTEGER_ELT S x i :=
+  add%stack "INTEGER_ELT" in
   read%defined x_ := x using S in
   ifb alt x_ then ALTINTEGER_ELT S x i
   else
@@ -965,9 +1063,11 @@ Definition INTEGER_ELT S x i :=
     result_success S x_i.
 
 Definition ALTREAL_ELT (S : state) (x : SEXP) (i : nat) : result double :=
-  result_not_implemented "[ALTREAL_ELT]".
+  add%stack "ALTREAL_ELT" in
+  result_not_implemented "".
 
 Definition REAL_ELT S x i :=
+  add%stack "REAL_ELT" in
   read%defined x_ := x using S in
   ifb alt x_ then ALTREAL_ELT S x i
   else
@@ -975,9 +1075,11 @@ Definition REAL_ELT S x i :=
     result_success S x_i.
 
 Definition ALTCOMPLEX_ELT (S : state) (x : SEXP) (i : nat) : result Rcomplex :=
-  result_not_implemented "[ALTCOMPLEX_ELT]".
+  add%stack "ALTCOMPLEX_ELT" in
+  result_not_implemented "".
 
 Definition COMPLEX_ELT S x i :=
+  add%stack "COMPLEX_ELT" in
   read%defined x_ := x using S in
   ifb alt x_ then ALTCOMPLEX_ELT S x i
   else
@@ -985,10 +1087,12 @@ Definition COMPLEX_ELT S x i :=
     result_success S x_i.
 
 Definition ALTRAW_ELT S x i :=
+  add%stack "ALTRAW_ELT" in
   read%Pointer x_i := x at i using S in
   result_success S x_i.
 
 Definition RAW_ELT S x i :=
+  add%stack "RAW_ELT" in
   read%defined x_ := x using S in
   ifb alt x_ then ALTRAW_ELT S x i
   else
@@ -996,18 +1100,19 @@ Definition RAW_ELT S x i :=
     result_success S x_i.
 
 Definition isVectorizable S (s : SEXP) :=
+  add%stack "isVectorizable" in
   ifb s = R_NilValue then
     result_success S true
   else if%success isNewList S s using S then
     let%success n := XLENGTH S s using S in
-    do%return i := 0
-    while result_success S (decide (i < n)) do
+    do%exit
+    for i from 0 to n - 1 do
       let%success s_i := VECTOR_ELT S s i using S in
       let%success s_i_iv := isVector S s_i using S in
       let%success s_i_len := LENGTH S s_i using S in
       ifb ~ s_i_iv \/ s_i_len > 1 then
         result_rreturn S false
-      else result_rsuccess S (1 + i) using S, runs in
+      else result_rskip S using S in
     result_success S true
   else if%success isList S s using S then
     fold%return
@@ -1029,29 +1134,31 @@ Definition isVectorizable S (s : SEXP) :=
   memory.c are however only shown in a later section. **)
 
 Definition SET_VECTOR_ELT S x i v :=
+  add%stack "SET_VECTOR_ELT" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
-    result_error S "[SET_VECTOR_ELT] It can onlybe applied to a list."
+    result_error S "It can onlybe applied to a list."
   else
     let%success x_len := XLENGTH S x using S in
     ifb i < 0 \/ i >= x_len then
-      result_error S "[SET_VECTOR_ELT] Outbound index."
+      result_error S "Outbound index."
     else
       write%Pointer x at i := v using S in
       result_success S v.
 
 Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
+  add%stack "SET_STRING_ELT" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> StrSxp then
-    result_error S "[SET_STRING_ELT] It can only be applied to a character vector."
+    result_error S "It can only be applied to a character vector."
   else
     let%success v_type := TYPEOF S v using S in
     ifb v_type <> CharSxp then
-      result_error S "[SET_STRING_ELT] The value must be a CharSxp."
+      result_error S "The value must be a CharSxp."
     else
       let%success x_len := XLENGTH S x using S in
       ifb i < 0 \/ i >= x_len then
-        result_error S "[SET_STRING_ELT] Outbound index."
+        result_error S "Outbound index."
       else
         write%Pointer x at i := v using S in
         result_skip S.
@@ -1064,9 +1171,11 @@ Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
   eval.c are however only shown in a later section. **)
 
 Definition BCCONSTS S e :=
+  add%stack "BCCONSTS" in
   BCODE_CONSTS S e.
 
 Definition bytecodeExpr S e :=
+  add%stack "bytecodeExpr" in
   if%success isByteCode S e using S then
     let%success e := BCCONSTS S e using S in
     let%success e_len := LENGTH S e using S in
@@ -1076,10 +1185,12 @@ Definition bytecodeExpr S e :=
   else result_success S e.
 
 Definition R_PromiseExpr S p :=
+  add%stack "R_PromiseExpr" in
   read%prom _, p_prom := p using S in
   bytecodeExpr S (prom_expr p_prom).
 
 Definition PREXPR S e :=
+  add%stack "PREXPR" in
   R_PromiseExpr S e.
 
 
@@ -1098,6 +1209,7 @@ Definition R_IsNAN x :=
   end.
 
 Definition ScalarValue1 S x :=
+  add%stack "ScalarValue1" in
   if%success NO_REFERENCES S x using S then
     result_success S x
   else
@@ -1105,6 +1217,7 @@ Definition ScalarValue1 S x :=
     allocVector S x_type 1.
 
 Definition ScalarValue2 S x y :=
+  add%stack "ScalarValue2" in
   if%success NO_REFERENCES S x using S then
     result_success S x
   else
@@ -1121,11 +1234,13 @@ Definition ScalarValue2 S x y :=
   in the file main/util.c. **)
 
 Definition type2rstr S (t : SExpType) :=
+  add%stack "type2rstr" in
   let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
   ifb res <> NULL then result_success S res
   else result_success S (R_NilValue : SEXP).
 
 Definition nthcdr S s n :=
+  add%stack "nthcdr" in
   let%success s_li := isList S s using S in
   let%success s_la := isLanguage S s using S in
   let%success s_fr := isFrame S s using S in
@@ -1134,12 +1249,12 @@ Definition nthcdr S s n :=
     do%success (s, n) := (s, n)
     while result_success S (decide (n > 0)) do
       ifb s = R_NilValue then
-        result_error S "[nthcdr] List too short."
+        result_error S "List too short."
       else
         read%list _, s_cdr, _ := s using S in
         result_success S (s, n - 1) using S, runs in
     result_success S s
-  else result_error S "[nthcdr] No CDR.".
+  else result_error S "No CDR.".
 
 
 (** * printutils.c **)
@@ -1153,9 +1268,10 @@ Definition EncodeLogical x :=
   else "FALSE"%string.
 
 Definition StringFromReal S x :=
+  add%stack "StringFromReal" in
   if R_IsNA x then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[StringFromReal] [EncodeRealDrop0].".
+  else result_not_implemented "[EncodeRealDrop0].".
 
 
 (** ** envir.c **)
@@ -1184,6 +1300,7 @@ Definition mkString S (str : string) : state * SEXP :=
   in the file main/dstruct.c. **)
 
 Definition iSDDName S (name : SEXP) :=
+  add%stack "iSDDName" in
   let%success buf := CHAR S name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf) buf in
@@ -1195,6 +1312,7 @@ Definition iSDDName S (name : SEXP) :=
   result_success S false.
 
 Definition mkSYMSXP S (name value : SEXP) :=
+  add%stack "mkSYMSXP" in
   let%success i := iSDDName S name using S in
   let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
   run%success SET_DDVAL S c i using S in
@@ -1207,11 +1325,13 @@ Definition mkSYMSXP S (name value : SEXP) :=
   in the file main/names.c. **)
 
 Definition mkSymMarker S pname :=
+  add%stack "mkSymMarker" in
   let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
   write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
   result_success S ans.
 
 Definition install S name_ : result SEXP :=
+  add%stack "install" in
   (** As said in the description of [InitNames] in Rinit.v,
     the hash table present in [R_SymbolTable] has not been
     formalised as such.
@@ -1227,7 +1347,7 @@ Definition install S name_ : result SEXP :=
       result_rreturn S sym_car
     else result_rskip S using S, runs, globals in
   ifb name_ = ""%string then
-    result_error S "[install] Attempt to use zero-length variable name."
+    result_error S "Attempt to use zero-length variable name."
   else
     let (S, str) := mkChar S name_ in
     let%success sym := mkSYMSXP S str R_UnboundValue using S in
@@ -1238,6 +1358,7 @@ Definition install S name_ : result SEXP :=
 (** We here choose to model [installChar] as its specification
   given by the associated comment in the C source file. **)
 Definition installChar S charSXP :=
+  add%stack "installChar" in
   let%success str := CHAR S charSXP using S in
   install S str.
 
@@ -1248,9 +1369,10 @@ Definition installChar S charSXP :=
   in the file main/sysutils.c. **)
 
 Definition installTrChar S x :=
+  add%stack "installTrChar" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
-    result_error S "[installTrChar] Must be called on a [CharSxp]."
+    result_error S "Must be called on a [CharSxp]."
   else
     (** The original C program deals with encoding here. **)
     installChar S x.
@@ -1272,11 +1394,13 @@ Definition mkNA S :=
 
 
 Definition NewList S :=
+  add%stack "NewList" in
   let (S, s) := CONS S R_NilValue R_NilValue in
   set%car s := s using S in
   result_success S s.
 
 Definition GrowList S l s :=
+  add%stack "GrowList" in
   let (S, tmp) := CONS S s R_NilValue in
   read%list l_car, _, _ := l using S in
   set%cdr l_car := tmp using S in
@@ -1284,6 +1408,7 @@ Definition GrowList S l s :=
   result_success S l.
 
 Definition TagArg S arg tag :=
+  add%stack "TagArg" in
   let%success tag_type := TYPEOF S tag using S in
   match tag_type with
   | StrSxp =>
@@ -1294,10 +1419,11 @@ Definition TagArg S arg tag :=
   | SymSxp =>
     lang2 S arg tag
   | _ =>
-    result_error S "[TagArg] Incorrect tag type."
+    result_error S "Incorrect tag type."
   end.
 
 Definition FirstArg S s tag :=
+  add%stack "FirstArg" in
   let%success tmp := NewList S using S in
   let%success tmp := GrowList S tmp s using S in
   read%list tmp_car, _, _ := tmp using S in
@@ -1305,17 +1431,19 @@ Definition FirstArg S s tag :=
   result_success S tmp.
 
 Definition NextArg S l s tag :=
+  add%stack "NextArg" in
   let%success l := GrowList S l s using S in
   read%list l_car, _, _ := l using S in
   set%tag l_car := tag using S in
   result_success S l.
 
 Definition CheckFormalArgs S formlist new :=
+  add%stack "CheckFormalArgs" in
   fold%success
   along formlist
   as _, formlist_tag do
     ifb formlist_tag = new then
-      result_error S "[CheckFormalArgs] Repeated formal argument."
+      result_error S "Repeated formal argument."
     else result_skip S using S, runs, globals in
   result_skip S.
 
@@ -1327,6 +1455,7 @@ Definition CheckFormalArgs S formlist new :=
 
 (** Instead of updating a context given as its first argument, it returns it. **)
 Definition begincontext S flags syscall env sysp promargs callfun :=
+  add%stack "begincontext" in
   let cptr := {|
      context_nextcontext := Some (R_GlobalContext S) ;
      context_cjmpbuf := 1 + context_cjmpbuf (R_GlobalContext S) ;
@@ -1359,6 +1488,7 @@ Fixpoint first_jump_target_loop S c cptr mask :=
       end.
 
 Definition first_jump_target S cptr mask :=
+  add%stack "first_jump_target" in
   first_jump_target_loop S (R_GlobalContext S) cptr mask.
 
 Fixpoint R_run_onexits_loop S c cptr :=
@@ -1389,17 +1519,20 @@ Fixpoint R_run_onexits_loop S c cptr :=
         result_skip S
       else result_skip S using S in
     match context_nextcontext c with
-    | None => result_impossible S "[R_run_onexits_loop] Bad target context."
+    | None => result_impossible S "Bad target context."
     | Some c => R_run_onexits_loop S c cptr
     end.
 
 Definition R_run_onexits S cptr :=
+  add%stack "R_run_onexits" in
   R_run_onexits_loop S (R_GlobalContext S) cptr.
 
 Definition R_restore_globals S (cptr : context) :=
+  add%stack "R_restore_globals" in
   result_skip S.
 
 Definition R_jumpctxt A S targetcptr mask val : result A :=
+  add%stack "R_jumpctxt" in
   let%success cptr := first_jump_target S targetcptr mask using S in
   run%success R_run_onexits S cptr using S in
   let S := update_R_ReturnedValue S val in
@@ -1409,6 +1542,7 @@ Definition R_jumpctxt A S targetcptr mask val : result A :=
 Arguments R_jumpctxt [A].
 
 Definition endcontext S cptr :=
+  add%stack "endcontext" in
   let jmptarget := context_jumptarget cptr in
   run%success
     ifb context_cloenv cptr <> R_NilValue /\ context_conexit cptr <> R_NilValue then
@@ -1447,7 +1581,7 @@ Fixpoint findcontext_loop A S cptr env mask mask_against val err : result A :=
   ifb context_type_mask (context_callflag cptr) mask_against /\ context_cloenv cptr = env then
     R_jumpctxt S cptr mask val
   else
-    let error S := result_error S ("[findcontext_loop] " ++ err) in
+    let error S := result_error S err in
     match context_nextcontext cptr with
     | None => error S
     | Some cptr =>
@@ -1457,6 +1591,7 @@ Fixpoint findcontext_loop A S cptr env mask mask_against val err : result A :=
 Arguments findcontext_loop [A].
 
 Definition findcontext A S mask env val : result A :=
+  add%stack "findcontext" in
   ifb context_type_mask Ctxt_Loop mask then
     findcontext_loop S (R_GlobalContext S) env mask Ctxt_Loop val "No loop for break/next, jumping to top level."
   else
@@ -1476,6 +1611,7 @@ Definition psmatch f t exact :=
     String.prefix t f.
 
 Definition pmatch S (formal tag : SEXP) exact : result bool :=
+  add%stack "pmatch" in
   let get_name str :=
     let%success str_type := TYPEOF S str using S in
     match str_type with
@@ -1486,9 +1622,9 @@ Definition pmatch S (formal tag : SEXP) exact : result bool :=
       CHAR S str
     | StrSxp =>
       let%success str_ := STRING_ELT S str 0 using S in
-      result_not_implemented "[pmatch] translateChar(str_)"
+      result_not_implemented "translateChar(str_)"
     | _ =>
-      result_error S "[pmatch] Invalid partial string match."
+      result_error S "Invalid partial string match."
     end in
   let%success f := get_name formal using S in
   let%success t := get_name tag using S in
@@ -1515,6 +1651,7 @@ Definition set_argused (used : nat) I :=
 Arguments set_argused : clear implicits.
 
 Definition matchArgs_first S formals actuals supplied : result (list nat) :=
+  add%stack "matchArgs_first" in
   fold%success (a, fargusedrev) := (actuals, nil)
   along formals
   as _, f_tag do
@@ -1531,9 +1668,9 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
             let%success btag_name := CHAR S b_tag_sym_name using S in
             ifb ftag_name = btag_name then
               ifb fargusedi = 2 then
-                result_error S "[matchArgs_first] Formal argument matched by multiple actual arguments."
+                result_error S "Formal argument matched by multiple actual arguments."
               else ifb argused b_ = 2 then
-                result_error S "[matchArgs_first] Actual argument matches several formal arguments."
+                result_error S "Actual argument matches several formal arguments."
               else
                 set%car a := list_carval b_list using S in
                 run%success
@@ -1550,13 +1687,14 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
   result_success S (List.rev fargusedrev).
 
 Definition matchArgs_second S actuals formals supplied fargused :=
+  add%stack "matchArgs_second" in
   fold%success (a, fargused, dots, seendots) :=
     (actuals, fargused, R_NilValue : SEXP, false)
   along formals
   as _, f_tag do
     match fargused with
     | nil =>
-      result_impossible S "[matchArgs_second] The list/array “fargused” has an unexpected size."
+      result_impossible S "The list/array “fargused” has an unexpected size."
     | fargusedi :: fargused =>
       let%success (dots, seendots) :=
         ifb fargusedi = 0 then
@@ -1570,9 +1708,9 @@ Definition matchArgs_second S actuals formals supplied fargused :=
               ifb argused b_ <> 2 /\ b_tag <> R_NilValue then
                 if%success pmatch S f_tag b_tag seendots using S then
                   ifb argused b_ <> 0 then
-                    result_error S "[matchArgs_second] Actual argument matches several formal arguments."
+                    result_error S "Actual argument matches several formal arguments."
                   else ifb fargusedi = 1 then
-                    result_error S "[matchArgs_second] Formal argument matched by multiple actual arguments."
+                    result_error S "Formal argument matched by multiple actual arguments."
                   else
                     set%car a := list_carval b_list using S in
                     run%success
@@ -1591,6 +1729,7 @@ Definition matchArgs_second S actuals formals supplied fargused :=
   result_success S dots.
 
 Definition matchArgs_third S (formals actuals supplied : SEXP) :=
+  add%stack "matchArgs_third" in
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
   while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
     read%list _, f_cdr, f_tag := f using S in
@@ -1614,6 +1753,7 @@ Definition matchArgs_third S (formals actuals supplied : SEXP) :=
   result_skip S.
 
 Definition matchArgs_dots S dots supplied :=
+  add%stack "matchArgs_dots" in
   run%success SET_MISSING S dots 0 ltac:(nbits_ok) using S in
   fold%success i := 0
   along supplied
@@ -1639,6 +1779,7 @@ Definition matchArgs_dots S dots supplied :=
   else result_skip S.
 
 Definition matchArgs_check S supplied :=
+  add%stack "matchArgs_check" in
   fold%success (unused, last) := (R_NilValue : SEXP, R_NilValue : SEXP)
   along supplied
   as _, b_, b_list do
@@ -1656,12 +1797,13 @@ Definition matchArgs_check S supplied :=
         result_success S (unused, last)
     else result_success S (unused, last) using S, runs, globals in
   ifb last <> R_NilValue then
-    result_error S "[matchArgs_check] Unused argument(s)."
+    result_error S "Unused argument(s)."
   else
     result_skip S.
 
 
 Definition matchArgs S formals supplied (call : SEXP) :=
+  add%stack "matchArgs" in
   fold%success (actuals, argi) := (R_NilValue : SEXP, 0)
   along formals
   as _, _ do
@@ -1690,6 +1832,7 @@ Definition matchArgs S formals supplied (call : SEXP) :=
   in the file main/envir.c. **)
 
 Definition R_envHasNoSpecialSymbols S (env : SEXP) : result bool :=
+  add%stack "R_envHasNoSpecialSymbols" in
   read%env env_, env_env := env using S in
   (** A note about hashtabs has been commented out. **)
   fold%let b := true
@@ -1700,6 +1843,7 @@ Definition R_envHasNoSpecialSymbols S (env : SEXP) : result bool :=
     else result_success S b using S, runs, globals.
 
 Definition SET_FRAME S x v :=
+  add%stack "SET_FRAME" in
   read%env x_, x_env := x using S in
   let x_env := {|
       env_frame := v ;
@@ -1713,12 +1857,13 @@ Definition SET_FRAME S x v :=
   result_success S tt.
 
 Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
+  add%stack "addMissingVarsToNewEnv" in
   ifb addVars = R_NilValue then
     result_skip S
   else
     let%success addVars_type := TYPEOF S addVars using S in
     ifb addVars_type = EnvSxp then
-      result_error S "[addMissingVarsToNewEnv] Additional variables should be passed as a list."
+      result_error S "Additional variables should be passed as a list."
     else
       read%list addVars_car, addVars_cdr, _ := addVars using S in
       fold%success aprev := addVars
@@ -1749,20 +1894,24 @@ Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
 Definition FRAME_LOCK_BIT := 14.
 
 Definition FRAME_IS_LOCKED S rho :=
+  add%stack "FRAME_IS_LOCKED" in
   read%defined rho_ := rho using S in
   result_success S (nth_bit FRAME_LOCK_BIT (gp rho_) ltac:(nbits_ok)).
 
 Definition getActiveValue S f :=
+  add%stack "getActiveValue" in
   let%success expr := lcons S f R_NilValue using S in
   runs_eval runs S expr R_GlobalEnv.
 
 Definition SYMBOL_BINDING_VALUE S s :=
+  add%stack "SYMBOL_BINDING_VALUE" in
   read%sym _, s_sym := s using S in
   if%success IS_ACTIVE_BINDING S s using S then
     getActiveValue S (sym_value s_sym)
   else result_success S (sym_value s_sym).
 
 Definition setActiveValue S (f v : SEXP) :=
+  add%stack "setActiveValue" in
   let%success arg_tail := lcons S v R_NilValue using S in
   let%success arg := lcons S R_QuoteSymbol arg_tail using S in
   let%success expr_tail := lcons S arg R_NilValue using S in
@@ -1771,8 +1920,9 @@ Definition setActiveValue S (f v : SEXP) :=
   result_skip S.
 
 Definition SET_BINDING_VALUE S b val :=
+  add%stack "SET_BINDING_VALUE" in
   if%success BINDING_IS_LOCKED S b using S then
-    result_error S "[SET_BINDING_VALUE] Can not change value of locked binding."
+    result_error S "Can not change value of locked binding."
   else
     read%list b_car, _, _ := b using S in
     if%success IS_ACTIVE_BINDING S b using S then
@@ -1782,24 +1932,27 @@ Definition SET_BINDING_VALUE S b val :=
       result_skip S.
 
 Definition BINDING_VALUE S b :=
+  add%stack "BINDING_VALUE" in
   read%list b_car, _, _ := b using S in
   if%success IS_ACTIVE_BINDING S b using S then
     getActiveValue S b_car
   else result_success S b_car.
 
 Definition IS_USER_DATABASE S rho :=
+  add%stack "IS_USER_DATABASE" in
   read%defined rho_ := rho using S in
   let%success inh := inherits S rho "UserDefinedDatabase" using S in
   result_success S (obj rho_ && inh).
 
 Definition gsetVar S (symbol value rho : SEXP) : result unit :=
+  add%stack "gsetVar" in
   if%success FRAME_IS_LOCKED S rho using S then
     read%sym symbol_, symbol_sym := symbol using S in
     ifb sym_value symbol_sym = R_UnboundValue then
-      result_error S "[gsetVar] Can not add such a bidding to the base environment."
+      result_error S "Can not add such a bidding to the base environment."
     else result_skip S in
   if%success BINDING_IS_LOCKED S symbol using S then
-    result_error S "[gsetVar] Can not change value of locked biding."
+    result_error S "Can not change value of locked biding."
   else
     read%sym symbol_, symbol_sym := symbol using S in
     if%success IS_ACTIVE_BINDING S symbol using S then
@@ -1818,11 +1971,12 @@ Definition gsetVar S (symbol value rho : SEXP) : result unit :=
       result_skip S.
 
 Definition defineVar S (symbol value rho : SEXP) : result unit :=
+  add%stack "defineVar" in
   ifb rho = R_EmptyEnv then
-    result_error S "[defineVar] Can not assign values in the empty environment."
+    result_error S "Can not assign values in the empty environment."
   else
     if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[defineVar] [R_ObjectTable]"
+      result_not_implemented "[R_ObjectTable]"
     else
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
         gsetVar S symbol value rho
@@ -1842,7 +1996,7 @@ Definition defineVar S (symbol value rho : SEXP) : result unit :=
           else
             result_rskip S using S, runs, globals in
         if%success FRAME_IS_LOCKED S rho using S then
-          result_error S "[defineVar] Can not add a binding to a locked environment."
+          result_error S "Can not add a binding to a locked environment."
         else
           let (S, l) := CONS S value (env_frame rho_env) in
           run%success SET_FRAME S rho l using S in
@@ -1850,12 +2004,14 @@ Definition defineVar S (symbol value rho : SEXP) : result unit :=
           result_skip S.
 
 Definition setVarInFrame S (rho symbol value : SEXP) :=
+  add%stack "setVarInFrame" in
   ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
   else
-    result_not_implemented "[setVarInFrame]".
+    result_not_implemented "".
 
 Definition setVar S (symbol value rho : SEXP) :=
+  add%stack "setVar" in
   do%success rho := rho
   while result_success S (decide (rho <> R_EmptyEnv)) do
     let%success vl :=
@@ -1869,16 +2025,17 @@ Definition setVar S (symbol value rho : SEXP) :=
   defineVar S symbol value R_GlobalEnv.
 
 Definition findVarInFrame3 S rho symbol (doGet : bool) :=
+  add%stack "findVarInFrame3" in
   let%success rho_type := TYPEOF S rho using S in
   ifb rho_type = NilSxp then
-    result_error S "[findVarInFrame3] Use of NULL environment is defunct."
+    result_error S "Use of NULL environment is defunct."
   else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
     SYMBOL_BINDING_VALUE S symbol
   else ifb rho = R_EmptyEnv then
     result_success S (R_UnboundValue : SEXP)
   else
     if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[findVarInFrame3] [R_ObjectTable]"
+      result_not_implemented "[R_ObjectTable]"
     else
       (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
       read%defined rho_ := rho using S in
@@ -1893,11 +2050,12 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
       result_success S (R_UnboundValue : SEXP).
 
 Definition findVar S symbol rho :=
+  add%stack "findVar" in
   let%success rho_type := TYPEOF S rho using S in
   ifb rho_type = NilSxp then
-    result_error S "[findVar] Use of NULL environment is defunct."
+    result_error S "Use of NULL environment is defunct."
   else ifb rho_type <> EnvSxp then
-    result_error S "[findVar] Argument ‘rho’ is not an environment."
+    result_error S "Argument ‘rho’ is not an environment."
   else
     do%return rho := rho
     while result_success S (decide (rho <> R_EmptyEnv)) do
@@ -1910,13 +2068,14 @@ Definition findVar S symbol rho :=
     result_success S (R_UnboundValue : SEXP).
 
 Definition findVarLocInFrame S (rho symbol : SEXP) :=
+  add%stack "findVarLocInFrame" in
   ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
-    result_error S "[findVarLocInFrame] It can’t be used in the base environment."
+    result_error S "It can’t be used in the base environment."
   else ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
   else
     if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[findVarLocInFrame] [R_ExternalPtrAddr]"
+      result_not_implemented "[R_ExternalPtrAddr]"
     else
       (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
       read%env _, rho_env := rho using S in
@@ -1929,18 +2088,21 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
       result_success S (R_NilValue : SEXP).
 
 Definition ddVal S symbol :=
+  add%stack "ddVal" in
   let%success symbol_name := PRINTNAME S symbol using S in
   let%success buf := CHAR S symbol_name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf - 2) in
-    result_not_implemented "[ddVal] [strtol]."
+    result_not_implemented "[strtol]."
   else result_success S 0.
 
 Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
-  result_not_implemented "[ddfindVar]".
+  add%stack "ddfindVar" in
+  result_not_implemented "".
 
 
 Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
+  add%stack "findFun3" in
   let%success rho :=
     if%success IS_SPECIAL_SYMBOL S symbol using S then
       do%success rho := rho
@@ -1967,7 +2129,7 @@ Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
         else ifb vl = R_MissingArg then
           let%success str_symbol := PRINTNAME S symbol using S in
           let%success str_symbol_ := CHAR S str_symbol using S in
-          result_error S ("[findFun3] Argument “" ++ str_symbol_ ++ "” is missing, with no default.")
+          result_error S ("Argument “" ++ str_symbol_ ++ "” is missing, with no default.")
         else result_rskip S
       else result_rskip S using S in
     read%env _, rho_env := rho using S in
@@ -1975,9 +2137,10 @@ Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
   using S, runs in
   let%success str_symbol := PRINTNAME S symbol using S in
   let%success str_symbol_ := CHAR S str_symbol using S in
-  result_error S ("[findFun3] Could not find function “" ++ str_symbol_ ++ "”.").
+  result_error S ("Could not find function “" ++ str_symbol_ ++ "”.").
 
 Definition findRootPromise S p :=
+  add%stack "findRootPromise" in
   let%success p_type := TYPEOF S p using S in
   ifb p_type = PromSxp then
     do%success p := p
@@ -1991,6 +2154,7 @@ Definition findRootPromise S p :=
   else result_success S p.
 
 Definition R_isMissing S (symbol rho : SEXP) :=
+  add%stack "R_isMissing" in
   ifb symbol = R_MissingArg then
     result_success S true
   else
@@ -2053,6 +2217,7 @@ Definition R_isMissing S (symbol rho : SEXP) :=
   in the file main/attrib.c. **)
 
 Definition isOneDimensionalArray S vec :=
+  add%stack "isOneDimensionalArray" in
   let%success ivec := isVector S vec using S in
   let%success ilist := isList S vec using S in
   let%success ilang := isLanguage S vec using S in
@@ -2067,6 +2232,7 @@ Definition isOneDimensionalArray S vec :=
   else result_success S false.
 
 Definition getAttrib0 S (vec name : SEXP) :=
+  add%stack "getAttrib0" in
   run%exit
     ifb name = R_NamesSymbol then
       run%return
@@ -2079,7 +2245,7 @@ Definition getAttrib0 S (vec name : SEXP) :=
             result_rreturn S s_0
           else result_rskip S
         else result_rskip S using S in
-      result_not_implemented "[getAttrib0]"
+      result_not_implemented "R_NamesSymbol case."
     else result_rskip S using S in
   read%defined vec_ := vec using S in
   fold%return
@@ -2088,7 +2254,7 @@ Definition getAttrib0 S (vec name : SEXP) :=
     ifb list_tagval s_list = name then
       let%success s_car_type := TYPEOF S (list_carval s_list) using S in
       ifb name = R_DimNamesSymbol /\ s_car_type = ListSxp then
-        result_error S "[getAttrib0] Old list is no longer allowed for dimnames attributes."
+        result_error S "Old list is no longer allowed for dimnames attributes."
       else
         map%pointer (list_carval s_list) with set_named_plural using S in
         result_rreturn S (list_carval s_list)
@@ -2097,9 +2263,10 @@ Definition getAttrib0 S (vec name : SEXP) :=
   result_success S (R_NilValue : SEXP).
 
 Definition getAttrib S (vec name : SEXP) :=
+  add%stack "getAttrib" in
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
-    result_error S "[getAttrib] Can not have attributes on a [CharSxp]."
+    result_error S "Can not have attributes on a [CharSxp]."
   else
     read%defined vec_ := vec using S in
     ifb attrib vec_ = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
@@ -2133,11 +2300,12 @@ Definition getAttrib S (vec name : SEXP) :=
       else getAttrib0 S vec name.
 
 Definition installAttrib S vec name val :=
+  add%stack "installAttrib" in
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
-    result_error S "[installAttrib] Cannot set attribute on a CharSxp."
+    result_error S "Cannot set attribute on a CharSxp."
   else ifb vec_type = SymSxp then
-    result_error S "[installAttrib] Cannot set attribute on a symbol."
+    result_error S "Cannot set attribute on a symbol."
   else
     read%defined vec_ := vec using S in
     fold%return t := R_NilValue : SEXP
@@ -2160,6 +2328,7 @@ Definition installAttrib S vec name val :=
     result_success S val.
 
 Definition stripAttrib S (tag lst : SEXP) :=
+  add%stack "stripAttrib" in
   ifb lst = R_NilValue then
     result_success S lst
   else
@@ -2173,9 +2342,10 @@ Definition stripAttrib S (tag lst : SEXP) :=
       result_success S lst.
 
 Definition removeAttrib S (vec name : SEXP) :=
+  add%stack "removeAttrib" in
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
-    result_error S "[removeAttrib] Cannot set attribute on a CharSxp."
+    result_error S "Cannot set attribute on a CharSxp."
   else
     let%success pl := isPairList S vec using S in
     ifb name = R_NamesSymbol /\ pl then
@@ -2208,6 +2378,7 @@ Definition removeAttrib S (vec name : SEXP) :=
       result_success S (R_NilValue : SEXP).
 
 Definition setAttrib S (vec name val : SEXP) :=
+  add%stack "setAttrib" in
   let%success name :=
     let%success name_type := TYPEOF S name using S in
     ifb name_type = StrSxp then
@@ -2218,7 +2389,7 @@ Definition setAttrib S (vec name val : SEXP) :=
     removeAttrib S vec name
   else
     ifb vec = R_NilValue then
-      result_error S "[setAttrib] Attempt to set an attribute on NULL."
+      result_error S "Attempt to set an attribute on NULL."
     else
       let%success val :=
         let%success val_named := NAMED S val using S in
@@ -2272,6 +2443,7 @@ Definition isBlankString s :=
   in the file main/coerce.c. **)
 
 Definition LogicalFromString S (x : SEXP) :=
+  add%stack "LogicalFromString" in
   ifb x <> R_NaString then
     let%success c := CHAR S x using S in
     if StringTrue c then result_success S (1 : int)
@@ -2280,19 +2452,23 @@ Definition LogicalFromString S (x : SEXP) :=
   else result_success S NA_LOGICAL.
 
 Definition LogicalFromInteger S (x : int) : result int :=
+  add%stack "LogicalFromInteger" in
   ifb x = NA_INTEGER then result_success S NA_LOGICAL
   else result_success S (decide (x <> 0) : int).
 
 Definition LogicalFromReal S x : result int :=
+  add%stack "LogicalFromReal" in
   ifb ISNAN x then result_success S NA_LOGICAL
   else result_success S (negb (Double.is_zero x) : int).
 
 Definition LogicalFromComplex S x : result int :=
+  add%stack "LogicalFromComplex" in
   ifb ISNAN (Rcomplex_r x) \/ ISNAN (Rcomplex_i x) then result_success S NA_LOGICAL
   else result_success S (decide (~ Double.is_zero (Rcomplex_r x)
                                  \/ ~ Double.is_zero (Rcomplex_i x)) : int).
 
 Definition asLogical S x :=
+  add%stack "asLogical" in
   if%success isVectorAtomic S x using S then
     let%success len := XLENGTH S x using S in
     ifb len < 1 then
@@ -2316,7 +2492,7 @@ Definition asLogical S x :=
       | RawSxp =>
         let%success s := RAW_ELT S x 0 using S in
         LogicalFromString S s
-      | _ => result_error S "[asLogical] Unimplemented type."
+      | _ => result_error S "Unimplemented type."
       end
   else
     let%success x_type := TYPEOF S x using S in
@@ -2325,12 +2501,13 @@ Definition asLogical S x :=
     else result_success S NA_LOGICAL.
 
 Definition IntegerFromString S (x : SEXP) :=
+  add%stack "IntegerFromString" in
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "[IntegerFromString] R_strtod."
+    result_not_implemented "R_strtod."
   else result_success S NA_INTEGER.
 
 Definition IntegerFromLogical x :=
@@ -2355,6 +2532,7 @@ Definition IntegerFromComplex x :=
   else Double.double_to_int_zero (Rcomplex_r x).
 
 Definition asInteger S x :=
+  add%stack "asInteger" in
   let%success t := TYPEOF S x using S in
   if%success
       if%success isVectorAtomic S x using S then
@@ -2377,7 +2555,7 @@ Definition asInteger S x :=
     | StrSxp =>
       read%Pointer x0 := x at 0 using S in
       IntegerFromString S x0
-    | _ => result_error S "[asInteger] Unimplemented type."
+    | _ => result_error S "Unimplemented type."
     end
   else ifb t = CharSxp then
     IntegerFromString S x
@@ -2403,15 +2581,17 @@ Definition RealFromComplex x :=
   else Rcomplex_r x.
 
 Definition RealFromString S (x : SEXP) :=
+  add%stack "RealFromString" in
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "[RealFromString] R_strtod."
+    result_not_implemented "R_strtod."
   else result_success S NA_REAL.
 
 Definition asReal S x :=
+  add%stack "asReal" in
   let%success t := TYPEOF S x using S in
   if%success
       if%success isVectorAtomic S x using S then
@@ -2434,13 +2614,14 @@ Definition asReal S x :=
     | StrSxp =>
       read%Pointer x0 := x at 0 using S in
       RealFromString S x0
-    | _ => result_error S "[asReal] Unimplemented type."
+    | _ => result_error S "Unimplemented type."
     end
   else ifb t = CharSxp then
     RealFromString S x
   else result_success S NA_REAL.
 
 Definition coerceSymbol S v type :=
+  add%stack "coerceSymbol" in
   let%success rval :=
     ifb type = ExprSxp then
       let%success rval := allocVector S type 1 using S in
@@ -2457,15 +2638,17 @@ Definition coerceSymbol S v type :=
   result_success S rval.
 
 Definition PairToVectorList (S : state) (x : SEXP) : result SEXP :=
-  result_not_implemented "[PairToVectorList]".
+  add%stack "PairToVectorList" in
+  result_not_implemented "".
 
 Definition ComplexFromString S (x : SEXP) :=
+  add%stack "ComplexFromString" in
   if%success
     ifb x <> R_NaString then
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "[ComplexFromString] R_strtod."
+    result_not_implemented "R_strtod."
   else result_success S (make_Rcomplex NA_REAL NA_REAL).
 
 Definition ComplexFromLogical x :=
@@ -2482,6 +2665,7 @@ Definition ComplexFromReal x :=
   make_Rcomplex x 0.
 
 Definition asComplex S x :=
+  add%stack "asComplex" in
   let%success x_va := isVectorAtomic S x using S in
   let%success x_len := XLENGTH S x using S in
   let%success x_type := TYPEOF S x using S in
@@ -2502,13 +2686,14 @@ Definition asComplex S x :=
       let%success x_0 := STRING_ELT S x 0 using S in
       ComplexFromString S x_0
     | _ =>
-      result_error S "[asComplex] Unimplemented type."
+      result_error S "Unimplemented type."
     end
   else ifb x_type = CharSxp then
     ComplexFromString S x
   else result_success S (make_Rcomplex NA_REAL NA_REAL).
 
 Definition coercePairList S v type :=
+  add%stack "coercePairList" in
   let%exit (rval, n) :=
     ifb type = ListSxp then
       result_rreturn S v
@@ -2528,7 +2713,7 @@ Definition coercePairList S v type :=
           ifb v_car_is /\ v_car_len = 1 then
             let%success v_car_0 := STRING_ELT S v_car 0 using S in
             SET_STRING_ELT S rval i v_car_0
-          else result_not_implemented "[coercePairList] [deparse1line]." using S in
+          else result_not_implemented "[deparse1line]." using S in
         result_success S (1 + i) using S, runs, globals in
       result_rsuccess S (rval, n)
     else ifb type = VecSxp then
@@ -2567,11 +2752,11 @@ Definition coercePairList S v type :=
             let%success vp_car_lgl := asComplex S vp_car using S in
             write%Complex rval at i := vp_car_lgl using S in
             result_success S vp_cdr using S
-        | RawSxp => result_not_implemented "[coercePairList] Raw case."
-        | _ => result_error S "[coercePairList] Unimplemented type."
+        | RawSxp => result_not_implemented "Raw case."
+        | _ => result_error S "Unimplemented type."
         end using S in
       result_rsuccess S (rval, n)
-    else result_error S "[coercePairList] ‘pairlist’ object cannot be coerce as-is." using S in
+    else result_error S "‘pairlist’ object cannot be coerce as-is." using S in
   fold%success i := false
   along v
   as _, v_tag do
@@ -2595,9 +2780,11 @@ Definition coercePairList S v type :=
   result_success S rval.
 
 Definition coerceVectorList (S : state) (v : SEXP) (type : SExpType) : result SEXP :=
-  result_not_implemented "[coerceVectorList].".
+  add%stack "coerceVectorList" in
+  result_not_implemented ".".
 
 Definition StringFromLogical S x :=
+  add%stack "StringFromLogical" in
   ifb x = NA_LOGICAL then
     result_success S (NA_STRING : SEXP)
   else
@@ -2605,19 +2792,22 @@ Definition StringFromLogical S x :=
     result_success S r.
 
 Definition StringFromInteger S x :=
+  add%stack "StringFromInteger" in
   ifb x = NA_INTEGER then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[StringFromInteger] [formatInteger].".
+  else result_not_implemented "[formatInteger].".
 
 Definition StringFromComplex S x :=
+  add%stack "StringFromComplex" in
   ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[StringFromComplex] [EncodeComplex].".
+  else result_not_implemented "[EncodeComplex].".
 
 Definition coerceToSymbol S v :=
+  add%stack "coerceToSymbol" in
   let%success v_len := R_length S v using S in
   ifb v_len <= 0 then
-    result_error S "[coerceToSymbol] Invalid data."
+    result_error S "Invalid data."
   else
     let%success v_type := TYPEOF S v using S in
     let%success ans :=
@@ -2636,12 +2826,13 @@ Definition coerceToSymbol S v :=
         StringFromComplex S v_0
       | StrSxp =>
         STRING_ELT S v 0
-      | RawSxp => result_not_implemented "[coerceToSymbol] Raw case."
-      | _ => result_error S "[coerceToSymbol] Unimplemented type."
+      | RawSxp => result_not_implemented "Raw case."
+      | _ => result_error S "Unimplemented type."
       end using S in
     installTrChar S ans.
 
 Definition coerceToLogical S v :=
+  add%stack "coerceToLogical" in
   let%success n := XLENGTH S v using S in
   let%success ans := allocVector S LglSxp n using S in
   run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
@@ -2676,13 +2867,14 @@ Definition coerceToLogical S v :=
         let%success pa_i := LogicalFromString S v_i using S in
         write%Logical ans at i := pa_i using S in
         result_skip S using S
-    | RawSxp => result_not_implemented "[coerceToLogical] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | _ =>
-      result_error S "[coerceToLogical] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S ans.
 
 Definition coerceToInteger S v :=
+  add%stack "coerceToInteger" in
   let%success n := XLENGTH S v using S in
   let%success ans := allocVector S IntSxp n using S in
   run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
@@ -2714,13 +2906,14 @@ Definition coerceToInteger S v :=
         let%success pa_i := IntegerFromString S v_i using S in
         write%Integer ans at i := pa_i using S in
         result_skip S using S
-    | RawSxp => result_not_implemented "[coerceToInteger] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | _ =>
-      result_error S "[coerceToInteger] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S ans.
 
 Definition coerceToReal S v :=
+  add%stack "coerceToReal" in
   let%success n := XLENGTH S v using S in
   let%success ans := allocVector S RealSxp n using S in
   run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
@@ -2752,13 +2945,14 @@ Definition coerceToReal S v :=
         let%success pa_i := RealFromString S v_i using S in
         write%Real ans at i := pa_i using S in
         result_skip S using S
-    | RawSxp => result_not_implemented "[coerceToReal] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | _ =>
-      result_error S "[coerceToReal] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S ans.
 
 Definition coerceToComplex S v :=
+  add%stack "coerceToComplex" in
   let%success n := XLENGTH S v using S in
   let%success ans := allocVector S CplxSxp n using S in
   run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
@@ -2790,16 +2984,18 @@ Definition coerceToComplex S v :=
         let%success pa_i := ComplexFromString S v_i using S in
         write%Complex ans at i := pa_i using S in
         result_skip S using S
-    | RawSxp => result_not_implemented "[coerceToComplex] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | _ =>
-      result_error S "[coerceToComplex] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S ans.
 
 Definition coerceToRaw (S : state) (v : SEXP) : result SEXP :=
-  result_not_implemented "[coerceToRaw].".
+  add%stack "coerceToRaw" in
+  result_not_implemented "".
 
 Definition coerceToString S v :=
+  add%stack "coerceToString" in
   let%success n := XLENGTH S v using S in
   let%success ans := allocVector S StrSxp n using S in
   run%success SHALLOW_DUPLICATE_ATTRIB S ans v using S in
@@ -2830,13 +3026,14 @@ Definition coerceToString S v :=
         let%success v_i := COMPLEX_ELT S v i using S in
         let%success s_i := StringFromComplex S v_i using S in
         SET_STRING_ELT S ans i s_i using S
-    | RawSxp => result_not_implemented "[coerceToString] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | _ =>
-      result_error S "[coerceToString] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   result_success S ans.
 
 Definition coerceToExpression S v :=
+  add%stack "coerceToExpression" in
   let%success ans :=
     if%success isVectorAtomic S v using S then
       let%success n := XLENGTH S v using S in
@@ -2878,9 +3075,9 @@ Definition coerceToExpression S v :=
             let%success s_i := ScalarString S v_i using S in
             run%success SET_VECTOR_ELT S ans i s_i using S in
             result_skip S using S
-        | RawSxp => result_not_implemented "[coerceToExpression] Raw case."
+        | RawSxp => result_not_implemented "Raw case."
         | _ =>
-          result_error S "[coerceToExpression] Unimplemented type."
+          result_error S "Unimplemented type."
         end using S in
       result_success S ans
     else
@@ -2891,6 +3088,7 @@ Definition coerceToExpression S v :=
   result_success S ans.
 
 Definition coerceToVectorList S v :=
+  add%stack "coerceToVectorList" in
   let%success n := xlength S v using S in
   let%success ans := allocVector S VecSxp n using S in
   let%success v_type := TYPEOF S v using S in
@@ -2930,7 +3128,7 @@ Definition coerceToVectorList S v :=
         let%success s_i := ScalarString S v_i using S in
         run%success SET_VECTOR_ELT S ans i s_i using S in
         result_skip S using S
-    | RawSxp => result_not_implemented "[coerceToVectorList] Raw case."
+    | RawSxp => result_not_implemented "Raw case."
     | ListSxp
     | LangSxp =>
       do%success tmp := v
@@ -2940,7 +3138,7 @@ Definition coerceToVectorList S v :=
         result_success S tmp_cdr using S in
       result_skip S
     | _ =>
-      result_error S "[coerceToVectorList] Unimplemented type."
+      result_error S "Unimplemented type."
     end using S in
   let%success tmp := getAttrib S v R_NamesSymbol using S in
   run%success
@@ -2951,6 +3149,7 @@ Definition coerceToVectorList S v :=
   result_success S ans.
 
 Definition coerceToPairList S v :=
+  add%stack "coerceToPairList" in
   let%success n := LENGTH S v using S in
   let (S, ans) := allocList S n in
   do%success ansp := ans
@@ -2988,7 +3187,7 @@ Definition coerceToPairList S v :=
         let%success ansp_car := ScalarString S v_i using S in
         set%car ansp := ansp_car using S in
         result_skip S
-      | RawSxp => result_not_implemented "[coerceToPairList] Raw case."
+      | RawSxp => result_not_implemented "Raw case."
       | VecSxp =>
         let%success v_i := VECTOR_ELT S v i using S in
         set%car ansp := v_i using S in
@@ -2998,7 +3197,7 @@ Definition coerceToPairList S v :=
         set%car ansp := v_i using S in
         result_skip S
       | _ =>
-        result_error S "[coerceToPairList] Unimplemented type."
+        result_error S "Unimplemented type."
       end using S in
     result_success S ansp_cdr using S in
   let%success ansp := getAttrib S v R_NamesSymbol using S in
@@ -3010,6 +3209,7 @@ Definition coerceToPairList S v :=
   result_success S ans.
 
 Definition coerceVector S v type :=
+  add%stack "coerceVector" in
   let%success v_type := TYPEOF S v using S in
   ifb v_type = type then
     result_success S v
@@ -3017,7 +3217,7 @@ Definition coerceVector S v type :=
     let%success v_s4 := IS_S4_OBJECT S v using S in
     let%exit v :=
       ifb v_s4 /\ v_type = S4Sxp then
-        result_not_implemented "[coerceVector] [R_getS4DataSlot]."
+        result_not_implemented "[R_getS4DataSlot]."
       else result_rsuccess S v using S in
     let%success ans :=
       let%success v_type := TYPEOF S v using S in
@@ -3054,14 +3254,14 @@ Definition coerceVector S v type :=
                 ifb v_car_is /\ v_car_len = 1 then
                   let%success v_car_0 := STRING_ELT S v_car 0 using S in
                   SET_STRING_ELT S ans i v_car_0
-                else result_not_implemented "[coerceVector] [deparse1line]." using S in
+                else result_not_implemented "[deparse1line]." using S in
               result_success S (1 + i) using S, runs, globals in
             result_success S ans
       | VecSxp
       | ExprSxp =>
         coerceVectorList S v type
       | EnvSxp =>
-        result_error S "[coerceVector] Environments can not be coerced."
+        result_error S "Environments can not be coerced."
       | LglSxp
       | IntSxp
       | RealSxp
@@ -3080,14 +3280,15 @@ Definition coerceVector S v type :=
         | VecSxp => coerceToVectorList S v
         | ListSxp => coerceToPairList S v
         | _ =>
-          result_error S "[coerceVector] Cannot coerce to this type."
+          result_error S "Cannot coerce to this type."
         end
       | _ =>
-        result_error S "[coerceVector] Cannot coerce this type to this other type."
+        result_error S "Cannot coerce this type to this other type."
       end using S in
     result_success S ans.
 
 Definition CreateTag S x :=
+  add%stack "CreateTag" in
   let%success x_n := isNull S x using S in
   let%success x_sy := isSymbol S x using S in
   ifb x_n \/ x_sy then
@@ -3103,7 +3304,7 @@ Definition CreateTag S x :=
         else result_success S false using S then
       let%success x_0 := STRING_ELT S x 0 using S in
       installTrChar S x_0
-    else result_not_implemented "[CreateTag] [deparse1].".
+    else result_not_implemented "[deparse1].".
 
 
 (** ** objects.c **)
@@ -3112,6 +3313,7 @@ Definition CreateTag S x :=
   in the file main/objects.c. **)
 
 Definition R_has_methods S (op : SEXP) :=
+  add%stack "R_has_methods" in
   (** This definition is oversimplified.  The final value of the
     original function depends on the value of the global variable
     [R_standardGeneric].  The way this variable is initialised is not
@@ -3126,6 +3328,7 @@ Definition R_has_methods S (op : SEXP) :=
   in the file main/eval.c. **)
 
 Definition COPY_TAG S vto vfrom :=
+  add%stack "COPY_TAG" in
   read%list _, _, vfrom_tag := vfrom using S in
   ifb vfrom_tag <> R_NilValue then
     set%tag vto := vfrom_tag using S in
@@ -3133,6 +3336,7 @@ Definition COPY_TAG S vto vfrom :=
   else result_skip S.
 
 Definition asLogicalNoNA S (s call : SEXP) :=
+  add%stack "asLogicalNoNA" in
   let%exit cond :=
     if%success IS_SCALAR S s LglSxp using S then
       let%success cond := SCALAR_LVAL S s using S in
@@ -3150,7 +3354,7 @@ Definition asLogicalNoNA S (s call : SEXP) :=
       else result_rsuccess S NA_LOGICAL using S in
   let%success len := R_length S s using S in
   ifb len > 1 then
-    result_error S "[asLogicalNoNA] The condition has length > 1."
+    result_error S "The condition has length > 1."
   else
     let%success cond :=
       ifb len > 0 then
@@ -3168,22 +3372,23 @@ Definition asLogicalNoNA S (s call : SEXP) :=
       else result_success S cond using S in
     ifb cond = NA_LOGICAL then
       ifb len = 0 then
-        result_error S "[asLogicalNoNA] Argument is of length zero."
+        result_error S "Argument is of length zero."
       else
         if%success isLogical S s using S then
-          result_error S "[asLogicalNoNA] Missing value where TRUE/FALSE needed."
-        else result_error S "[asLogicalNoNA] Argument is not interpretable as logical."
+          result_error S "Missing value where TRUE/FALSE needed."
+        else result_error S "Argument is not interpretable as logical."
     else result_success S cond.
 
 (** The function [forcePromise] evaluates a promise if needed. **)
 Definition forcePromise S (e : SEXP) : result SEXP :=
+  add%stack "forcePromise" in
   read%prom _, e_prom := e using S in
   ifb prom_value e_prom = R_UnboundValue then
     run%success
       let%success e_prseen := PRSEEN S e using S in
       ifb e_prseen <> 0 then
         ifb e_prseen = 1 then
-          result_error S "[forcePromise] Promise already under evaluation."
+          result_error S "Promise already under evaluation."
         else
           (** The C code emitted a warning here: restarting interrupted promise evaluation.
             This may be a sign that this part should be ignored. *)
@@ -3209,6 +3414,7 @@ Definition forcePromise S (e : SEXP) : result SEXP :=
 
 Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
     : result SEXP :=
+  add%stack "R_execClosure" in
   let%success cntxt :=
     begincontext S Ctxt_Return call newrho sysparent arglist op using S in
   read%clo op_, op_clo := op using S in
@@ -3234,9 +3440,10 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
 
 Definition applyClosure S (call op arglist rho suppliedvars : SEXP)
     : result SEXP :=
+  add%stack "applyClosure" in
   let%success rho_type := TYPEOF S rho using S in
   ifb rho_type <> EnvSxp then
-    result_error S "[applyClosure] ‘rho’ must be an environment."
+    result_error S "‘rho’ must be an environment."
   else
     read%clo op_, op_clo := op using S in
     let formals := clo_formals op_clo in
@@ -3267,6 +3474,7 @@ Definition applyClosure S (call op arglist rho suppliedvars : SEXP)
       rho arglist op.
 
 Definition promiseArgs S (el rho : SEXP) : result SEXP :=
+  add%stack "promiseArgs" in
   let (S, tail) := CONS S R_NilValue R_NilValue in
   fold%success (ans, tail) := (tail, tail)
   along el
@@ -3301,7 +3509,7 @@ Definition promiseArgs S (el rho : SEXP) : result SEXP :=
         using S, runs, globals in
         result_success S (ans, tail)
       else ifb h <> R_MissingArg then
-        result_error S "[promiseArgs] ‘...’ used in an incorrect context."
+        result_error S "‘...’ used in an incorrect context."
       else result_success S (ans, tail)
     else ifb el_car = R_MissingArg then
       let (S, l) := CONS S R_MissingArg R_NilValue in
@@ -3324,31 +3532,37 @@ Definition promiseArgs S (el rho : SEXP) : result SEXP :=
   result_success S ans_cdr.
 
 Definition PRIMFUN S x :=
+  add%stack "PRIMFUN" in
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_cfun x_fun).
 
 Definition PRIMVAL S x :=
+  add%stack "PRIMVAL" in
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_code x_fun).
 
 Definition PPINFO S x :=
+  add%stack "PPINFO" in
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_gram x_fun).
 
 Definition PRIMARITY S x :=
+  add%stack "PRIMARITY" in
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (fun_arity x_fun).
 
 Definition PRIMINTERNAL S x :=
+  add%stack "PRIMINTERNAL" in
   read%prim _, x_prim := x using S in
   let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
   result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
 
 Definition evalList S (el rho call : SEXP) n :=
+  add%stack "evalList" in
   fold%success (n, head, tail) := (n, R_NilValue : SEXP, R_NilValue : SEXP)
   along el
   as el_car, el_tag
@@ -3379,10 +3593,10 @@ Definition evalList S (el rho call : SEXP) n :=
         using S, runs, globals in
         result_success S (n, head, tail)
       else ifb h <> R_MissingArg then
-        result_error S "[evalList] ‘...’ used in an incorrect context."
+        result_error S "‘...’ used in an incorrect context."
       else result_success S (n, head, tail)
     else ifb el_car = R_MissingArg then
-      result_error S "[evalList] Argument is empty."
+      result_error S "Argument is empty."
     else
       let%success ev := runs_eval runs S el_car rho using S in
       let (S, ev) := CONS_NR S ev R_NilValue in
@@ -3402,6 +3616,7 @@ Definition evalList S (el rho call : SEXP) n :=
   result_success S head.
 
 Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
+  add%stack "evalListKeepMissing" in
   fold%success (head, tail) := (R_NilValue : SEXP, R_NilValue : SEXP)
   along el
   as _, _, el_list do
@@ -3430,7 +3645,7 @@ Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
           run%success COPY_TAG S ev h using S in
           result_success S (head, ev) using S, runs, globals
       else ifb h <> R_MissingArg then
-        result_error S "[evalListKeepMissing] ‘...’ used in an incorrect context."
+        result_error S "‘...’ used in an incorrect context."
       else result_success S (head, tail)
     else
       let%success val :=
@@ -3463,6 +3678,7 @@ Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
   result_success S head.
 
 Definition evalArgs S el rho (dropmissing : bool) call n :=
+  add%stack "evalArgs" in
   if dropmissing then
     evalList S el rho call n
   else evalListKeepMissing S el rho.
@@ -3471,6 +3687,7 @@ Definition evalArgs S el rho (dropmissing : bool) call n :=
   overwrites its additional argument [ans]. This naturally translates as an option type. **)
 Definition DispatchGroup S group (call op args rho : SEXP)
     : result (option SEXP) :=
+  add%stack "DispatchGroup" in
   read%list args_car, args_cdr, _ := args using S in
   let%success args_car_is := isObject S args_car using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
@@ -3479,10 +3696,11 @@ Definition DispatchGroup S group (call op args rho : SEXP)
     result_success S None
   else
     let isOps := decide (group = "Ops"%string) in
-    result_not_implemented "[DispatchGroup]".
+    result_not_implemented "".
 
 Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP)
     (dropmissing argsevald : bool) : result (bool * SEXP) :=
+  add%stack "DispatchOrEval" in
   let%success (x, dots) :=
     if argsevald then
       read%list args_car, _, _ := args using S in
@@ -3497,12 +3715,12 @@ Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP
             read%list h_car, _, _ := h using S in
             let%success h_car_type := TYPEOF S h_car using S in
             ifb h_car_type <> PromSxp then
-              result_error S "[DispatchOrEval] Value in ‘...’ is not a promise."
+              result_error S "Value in ‘...’ is not a promise."
             else
               let%success r := runs_eval runs S h_car rho using S in
               result_rreturn S (r, true)
           else ifb h <> R_NilValue /\ h <> R_MissingArg then
-            result_error S "[DispatchOrEval] ‘...’ used in an incorrect context."
+            result_error S "‘...’ used in an incorrect context."
           else result_rsuccess S (x, dots)
         else
           let%success r := runs_eval runs S args_car rho using S in
@@ -3510,7 +3728,7 @@ Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP
       result_success S (x, dots) using S in
   run%exit
     if%success isObject S x using S then
-      result_not_implemented "[DispatchOrEval] Object case."
+      result_not_implemented "Object case."
     else result_rskip S using S in
   let%success ans :=
     if negb argsevald then
@@ -3528,12 +3746,14 @@ Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP
 
 Definition DispatchAnyOrEval S (call op : SEXP) (generic : string) (args rho : SEXP)
     (dropmissing argsevald : bool) : result (bool * SEXP) :=
+  add%stack "DispatchAnyOrEval" in
   if%success R_has_methods S op using S then
-    result_not_implemented "[DispatchAnyOrEval] Method case."
+    result_not_implemented "Method case."
   else DispatchOrEval S call op generic args rho dropmissing argsevald.
 
 (** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SEXP) :=
+  add%stack "eval" in
   let%success e_type := TYPEOF S e using S in
   match e_type with
   | NilSxp
@@ -3558,17 +3778,17 @@ Definition eval S (e rho : SEXP) :=
   | _ =>
     let%success rho_type := TYPEOF S rho using S in
     ifb rho_type <> EnvSxp then
-      result_error S "[eval] ‘rho’ must be an environment."
+      result_error S "‘rho’ must be an environment."
     else
       match e_type with
       | BcodeSxp =>
         (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
           Line 5966 of the same file for the evaluator.
           We do not consider byte code for now in this formalisation. **)
-        result_not_implemented "[eval] bcEval"
+        result_not_implemented "bcEval"
       | SymSxp =>
         ifb e = R_DotsSymbol then
-          result_error S "[eval] ‘...’ used in an incorrect context."
+          result_error S "‘...’ used in an incorrect context."
         else
           let%success tmp :=
             if%success DDVAL S e using S then
@@ -3576,11 +3796,11 @@ Definition eval S (e rho : SEXP) :=
             else
               findVar S e rho using S in
           ifb tmp = R_UnboundValue then
-            result_error S "[eval] Object not found."
+            result_error S "Object not found."
           else
             let%success ddval := DDVAL S e using S in
             ifb tmp = R_MissingArg /\ ~ ddval then
-              result_error S "[eval] Argument is missing, with no default."
+              result_error S "Argument is missing, with no default."
             else
               let%success tmp_type := TYPEOF S tmp using S in
               ifb tmp_type = PromSxp then
@@ -3641,15 +3861,16 @@ Definition eval S (e rho : SEXP) :=
         | CloSxp =>
           let%success tmp := promiseArgs S e_cdr rho using S in
           applyClosure S e op tmp rho R_NilValue
-        | _ => result_error S "[eval] Attempt to apply non-function."
+        | _ => result_error S "Attempt to apply non-function."
         end
-      | DotSxp => result_error S "[eval] ‘...’ used in an incorrect context"
-      | _ => result_error S "[eval] Type unimplemented in the R source code."
+      | DotSxp => result_error S "‘...’ used in an incorrect context"
+      | _ => result_error S "Type unimplemented in the R source code."
       end
   end.
 
 (** Evaluates the expression in the global environment. **)
 Definition eval_global S e :=
+  add%stack "eval_global" in
   eval S e R_GlobalEnv.
 
 End Parameterised.

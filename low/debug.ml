@@ -76,28 +76,28 @@ let parse_one_arg : (string -> 'a option) -> ('a -> string) -> 'a -> string -> (
           ^ "Assuming that " ^ print def ^ " was missing here.") ;
         cont def (arg :: l)
 
-let rec parse_args verbose opt readable fetch s g r cont l = function
+let rec parse_args verbose pr_stack opt readable fetch s g r cont l = function
   | Result_unit f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_unit) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_unit) (fun s _ -> cont s))
   | Result_bool f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_bool) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_bool) (fun s _ -> cont s))
   | Result_int f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_integer) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_integer) (fun s _ -> cont s))
   | Result_int_list f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map print_integer l) ^ "]") (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map print_integer l) ^ "]") (fun s _ -> cont s))
   | Result_float f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> print_float) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_float) (fun s _ -> cont s))
   | Result_string f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
   | Result_pointer f ->
     cont l (fun cont s ->
-      print_and_continue verbose opt g (f g r s) s (fun n g s p ->
+      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s p ->
         print_pointer readable s g p ^
         if fetch then (
           indent n ^ "Pointer value: " ^
@@ -106,29 +106,29 @@ let rec parse_args verbose opt readable fetch s g r cont l = function
         ) else "") (fun s _ -> cont s))
   | Argument_unit f ->
     parse_one_arg read_unit_opt print_unit () "a unit"
-      (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
+      (fun res l -> parse_args verbose pr_stack opt readable fetch s g r cont l (f res)) l
   | Argument_bool f ->
     parse_one_arg read_bool_opt print_bool false "a boolean"
-      (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
+      (fun res l -> parse_args verbose pr_stack opt readable fetch s g r cont l (f res)) l
   | Argument_int f ->
     parse_one_arg read_int_opt print_integer 0 "an integer"
-      (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
+      (fun res l -> parse_args verbose pr_stack opt readable fetch s g r cont l (f res)) l
   | Argument_float f ->
     parse_one_arg read_float_opt print_float 0. "a floating-point number"
-      (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
+      (fun res l -> parse_args verbose pr_stack opt readable fetch s g r cont l (f res)) l
   | Argument_pointer f ->
     parse_one_arg (read_pointer_opt s g) (print_pointer readable s g) (read_globals g R_NilValue) "a pointer"
-      (fun res l -> parse_args verbose opt readable fetch s g r cont l (f res)) l
+      (fun res l -> parse_args verbose pr_stack opt readable fetch s g r cont l (f res)) l
 
 
-let parse_arg_fun verbose opt readable fetch s g r cont cont_failure = function
+let parse_arg_fun verbose pr_stack opt readable fetch s g r cont cont_failure = function
   | [] ->
     prerr_endline "A function name is expected as the argument of this command." ;
     cont_failure ()
   | f :: l ->
     try
       let f = List.assoc f funlist in
-      parse_args verbose opt readable fetch s g r cont l f
+      parse_args verbose pr_stack opt readable fetch s g r cont l f
     with Not_found ->
       prerr_endline ("Unknown function: “" ^ f ^ "”.") ;
       cont_failure ()

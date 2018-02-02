@@ -539,36 +539,42 @@ let print_state d (context, all_context, memory, globals, initials, no_temporary
     "Context:" ^ indent (d + 2) ^ print_context (d + 2) all_context t s g (state_context s)
   else ""
 
-let print_result verbose r cont =
+let print_stack pr_stack stack =
+  if pr_stack then
+    let st = String.concat ", " (List.map char_list_to_string stack) in
+    " (Execution stack: " ^ st ^ ")"
+  else ""
+
+let print_result verbose pr_stack r cont =
   match r with
   | Result_success (s, g) ->
     if verbose then print_endline "Success." ;
     cont (Some s) (Some g)
-  | Result_error (s, str) ->
-    print_endline ("Error: " ^ char_list_to_string str) ;
-    cont (Some s) None
   | Result_longjump (s, i, cs) ->
     print_endline ("Impossible! Please report. A long jump reached the top level (target jump buffer: " ^ string_of_int i ^ ").") ;
     cont (Some s) None
-  | Result_impossible (s, str) ->
-    print_endline ("Impossible! Please report. " ^ char_list_to_string str) ;
+  | Result_error_stack (s, stack, str) ->
+    print_endline ("Error: " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont (Some s) None
-  | Result_not_implemented str ->
-    print_endline ("Not implemented: " ^ char_list_to_string str) ;
+  | Result_impossible_stack (s, stack, str) ->
+    print_endline ("Impossible! Please report. " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
+    cont (Some s) None
+  | Result_not_implemented_stack (stack, str) ->
+    print_endline ("Not implemented: " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont None None
   | Result_bottom s ->
     print_endline "Stopped because of lack of fuel." ;
     cont None None
 
-let print_continue verbose r s cont =
-  print_result verbose r (function
+let print_continue verbose pr_stack r s cont =
+  print_result verbose pr_stack r (function
     | None ->
       print_endline "An error lead to an undefined state. Continuing using the old one." ;
       cont s
     | Some s -> cont s)
 
-let print_defined verbose r s pr cont =
-  print_continue verbose r s (fun s -> function
+let print_defined verbose pr_stack r s pr cont =
+  print_continue verbose pr_stack r s (fun s -> function
     | None ->
       print_endline "An error lead to an undefined result." ;
       cont s None
@@ -576,10 +582,10 @@ let print_defined verbose r s pr cont =
       pr s r ;
       cont s (Some r))
 
-let print_and_continue verbose
+let print_and_continue verbose pr_stack
     (show_state_after_computation, show_result_after_computation, run_options, ((_, print_unlike_R) as expr_options))
     g r s pr cont =
-  print_defined verbose r s (fun s r ->
+  print_defined verbose pr_stack r s (fun s r ->
     if show_state_after_computation then (
       print_endline "State:" ;
       print_endline (print_state 2 run_options expr_options s g)) ;

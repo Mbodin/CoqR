@@ -43,6 +43,7 @@ Definition InitConnections S :=
 
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
 Definition init_R_NilValue S :=
+  add%stack "init_R_NilValue" in
   let nil_obj := {|
       NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp false) NULL ;
       NonVector_SExpRec_data := {|
@@ -66,6 +67,7 @@ Definition init_R_NilValue S :=
 
 (** The second part of [InitMemory], from main/memory.c **)
 Definition InitMemory S :=
+  add%stack "InitMemory" in
   let (S, R_TrueValue) := mkTrue globals S in
   let (S, R_FalseValue) := mkFalse globals S in
   let (S, R_LogicalNAValue) := alloc_vector_lgl globals S (ArrayList.from_list [NA_LOGICAL]) in
@@ -73,6 +75,7 @@ Definition InitMemory S :=
 
 (** [InitBaseEnv], from main/envir.c **)
 Definition InitBaseEnv S :=
+  add%stack "InitBaseEnv" in
   let%success R_EmptyEnv :=
     NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
   let%success R_BaseEnv :=
@@ -81,6 +84,7 @@ Definition InitBaseEnv S :=
 
 (** [SymbolShortcuts], from main/names.c **)
 Definition SymbolShortcuts S :=
+  add%stack "SymbolShortcuts" in
   let decl v n := (v, n) : GlobalVariable * string in
   let L := [
       decl R_Bracket2Symbol "[[" ;
@@ -146,6 +150,7 @@ Definition SymbolShortcuts S :=
 
 (** The beginning of [InitNames], from main/names.c **)
 Definition InitNames_shorcuts S :=
+  add%stack "InitNames_shorcuts" in
   let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
   let (S, str) := mkChar globals S "" in
   let%success R_MissingArg := mkSymMarker globals S str using S in
@@ -165,6 +170,7 @@ Definition InitNames_shorcuts S :=
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
 Definition mkPRIMSXP_init S :=
+  add%stack "mkPRIMSXP_init" in
   let%success R_FunTab := get_R_FunTab runs S using S in
   let FunTabSize := ArrayList.length R_FunTab in
   let (S, primCache) :=
@@ -173,6 +179,7 @@ Definition mkPRIMSXP_init S :=
 
 (** The end of [InitNames], from main/names.c **)
 Definition InitNames_install S :=
+  add%stack "InitNames_install" in
   let%success R_FunTab := get_R_FunTab runs S using S in
   do%success i := 0
   for c in%array R_FunTab do
@@ -185,6 +192,7 @@ Definition InitNames_install S :=
 
 (** Called from [InitNames], defined in main/eval.c **)
 Definition R_initAssignSymbols S :=
+  add%stack "R_initAssignSymbols" in
   do%success for c in%list asym do
     let%success sym := install globals runs S c using S in
     (* TODO: Store the result into [asymSymbol]. *)
@@ -194,6 +202,7 @@ Definition R_initAssignSymbols S :=
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
+  add%stack "InitGlobalEnv" in
   let%success R_NamespaceSymbol :=
      install globals runs S ".__NAMESPACE__." using S in
   let%success R_GlobalEnv :=
@@ -229,6 +238,7 @@ Definition InitGlobalEnv S :=
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
 (*Definition InitOptions runs S :=
+  add%stack "InitOptions" in
   result_not_implemented.*)
 
 (** [TypeTable], from main/util.c **)
@@ -275,6 +285,7 @@ Definition findTypeInTypeTable t :=
 
 (** [InitTypeTables], from main/util.c **)
 Definition InitTypeTables S :=
+  add%stack "InitTypeTables" in
   do%success L := nil
   for type from 0 to MAX_NUM_SEXPTYPE - 1 do
     match nat_to_SExpType type with
@@ -288,7 +299,7 @@ Definition InitTypeTables S :=
           map%pointer rstr with set_named_plural using S in
           let%success rsym := install globals runs S cstr using S in
           result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
-        | None => result_impossible S "[InitTypeTables] Out of bound."
+        | None => result_impossible S "Out of bound."
         end
       else result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
     | None =>
@@ -300,10 +311,12 @@ Definition InitTypeTables S :=
 (** [InitS3DefaulTypes], from main/attrib.c **)
 (* FIXME: Do we want to model it? *)
 (*Definition InitS3DefaulTypes runs S :=
+  add%stack "InitS3DefaulTypes" in
   result_not_implemented.*)
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel S :=
+  add%stack "init_R_Toplevel" in
   let%success (R_EmptyEnv, R_BaseEnv) :=
     InitBaseEnv S using S in
   result_success S {|
@@ -338,6 +351,7 @@ End Globals.
   [max_step] argument from [runs], and recomputing it at each step with
   the updated [globals]. **)
 Definition setup_Rmainloop max_step S : result Globals :=
+  add%stack "setup_Rmainloop" in
   let decl x p := (x, p) : GlobalVariable * SEXP in
   let globals := empty_Globals in
   let S := InitConnections S in
