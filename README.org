@@ -162,6 +162,10 @@ This file also contains the final interpreter.
 
 This file formalises functions for parsing R expressions.
 
+*** MonadTactics.
+
+Provides tactics to easily manipulate the monads defined in Monads.v and Loops.v.
+
 *** Rinvariants.v
 
 Proofs of some invariants respected by the functions defined in Rcore.v,

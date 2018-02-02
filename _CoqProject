@@ -24,9 +24,11 @@
 ./low/Rfeatures.v
 ./low/Rinit.v
 ./low/Rparsing.v
+./low/Extraction.v
+
+./low/MonadTactics.v
 ./low/Rinvariants.v
 ./low/Relation.v
-./low/Extraction.v
 
 
 -R ./structured Structured
