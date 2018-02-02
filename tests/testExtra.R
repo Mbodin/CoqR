@@ -338,9 +338,10 @@ runif ()
 typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
 
-# Miscellaneous
+# Miscellaneous.
 levels
 mode
+a$b
 a::b
 a:::b
 

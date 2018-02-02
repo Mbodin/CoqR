@@ -163,9 +163,7 @@ Definition InitNames_shorcuts S :=
   let%success R_BlankScalarString := ScalarString globals S R_BlankString using S in
   let R_SymbolTable := R_NilValue in
   let S := update_R_SymbolTable S R_SymbolTable in
-  let%success L :=
-     SymbolShortcuts S using S in
-  result_success S (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString, L).
+  result_success S (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
@@ -367,14 +365,16 @@ Definition setup_Rmainloop max_step S : result Globals :=
     InitBaseEnv globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
-  let%success (UnboundValue, MissingArg, RestartToken, NA_string, BlankString, BlankScalarString, L) :=
-    InitNames_shorcuts globals (runs max_step globals) S using S in
+  let%success (UnboundValue, MissingArg, RestartToken, NA_string, BlankString, BlankScalarString) :=
+    InitNames_shorcuts globals S using S in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg ;
                                    decl R_RestartToken RestartToken ;
                                    decl NA_STRING NA_string ;
                                    decl R_BlankString BlankString ;
-                                   decl R_BlankScalarString BlankScalarString ] ++ L }} in
+                                   decl R_BlankScalarString BlankScalarString ] }} in
+  let%success L := SymbolShortcuts globals (runs max_step globals) S using S in
+  let globals := {{ globals with L }} in
   let%success primCache :=
     mkPRIMSXP_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in

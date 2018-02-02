@@ -6,6 +6,7 @@
 let interactive = ref true
 let print_prompt = ref true
 let verbose = ref false
+let done_message = ref true
 let print_stack = ref true
 let max_steps = ref max_int
 
@@ -27,7 +28,7 @@ let fetch_global = ref false
 let print_unlike_R = ref false
 let always_print_pointer = ref false
 
-let show_globals_initial = ref false
+let show_state_initial = ref false
 let show_result_after_computation = ref true
 let show_state_after_computation = ref false
 let only_parsing = ref false
@@ -60,9 +61,9 @@ let boolean_switches =
   let print_unlike_R =
     make_boolean_switch [] [] "unlike" "like" "Do not" "Try to (this is an experimental feature)" print_unlike_R "R" "print results as R would" false in
   let print_globals =
-    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables" false in
+    print_switch [] [] show_globals "globals" "the value of (non-constant) global variables when printing the state" false in
   let print_initials =
-    print_switch [] [] show_initials "initials" "the value of constant global variables" true in
+    print_switch [] [] show_initials "initials" "the value of constant global variables when printing the state" true in
   let show_data_switch =
     print_switch [] [print_unlike_R] show_data "data" "the data of vectors" false in
   let show_gp_switch =
@@ -77,7 +78,7 @@ let boolean_switches =
     computation_switch [] [] always_print_pointer "pointer-result" "the value of the pointer returned even when trying to mimic R" true ;
     print_globals ;
     print_initials ;
-    print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables" true ;
+    print_switch [] [print_globals ; print_initials] fetch_global "fetch-global" "the value pointed by global variables when printing the state" true ;
     show_gp_switch ;
     print_switch [] [print_unlike_R] show_attrib "attrib" "the attribute field of basic language elements" true ;
     print_switch [category_read] [] show_outputs "outputs" "a prefix message before each R output" true ;
@@ -91,10 +92,10 @@ let boolean_switches =
     show_result ;
     computation_switch [] [show_result] fetch_result "result-value" "the value pointed by the current computation" true ;
     computation_switch [] [] show_state_after_computation "state" "the intermediate state after each computation" false ;
-    computation_switch [] [] show_globals_initial "globals-initial" "the value of constant global variables in the beginning" true ;
     make_boolean_switch [] [] "disable" "enable" "Do not evaluate (only parsing)" "Evaluate" only_parsing "evaluation" "expressions from the input" true ;
     print_switch [] [] print_prompt "prompt" "the prompt (the “>” shown before inputs)" true ;
     print_switch [] [] print_stack "stack" "the execution stack in case of an error" true ;
+    print_switch [] [] done_message "done" "a feedback when interactive commands are executed" true ;
     make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false
   ]
 
@@ -183,12 +184,14 @@ let _ =
         ("-non-interactive", Arg.Clear interactive, "Non-interactive mode.") ::
         ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state.") ::
         ("-expert-mode", Arg.Unit (fun _ -> prerr_endline "This program is already in expert mode."), text_expert "-" ^ " (current)") ::
-          make_options true "-" "default") in
+        ("-show-state-initial", Arg.Set show_state_initial, "Prints the state at the beginning of the execution") ::
+        make_options true "-" "default") in
     let simple_arguments =
       sort_commands (
         ("-non-interactive", Arg.Clear interactive, "") ::
         ("-initial-state", Arg.Set_string initial_state, "") ::
         ("-expert-mode", Arg.Unit (fun _ -> arguments := all_arguments), text_expert "-") ::
+        ("-show-state-initial", Arg.Set show_state_initial, "") ::
         make_options false "-" "default") in
     arguments := simple_arguments ;
     Arg.parse_dynamic arguments
@@ -232,7 +235,7 @@ let _ =
       let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
       Low.Result_success (s, globals)) in
   Print.print_defined !verbose !print_stack initialising_function Low.empty_state (fun s globals ->
-    if !show_globals_initial then
+    if !show_state_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
     | None ->
@@ -325,7 +328,7 @@ let _ =
             | [] ->
               let s = cont s in
               if at_leat_one then
-                if !verbose then print_endline "Done." ;
+                if !done_message then print_endline "Done." ;
               loop s
             | "#quit" :: l -> ignore (cont s) ; exiting_function s globals
             | "#execute" as cmd :: l ->
