@@ -31,16 +31,16 @@ Arguments convert_type_monad [A B] r.
 
 Lemma convert_type_monad_aborting : forall A B (r : result A) H,
   aborting_result (convert_type_monad r H : result B).
-Proof. introv. destruct r; (reflexivity || false*). Qed.
+Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
 
 Lemma convert_type_monad_change_proof : forall A B (r : result A) H1 H2,
   (convert_type_monad r H1 : result B) = convert_type_monad r H2.
-Proof. introv. destruct r; (reflexivity || false*). Qed.
+Proof. introv. destruct r; (reflexivity || inverts~ H1). Qed.
 
 Lemma convert_type_monad_transitive : forall A B C (r : result A) H1 H2,
   convert_type_monad (convert_type_monad r H1 : result B) H2
   = (convert_type_monad r H1 : result C).
-Proof. introv. destruct r; (reflexivity || false*). Qed.
+Proof. introv. destruct r; (reflexivity || inverts~ H1). Qed.
 
 (** This tactic tries to simplify as much as can be threaded versions of [convert_type_monad]. **)
 Ltac clean_convert_type_one :=
@@ -63,51 +63,125 @@ Ltac clean_convert_type := repeat clean_convert_type_one.
 
 (** ** Lemmae **)
 
-Lemma let_success_pass : forall A B S r (cont : state -> A -> result B),
-  let%success a := result_success S r using S in cont S a
-  = 'let a := r in cont S a.
+Lemma add_stack_pass : forall A fname S (a : A),
+  add%stack fname in (result_success S a) = result_success S a.
 Proof. reflexivity. Qed.
 
-Lemma let_success_abort : forall A B r (cont : state -> A -> result B) H,
+Lemma add_stack_aborts : forall A fname (r : result A),
+  aborting_result r ->
+  aborting_result (add%stack fname in r).
+Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma if_success_pass : forall A B S a (cont : state -> A -> result B),
+  let%success a := result_success S a using S in cont S a
+  = 'let a := a in cont S a.
+Proof. reflexivity. Qed.
+
+Lemma if_success_aborts : forall A B r (cont : state -> A -> result B),
+  aborting_result r ->
+  aborting_result (let%success a := r using S in cont S a).
+Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma if_success_abort : forall A B r (cont : state -> A -> result B) H,
   let%success a := r using S in cont S a = convert_type_monad r H.
-Proof. introv. destruct r; (reflexivity || false*). Qed.
+Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma if_defined_pass : forall A B S a (cont : state -> A -> result B),
+  let%defined a := Some a using S in cont S a
+  = 'let a := a in cont S a.
+Proof. reflexivity. Qed.
+
+Lemma if_defined_aborts : forall A B S (cont : state -> A -> result B),
+  aborting_result (let%defined a := None using S in cont S a).
+Proof. reflexivity. Qed.
+
+Definition if_defined_abort : forall A B S (cont : state -> A -> result B),
+    let%defined a := None using S in cont S a
+    = result_impossible_stack S _ _
+  := fun _ _ _ _ => eq_refl.
+
+(* TODO: From [if_is_prim], maybe tactics for read and write. *)
+
 
 (** ** Tactics **)
 
-(** This tactics unfolds terms of the form ['let a := […] in let (a1, …, an) := a in …]. **)
-Ltac mlet_name :=
-  try let_name;
-  repeat match goal with
-  | |- context [ let (a1, a2) := ?r in _ ] =>
-     match goal with
-     | E : r = _ |- _ =>
-       rewrite E;
-       match goal with
-       | |- context [ r ] => idtac
-       | _ => clear E; try clear r
-       end
-     end
+Ltac get_pass_lemma t :=
+  match get_head t with
+  | add_stack => constr:(add_stack_pass)
+  | if_success => constr:(if_success_pass)
+  | if_defined => constr:(if_defined_pass)
   end.
 
-Ltac rewrite_let_name :=
-  match goal with
-  | |- context A [ 'let a := (?a1, ?a2) in let (b1, b2) := ?c in _ ] =>
-    match c with a => ?? end
+Ltac get_aborts_lemma t :=
+  match get_head t with
+  | add_stack => constr:(add_stack_aborts)
+  | if_success => constr:(if_success_aborts)
+  | if_defined => constr:(if_defined_aborts)
   end.
+
+Ltac get_abort_lemma t :=
+  match get_head t with
+  | if_success => constr:(if_success_abort)
+  | if_defined => constr:(if_defined_abort)
+  end.
+
+(** To speed up computations, we directly fail if a result is not already fully computed. **)
+Ltac result_computed r :=
+  match get_head r with
+  | result_success => idtac
+  | result_longjump => idtac
+  | result_error_stack => idtac
+  | result_impossible_stack => idtac
+  | result_not_implemented_stack => idtac
+  | result_bottom => idtac
+  end.
+
+Ltac munfold_with_result t r :=
+  result_computed r;
+  first [
+      let P := get_pass_lemma t in
+      rewrite~ P
+    | let A := get_abort_lemma t in
+      first [
+          rewrite A
+        | let H := fresh "Habort" in
+          asserts H: (aborting_result r);
+          [ first [
+                reflexivity
+              | let AT := get_aborts_lemma t in
+                apply* AT ]
+          | rewrite A with H ] ] ].
+
+Ltac munfold_without_result t :=
+  first [
+      let P := get_pass_lemma t in
+      rewrite~ P
+    | let A := get_abort_lemma t in
+      rewrite A ].
 
 Ltac munfold :=
-  repeat match goal with
-  | |- context [ let%success a := ?r using S in _ ] =>
-    first [
-        rewrite let_success_pass; rewrite_let_name
-      | let H := fresh "H" in
-        asserts H: (aborting_result r);
-        [ reflexivity
-        | rewrite let_success_abort with (H := H) ] ]
+  match goal with
+  | |- context [ add_stack ?fname ?r ] =>
+    munfold_with_result (add_stack fname r) r
+  | |- context [ if_success ?r ?cont ] =>
+    munfold_with_result (if_success r cont) r
+  | |- context [ if_defined ?S ?o ?cont ] =>
+    munfold_without_result (if_defined S o cont)
+  | |- context [ result_skip ?S ] =>
+    unfolds result_skip
+  | |- context [ if_then_else_success ?b ?c1 ?c2 ] =>
+    unfolds if_then_else_success
+  | |- context [ if_then_success ?b ?c ?cont ] =>
+    unfolds if_then_success
+  | |- context [ if_option_defined ?c ?cont1 ?cont2 ] =>
+    unfolds if_option_defined
   end.
 
-Definition f (x : nat) := (1, 2, false, x).
+Ltac munfolds :=
+  repeat (munfold; repeat let_simpl).
 
+(* TEMPORARY: Quick test *)
+Definition f (x : nat) := (1, 2, false, x).
 Goal forall S,
-  let%success (a, b, c, d) := result_success S (f 42) using S in result_success S c = result_impossible S "".
-  introv. munfold.
+  (add%stack "test" in let%success (a, b, c, d) := result_success S (f 42) using S in result_success S c) = result_impossible S "".
+  introv. unfolds f. munfolds.

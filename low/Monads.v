@@ -138,7 +138,7 @@ Definition if_defined (A B : Type) S (o : option A) (f : A -> result B) : result
   | Some x => f x
   | None =>
     add%stack "if_defined" in
-    result_impossible S "got an undefined result."
+    result_impossible S "Undefined result."
   end.
 
 Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=

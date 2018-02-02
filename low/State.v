@@ -70,9 +70,7 @@ Definition read_SExp (S : memory) (e : SEXP) :=
 
 Lemma read_SExp_NULL : forall S,
   read_SExp S NULL = None.
-Proof.
-  introv. reflexivity.
-Qed.
+Proof. reflexivity. Qed.
 
 Lemma alloc_memory_SExp_nat_read_SExp : forall S S' e_ e,
   alloc_memory_SExp_nat S e_ = (S', e) ->
@@ -100,6 +98,22 @@ Proof.
       end).
   + clear. introv. destruct~ H.
   + symmetry in E. lets R': (rm R) (read_option S e). erewrite (R' _ _ E). destruct~ E.
+Qed.
+
+Lemma destruct_write_memory_SExp_nat_None_inv : forall (S : memory) e e_,
+  write_memory_SExp_nat S e e_ = None ->
+  read_option S e = None.
+Proof.
+  introv E. unfolds in E.
+  asserts R: (forall T T' (x : option T) (f : forall v, Some v = x -> _),
+      match x as r return r = x -> option T' with
+      | None => fun _ => None
+      | Some v => fun E => Some (f _ E)
+      end eq_refl
+      = None ->
+    x = None).
+  + clear. introv E. destruct~ x. inverts~ E.
+  + applys (rm R) E.
 Qed.
 
 Lemma destruct_write_memory_SExp_nat : forall (S : memory) e e_ v,
@@ -169,6 +183,22 @@ Lemma read_SExp_write_memory_SExp : forall S e_ e'_ e,
   read_SExp S e = Some e_ ->
   exists S', write_memory_SExp S e e'_ = Some S'.
 Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E. Qed.
+
+Lemma read_SExp_write_memory_SExp_None : forall S e'_ e,
+  read_SExp S e = None ->
+  write_memory_SExp S e e'_ = None.
+Proof.
+  introv E. unfolds. destruct~ e.
+  applys~ destruct_write_memory_SExp_nat_None E.
+Qed.
+
+Lemma write_memory_SExp_read_SExp_None : forall S e'_ e,
+  write_memory_SExp S e e'_ = None ->
+  read_SExp S e = None.
+Proof.
+  introv E. unfolds in E. destruct~ e.
+  applys~ destruct_write_memory_SExp_nat_None_inv E.
+Qed.
 
 
 (** * A Model for R’s Contexts **)
@@ -753,6 +783,35 @@ Definition write_SExp (S : state) e e_ :=
   | Some m => Some (state_with_memory S m)
   | None => None
   end.
+
+Lemma write_read_SExp_None : forall S p e_,
+  write_SExp S p e_ = None ->
+  read_SExp S p = None.
+Proof.
+  introv E. unfolds in E. destruct write_memory_SExp eqn: E'; inverts E.
+  applys~ write_memory_SExp_read_SExp_None E'.
+Qed.
+
+Lemma read_write_SExp_None : forall (S : state) p e_,
+  read_SExp S p = None ->
+  write_SExp S p e_ = None.
+Proof. introv E. unfolds. rewrite~ read_SExp_write_memory_SExp_None. Qed.
+
+Lemma alloc_read_SExp_Some : forall S1 S2 e e_,
+  alloc_SExp S1 e_ = (S2, e) ->
+  read_SExp S2 e = Some e_.
+Proof.
+  introv E. unfolds in E. destruct alloc_memory_SExp eqn: E'. inverts E.
+  apply~ alloc_memory_SExp_read_SExp. rewrite* E'.
+Qed.
+
+Lemma alloc_write_SExp_not_None : forall S1 S2 e e1_ e2_,
+  alloc_SExp S1 e1_ = (S2, e) ->
+  write_SExp S2 e e2_ <> None.
+Proof.
+  introv E1 E2. lets E3: write_read_SExp_None E2.
+  lets E4: alloc_read_SExp_Some E1. rewrite E3 in E4. inverts E4.
+Qed.
 
 
 (** * Initial Memory **)
