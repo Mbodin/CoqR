@@ -17,6 +17,7 @@ Require Export Rinternals InternalTypes Shared.
 Inductive GlobalVariable :=
   | NA_STRING
   | R_AsCharacterSymbol
+  | R_AssignSym
   | R_BaseEnv
   | R_BaseNamespaceName
   | R_BaseNamespace
@@ -34,6 +35,7 @@ Inductive GlobalVariable :=
   | R_DeviceSymbol
   | R_DimNamesSymbol
   | R_DimSymbol
+  | R_DollarGetsSymbol
   | R_DollarSymbol
   | R_dot_Class
   | R_dot_defined
@@ -78,15 +80,21 @@ Inductive GlobalVariable :=
   | R_SpecSymbol
   | R_SrcfileSymbol
   | R_SrcrefSymbol
+  | R_SubassignSym
+  | R_Subassign2Sym
+  | R_SubsetSym
+  | R_Subset2Sym
   | R_TmpvalSymbol
   | R_TripleColonSymbol
   | R_TrueValue
   | R_TspSymbol
   | R_UnboundValue
   | R_UseNamesSymbol
+  | R_ValueSym
   | R_WholeSrcrefSymbol
   (** The following global variables are [static] variables of functions **)
   | mkPRIMSXP_primCache
+  | do_attr_do_attr_formals
   .
 
 Definition all_GlobalVariables : list GlobalVariable.

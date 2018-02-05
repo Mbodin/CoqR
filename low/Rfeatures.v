@@ -73,6 +73,100 @@ Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
   add%stack "classgets" in
   result_not_implemented "".
 
+(** This enumeration is used in a local definition. **)
+Inductive enum_none_partial_partial2_full :=
+  | enum_none
+  | enum_partial
+  | enum_partial2
+  | enum_full.
+
+Instance enum_none_partial_partial2_full_Comparable : Comparable enum_none_partial_partial2_full.
+  prove_comparable_trivial_inductive.
+Defined.
+
+Definition do_attr S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_attr" in
+  (** The initialisation of [do_attr_formals] is done in [do_attr_init] in Rinit. **)
+  let%success nargs := R_length globals runs S args using S in
+  let%success argList := matchArgs globals runs S do_attr_do_attr_formals args call using S in
+  ifb nargs < 2 \/ nargs > 3 then
+    result_error S "Either 2 or 3 arguments are required."
+  else
+    read%list argList_car, argList_cdr, _ := argList using S in
+    let s := argList_car in
+    read%list argList_cdr_car, _, _ := argList_cdr using S in
+    let t := argList_cdr_car in
+    let%success t_str := isString S t using S in
+    if negb t_str then
+      result_error S "‘which’ must be of mode character."
+    else
+      let%success t_len := R_length globals runs S t using S in
+      ifb t_len <> 1 then
+        result_error S "Exactly one attribute ‘which’ must be given."
+      else
+        let%success s_type := TYPEOF S s using S in
+        ifb s_type = EnvSxp then
+          result_not_implemented "R_checkStack"
+        else
+          let%success exact :=
+            ifb nargs = 3 then
+              read%list _, args_cdr, _ := args using S in
+              read%list _, args_cdr_cdr, _ := args_cdr using S in
+              read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+              let%success exact := asLogical globals S args_cdr_cdr_car using S in
+              ifb exact = NA_LOGICAL then
+                result_success S false
+              else result_success S (decide (exact <> 0))
+            else result_success S false using S in
+          let%success t_0 := STRING_ELT S t 0 using S in
+          ifb t_0 = NA_STRING then
+            result_success S (R_NilValue : SEXP)
+          else
+            let%success str := translateChar S t_0 using S in
+            let%success alist := ATTRIB S s using S in
+            let%success (vmatch, tag) :=
+              fold%return (vmatch, tag) := (enum_none, R_NilValue : SEXP)
+              along alist
+              as _, alist_tag do
+                let tmp := alist_tag in
+                let%success tmp_name := PRINTNAME S tmp using S in
+                let%success s := CHAR S tmp_name using S in
+                ifb s = str then
+                  result_rreturn S (enum_full, tmp)
+                else if String.prefix str s then
+                  ifb vmatch = enum_partial \/ vmatch = enum_partial2 then
+                    result_rsuccess S (enum_partial2, tag)
+                  else result_rsuccess S (enum_partial, tmp)
+                else result_rsuccess S (vmatch, tag) using S, runs, globals in
+              result_success S (vmatch, tag) using S in
+            ifb vmatch = enum_partial2 then
+              result_success S (R_NilValue : SEXP)
+            else
+              let%exit (vmatch, tag) :=
+                ifb vmatch <> enum_full /\ str = "names"%string then
+                  result_rsuccess S (enum_full, R_NamesSymbol : SEXP)
+                else ifb vmatch <> enum_full /\ String.prefix "names" str then
+                  ifb vmatch = enum_none /\ ~ exact then
+                    let tag := R_NamesSymbol : SEXP in
+                    let%success t := getAttrib globals runs S s tag using S in
+                    (* A potential warning has been formalised out here. *)
+                    result_rreturn S t
+                  else
+                    let%success tag_name := PRINTNAME S tag using S in
+                    let%success tag_name_ := CHAR S tag_name using S in
+                    ifb vmatch = enum_partial /\ tag_name_ = "names"%string then
+                      let%success t := getAttrib globals runs S s R_NamesSymbol using S in
+                      ifb t <> R_NilValue then
+                        result_rreturn S (R_NilValue : SEXP)
+                      else result_rsuccess S (vmatch, tag)
+                    else result_rsuccess S (vmatch, tag)
+                else result_rsuccess S (vmatch, tag) using S in
+              ifb vmatch = enum_none \/ (exact /\ vmatch <> enum_full) then
+                result_success S (R_NilValue : SEXP)
+              else
+                (* A potential warning has been formalised out here. *)
+                getAttrib globals runs S s tag.
+
 
 (** * coerce.c **)
 
@@ -881,6 +975,111 @@ Definition CheckFormals S ls :=
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
 
+Definition evalseq S expr rho (forcelocal : bool) tmploc :=
+  add%stack "evalseq" in
+  if%success isNull S expr using S then
+    result_error S "Invalid left side assignment."
+  else if%success isSymbol S expr using S then
+    let%success nval :=
+      if forcelocal then
+        EnsureLocal globals runs S expr rho
+      else eval globals runs S expr rho using S in
+    let%success nval :=
+      if%success MAYBE_SHARED S nval using S then
+        shallow_duplicate S nval
+      else result_success S nval using S in
+    let (S, r) := CONS_NR globals S nval expr in
+    result_success S r
+  else if%success isLanguage globals S expr using S then
+    read%list _, expr_cdr, _ := expr using S in
+    read%list expr_cdr_car, _, _ := expr_cdr using S in
+    let%success val := runs_evalseq runs S expr_cdr_car rho forcelocal tmploc using S in
+    result_not_implemented "R_SetVarLocValue"
+  else result_error S "Target of assignment expands to non-language object.".
+
+Definition lookupAssignFcnSymbol (S : state) (fu : SEXP) : result SEXP :=
+  add%stack "lookupAssignFcnSymbol" in
+  result_not_implemented "R_ReplaceFunsTable".
+
+Definition enterAssignFcnSymbol (S : state) (fu val : SEXP) : result unit :=
+  add%stack "enterAssignFcnSymbol" in
+  result_not_implemented "R_ReplaceFunsTable".
+
+Definition installAssignFcnSymbol S fu :=
+  add%stack "installAssignFcnSymbol" in
+  let%success fu_name := PRINTNAME S fu using S in
+  let%success fu_name_ := CHAR S fu_name using S in
+  let%success val := install globals runs S (fu_name_ ++ "<-") using S in
+  run%success enterAssignFcnSymbol S fu val using S in
+  result_success S val.
+
+Definition getAssignFcnSymbol S (fu : SEXP) :=
+  add%stack "getAssignFcnSymbol" in
+  ifb fu = R_SubsetSym then
+    result_success S (R_SubassignSym : SEXP)
+  else ifb fu = R_Subset2Sym then
+    result_success S (R_Subassign2Sym : SEXP)
+  else ifb fu = R_DollarSymbol then
+    result_success S (R_DollarGetsSymbol : SEXP)
+  else
+    let%success val := lookupAssignFcnSymbol S fu using S in
+    ifb val <> R_UnboundValue then
+      result_success S val
+    else installAssignFcnSymbol S fu.
+
+Definition applydefine S (call op args rho : SEXP) : result SEXP :=
+  add%stack "applydefine" in
+  read%list args_car, args_cdr, _ := args using S in
+  let expr := args_car in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let%success rhs := eval globals runs S args_cdr_car rho using S in
+  let saverhs := rhs in
+  ifb rho = R_BaseNamespace then
+    result_error S "Can’t do complex assignments in base namespace."
+  else ifb rho = R_BaseEnv then
+    result_error S "Can’t do complex assignments in base environment."
+  else
+    run%success defineVar globals runs S R_TmpvalSymbol R_NilValue rho using S in
+    let%success tmploc := R_findVarLocInFrame globals runs S rho R_TmpvalSymbol using S in
+    let%success cntxt :=
+      begincontext globals S Ctxt_CCode call R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+    read%list expr_car, expr_cdr, _ := expr using S in
+    read%list expr_cdr_car, _, _ := expr_cdr using S in
+    let%success op_val := PRIMVAL runs S op using S in
+    let%success lhs := evalseq S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
+    let%success rhsprom := mkRHSPROMISE globals S args_cdr_car rhs using S in
+    do%success (rhs, lhs, expr) := (rhs, lhs, expr)
+    while
+        read%list expr_car, expr_cdr, _ := expr using S in
+        read%list expr_cdr_car, _, _ := expr_cdr using S in
+        isLanguage globals S expr_cdr_car do
+      read%list expr_car, expr_cdr, _ := expr using S in
+      read%list expr_cdr_car, _, _ := expr_cdr using S in
+      let%success tmp :=
+        let%success expr_car_type := TYPEOF S expr_car using S in
+        ifb expr_car_type = SymSxp then
+          getAssignFcnSymbol S expr_car
+        else
+          let%success expr_car_type := TYPEOF S expr_car using S in
+          read%list expr_car_car, expr_car_cdr, _ := expr_car using S in
+          let%success expr_car_len := R_length globals runs S expr_car using S in
+          read%list expr_car_cdr_car, expr_car_cdr_cdr, _ := expr_car_cdr using S in
+          read%list expr_car_cdr_cdr_car, _, _ := expr_car_cdr_cdr using S in
+          let%success expr_car_cdr_cdr_car_type := TYPEOF S expr_car_cdr_cdr_car using S in
+          ifb expr_car_type = LangSxp
+              /\ (expr_car_car = R_DoubleColonSymbol \/ expr_car_car = R_TripleColonSymbol)
+              /\ expr_car_len = 3 /\ expr_car_cdr_cdr_car_type = SymSxp then
+            let%success tmp := getAssignFcnSymbol S expr_car_cdr_cdr_car using S in
+            let%success tmp := lang3 globals S expr_car_car expr_car_cdr_car tmp using S in
+            result_success S tmp
+          else result_error S "Invalid function in complex assignment." using S in
+      result_not_implemented "SET_TEMPVARLOC_FROM_CAR, replaceCall" using S, runs in
+    run%success @result_not_implemented unit "SET_TEMPVARLOC_FROM_CAR, replaceCall" (** It is originally a copy/paste of the code above: let us wait until we implement it. **) using S in
+    let%success expr := eval globals runs S expr rho using S in
+    run%success endcontext globals runs S cntxt using S in
+    run%success @result_not_implemented unit "unbindVar" using S in
+    result_success S saverhs.
+
 Definition do_set S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_set" in
   let wrong S :=
@@ -918,7 +1117,7 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
       else
         run%success defineVar globals runs S lhs rhs rho using S in
         result_success S rhs
-    | LangSxp => result_not_implemented "applydefine"
+    | LangSxp => applydefine S call op args rho
     | _ => result_error S "Invalid left-hand side to assignment."
     end.
 
@@ -2408,6 +2607,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_getAttrib := fun S _ _ => result_bottom S ;
       runs_R_cycle_detected := fun S _ _ => result_bottom S ;
       runs_stripAttrib := fun S _ _ => result_bottom S ;
+      runs_evalseq := fun S _ _ _ _ => result_bottom S ;
       runs_R_isMissing := fun S _ _ => result_bottom S ;
       runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
       runs_ListAnswer := fun S _ _ _ _ => result_bottom S ;
@@ -2436,6 +2636,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_getAttrib := wrap getAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
       runs_stripAttrib := wrap stripAttrib ;
+      runs_evalseq := wrap evalseq ;
       runs_R_isMissing := wrap R_isMissing ;
       runs_AnswerType := wrap AnswerType ;
       runs_ListAnswer := wrap ListAnswer ;
@@ -2585,7 +2786,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "dim<-" (dummy_function "do_dimgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "attributes" (dummy_function "do_attributes") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "attributes<-" (dummy_function "do_attributesgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
-              rdecl "attr" (dummy_function "do_attr") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "attr" do_attr (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "attr<-" (dummy_function "do_attrgets") (0)%Z eval1 (3)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "@<-" (dummy_function "do_attrgets") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "levels<-" (dummy_function "do_levelsgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;

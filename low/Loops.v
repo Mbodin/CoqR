@@ -15,6 +15,7 @@ Record runs_type : Type := runs_type_intro {
     runs_getAttrib : state -> SEXP -> SEXP -> result SEXP ;
     runs_R_cycle_detected : state -> SEXP -> SEXP -> result bool ;
     runs_stripAttrib : state -> SEXP -> SEXP -> result SEXP ;
+    runs_evalseq : state -> SEXP -> SEXP -> bool -> SEXP -> result SEXP ;
     runs_R_isMissing : state -> SEXP -> SEXP -> result bool ;
     runs_AnswerType : state -> SEXP -> bool -> bool -> BindData -> SEXP -> result BindData ;
     runs_ListAnswer : state -> SEXP -> bool -> BindData -> SEXP -> result BindData ;

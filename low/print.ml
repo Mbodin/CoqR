@@ -12,6 +12,7 @@ let all_global_variables =
 
     (NA_STRING, "NA_STRING") ;
     (R_AsCharacterSymbol, "R_AsCharacterSymbol") ;
+    (R_AssignSym, "R_AssignSym") ;
     (R_BaseEnv, "R_BaseEnv") ;
     (R_BaseNamespaceName, "R_BaseNamespaceName") ;
     (R_BaseNamespace, "R_BaseNamespace") ;
@@ -29,6 +30,7 @@ let all_global_variables =
     (R_DeviceSymbol, "R_DeviceSymbol") ;
     (R_DimNamesSymbol, "R_DimNamesSymbol") ;
     (R_DimSymbol, "R_DimSymbol") ;
+    (R_DollarGetsSymbol, "R_DollarGetsSymbol") ;
     (R_DollarSymbol, "R_DollarSymbol") ;
     (R_dot_Class, "R_dot_Class") ;
     (R_dot_defined, "R_dot_defined") ;
@@ -72,15 +74,21 @@ let all_global_variables =
     (R_SpecSymbol, "R_SpecSymbol") ;
     (R_SrcfileSymbol, "R_SrcfileSymbol") ;
     (R_SrcrefSymbol, "R_SrcrefSymbol") ;
+    (R_SubassignSym, "R_SubassignSym") ;
+    (R_Subassign2Sym, "R_Subassign2Sym") ;
+    (R_SubsetSym, "R_SubsetSym") ;
+    (R_Subset2Sym, "R_Subset2Sym") ;
     (R_TmpvalSymbol, "R_TmpvalSymbol") ;
     (R_TripleColonSymbol, "R_TripleColonSymbol") ;
     (R_TrueValue, "R_TrueValue") ;
     (R_TspSymbol, "R_TspSymbol") ;
     (R_UnboundValue, "R_UnboundValue") ;
     (R_UseNamesSymbol, "R_UseNamesSymbol") ;
+    (R_ValueSym, "R_ValueSym") ;
     (R_WholeSrcrefSymbol, "R_WholeSrcrefSymbol") ;
 
-    (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ]
+    (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ;
+    (Do_attr_do_attr_formals, "static variable do_attr_formals from do_attr") ]
 
 let _ =
   (** A sanity check that we forgot no name above **)

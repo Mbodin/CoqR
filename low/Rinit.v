@@ -195,8 +195,15 @@ Definition R_initAssignSymbols S :=
     let%success sym := install globals runs S c using S in
     (* TODO: Store the result into [asymSymbol]. *)
     result_skip S using S in
-  (* TODO *)
-  result_skip S.
+  (* TODO: R_RewHashedEnv *)
+  let%success R_SubsetSym := install globals runs S "[" using S in
+  let%success R_SubassignSym := install globals runs S "[<-" using S in
+  let%success R_Subset2Sym := install globals runs S "[[" using S in
+  let%success R_Subassign2Sym := install globals runs S "[[<-" using S in
+  let%success R_DollarGetsSymbol := install globals runs S "$<-" using S in
+  let%success R_ValueSym := install globals runs S "value" using S in
+  let%success R_AssignSym := install globals runs S "<-" using S in
+  result_success S (R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_ValueSym, R_AssignSym).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -312,6 +319,15 @@ Definition InitTypeTables S :=
   add%stack "InitS3DefaulTypes" in
   result_not_implemented.*)
 
+(** The initialisation of [do_attr_do_attr_formals], done in C in
+  [do_attr], from main/attrib.c **)
+Definition do_attr_init S :=
+  add%stack "do_attr_init" in
+  let%success x := install globals runs S "x" using S in
+  let%success which := install globals runs S "which" using S in
+  allocFormalsList3 globals S x which R_ExactSymbol.
+
+
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel S :=
   add%stack "init_R_Toplevel" in
@@ -380,8 +396,15 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
   run%success
     InitNames_install globals (runs max_step globals) S using S in
-  run%success
+  let%success (SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, ValueSym, AssignSym) :=
     R_initAssignSymbols globals (runs max_step globals) S using S in
+  let globals := {{ globals with [ decl R_SubsetSym SubsetSym ;
+                                   decl R_SubassignSym SubassignSym ;
+                                   decl R_Subset2Sym Subset2Sym ;
+                                   decl R_Subassign2Sym Subassign2Sym ;
+                                   decl R_DollarGetsSymbol DollarGetsSymbol ;
+                                   decl R_ValueSym ValueSym ;
+                                   decl R_AssignSym AssignSym ] }} in
   (* TODO: [initializeDDVALSymbols], [R_initialize_bcode], [R_init_altrep]. *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
@@ -403,6 +426,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let S := update_R_ExitContext S None in
   let S := update_R_ReturnedValue S NULL in
   (* TODO: Some more initialisation. *)
+  let%success do_attr_formals :=
+    do_attr_init globals (runs max_step globals) S using S in
+  let globals := {{ globals with [ decl do_attr_do_attr_formals do_attr_formals ] }} in
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 

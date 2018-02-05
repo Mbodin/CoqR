@@ -179,9 +179,3 @@ Ltac munfold :=
 
 Ltac munfolds :=
   repeat (munfold; repeat let_simpl).
-
-(* TEMPORARY: Quick test *)
-Definition f (x : nat) := (1, 2, false, x).
-Goal forall S,
-  (add%stack "test" in let%success (a, b, c, d) := result_success S (f 42) using S in result_success S c) = result_impossible S "".
-  introv. unfolds f. munfolds.

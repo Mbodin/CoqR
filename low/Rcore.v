@@ -181,6 +181,15 @@ Definition NO_REFERENCES S x :=
   let%success x_named := NAMED S x using S in
   result_success S (decide (x_named = named_temporary)).
 
+Definition MAYBE_SHARED S x :=
+  add%stack "MAYBE_SHARED" in
+  let%success x_named := NAMED S x using S in
+  result_success S (decide (x_named = named_plural)).
+
+Definition MARK_NOT_MUTABLE S x :=
+  map%pointer x with set_named_plural using S in
+  result_skip S.
+
 Definition DDVAL_BIT := 0.
 
 Definition DDVAL S x :=
@@ -570,6 +579,21 @@ Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
     else UNSET_S4_OBJECT S vto using S in
   result_skip S.
 
+Definition SET_PRVALUE S x v :=
+  add%stack "SET_PRVALUE" in
+  read%prom x_, x_prom := x using S in
+  let x_prom := {|
+      prom_value := v ;
+      prom_expr := prom_expr x_prom ;
+      prom_env := prom_env x_prom
+    |} in
+  let x_ := {|
+      NonVector_SExpRec_header := x_ ;
+      NonVector_SExpRec_data := x_prom
+    |} in
+  write%defined x := x_ using S in
+  result_skip S.
+
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
   the compiled C files references [Rf_NewEnvironment] and not
@@ -592,6 +616,48 @@ Definition mkPromise S (expr rho : SEXP) : result SEXP :=
   map%pointer expr with set_named_plural using S in
   let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
   result_success S s.
+
+Definition R_mkEVPROMISE_NR S expr val :=
+  add%stack "R_mkEVPROMISE_NR" in
+  let%success prom := mkPromise S expr R_NilValue using S in
+  run%success SET_PRVALUE S prom val using S in
+  result_success S prom.
+
+(** The way this function has originally been defined is not
+  implementable in Coq.  This is thus a loosy translation. **)
+Definition allocFormalsList S l :=
+  add%stack "allocFormalsList" in
+  let (S, res) :=
+    fold_left (fun _ (Sres : _ * SEXP) =>
+        let (S, res) := Sres in
+        CONS S R_NilValue res) (S, R_NilValue : SEXP) l in
+  do%success n := res
+  for sym in%list l do
+    set%tag n := sym using S in
+    run%success MARK_NOT_MUTABLE S n using S in
+    read%list _, n_cdr, _ := n using S in
+    result_success S n_cdr using S in
+  result_success S res.
+
+Definition allocFormalsList2 S sym1 sym2 :=
+  add%stack "allocFormalsList2" in
+  allocFormalsList S [sym1; sym2].
+
+Definition allocFormalsList3 S sym1 sym2 sym3 :=
+  add%stack "allocFormalsList3" in
+  allocFormalsList S [sym1; sym2; sym3].
+
+Definition allocFormalsList4 S sym1 sym2 sym3 sym4 :=
+  add%stack "allocFormalsList4" in
+  allocFormalsList S [sym1; sym2; sym3; sym4].
+
+Definition allocFormalsList5 S sym1 sym2 sym3 sym4 sym5 :=
+  add%stack "allocFormalsList5" in
+  allocFormalsList S [sym1; sym2; sym3; sym4; sym5].
+
+Definition allocFormalsList6 S sym1 sym2 sym3 sym4 sym5 sym6 :=
+  add%stack "allocFormalsList6" in
+  allocFormalsList S [sym1; sym2; sym3; sym4; sym5; sym6].
 
 
 (** * dstruct.c **)
@@ -1368,6 +1434,15 @@ Definition installChar S charSXP :=
 (** The function names of this section corresponds to the function names
   in the file main/sysutils.c. **)
 
+Definition translateChar S x :=
+  add%stack "translateChar" in
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> CharSxp then
+    result_error S "Must be called on a [CharSxp]."
+  else
+    (** The original C program deals with encoding here. **)
+    CHAR S x.
+
 Definition installTrChar S x :=
   add%stack "installTrChar" in
   let%success x_type := TYPEOF S x using S in
@@ -1854,7 +1929,7 @@ Definition SET_FRAME S x v :=
       NonVector_SExpRec_data := x_env
     |} in
   write%defined x := x_ using S in
-  result_success S tt.
+  result_skip S.
 
 Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
   add%stack "addMissingVarsToNewEnv" in
@@ -2049,6 +2124,30 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
         else result_rskip S using S, runs, globals in
       result_success S (R_UnboundValue : SEXP).
 
+Definition EnsureLocal S symbol rho :=
+  add%stack "EnsureLocal" in
+  let%success vl := findVarInFrame3 S rho symbol true using S in
+  ifb vl <> R_UnboundValue then
+    let%success vl := runs_eval runs S symbol rho using S in
+    let%success vl :=
+      if%success MAYBE_SHARED S vl using S then
+        let%success vl := shallow_duplicate S vl using S in
+        run%success defineVar S symbol vl rho using S in
+        run%success INCREMENT_NAMED S vl using S in
+        result_success S vl
+      else result_success S vl using S in
+    result_success S vl
+  else
+    read%env _, rho_env := rho using S in
+    let%success vl := runs_eval runs S symbol (env_enclos rho_env) using S in
+    ifb vl = R_UnboundValue then
+      result_error S "Object not found."
+    else
+      let%success vl := shallow_duplicate S vl using S in
+      run%success defineVar S symbol vl rho using S in
+      run%success INCREMENT_NAMED S vl using S in
+      result_success S vl.
+
 Definition findVar S symbol rho :=
   add%stack "findVar" in
   let%success rho_type := TYPEOF S rho using S in
@@ -2086,6 +2185,12 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
           result_rreturn S frame
         else result_rskip S using S, runs, globals in
       result_success S (R_NilValue : SEXP).
+
+Definition R_findVarLocInFrame S rho symbol :=
+  let%success binding := findVarLocInFrame S rho symbol using S in
+  ifb binding = R_NilValue then
+    result_success S NULL
+  else result_success S binding.
 
 Definition ddVal S symbol :=
   add%stack "ddVal" in
@@ -3334,6 +3439,9 @@ Definition COPY_TAG S vto vfrom :=
     set%tag vto := vfrom_tag using S in
     result_skip S
   else result_skip S.
+
+Definition mkRHSPROMISE S expr rhs :=
+  R_mkEVPROMISE_NR S expr rhs.
 
 Definition asLogicalNoNA S (s call : SEXP) :=
   add%stack "asLogicalNoNA" in
