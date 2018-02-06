@@ -696,7 +696,8 @@ Record state := make_state {
     R_SymbolTable : SEXP ;
     R_ReturnedValue : SEXP ;
     R_Connections : list Rconnection (** Simply [Connections] in main/connections.c. **) ;
-    R_OutputCon : nat
+    R_OutputCon : nat ;
+    R_asymSymbol : list SEXP (** Simply [asymSymbol] in main/eval.c. **)
   }.
 
 Definition R_GlobalContext := state_context.
@@ -708,7 +709,8 @@ Definition state_with_memory S m := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := R_Connections S ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition state_with_context S c := {|
@@ -718,7 +720,8 @@ Definition state_with_context S c := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := R_Connections S ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition update_R_ExitContext S c := {|
@@ -728,7 +731,8 @@ Definition update_R_ExitContext S c := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := R_Connections S ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition update_R_SymbolTable S p := {|
@@ -738,7 +742,8 @@ Definition update_R_SymbolTable S p := {|
     R_SymbolTable := p ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := R_Connections S ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition update_R_ReturnedValue S p := {|
@@ -748,7 +753,8 @@ Definition update_R_ReturnedValue S p := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := p ;
     R_Connections := R_Connections S ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition update_R_Connections S cs := {|
@@ -758,7 +764,8 @@ Definition update_R_Connections S cs := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := cs ;
-    R_OutputCon := R_OutputCon S
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := R_asymSymbol S
   |}.
 
 Definition update_R_OutputCon S outputCon := {|
@@ -768,7 +775,19 @@ Definition update_R_OutputCon S outputCon := {|
     R_SymbolTable := R_SymbolTable S ;
     R_ReturnedValue := R_ReturnedValue S ;
     R_Connections := R_Connections S ;
-    R_OutputCon := outputCon
+    R_OutputCon := outputCon ;
+    R_asymSymbol := R_asymSymbol S
+  |}.
+
+Definition update_R_asymSymbol S asl := {|
+    state_memory := state_memory S ;
+    state_context := state_context S ;
+    R_ExitContext := R_ExitContext S ;
+    R_SymbolTable := R_SymbolTable S ;
+    R_ReturnedValue := R_ReturnedValue S ;
+    R_Connections := R_Connections S ;
+    R_OutputCon := R_OutputCon S ;
+    R_asymSymbol := asl
   |}.
 
 

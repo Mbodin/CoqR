@@ -304,11 +304,11 @@ f <- function (x) function (y) x <- 1 ; x <- 2 ; f (3) (4) ; x
 "(" <- function (x) 2 * x ; (2)
 '(' <- function () 1 ; (2)
 "{" <- function (x) 2 * x ; {2}
-'<-' <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4
-"<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4
+'<-' <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4 ; 5 <- 6 -> 7
+"<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4 ; 5 <<- 6 ->> 7
 'function' <- function (x, y, z) y ; function (x) 2
 "+" <- function (x, y) x - y ; 1 + 2
-'1' <- 2 ; "1L" <- 2 ; 1 ; 1L
+'1' <- 2 ; "1L" <- 2L ; 1 ; 1L
 "NULL" <- 1 ; NULL ; NULL <- 1
 
 # Tests about attributes and targetted assignments.

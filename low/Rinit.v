@@ -191,9 +191,11 @@ Definition InitNames_install S :=
 (** Called from [InitNames], defined in main/eval.c **)
 Definition R_initAssignSymbols S :=
   add%stack "R_initAssignSymbols" in
-  do%success for c in%list asym do
-    let%success sym := install globals runs S c using S in
-    (* TODO: Store the result into [asymSymbol]. *)
+  let S := update_R_asymSymbol S (repeat NULL (length asym)) in
+  do%success
+  for i from 0 to (length asym)%Z - 1 do
+    let%success sym := install globals runs S (nth i asym) using S in
+    let S := update_R_asymSymbol S (update i sym (R_asymSymbol S)) in
     result_skip S using S in
   (* TODO: R_RewHashedEnv *)
   let%success R_SubsetSym := install globals runs S "[" using S in
@@ -462,6 +464,7 @@ Definition empty_state := {|
     R_SymbolTable := NULL ;
     R_ReturnedValue := NULL ;
     R_Connections := nil ;
-    R_OutputCon := 0
+    R_OutputCon := 0 ;
+    R_asymSymbol := nil
   |}.
 

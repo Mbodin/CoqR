@@ -1027,6 +1027,17 @@ Definition getAssignFcnSymbol S (fu : SEXP) :=
       result_success S val
     else installAssignFcnSymbol S fu.
 
+Definition SET_TEMPVARLOC_FROM_CAR S loc lhs :=
+  add%stack "SET_TEMPVARLOC_FROM_CAR" in
+  read%list lhs_car, _, _ := lhs using S in
+  let v := lhs_car in
+  if%success MAYBE_SHARED S v using S then
+    let%success v := shallow_duplicate S v using S in
+    run%success ENSURE_NAMED S v using S in
+    set%car lhs := v using S in
+    result_skip S in
+  R_SetVarLocValue globals runs S loc v.
+
 Definition applydefine S (call op args rho : SEXP) : result SEXP :=
   add%stack "applydefine" in
   read%list args_car, args_cdr, _ := args using S in
@@ -1054,7 +1065,7 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
         read%list expr_cdr_car, _, _ := expr_cdr using S in
         isLanguage globals S expr_cdr_car do
       read%list expr_car, expr_cdr, _ := expr using S in
-      read%list expr_cdr_car, _, _ := expr_cdr using S in
+      read%list expr_cdr_car, expr_cdr_cdr, _ := expr_cdr using S in
       let%success tmp :=
         let%success expr_car_type := TYPEOF S expr_car using S in
         ifb expr_car_type = SymSxp then
@@ -1073,11 +1084,46 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
             let%success tmp := lang3 globals S expr_car_car expr_car_cdr_car tmp using S in
             result_success S tmp
           else result_error S "Invalid function in complex assignment." using S in
-      result_not_implemented "SET_TEMPVARLOC_FROM_CAR, replaceCall" using S, runs in
-    run%success @result_not_implemented unit "SET_TEMPVARLOC_FROM_CAR, replaceCall" (** It is originally a copy/paste of the code above: let us wait until we implement it. **) using S in
+      run%success SET_TEMPVARLOC_FROM_CAR S tmploc lhs using S in
+      let%success rhs :=
+        replaceCall globals runs S tmp R_TmpvalSymbol expr_cdr_cdr rhsprom using S in
+      let%success rhs := eval globals runs S rhs rho using S in
+      run%success SET_PRVALUE S rhsprom rhs using S in
+      run%success SET_PRCODE S rhsprom rhs using S in
+      read%list _, lhs_cdr, _ := lhs using S in
+      result_success S (rhs, lhs_cdr, expr_cdr_car) using S, runs in
+    read%list expr_car, expr_cdr, _ := expr using S in
+    read%list expr_cdr_car, expr_cdr_cdr, _ := expr_cdr using S in
+    let%success afun :=
+      let%success expr_car_type := TYPEOF S expr_car using S in
+      ifb expr_car_type = SymSxp then
+        getAssignFcnSymbol S expr_car
+      else
+        let%success expr_car_type := TYPEOF S expr_car using S in
+        read%list expr_car_car, expr_car_cdr, _ := expr_car using S in
+        let%success expr_car_len := R_length globals runs S expr_car using S in
+        read%list expr_car_cdr_car, expr_car_cdr_cdr, _ := expr_car_cdr using S in
+        read%list expr_car_cdr_cdr_car, _, _ := expr_car_cdr_cdr using S in
+        let%success expr_car_cdr_cdr_car_type := TYPEOF S expr_car_cdr_cdr_car using S in
+        ifb expr_car_type = LangSxp
+            /\ (expr_car_car = R_DoubleColonSymbol \/ expr_car_car = R_TripleColonSymbol)
+            /\ expr_car_len = 3 /\ expr_car_cdr_cdr_car_type = SymSxp then
+          let%success afun := getAssignFcnSymbol S expr_car_cdr_cdr_car using S in
+          let%success afun := lang3 globals S expr_car_car expr_car_cdr_car afun using S in
+          result_success S afun
+        else result_error S "Invalid function in complex assignment (after the loop)." using S in
+    run%success SET_TEMPVARLOC_FROM_CAR S tmploc lhs using S in
+    let%success R_asymSymbol_op :=
+      ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
+        result_error S "Out of bound access to [R_asymSymbol]."
+      else result_success S (nth (Z.to_nat op_val) (R_asymSymbol S)) using S in
+    read%list _, lhs_cdr, _ := lhs using S in
+    let%success expr :=
+      assignCall globals runs S R_asymSymbol_op lhs_cdr afun R_TmpvalSymbol expr_cdr_cdr rhsprom using S in
     let%success expr := eval globals runs S expr rho using S in
     run%success endcontext globals runs S cntxt using S in
-    run%success @result_not_implemented unit "unbindVar" using S in
+    run%success unbindVar globals runs S R_TmpvalSymbol rho using S in
+    run%success INCREMENT_NAMED S saverhs using S in
     result_success S saverhs.
 
 Definition do_set S (call op args rho : SEXP) : result SEXP :=
@@ -2138,11 +2184,31 @@ Definition scalarIndex S s :=
     else result_success S (-1)%Z
   else result_success S (-1)%Z.
 
-Definition ExtractDropArg (S : state) (el : SEXP) : result int :=
-  add%stack "ExtractDropArg" in
-  result_not_implemented "".
+Definition ExtractArg S args arg_sym :=
+  add%stack "ExtractArg" in
+  fold%return prev_arg := args
+  along args
+  as arg, _, arg_list do
+    ifb list_tagval arg_list = arg_sym then
+      run%success
+        ifb arg = prev_arg then
+          result_skip S
+        else
+          set%cdr prev_arg := list_cdrval arg_list using S in
+          result_skip S using S in
+      result_rreturn S (list_carval arg_list)
+    else result_rsuccess S arg using S, runs, globals in
+  result_success S (R_NilValue : SEXP).
 
-Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
+Definition ExtractDropArg S el :=
+  add%stack "ExtractDropArg" in
+  let%success dropArg := ExtractArg S el R_DropSymbol using S in
+  let%success drop := asLogical globals S dropArg using S in
+  ifb drop = NA_LOGICAL then
+    result_success S true
+  else result_success S (decide (drop <> 0)).
+
+Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in
   read%list args_car, args_cdr, _ := args using S in
   let cdrArgs := args_cdr in
@@ -2250,7 +2316,30 @@ Definition do_subset_dflt (S : state) (call op args rho : SEXP) : result SEXP :=
   else
     let subs := args_cdr in
     let%success nsubs := R_length globals runs S subs using S in
-    result_not_implemented "".
+    let%success type := TYPEOF S x using S in
+    let%success ax :=
+      if%success isVector S x using S then
+        result_success S x
+      else if%success isPairList S x using S then
+        let%success dim := getAttrib globals runs S x R_DimSymbol using S in
+        let%success ndim := R_length globals runs S dim using S in
+        let%success ax :=
+          ifb ndim > 1 then
+            result_not_implemented "allocArray"
+          else
+            let%success x_len := R_length globals runs S x using S in
+            let%success ax := allocVector globals S VecSxp x_len using S in
+            let%success x_names := getAttrib globals runs S x R_NamesSymbol using S in
+            run%success setAttrib globals runs S ax R_NamesSymbol x_names using S in
+            result_success S ax using S in
+        fold%success i := 0
+        along x
+        as x_car, _ do
+          run%success SET_VECTOR_ELT S ax i x_car using S in
+          result_success S (1 + i) using S, runs, globals in
+        result_success S ax
+      else result_error S "Object is not subsettable." using S in
+    result_not_implemented "VectorSubset".
 
 Definition do_subset S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset" in

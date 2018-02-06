@@ -187,8 +187,19 @@ Definition MAYBE_SHARED S x :=
   result_success S (decide (x_named = named_plural)).
 
 Definition MARK_NOT_MUTABLE S x :=
+  add%stack "MARK_NOT_MUTABLE" in
   map%pointer x with set_named_plural using S in
   result_skip S.
+
+Definition ENSURE_NAMED S x :=
+  add%stack "ENSURE_NAMED" in
+  let%success x_named := NAMED S x using S in
+  match x_named with
+  | named_temporary =>
+    map%pointer x with set_named_unique using S in
+    result_skip S
+  | _ => result_skip S
+  end.
 
 Definition DDVAL_BIT := 0.
 
@@ -333,6 +344,11 @@ Definition BINDING_IS_LOCKED S symbol :=
   add%stack "BINDING_IS_LOCKED" in
   read%defined symbol_ := symbol using S in
   result_success S (nth_bit BINDING_LOCK_BIT (gp symbol_) ltac:(nbits_ok)).
+
+Definition LOCK_BINDING S x :=
+  add%stack "LOCK_BINDING" in
+  map%gp x with @write_nbit 16 BINDING_LOCK_BIT ltac:(nbits_ok) true using S in
+  result_skip S.
 
 Definition CACHED_BIT := 5.
 
@@ -585,6 +601,21 @@ Definition SET_PRVALUE S x v :=
   let x_prom := {|
       prom_value := v ;
       prom_expr := prom_expr x_prom ;
+      prom_env := prom_env x_prom
+    |} in
+  let x_ := {|
+      NonVector_SExpRec_header := x_ ;
+      NonVector_SExpRec_data := x_prom
+    |} in
+  write%defined x := x_ using S in
+  result_skip S.
+
+Definition SET_PRCODE S x v :=
+  add%stack "SET_PRCODE" in
+  read%prom x_, x_prom := x using S in
+  let x_prom := {|
+      prom_value := prom_value x_prom ;
+      prom_expr := v ;
       prom_env := prom_env x_prom
     |} in
   let x_ := {|
@@ -1906,7 +1937,7 @@ Definition matchArgs S formals supplied (call : SEXP) :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
-Definition R_envHasNoSpecialSymbols S (env : SEXP) : result bool :=
+Definition R_envHasNoSpecialSymbols S (env : SEXP) :=
   add%stack "R_envHasNoSpecialSymbols" in
   read%env env_, env_env := env using S in
   (** A note about hashtabs has been commented out. **)
@@ -2005,6 +2036,10 @@ Definition SET_BINDING_VALUE S b val :=
     else
       set%car b := val using S in
       result_skip S.
+
+Definition R_SetVarLocValue S vl value :=
+  add%stack "R_SetVarLocValue" in
+  SET_BINDING_VALUE S vl value.
 
 Definition BINDING_VALUE S b :=
   add%stack "BINDING_VALUE" in
@@ -2172,25 +2207,67 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
     result_error S "It can’t be used in the base environment."
   else ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
+  else if%success IS_USER_DATABASE S rho using S then
+    result_not_implemented "[R_ExternalPtrAddr]"
   else
-    if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[R_ExternalPtrAddr]"
-    else
-      (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-      read%env _, rho_env := rho using S in
-      fold%return
-      along env_frame rho_env
-      as frame, _, frame_list do
-        ifb list_tagval frame_list = symbol then
-          result_rreturn S frame
-        else result_rskip S using S, runs, globals in
-      result_success S (R_NilValue : SEXP).
+    (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+    read%env _, rho_env := rho using S in
+    fold%return
+    along env_frame rho_env
+    as frame, _, frame_list do
+      ifb list_tagval frame_list = symbol then
+        result_rreturn S frame
+      else result_rskip S using S, runs, globals in
+    result_success S (R_NilValue : SEXP).
 
 Definition R_findVarLocInFrame S rho symbol :=
+  add%stack "R_findVarLocInFrame" in
   let%success binding := findVarLocInFrame S rho symbol using S in
   ifb binding = R_NilValue then
     result_success S NULL
   else result_success S binding.
+
+Definition RemoveFromList S (thing list : SEXP) :=
+  add%stack "RemoveFromList" in
+  ifb list = R_NilValue then
+    result_success S None
+  else
+    read%list _, list_cdr, list_tag := list using S in
+    ifb list_tag = thing then
+      set%car list := R_UnboundValue using S in
+      run%success LOCK_BINDING S list using S in
+      let rest := list_cdr in
+      set%cdr list := R_NilValue using S in
+      result_success S (Some rest)
+    else
+      let next := list_cdr in
+      fold%return last := list
+      along next
+      as next, _, next_list do
+        ifb list_tagval next_list = thing then
+          set%car next := R_UnboundValue using S in
+          run%success LOCK_BINDING S next using S in
+          set%cdr last := list_cdrval next_list using S in
+          set%cdr next := R_NilValue using S in
+          result_rreturn S (Some list)
+        else result_rsuccess S next using S, runs, globals in
+      result_success S None.
+
+
+Definition unbindVar S (symbol rho : SEXP) :=
+  add%stack "unbindVar" in
+  ifb rho = R_BaseNamespace then
+    result_error S "Can’t unbind in the base namespace."
+  else ifb rho = R_BaseEnv then
+    result_error S "Unbinding in the base environment is unimplemented."
+  else if%success FRAME_IS_LOCKED S rho using S then
+    result_error S "Can’t remove bindings from a locked environment."
+  else
+    (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+    read%env _, rho_env := rho using S in
+    if%defined list := RemoveFromList S symbol (env_frame rho_env) using S then
+      SET_FRAME S rho list
+    else result_skip S.
 
 Definition ddVal S symbol :=
   add%stack "ddVal" in
@@ -3441,6 +3518,7 @@ Definition COPY_TAG S vto vfrom :=
   else result_skip S.
 
 Definition mkRHSPROMISE S expr rhs :=
+  add%stack "mkRHSPROMISE" in
   R_mkEVPROMISE_NR S expr rhs.
 
 Definition asLogicalNoNA S (s call : SEXP) :=
@@ -3487,7 +3565,34 @@ Definition asLogicalNoNA S (s call : SEXP) :=
         else result_error S "Argument is not interpretable as logical."
     else result_success S cond.
 
-(** The function [forcePromise] evaluates a promise if needed. **)
+Definition replaceCall S fu val args rhs :=
+  add%stack "replaceCall" in
+  let%success args_len := R_length S args using S in
+  let (S, tmp) := allocList S (3 + args_len) in
+  let ptmp := tmp in
+  set%car ptmp := fu using S in
+  read%list _, ptmp_cdr, _ := ptmp using S in
+  let ptmp := ptmp_cdr in
+  set%car ptmp := val using S in
+  read%list _, ptmp_cdr, _ := ptmp using S in
+  let ptmp := ptmp_cdr in
+  fold%success ptmp := ptmp
+  along args
+  as args_car, args_tag do
+    set%car ptmp := args_car using S in
+    set%tag ptmp := args_tag using S in
+    read%list _, ptmp_cdr, _ := ptmp using S in
+    result_success S ptmp_cdr using S, runs, globals in
+  set%car ptmp := rhs using S in
+  set%tag ptmp := R_ValueSym using S in
+  map%pointer tmp with set_type LangSxp using S in
+  result_success S tmp.
+
+Definition assignCall S op symbol fu val args rhs :=
+  add%stack "assignCall" in
+  let%success val := replaceCall S fu val args rhs using S in
+  lang3 S op symbol val.
+
 Definition forcePromise S (e : SEXP) : result SEXP :=
   add%stack "forcePromise" in
   read%prom _, e_prom := e using S in
@@ -3859,7 +3964,6 @@ Definition DispatchAnyOrEval S (call op : SEXP) (generic : string) (args rho : S
     result_not_implemented "Method case."
   else DispatchOrEval S call op generic args rho dropmissing argsevald.
 
-(** The function [eval] evaluates its argument to an unreducible value. **)
 Definition eval S (e rho : SEXP) :=
   add%stack "eval" in
   let%success e_type := TYPEOF S e using S in
