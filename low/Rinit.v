@@ -198,7 +198,9 @@ Definition R_initAssignSymbols S :=
     let%success sym := install globals runs S c using S in
     let S := update_R_asymSymbol S (update i sym (R_asymSymbol S)) in
     result_skip S using S in
-  (* TODO: R_RewHashedEnv *)
+  let (S, si1099) := ScalarInteger globals S 1099 in
+  let%success R_ReplaceFunsTable :=
+    R_NewHashedEnv globals runs S R_EmptyEnv si1099 using S in
   let%success R_SubsetSym := install globals runs S "[" using S in
   let%success R_SubassignSym := install globals runs S "[<-" using S in
   let%success R_Subset2Sym := install globals runs S "[[" using S in
@@ -206,7 +208,7 @@ Definition R_initAssignSymbols S :=
   let%success R_DollarGetsSymbol := install globals runs S "$<-" using S in
   let%success R_ValueSym := install globals runs S "value" using S in
   let%success R_AssignSym := install globals runs S "<-" using S in
-  result_success S (R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_ValueSym, R_AssignSym).
+  result_success S (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_ValueSym, R_AssignSym).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -330,6 +332,15 @@ Definition do_attr_init S :=
   let%success which := install globals runs S "which" using S in
   allocFormalsList3 globals S x which R_ExactSymbol.
 
+(** The initialisation of [do_attrgets_do_attrgets_formals], done in C
+  in [do_attrgets], from main/attrib.c **)
+Definition do_attrgets_init S :=
+  add%stack "do_attrgets_init" in
+  let%success x := install globals runs S "x" using S in
+  let%success which := install globals runs S "which" using S in
+  let%success value := install globals runs S "value" using S in
+  allocFormalsList3 globals S x which value.
+
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel S :=
@@ -399,9 +410,10 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
   run%success
     InitNames_install globals (runs max_step globals) S using S in
-  let%success (SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, ValueSym, AssignSym) :=
+  let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, ValueSym, AssignSym) :=
     R_initAssignSymbols globals (runs max_step globals) S using S in
-  let globals := {{ globals with [ decl R_SubsetSym SubsetSym ;
+  let globals := {{ globals with [ decl R_ReplaceFunsTable ReplaceFunsTable ;
+                                   decl R_SubsetSym SubsetSym ;
                                    decl R_SubassignSym SubassignSym ;
                                    decl R_Subset2Sym Subset2Sym ;
                                    decl R_Subassign2Sym Subassign2Sym ;
@@ -432,6 +444,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success do_attr_formals :=
     do_attr_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl do_attr_do_attr_formals do_attr_formals ] }} in
+  let%success do_attrgets_formals :=
+    do_attrgets_init globals (runs max_step globals) S using S in
+  let globals := {{ globals with [ decl do_attrgets_do_attrgets_formals do_attrgets_formals ] }} in
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 

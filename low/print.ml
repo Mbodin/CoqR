@@ -66,6 +66,7 @@ let all_global_variables =
     (R_PreviousSymbol, "R_PreviousSymbol") ;
     (R_QuoteSymbol, "R_QuoteSymbol") ;
     (R_RecursiveSymbol, "R_RecursiveSymbol") ;
+    (R_ReplaceFunsTable, "R_ReplaceFunsTable") ;
     (R_RestartToken,  "R_RestartToken") ;
     (R_RowNamesSymbol, "R_RowNamesSymbol") ;
     (R_SeedsSymbol, "R_SeedsSymbol") ;
@@ -88,7 +89,8 @@ let all_global_variables =
     (R_WholeSrcrefSymbol, "R_WholeSrcrefSymbol") ;
 
     (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ;
-    (Do_attr_do_attr_formals, "static variable do_attr_formals from do_attr") ]
+    (Do_attr_do_attr_formals, "static variable do_attr_formals from do_attr") ;
+    (Do_attrgets_do_attrgets_formals, "static variable do_attrgets_formals from do_attrgets") ]
 
 let _ =
   (** A sanity check that we forgot no name above **)
@@ -219,8 +221,8 @@ let print_float x =
   else Printf.sprintf "%g" x
 
 let print_rComplex c =
-  if r_IsNA c.rcomplex_r || r_IsNA c.rcomplex_i then "NA"
-  else print_float c.rcomplex_r ^ "+" ^ print_float c.rcomplex_i ^ "i"
+  if r_IsNA (rcomplex_r c) || r_IsNA (rcomplex_i c) then "NA"
+  else print_float (rcomplex_r c) ^ "+" ^ print_float (rcomplex_i c) ^ "i"
 
 let print_character c =
   "'" ^ String.make 1 c ^ "'"
@@ -568,7 +570,11 @@ let print_result verbose pr_stack r cont =
     print_endline ("Impossible! Please report. " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont (Some s) None
   | Result_not_implemented_stack (stack, str) ->
-    print_endline ("Not implemented: " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
+    let location =
+      match List.rev stack with
+      | [] -> ""
+      | f :: _ -> "[" ^ char_list_to_string f ^ "] " in
+    print_endline ("Not implemented: " ^ location ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont None None
   | Result_bottom s ->
     print_endline "Stopped because of lack of fuel." ;

@@ -167,6 +167,59 @@ Definition do_attr S (call op args env : SEXP) : result SEXP :=
                 (* A potential warning has been formalised out here. *)
                 getAttrib globals runs S s tag.
 
+Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_attrgets" in
+  run%success Rf_checkArityCall S op args call using S in
+  let%success op_val := PRIMVAL runs S op using S in
+  ifb op_val <> 0 then
+    let%success input := allocVector globals S StrSxp 1 using S in
+    read%list _, args_cdr, _ := args using S in
+    read%list args_cdr_car, _, _ := args using S in
+    let nlist := args_cdr_car in
+    run%success
+      if%success isSymbol S nlist using S then
+        let%success nlist_name := PRINTNAME S nlist using S in
+        SET_STRING_ELT S input 0 nlist_name
+      else if%success isString S nlist using S then
+        let%success nlist_0 := STRING_ELT S nlist 0 using S in
+        SET_STRING_ELT S input 0 nlist_0
+      else result_error S "Invalid type for slot name." using S in
+    set%car args := input using S in
+    let%success (disp, ans) :=
+      DispatchOrEval globals runs S call op "@<-" args env false false using S in
+    if disp then
+      result_success S ans
+    else
+      read%list ans_car, ans_cdr, _ := ans using S in
+      let obj := ans_car in
+      read%list _, ans_cdr_cdr, _ := ans_cdr using S in
+      read%list ans_cdr_cdr_car, _, _ := ans_cdr_cdr using S in
+      let value := ans_cdr_cdr_car in
+      result_not_implemented "check_slot_assign"
+  else
+    read%list args_car, args_cdr, _ := args using S in
+    let obj := args_car in
+    let%success obj :=
+      if%success MAYBE_SHARED S obj using S then
+        shallow_duplicate S obj
+      else result_success S obj using S in
+    (** The initialisation of [do_attrgets_formals] is done in [do_attrgets_init] in Rinit. **)
+    let%success argList :=
+      matchArgs globals runs S do_attrgets_do_attrgets_formals args call using S in
+    read%list _, argList_cdr, _ := argList using S in
+    read%list argList_cdr_car, _, _ := argList_cdr using S in
+    let name := argList_cdr_car in
+    let%success name_valid := isValidString globals S name using S in
+    let%success name_0 := STRING_ELT S name 0 using S in
+    ifb ~ name_valid \/ name_0 = NA_STRING then
+      result_error S "‘name’ must be non-null character string."
+    else
+      read%list _, args_cdr_cdr, _ := args_cdr using S in
+      read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+      run%success setAttrib globals runs S obj name args_cdr_cdr_car using S in
+      run%success SETTER_CLEAR_NAMED S obj using S in
+      result_success S obj.
+
 
 (** * coerce.c **)
 
@@ -966,7 +1019,7 @@ Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
       fold%success (nameData, data) := (tt, data)
       along args
       as args_car, _ do
-        result_not_implemented "[NewExtractNames]." using S, runs, globals in
+        result_not_implemented "NewExtractNames" using S, runs, globals in
       run%success setAttrib globals runs S ans R_NamesSymbol (BindData_ans_names data) using S in
       result_success S data
     else result_success S data using S in
@@ -1023,13 +1076,13 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
     result_not_implemented "R_SetVarLocValue"
   else result_error S "Target of assignment expands to non-language object.".
 
-Definition lookupAssignFcnSymbol (S : state) (fu : SEXP) : result SEXP :=
+Definition lookupAssignFcnSymbol S fu :=
   add%stack "lookupAssignFcnSymbol" in
-  result_not_implemented "R_ReplaceFunsTable".
+  findVarInFrame globals runs S R_ReplaceFunsTable fu.
 
-Definition enterAssignFcnSymbol (S : state) (fu val : SEXP) : result unit :=
+Definition enterAssignFcnSymbol S fu val :=
   add%stack "enterAssignFcnSymbol" in
-  result_not_implemented "R_ReplaceFunsTable".
+  defineVar globals runs S fu val R_ReplaceFunsTable.
 
 Definition installAssignFcnSymbol S fu :=
   add%stack "installAssignFcnSymbol" in
@@ -1341,7 +1394,7 @@ Definition simple_as_environment S arg :=
   let%success arg_s4 := IS_S4_OBJECT S arg using S in
   let%success arg_type := TYPEOF S arg using S in
   ifb arg_s4 /\ arg_type = S4Sxp then
-    result_not_implemented "[R_getS4DataSlot]."
+    result_not_implemented "R_getS4DataSlot"
   else result_success S (R_NilValue : SEXP).
 
 Definition do_eval S (call op args rho : SEXP) : result SEXP :=
@@ -1370,7 +1423,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
     let%success env_s4 := IS_S4_OBJECT S env using S in
     let%success env_type := TYPEOF S env using S in
     ifb env_s4 /\ env_type = S4Sxp then
-      result_not_implemented "[R_getS4DataSlot]."
+      result_not_implemented "R_getS4DataSlot"
     else result_success S env using S in
   let%success env_type := TYPEOF S env using S in
   let%success env :=
@@ -1383,7 +1436,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
       let%success d := duplicate S args_cdr_car using S in
       NewEnvironment globals runs S R_NilValue d encl
     | VecSxp =>
-      result_not_implemented "[VectorToPairListNamed]."
+      result_not_implemented "VectorToPairListNamed"
     | IntSxp
     | RealSxp =>
       let%success env_len := R_length globals runs S env using S in
@@ -1393,7 +1446,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         let%success frame := asInteger globals S env using S in
         ifb frame = NA_INTEGER then
           result_error S "Invalid argument ‘envir’ after convertion."
-        else result_not_implemented "[R_sysframe]."
+        else result_not_implemented "R_sysframe"
     | _ => result_error S "Invalid argument ‘envir’."
     end using S in
   let%success expr :=
@@ -1424,7 +1477,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         ifb jmp <> empty_context_type then
           do%let tmp := R_NilValue : SEXP
           for i from 0 to n - 1 do
-            result_not_implemented "[getSrcref]." using S
+            result_not_implemented "getSrcref" using S
         else
           let tmp := R_ReturnedValue S in
           ifb tmp = R_RestartToken then
@@ -1696,7 +1749,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                     let%success str := PRINTNAME S s using S in
                     CHAR S str
                   else if%success isVectorAtomic S s using S then
-                    result_not_implemented "[EncodeElement0] (First step)"
+                    result_not_implemented "EncodeElement0 (First step)"
                   else if%success isVectorList S s using S then
                     result_success S ""%string
                   else result_error S "Argument can not be handled by cat." using S in
@@ -1710,7 +1763,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                         let%success str := STRING_ELT S s (1 + i) using S in
                         trChar S str
                       else
-                        result_not_implemented "[EncodeElement0] (Second loop)"
+                        result_not_implemented "EncodeElement0 (Second loop)"
                       using S in
                     result_success S (ntot, nlines, p)
                   else result_success S (ntot - 1, nlines, p) using S in
@@ -1802,6 +1855,18 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
       ifb ISNAN n1 \/ ISNAN n2 then
         result_error S "NA or NaN argument."
       else seq_colon S n1 n2 call.
+
+
+(** * sign.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file nmath/sign.c. **)
+
+Definition sign x :=
+  ifb ISNAN x then x
+  else ifb x > 0 then 1
+  else ifb x = 0 then 0
+  else (-1)%Z.
 
 
 (** * complex.c **)
@@ -2325,7 +2390,7 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
       | 1 => MATH1 Double.floor
       | 2 => MATH1 Double.ceil
       | 3 => MATH1 Double.sqrt
-      | 4 => result_not_implemented "[sign]."
+      | 4 => MATH1 sign
       | 10 => MATH1 Double.exp
       | 11 => MATH1 Double.expm1
       | 12 => MATH1 Double.log1p
@@ -2338,16 +2403,16 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
       | 30 => MATH1 Double.cosh
       | 31 => MATH1 Double.sinh
       | 32 => MATH1 Double.tanh
-      | 33 => result_not_implemented "[acosh]."
-      | 34 => result_not_implemented "[asinh]."
-      | 35 => result_not_implemented "[atanh]."
-      | 40 => result_not_implemented "[lgammafn]."
-      | 41 => result_not_implemented "[gammafn]."
-      | 42 => result_not_implemented "[digamma]."
-      | 43 => result_not_implemented "[trigamma]."
-      | 47 => result_not_implemented "[cospi]."
-      | 48 => result_not_implemented "[sinpi]."
-      | 49 => result_not_implemented "[tanpi]."
+      | 33 => result_not_implemented "acosh"
+      | 34 => result_not_implemented "asinh"
+      | 35 => result_not_implemented "atanh"
+      | 40 => result_not_implemented "lgammafn"
+      | 41 => result_not_implemented "gammafn"
+      | 42 => result_not_implemented "digamma"
+      | 43 => result_not_implemented "trigamma"
+      | 47 => result_not_implemented "cospi"
+      | 48 => result_not_implemented "sinpi"
+      | 49 => result_not_implemented "tanpi"
       | _ => result_error S "Unimplemented real function of 1 argument."
       end.
 
@@ -2371,7 +2436,7 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
         let (S, ans) := CONS_NR globals S x elkm in
         run%success DECREMENT_LINKS S x using S in
         result_rreturn S (false, ans)
-      else result_not_implemented "[R_mkEVPROMISE_NR]."
+      else result_not_implemented "R_mkEVPROMISE_NR"
     else result_rsuccess S (NULL, args) using S in
   let%success (disp, ans) :=
     DispatchOrEval globals runs S call op generic args rho false false using S in
@@ -3091,8 +3156,8 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "attributes" (dummy_function "do_attributes") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "attributes<-" (dummy_function "do_attributesgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "attr" do_attr (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "attr<-" (dummy_function "do_attrgets") (0)%Z eval1 (3)%Z PP_FUNCALL PREC_LEFT true ;
-              rdecl "@<-" (dummy_function "do_attrgets") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
+              rdecl "attr<-" do_attrgets (0)%Z eval1 (3)%Z PP_FUNCALL PREC_LEFT true ;
+              rdecl "@<-" do_attrgets (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "levels<-" (dummy_function "do_levelsgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
 
               rdecl "vector" (dummy_function "do_makevector") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;

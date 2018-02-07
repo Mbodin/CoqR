@@ -72,6 +72,7 @@ Inductive GlobalVariable :=
   | R_PreviousSymbol
   | R_QuoteSymbol
   | R_RecursiveSymbol
+  | R_ReplaceFunsTable
   | R_RestartToken
   | R_RowNamesSymbol
   | R_SeedsSymbol
@@ -95,6 +96,7 @@ Inductive GlobalVariable :=
   (** The following global variables are [static] variables of functions **)
   | mkPRIMSXP_primCache
   | do_attr_do_attr_formals
+  | do_attrgets_do_attrgets_formals
   .
 
 Definition all_GlobalVariables : list GlobalVariable.

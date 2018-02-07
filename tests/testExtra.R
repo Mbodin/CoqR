@@ -319,6 +319,14 @@ a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; attr (attr (attr 
 f <- "g" ; a <- 1 ; b <- 2 ; attr (a, f) <- 2 ; attr (b, f) <- 3 ; attr (a + b, f) ; attr (a + b, "g") ; attr (a + b, "f")
 f <- "g" ; a <- 1 ; b <- 2 ; attr (a, f) <- 2 ; attr (b, f) <- 3 ; attr (a - b, f) ; attr (a * b, f) ; attr (a / b, f) ; attr (a < b, f) ; attr (a > b, f) ; attr (a <= b, f) ; attr (a >= b, f) ; attr (a == b, f) ; attr (a != b, f)
 a <- 1 ; b <- 2 ; attr (a, "x") <- 3 ; attr (b, "y") <- 4 ; attr (a + b, "x") ; attr (a + b, "y")
+a <- function (x) x ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- 1L ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- 2i ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- NaN ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- NA ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- NULL ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- "" ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; attr (a, "f") <- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- NA ; a ; attr (a, "f")
+a <- "" ; attr (a, "") <- 2 ; a ; attr (a, "") ; attr (a, "") <- function (x) x ; a ; attr (a, "") ; attr (a, "") <- NULL ; a ; attr (a, "") ; attr (a, "") <- NA ; a ; attr (a, "")
 a <- -10:10 ; a ; a [3] <- 9 ; a ; a [6:9] ; a > 0 ; a = 0 ; a [a = 0] <- 8 ; a ; a [a < 1] <- 7 ; a ; a [-2] ; a [-4:-7]
 a <- -10:10 ; attr (a, "x") <- 9 ; attr (a, "x") ; attr (a [1], "x") ; attr (a [-1], "x") ; attr (a [1], "y") <- 8 ; a ; attr (a [1], "y") ; attr (a, "y") ; b <- a [1] ; attr (b, "z") <- 7 ; attr (b, "z") ; attr (a [1], "z")
 a <- -10:10 ; a [c (TRUE, FALSE, TRUE)] ; a [80:90] ; a [-9:0] ; a [c ("x", "y")] ; a [NA] ; a [NaN] ; a [c (TRUE, FALSE, NA)] ; a ["TRUE"] ; a [0] ; a [a]
@@ -330,6 +338,7 @@ attr (1, character ())
 attr (1, c ())
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "a") ; attr (a, "a") <- 3 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc") ; attr (a, "ab") <- 4 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc")
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "ab") <- 3 ; attr (a, "a")
+"attr<-" <- function (x, y, value) x <- value + 1 ; a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f")
 
 # Tests about cat (for outputs).
 .Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))

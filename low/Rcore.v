@@ -206,6 +206,14 @@ Definition ENSURE_NAMED S x :=
   | _ => result_skip S
   end.
 
+Definition SETTER_CLEAR_NAMED S x :=
+  add%stack "SETTER_CLEAR_NAMED" in
+  let%success x_named := NAMED S x using S in
+  ifb x_named = named_unique then
+    map%pointer x with set_named_temporary using S in
+    result_skip S
+  else result_skip S.
+
 Definition DDVAL_BIT := 0.
 
 Definition DDVAL S x :=
@@ -1134,7 +1142,7 @@ Definition xlength S s :=
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
-    result_not_implemented "[Rf_envlength]."
+    result_not_implemented "Rf_envlength"
   | _ =>
     result_success S 1
   end.
@@ -1264,6 +1272,14 @@ Definition conformable S x y :=
         result_rreturn S false
       else result_rskip S using S in
     result_success S true.
+
+Definition isValidString S x :=
+  add%stack "isValidString" in
+  let%success x_type := TYPEOF S x using S in
+  let%success x_len := LENGTH S x using S in
+  let%success x_0 := STRING_ELT S x 0 using S in
+  let%success x_0_type := TYPEOF S x_0 using S in
+  result_success S (decide (x_type = StrSxp /\ x_len > 0 /\ x_0_type <> NilSxp)).
 
 
 (** ** memory.c **)
@@ -1426,7 +1442,7 @@ Definition StringFromReal S x :=
   add%stack "StringFromReal" in
   if R_IsNA x then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[EncodeRealDrop0].".
+  else result_not_implemented "EncodeRealDrop0".
 
 
 (** ** envir.c **)
@@ -1995,6 +2011,14 @@ Definition matchArgs S formals supplied (call : SEXP) :=
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
 
+Definition R_NewHashedEnv S (enclos size : SEXP) :=
+  add%stack "R_NewHashedEnv" in
+  let%success s := NewEnvironment S R_NilValue R_NilValue enclos using S in
+  (** As we do not model hashtabs, we are here skipping the most
+    important part of this function.  This is thus only a
+    simplification of the original function. **)
+  result_success S s.
+
 Definition R_envHasNoSpecialSymbols S (env : SEXP) :=
   add%stack "R_envHasNoSpecialSymbols" in
   read%env env_, env_env := env using S in
@@ -2144,7 +2168,7 @@ Definition defineVar S (symbol value rho : SEXP) : result unit :=
     result_error S "Can not assign values in the empty environment."
   else
     if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[R_ObjectTable]"
+      result_not_implemented "R_ObjectTable"
     else
       ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
         gsetVar S symbol value rho
@@ -2203,7 +2227,7 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
     result_success S (R_UnboundValue : SEXP)
   else
     if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "[R_ObjectTable]"
+      result_not_implemented "R_ObjectTable"
     else
       (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
       read%defined rho_ := rho using S in
@@ -2216,6 +2240,10 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
           result_rreturn S r
         else result_rskip S using S, runs, globals in
       result_success S (R_UnboundValue : SEXP).
+
+Definition findVarInFrame S rho symbol :=
+  add%stack "findVarInFrame" in
+  findVarInFrame3 S rho symbol true.
 
 Definition EnsureLocal S symbol rho :=
   add%stack "EnsureLocal" in
@@ -2266,7 +2294,7 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
   else ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
   else if%success IS_USER_DATABASE S rho using S then
-    result_not_implemented "[R_ExternalPtrAddr]"
+    result_not_implemented "R_ExternalPtrAddr"
   else
     (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
     read%env _, rho_env := rho using S in
@@ -2333,7 +2361,7 @@ Definition ddVal S symbol :=
   let%success buf := CHAR S symbol_name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf - 2) in
-    result_not_implemented "[strtol]."
+    result_not_implemented "strtol"
   else result_success S 0.
 
 Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
@@ -2637,19 +2665,19 @@ Definition setAttrib S (vec name val : SEXP) :=
           R_FixupRHS S vec val
         else result_success S val using S in
       ifb name = R_NamesSymbol then
-        result_not_implemented "[namesgets]"
+        result_not_implemented "namesgets"
       else ifb name = R_DimSymbol then
-        result_not_implemented "[dimgets]"
+        result_not_implemented "dimgets"
       else ifb name = R_DimNamesSymbol then
-        result_not_implemented "[dimnamesgets]"
+        result_not_implemented "dimnamesgets"
       else ifb name = R_ClassSymbol then
-        result_not_implemented "[classgets]"
+        result_not_implemented "classgets"
       else ifb name = R_TspSymbol then
-        result_not_implemented "[tspgets]"
+        result_not_implemented "tspgets"
       else ifb name = R_CommentSymbol then
-        result_not_implemented "[commentgets]"
+        result_not_implemented "commentgets"
       else ifb name = R_RowNamesSymbol then
-        result_not_implemented "[row_names_gets]"
+        result_not_implemented "row_names_gets"
       else installAttrib S vec name val.
 
 
@@ -2953,7 +2981,7 @@ Definition coercePairList S v type :=
           ifb v_car_is /\ v_car_len = 1 then
             let%success v_car_0 := STRING_ELT S v_car 0 using S in
             SET_STRING_ELT S rval i v_car_0
-          else result_not_implemented "[deparse1line]." using S in
+          else result_not_implemented "deparse1line" using S in
         result_success S (1 + i) using S, runs, globals in
       result_rsuccess S (rval, n)
     else ifb type = VecSxp then
@@ -3035,13 +3063,13 @@ Definition StringFromInteger S x :=
   add%stack "StringFromInteger" in
   ifb x = NA_INTEGER then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[formatInteger].".
+  else result_not_implemented "formatInteger".
 
 Definition StringFromComplex S x :=
   add%stack "StringFromComplex" in
   ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "[EncodeComplex].".
+  else result_not_implemented "EncodeComplex".
 
 Definition coerceToSymbol S v :=
   add%stack "coerceToSymbol" in
@@ -3457,7 +3485,7 @@ Definition coerceVector S v type :=
     let%success v_s4 := IS_S4_OBJECT S v using S in
     let%exit v :=
       ifb v_s4 /\ v_type = S4Sxp then
-        result_not_implemented "[R_getS4DataSlot]."
+        result_not_implemented "R_getS4DataSlot"
       else result_rsuccess S v using S in
     let%success ans :=
       let%success v_type := TYPEOF S v using S in
@@ -3494,7 +3522,7 @@ Definition coerceVector S v type :=
                 ifb v_car_is /\ v_car_len = 1 then
                   let%success v_car_0 := STRING_ELT S v_car 0 using S in
                   SET_STRING_ELT S ans i v_car_0
-                else result_not_implemented "[deparse1line]." using S in
+                else result_not_implemented "deparse1line" using S in
               result_success S (1 + i) using S, runs, globals in
             result_success S ans
       | VecSxp
@@ -3544,7 +3572,7 @@ Definition CreateTag S x :=
         else result_success S false using S then
       let%success x_0 := STRING_ELT S x 0 using S in
       installTrChar S x_0
-    else result_not_implemented "[deparse1].".
+    else result_not_implemented "deparse1".
 
 
 (** ** objects.c **)
