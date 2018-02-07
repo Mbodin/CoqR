@@ -109,6 +109,11 @@ Definition OBJECT S x :=
   read%defined x_ := x using S in
   result_success S (obj x_).
 
+Definition SET_OBJECT S x v :=
+  add%stack "SET_OBJECT" in
+  map%pointer x with set_obj v using S in
+  result_skip S.
+
 Definition PRINTNAME S x :=
   add%stack "PRINTNAME" in
   read%sym _, x_sym := x using S in
@@ -1223,6 +1228,43 @@ Definition isVectorizable S (s : SEXP) :=
     result_success S true
   else result_success S false.
 
+Definition isArray S s :=
+  add%stack "isArray" in
+  if%success isVector S s using S then
+    let%success t := runs_getAttrib runs S s R_DimSymbol using S in
+    let%success t_type := TYPEOF S t using S in
+    let%success t_len := LENGTH S t using S in
+    ifb t_type = IntSxp /\ t_len > 0 then
+      result_success S true
+    else result_success S false
+  else result_success S false.
+
+Definition isTs S s :=
+  add%stack "isTs" in
+  if%success isVector S s using S then
+    let%success a := runs_getAttrib runs S s R_TspSymbol using S in
+    result_success S (decide (a <> R_NilValue))
+  else result_success S false.
+
+Definition conformable S x y :=
+  add%stack "conformable" in
+  let%success x := runs_getAttrib runs S x R_DimSymbol using S in
+  let%success y := runs_getAttrib runs S y R_DimSymbol using S in
+  let%success x_len := R_length S x using S in
+  let%success y_len := R_length S y using S in
+  ifb x_len <> y_len then
+    result_success S false
+  else
+    let n := x_len in
+    do%exit
+    for i from 0 to n - 1 do
+      read%Integer x_i := x at i using S in
+      read%Integer y_i := y at i using S in
+      ifb x_i <> y_i then
+        result_rreturn S false
+      else result_rskip S using S in
+    result_success S true.
+
 
 (** ** memory.c **)
 
@@ -1352,6 +1394,22 @@ Definition nthcdr S s n :=
         result_success S (s, n - 1) using S, runs in
     result_success S s
   else result_error S "No CDR.".
+
+Definition tsConform S x y :=
+  add%stack "tsConform" in
+  let%success x := runs_getAttrib runs S x R_TspSymbol using S in
+  let%success y := runs_getAttrib runs S y R_TspSymbol using S in
+  ifb x <> R_NilValue /\ y <> R_NilValue then
+    let%success x_type := TYPEOF S x using S in
+    let%success y_type := TYPEOF S y using S in
+    ifb x_type = RealSxp /\ y_type = RealSxp then
+      (** This already made very few meaning in the original code… **)
+      read%Real x_0 := x at 0 using S in
+      read%Real x_1 := x at 1 using S in
+      read%Real x_2 := x at 2 using S in
+      result_success S (decide (x_0 = x_0 /\ x_1 = x_1 /\ x_2 = x_2))
+    else result_success S false
+  else result_success S false.
 
 
 (** * printutils.c **)
@@ -3502,6 +3560,33 @@ Definition R_has_methods S (op : SEXP) :=
     simple.  It is updated in [R_initMethodDispatch] from
     library/methods/src/methods_list_dispatch.c. **)
   result_success S false.
+
+Definition isS4 S s :=
+  add%stack "isS4" in
+  IS_S4_OBJECT S s.
+
+Definition asS4 S s (flag : bool) (complete : int) :=
+  add%stack "asS4" in
+  let%success s_s4 := IS_S4_OBJECT S s using S in
+  ifb flag = s_s4 then
+    result_success S s
+  else
+    let%success s :=
+      if%success MAYBE_SHARED S s using S then
+        shallow_duplicate S s
+      else result_success S s using S in
+    run%exit
+      if flag then
+        run%success SET_S4_OBJECT S s using S in
+        result_rskip S
+      else
+        run%return
+          ifb complete <> 0 then
+            result_not_implemented "R_getS4DataSlot"
+          else result_rskip S using S in
+        run%success UNSET_S4_OBJECT S s using S in
+        result_rskip S using S in
+    result_success S s.
 
 
 (** ** eval.c **)

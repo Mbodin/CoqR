@@ -194,7 +194,8 @@ Definition R_initAssignSymbols S :=
   let S := update_R_asymSymbol S (repeat NULL (length asym)) in
   do%success
   for i from 0 to (length asym)%Z - 1 do
-    let%success sym := install globals runs S (nth i asym) using S in
+    let%defined c := nth_option i asym using S in
+    let%success sym := install globals runs S c using S in
     let S := update_R_asymSymbol S (update i sym (R_asymSymbol S)) in
     result_skip S using S in
   (* TODO: R_RewHashedEnv *)

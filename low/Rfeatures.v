@@ -187,122 +187,148 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
   let%success op_val := PRIMVAL runs S op using S in
   read%list args_car, _, _ := args using S in
   let%success args_car_obj := isObject S args_car using S in
-  ifb op_val >= 100 /\ op_val < 200 /\ args_car_obj then
-    result_not_implemented "[DispatchOrEval]."
-  else
-    let%success ans := allocVector globals S LglSxp 1 using S in
-    run%success
-      ifb op_val = NilSxp then
-        let%success isn := isNull S args_car using S in
-        write%Logical ans at 0 := isn using S in
+  run%exit
+    ifb op_val >= 100 /\ op_val < 200 /\ args_car_obj then
+      let nm :=
+        (ifb op_val = 100 then "is.numeric"
+        else ifb op_val = 101 then "is.matrix"
+        else ifb op_val = 102 then "is.array"
+        else "")%string in
+      let%success (disp, ans) :=
+        DispatchOrEval globals runs S call op nm args rho false true using S in
+      if disp then
+        result_rreturn S ans
+      else result_rskip S
+    else result_rskip S using S in
+  let%success ans := allocVector globals S LglSxp 1 using S in
+  run%success
+    ifb op_val = NilSxp then
+      let%success isn := isNull S args_car using S in
+      write%Logical ans at 0 := isn using S in
+      result_skip S
+    else ifb op_val = LglSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = LglSxp) using S in
+      result_skip S
+    else ifb op_val = IntSxp then
+      let%success t := TYPEOF S args_car using S in
+      let%success inh := inherits globals runs S args_car "factor" using S in
+      write%Logical ans at 0 := decide (t = IntSxp /\ ~ inh) using S in
+      result_skip S
+    else ifb op_val = RealSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = RealSxp) using S in
+      result_skip S
+    else ifb op_val = CplxSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = CplxSxp) using S in
+      result_skip S
+    else ifb op_val = StrSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = StrSxp) using S in
+      result_skip S
+    else ifb op_val = SymSxp then
+      let%success s4 := IS_S4_OBJECT S args_car using S in
+      let%success t := TYPEOF S args_car using S in
+      ifb s4 /\ t = S4Sxp then
+        result_not_implemented "R_getS4DataSlot"
+      else
+        write%Logical ans at 0 := decide (t = SymSxp) using S in
         result_skip S
-      else ifb op_val = LglSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = LglSxp) using S in
+    else ifb op_val = EnvSxp then
+      let%success s4 := IS_S4_OBJECT S args_car using S in
+      let%success t := TYPEOF S args_car using S in
+      ifb s4 /\ t = S4Sxp then
+        result_not_implemented "R_getS4DataSlot"
+      else
+        write%Logical ans at 0 := decide (t = EnvSxp) using S in
         result_skip S
-      else ifb op_val = IntSxp then
-        let%success t := TYPEOF S args_car using S in
-        let%success inh := inherits globals runs S args_car "factor" using S in
-        write%Logical ans at 0 := decide (t = IntSxp /\ ~ inh) using S in
-        result_skip S
-      else ifb op_val = RealSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = RealSxp) using S in
-        result_skip S
-      else ifb op_val = CplxSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = CplxSxp) using S in
-        result_skip S
-      else ifb op_val = StrSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = StrSxp) using S in
-        result_skip S
-      else ifb op_val = SymSxp then
-        result_not_implemented "is.symbol, is.name."
-      else ifb op_val = EnvSxp then
-        result_not_implemented "is.environment."
-      else ifb op_val = VecSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
-        result_skip S
-      else ifb op_val = ListSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = ListSxp \/ t = NilSxp) using S in
-        result_skip S
-      else ifb op_val = ExprSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = ExprSxp) using S in
-        result_skip S
-      else ifb op_val = RawSxp then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = RawSxp) using S in
-        result_skip S
-      else ifb op_val = 50 then
-        let%success obj := OBJECT S args_car using S in
-        write%Logical ans at 0 := obj using S in
-        result_skip S
-      else ifb op_val = 51 then
-        result_not_implemented "isS4."
-      else ifb op_val = 100 then
-        let%success isn := isNumeric globals runs S args_car using S in
-        let%success isl := isLogical S args_car using S in
-        write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
-        result_skip S
-      else ifb op_val = 101 then
-        result_not_implemented "is.matrix."
-      else ifb op_val = 102 then
-        result_not_implemented "is.array."
-      else ifb op_val = 200 then
-        let%success t := TYPEOF S args_car using S in
-        match t with
-          | NilSxp
-          | CharSxp
-          | LglSxp
-          | IntSxp
-          | RealSxp
-          | CplxSxp
-          | StrSxp
-          | RawSxp =>
-            write%Logical ans at 0 := true using S in
-            result_skip S
-          | _ =>
-            write%Logical ans at 0 := false using S in
-            result_skip S
-        end
-      else ifb op_val = 201 then
-        let%success t := TYPEOF S args_car using S in
-        match t with
-          | VecSxp
-          | ListSxp
-          | CloSxp
-          | EnvSxp
-          | PromSxp
-          | LangSxp
-          | SpecialSxp
-          | BuiltinSxp
-          | DotSxp
-          | AnySxp
-          | ExprSxp =>
-            write%Logical ans at 0 := true using S in
-            result_skip S
-          | _ =>
-            write%Logical ans at 0 := false using S in
-            result_skip S
-        end
-      else ifb op_val = 300 then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = LangSxp) using S in
-        result_skip S
-      else ifb op_val = 301 then
-        let%success t := TYPEOF S args_car using S in
-        write%Logical ans at 0 := decide (t = SymSxp \/ t = LangSxp \/ t = ExprSxp) using S in
-        result_skip S
-      else ifb op_val = 302 then
-        result_not_implemented "is.function."
-      else ifb op_val = 999 then
-        result_error S "is.single."
-      else result_error S "Other predicate." using S in
-    result_success S ans.
+    else ifb op_val = VecSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
+      result_skip S
+    else ifb op_val = ListSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = ListSxp \/ t = NilSxp) using S in
+      result_skip S
+    else ifb op_val = ExprSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = ExprSxp) using S in
+      result_skip S
+    else ifb op_val = RawSxp then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = RawSxp) using S in
+      result_skip S
+    else ifb op_val = 50 then
+      let%success obj := OBJECT S args_car using S in
+      write%Logical ans at 0 := obj using S in
+      result_skip S
+    else ifb op_val = 51 then
+      let%success s4 := IS_S4_OBJECT S args_car using S in
+      write%Logical ans at 0 := s4 using S in
+      result_skip S
+    else ifb op_val = 100 then
+      let%success isn := isNumeric globals runs S args_car using S in
+      let%success isl := isLogical S args_car using S in
+      write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
+      result_skip S
+    else ifb op_val = 101 then
+      result_not_implemented "is.matrix."
+    else ifb op_val = 102 then
+      let%success ia := isArray globals runs S args_car using S in
+      write%Logical ans at 0 := ia using S in
+      result_skip S
+    else ifb op_val = 200 then
+      let%success t := TYPEOF S args_car using S in
+      match t with
+        | NilSxp
+        | CharSxp
+        | LglSxp
+        | IntSxp
+        | RealSxp
+        | CplxSxp
+        | StrSxp
+        | RawSxp =>
+          write%Logical ans at 0 := true using S in
+          result_skip S
+        | _ =>
+          write%Logical ans at 0 := false using S in
+          result_skip S
+      end
+    else ifb op_val = 201 then
+      let%success t := TYPEOF S args_car using S in
+      match t with
+        | VecSxp
+        | ListSxp
+        | CloSxp
+        | EnvSxp
+        | PromSxp
+        | LangSxp
+        | SpecialSxp
+        | BuiltinSxp
+        | DotSxp
+        | AnySxp
+        | ExprSxp =>
+          write%Logical ans at 0 := true using S in
+          result_skip S
+        | _ =>
+          write%Logical ans at 0 := false using S in
+          result_skip S
+      end
+    else ifb op_val = 300 then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = LangSxp) using S in
+      result_skip S
+    else ifb op_val = 301 then
+      let%success t := TYPEOF S args_car using S in
+      write%Logical ans at 0 := decide (t = SymSxp \/ t = LangSxp \/ t = ExprSxp) using S in
+      result_skip S
+    else ifb op_val = 302 then
+      result_not_implemented "is.function."
+    else ifb op_val = 999 then
+      result_error S "Unimplemented type single."
+    else result_error S "Unimplemented predicate." using S in
+  result_success S ans.
 
 
 (** * envir.c **)
@@ -1116,7 +1142,9 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
     let%success R_asymSymbol_op :=
       ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
         result_error S "Out of bound access to [R_asymSymbol]."
-      else result_success S (nth (Z.to_nat op_val) (R_asymSymbol S)) using S in
+      else
+        let%defined sym := nth_option (Z.to_nat op_val) (R_asymSymbol S) using S in
+        result_success S sym using S in
     read%list _, lhs_cdr, _ := lhs using S in
     let%success expr :=
       assignCall globals runs S R_asymSymbol_op lhs_cdr afun R_TmpvalSymbol expr_cdr_cdr rhsprom using S in
@@ -1133,10 +1161,8 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
     ifb op_val < 0 then
       result_error S "Negative offset."
     else
-      match nth_option (Z.to_nat op_val) asym with
-      | None => result_error S "[PRIMVAL] out of bound in [asym]."
-      | Some n => WrongArgCount S n
-      end in
+      let%defined n := nth_option (Z.to_nat op_val) asym using S in
+      WrongArgCount S n in
   ifb args = R_NilValue then wrong S
   else read%list args_car, args_cdr, _ := args using S in
   ifb args_cdr = R_NilValue then wrong S
@@ -1423,10 +1449,8 @@ Definition getConnection S (n : int) :=
   ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
     result_error S "Invalid connection."
   else
-    match nth_option (Z.to_nat n) (R_Connections S) with
-    | None => result_impossible S "Out of bounds."
-    | Some c => result_success S c
-    end.
+    let%defined c := nth_option (Z.to_nat n) (R_Connections S) using S in
+    result_success S c.
 
 (** The following six functions execute the interpretation function
   for each action, then replaces the corresponding connection in the
@@ -1489,11 +1513,7 @@ Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
   else ifb what < 0 \/ what >= length (R_Connections S) then
     result_error S "There is no such connection."
   else
-    let%success con :=
-      match nth_option (Z.to_nat what) (R_Connections S) with
-      | None => result_impossible S "Out of bounds."
-      | Some c => result_success S c
-      end using S in
+    let%defined con := nth_option (Z.to_nat what) (R_Connections S) using S in
     let (S, ans) := ScalarInteger globals S what in
     let%success class := allocVector globals S StrSxp 2 using S in
     let (S, class0) := mkChar globals S (Rconnection_class con) in
@@ -1789,6 +1809,10 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
 (** The function names of this section corresponds to the function names
   in the file main/complex.c. **)
 
+Definition complex_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+  add%stack "complex_binary" in
+  result_not_implemented "".
+
 Definition complex_unary S (code : int) s1 :=
   add%stack "complex_unary" in
   ifb code = PLUSOP then
@@ -1821,9 +1845,200 @@ Definition R_finite (x : double) :=
 
 Definition R_FINITE := R_finite.
 
-Definition R_binary (S : state) (call op x y : SEXP) : result SEXP :=
-  add%stack "R_binary" in
+Definition real_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+  add%stack "real_binary" in
   result_not_implemented "".
+
+Definition integer_binary (S : state) (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
+  add%stack "integer_binary" in
+  result_not_implemented "".
+
+Definition COERCE_IF_NEEDED S v tp :=
+  add%stack "COERCE_IF_NEEDED" in
+  let%success v_type := TYPEOF S v using S in
+  ifb v_type <> tp then
+    let%success vo := OBJECT S v using S in
+    let%success v := coerceVector globals runs S v tp using S in
+    run%success
+      if vo then
+        SET_OBJECT S v true
+      else result_skip S using S in
+    result_success S v
+  else result_success S v.
+
+Definition FIXUP_NULL_AND_CHECK_TYPES S v :=
+  add%stack "FIXUP_NULL_AND_CHECK_TYPES" in
+  let%success v_type := TYPEOF S v using S in
+  match v_type with
+  | NilSxp =>
+    allocVector globals S IntSxp 0
+  | CplxSxp
+  | RealSxp
+  | IntSxp
+  | LglSxp =>
+    result_success S v
+  | _ =>
+    result_error S "Non-numeric argument to binary operator."
+  end.
+
+Definition R_binary S (call op x y : SEXP) : result SEXP :=
+  add%stack "R_binary" in
+  let%success oper := PRIMVAL runs S op using S in
+  let%success x := FIXUP_NULL_AND_CHECK_TYPES S x using S in
+  let%success y := FIXUP_NULL_AND_CHECK_TYPES S y using S in
+  let%success nx := XLENGTH S x using S in
+  let%success ny := XLENGTH S y using S in
+  let%success x_attrib := ATTRIB S x using S in
+  let%success (xattr, xarray, xts, xS4) :=
+    ifb x_attrib <> R_NilValue then
+      let%success x_a := isArray globals runs S x using S in
+      let%success x_ts := isTs globals runs S x using S in
+      let%success x_s4 := isS4 S x using S in
+      result_success S (true, x_a, x_ts, x_s4)
+    else result_success S (false, false, false, false) using S in
+  let%success y_attrib := ATTRIB S y using S in
+  let%success (yattr, yarray, yts, yS4) :=
+    ifb y_attrib <> R_NilValue then
+      let%success y_a := isArray globals runs S y using S in
+      let%success y_ts := isTs globals runs S y using S in
+      let%success y_s4 := isS4 S y using S in
+      result_success S (true, y_a, y_ts, y_s4)
+    else result_success S (false, false, false, false) using S in
+  run%success
+    ifb xarray <> yarray then
+      run%success
+        ifb xarray /\ nx = 1 /\ ny <> 1 then
+          ifb ny <> 0 then
+            result_error S "Recycling array of length 1 in an array-vector arithmetic is depreciated."
+          else
+            let%success x := duplicate S x using S in
+            run%success setAttrib globals runs S x R_DimSymbol R_NilValue using S in
+            result_skip S
+        else result_skip S using S in
+      run%success
+        ifb yarray /\ ny = 1 /\ nx <> 1 then
+          ifb nx <> 0 then
+            result_error S "Recycling array of length 1 in an array-vector arithmetic is depreciated."
+          else
+            let%success y := duplicate S y using S in
+            run%success setAttrib globals runs S y R_DimSymbol R_NilValue using S in
+            result_skip S
+        else result_skip S using S in
+      result_skip S
+    else result_skip S using S in
+  let%success (dims, xnames, ynames) :=
+    ifb xarray \/ yarray then
+      let%success dims :=
+        ifb xarray /\ yarray then
+          let%success c := conformable globals runs S x y using S in
+          if negb c then
+            result_error S "Non-conformable arrays."
+          else getAttrib globals runs S x R_DimSymbol
+        else ifb xarray /\ (ny <> 0 \/ nx = 0) then
+          getAttrib globals runs S x R_DimSymbol
+        else ifb yarray /\ (nx <> 0 \/ ny = 0) then
+          getAttrib globals runs S y R_DimSymbol
+        else result_success S (R_NilValue : SEXP) using S in
+      let%success xnames :=
+        if xattr then
+          getAttrib globals runs S x R_DimNamesSymbol
+        else result_success S (R_NilValue : SEXP) using S in
+      let%success ynames :=
+        if yattr then
+          getAttrib globals runs S y R_DimNamesSymbol
+        else result_success S (R_NilValue : SEXP) using S in
+      result_success S (dims, xnames, ynames)
+    else
+      let dims := R_NilValue : SEXP in
+      let%success xnames :=
+        if xattr then
+          getAttrib globals runs S x R_NamesSymbol
+        else result_success S (R_NilValue : SEXP) using S in
+      let%success ynames :=
+        if yattr then
+          getAttrib globals runs S y R_NamesSymbol
+        else result_success S (R_NilValue : SEXP) using S in
+      result_success S (dims, xnames, ynames) using S in
+  let%success (tsp, klass) :=
+    ifb xts \/ yts then
+      ifb xts /\ yts then
+        let%success c := tsConform globals runs S x y using S in
+        if negb c then
+          result_error S "Non conformable time-series."
+        else
+          let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+          let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+          result_success S (tsp, klass)
+      else if xts then
+        ifb nx < ny then
+          result_error S "Time-series/vector length mismatch."
+        else
+          let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+          let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+          result_success S (tsp, klass)
+      else
+        ifb ny < nx then
+          result_error S "Time-series/vector length mismatch."
+        else
+          let%success tsp := getAttrib globals runs S y R_TspSymbol using S in
+          let%success klass := getAttrib globals runs S y R_ClassSymbol using S in
+          result_success S (tsp, klass)
+    else result_success S (NULL, NULL) using S in
+  (* A warning has been formalised out here. *)
+  let%success x_type := TYPEOF S x using S in
+  let%success y_type := TYPEOF S y using S in
+  let%success val :=
+    ifb x_type = CplxSxp \/ y_type = CplxSxp then
+      let%success x := COERCE_IF_NEEDED S x CplxSxp using S in
+      let%success y := COERCE_IF_NEEDED S y CplxSxp using S in
+      complex_binary S oper x y
+    else ifb x_type = RealSxp \/ y_type = RealSxp then
+      let%success x :=
+        ifb x_type <> IntSxp then
+          COERCE_IF_NEEDED S x RealSxp
+        else result_success S x using S in
+      let%success y :=
+        ifb y_type <> IntSxp then
+          COERCE_IF_NEEDED S y RealSxp
+        else result_success S y using S in
+      real_binary S oper x y
+    else integer_binary S oper x y call using S in
+  ifb ~ xattr /\ ~ yattr then
+    result_success S val
+  else
+    run%success
+      ifb dims <> R_NilValue then
+        run%success setAttrib globals runs S val R_DimSymbol dims using S in
+        ifb xnames <> R_NilValue then
+          run%success setAttrib globals runs S val R_DimNamesSymbol xnames using S in
+          result_skip S
+        else ifb ynames <> R_NilValue then
+          run%success setAttrib globals runs S val R_DimNamesSymbol ynames using S in
+          result_skip S
+        else result_skip S
+      else
+        let%success val_len := XLENGTH S val using S in
+        let%success xnames_len := xlength globals runs S xnames using S in
+        ifb val_len = xnames_len then
+          run%success setAttrib globals runs S val R_NamesSymbol xnames using S in
+          result_skip S
+        else
+          let%success ynames_len := xlength globals runs S ynames using S in
+          ifb val_len = ynames_len then
+            run%success setAttrib globals runs S val R_NamesSymbol ynames using S in
+            result_skip S
+          else result_skip S using S in
+    run%success
+      ifb xts \/ yts then
+        run%success setAttrib globals runs S val R_TspSymbol tsp using S in
+        run%success setAttrib globals runs S val R_ClassSymbol klass using S in
+        result_skip S
+      else result_skip S using S in
+    let%success val :=
+      ifb xS4 \/ yS4 then
+        asS4 S val true true
+      else result_success S val using S in
+    result_success S val.
 
 Definition logical_unary S (code : int) s1 :=
   add%stack "logical_unary" in
