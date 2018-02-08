@@ -104,6 +104,11 @@ Definition TYPEOF S x :=
   read%defined x_ := x using S in
   result_success S (type x_).
 
+Definition ALTREP S x :=
+  add%stack "ALTREP" in
+  read%defined x_ := x using S in
+  result_success S (alt x_).
+
 Definition OBJECT S x :=
   add%stack "OBJECT" in
   read%defined x_ := x using S in
@@ -186,6 +191,11 @@ Definition NO_REFERENCES S x :=
   let%success x_named := NAMED S x using S in
   result_success S (decide (x_named = named_temporary)).
 
+Definition MAYBE_REFERENCED S x :=
+  add%stack "MAYBE_REFERENCED" in
+  let%success r := NO_REFERENCES S x using S in
+  result_success S (negb r).
+
 Definition MAYBE_SHARED S x :=
   add%stack "MAYBE_SHARED" in
   let%success x_named := NAMED S x using S in
@@ -252,6 +262,13 @@ Definition UNSET_S4_OBJECT S x :=
   add%stack "UNSET_S4_OBJECT" in
   map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) false using S in
   result_skip S.
+
+Definition GROWABLE_BIT := 5.
+
+Definition IS_GROWABLE S x :=
+  add%stack "IS_GROWABLE" in
+  read%defined x_ := x using S in
+  result_success S (nth_bit GROWABLE_BIT (gp x_) ltac:(nbits_ok)).
 
 Definition IS_SCALAR S x t :=
   add%stack "IS_SCALAR" in
@@ -407,165 +424,10 @@ Definition PRVALUE S p :=
   result_success S (prom_value p_prom).
 
 
-(** ** duplicate.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/duplicate.c. **)
-
-(** This is a simplification of the real [duplicate1] function. **)
-Definition duplicate1 S s (deep : bool) :=
-  add%stack "duplicate1" in
-  read%defined s_ := s using S in
-  let (S, s) := alloc_SExp S s_ in
-  result_success S s.
-
-Definition duplicate S s :=
-  add%stack "duplicate" in
-  duplicate1 S s true.
-
-Definition shallow_duplicate S s :=
-  add%stack "shallow_duplicate" in
-  duplicate1 S s false.
-
-Definition lazy_duplicate S s :=
-  add%stack "lazy_duplicate" in
-  let%success s_t := TYPEOF S s using S in
-  run%success
-    match s_t with
-    | NilSxp
-    | SymSxp
-    | EnvSxp
-    | SpecialSxp
-    | BuiltinSxp
-    | ExtptrSxp
-    | BcodeSxp
-    | WeakrefSxp
-    | CharSxp
-    | PromSxp =>
-      result_skip S
-    | CloSxp
-    | ListSxp
-    | LangSxp
-    | DotSxp
-    | ExprSxp
-    | VecSxp
-    | LglSxp
-    | IntSxp
-    | RealSxp
-    | CplxSxp
-    | RawSxp
-    | StrSxp
-    | S4Sxp =>
-      map%pointer s with set_named_plural using S in
-      result_skip S
-    | _ =>
-      result_error S "Unimplemented type."
-    end using S in
-  result_success S s.
-
-
-(** The following function is actually in the C file
-  include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
-  dependency. **)
-Definition isPairList S s :=
-  add%stack "isPairList" in
-  let%success s_type := TYPEOF S s using S in
-  match s_type with
-  | NilSxp
-  | ListSxp
-  | LangSxp
-  | DotSxp =>
-    result_success S true
-  | _ =>
-    result_success S false
-  end.
-
-(** The following function is actually in the C file
-  include/Rinlinedfuns.h.  It is placed here to solve a cyclic file
-  dependency.**)
-Definition isVectorList S s :=
-  add%stack "isVectorList" in
-  let%success s_type := TYPEOF S s using S in
-  match s_type with
-  | VecSxp
-  | ExprSxp =>
-    result_success S true
-  | _ =>
-    result_success S false
-  end.
-
-Definition isVector S s :=
-  add%stack "isVector" in
-  let%success s_type := TYPEOF S s using S in
-  match s_type with
-  | LglSxp
-  | IntSxp
-  | RealSxp
-  | CplxSxp
-  | StrSxp
-  | RawSxp
-  | VecSxp
-  | ExprSxp =>
-    result_success S true
-  | _ =>
-    result_success S false
-  end.
-
-Definition R_cycle_detected S s child :=
-  add%stack "R_cycle_detected" in
-  let%success child_type := TYPEOF S child using S in
-  ifb s = child then
-    match child_type with
-    | NilSxp
-    | SymSxp
-    | EnvSxp
-    | SpecialSxp
-    | BuiltinSxp
-    | ExtptrSxp
-    | BcodeSxp
-    | WeakrefSxp =>
-      result_success S false
-    | _ =>
-      result_success S true
-    end
-  else
-    run%exit
-      read%defined child_ := child using S in
-      ifb attrib child_ <> R_NilValue then
-        if%success runs_R_cycle_detected runs S s (attrib child_) using S then
-          result_rreturn S true
-        else result_rskip S
-      else result_rskip S using S in
-    if%success isPairList S child using S then
-      fold%return
-      along child
-      as el, el_, el_list do
-        let%success r :=
-          runs_R_cycle_detected runs S s (list_carval el_list) using S in
-        ifb s = el \/ r then
-          result_rreturn S true
-        else
-          let%success r :=
-            runs_R_cycle_detected runs S s (attrib el_) using S in
-          ifb attrib el_ <> R_NilValue /\ r then
-            result_rreturn S true
-          else result_rskip S
-      using S, runs, globals in
-      result_success S false
-    else
-      if%success isVectorList S child using S then
-        read%VectorPointer child_ := child using S in
-        do%let r := false
-        for e in%array VecSxp_data child_ do
-          if r then result_success S r
-          else runs_R_cycle_detected runs S s e using S
-      else result_success S false.
-
-
 (** ** memory.c **)
 
-(** The function names of this section corresponds to the function names
-  in the file main/memory.c. **)
+(** The function names of this section corresponds to the function
+  names in the file main/memory.c. **)
 
 Definition CONS S (car cdr : SEXP) : state * SEXP :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
@@ -583,6 +445,15 @@ Definition allocList S (n : nat) : state * SEXP :=
     end
   in aux S n R_NilValue.
 
+Definition SET_ATTRIB S x v :=
+  add%stack "SET_ATTRIB" in
+  let%success v_type := TYPEOF S v using S in
+  ifb v_type <> ListSxp /\ v_type <> NilSxp then
+    result_error S "The value must be a pairlist or NULL."
+  else
+    map%pointer x with set_attrib v using S in
+    result_skip S.
+
 Definition STRING_ELT S (x : SEXP) i : result SEXP :=
   add%stack "STRING_ELT" in
   let%success x_type := TYPEOF S x using S in
@@ -596,17 +467,6 @@ Definition VECTOR_ELT S x i :=
   add%stack "VECTOR_ELT" in
   read%Pointer x_i := x at i using S in
   result_success S x_i.
-
-Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
-  add%stack "SHALLOW_DUPLICATE_ATTRIB" in
-  read%defined vfrom_ := vfrom using S in
-  let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
-  map%pointer vto with set_obj (obj vfrom_) using S in
-  run%success
-    if%success IS_S4_OBJECT S vfrom using S then
-      SET_S4_OBJECT S vto
-    else UNSET_S4_OBJECT S vto using S in
-  result_skip S.
 
 Definition SET_PRVALUE S x v :=
   add%stack "SET_PRVALUE" in
@@ -704,55 +564,10 @@ Definition allocFormalsList6 S sym1 sym2 sym3 sym4 sym5 sym6 :=
   allocFormalsList S [sym1; sym2; sym3; sym4; sym5; sym6].
 
 
-(** * dstruct.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/dstruct.c. **)
-
-Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
-  add%stack "mkPRIMSXP" in
-  let type := if type then BuiltinSxp else SpecialSxp in
-  let%success R_FunTab := get_R_FunTab S using S in
-  let FunTabSize := ArrayList.length R_FunTab in
-  (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
-  ifb offset >= FunTabSize then
-    result_error S "Offset is out of range"
-  else
-    read%Pointer result := mkPRIMSXP_primCache at offset using S in
-    ifb result = R_NilValue then
-      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
-      write%Pointer mkPRIMSXP_primCache at offset := result using S in
-      result_success S result
-    else
-      let%success result_type := TYPEOF S result using S in
-      ifb result_type <> type then
-        result_error S "Requested primitive type is not consistent with cached value."
-      else result_success S result.
-
-Definition mkCLOSXP S (formals body rho : SEXP) :=
-  add%stack "mkCLOSXP" in
-  let%success body_type := TYPEOF S body using S in
-  match body_type with
-  | CloSxp
-  | BuiltinSxp
-  | SpecialSxp
-  | DotSxp
-  | AnySxp =>
-    result_error S "Invalid body argument."
-  | _ =>
-    let env :=
-      ifb rho = R_NilValue then
-        (R_GlobalEnv : SEXP)
-      else rho in
-    let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
-    result_success S c
-  end.
-
-
 (** ** Rinlinedfuns.c **)
 
-(** The function names of this section corresponds to the function names
-  in the file include/Rinlinedfuns.c. **)
+(** The function names of this section corresponds to the function
+  names in the file include/Rinlinedfuns.c. **)
 
 (** The way the original functions [allocVector], [allocVector3], etc.
   from R source code are defined is not compatible with the way the
@@ -858,7 +673,92 @@ Definition ScalarString S (x : SEXP) : result SEXP :=
     let (S, s) := alloc_vector_str S (ArrayList.from_list [x]) in
     result_success S s.
 
+Definition isPairList S s :=
+  add%stack "isPairList" in
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | NilSxp
+  | ListSxp
+  | LangSxp
+  | DotSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
 
+Definition isVectorList S s :=
+  add%stack "isVectorList" in
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | VecSxp
+  | ExprSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
+
+Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
+  add%stack "ALTREP_LENGTH" in
+  result_not_implemented "".
+
+Definition STDVEC_LENGTH S x :=
+  add%stack "STDVEC_LENGTH" in
+  read%defined x_ := x using S in
+  match x_ with
+  | SExpRec_NonVector _ => result_impossible S "Not a vector."
+  | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorLogical x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorPointer x_ => result_success S (VecSxp_length x_)
+  end.
+
+Definition XLENGTH_EX S x :=
+  add%stack "XLENGTH_EX" in
+  read%defined x_ := x using S in
+  if alt x_ then ALTREP_LENGTH S x
+  else STDVEC_LENGTH S x.
+
+Definition XLENGTH := XLENGTH_EX.
+
+Definition LENGTH_EX S (x : SEXP) :=
+  add%stack "LENGTH_EX" in
+  ifb x = R_NilValue then
+    result_success S 0
+  else XLENGTH S x.
+
+Definition LENGTH := LENGTH_EX.
+
+Definition xlength S s :=
+  add%stack "xlength" in
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | NilSxp =>
+    result_success S 0
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | CharSxp
+  | VecSxp
+  | ExprSxp
+  | RawSxp =>
+    LENGTH S s
+  | ListSxp
+  | LangSxp
+  | DotSxp =>
+    do%success (s, i) := (s, 0)
+    while result_success S (decide (s <> NULL /\ s <> R_NilValue)) do
+      read%list _, s_cdr, _ := s using S in
+      result_success S (s_cdr, 1 + i) using S, runs in
+    result_success S i
+  | EnvSxp =>
+    result_not_implemented "Rf_envlength"
+  | _ =>
+    result_success S 1
+  end.
 (** Named [length] in the C source file. **)
 Definition R_length S s :=
   add%stack "R_length" in
@@ -1073,80 +973,6 @@ Definition lang6 S s t u v w x :=
   lcons S s l.
 
 
-Definition R_FixupRHS S x y :=
-  add%stack "R_FixupRHS" in
-  let%success y_named := NAMED S y using S in
-  ifb y <> R_NilValue /\ y_named <> named_temporary then
-    if%success R_cycle_detected S x y using S then
-      duplicate S y
-    else
-      map%pointer y with set_named_plural using S in
-      result_success S y
-  else result_success S y.
-
-Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
-  add%stack "ALTREP_LENGTH" in
-  result_not_implemented "".
-
-Definition STDVEC_LENGTH S x :=
-  add%stack "STDVEC_LENGTH" in
-  read%defined x_ := x using S in
-  match x_ with
-  | SExpRec_NonVector _ => result_impossible S "Not a vector."
-  | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorLogical x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorPointer x_ => result_success S (VecSxp_length x_)
-  end.
-
-Definition XLENGTH_EX S x :=
-  add%stack "XLENGTH_EX" in
-  read%defined x_ := x using S in
-  if alt x_ then ALTREP_LENGTH S x
-  else STDVEC_LENGTH S x.
-
-Definition XLENGTH := XLENGTH_EX.
-
-Definition LENGTH_EX S (x : SEXP) :=
-  add%stack "LENGTH_EX" in
-  ifb x = R_NilValue then
-    result_success S 0
-  else XLENGTH S x.
-
-Definition LENGTH := LENGTH_EX.
-
-Definition xlength S s :=
-  add%stack "xlength" in
-  let%success s_type := TYPEOF S s using S in
-  match s_type with
-  | NilSxp =>
-    result_success S 0
-  | LglSxp
-  | IntSxp
-  | RealSxp
-  | CplxSxp
-  | StrSxp
-  | CharSxp
-  | VecSxp
-  | ExprSxp
-  | RawSxp =>
-    LENGTH S s
-  | ListSxp
-  | LangSxp
-  | DotSxp =>
-    do%success (s, i) := (s, 0)
-    while result_success S (decide (s <> NULL /\ s <> R_NilValue)) do
-      read%list _, s_cdr, _ := s using S in
-      result_success S (s_cdr, 1 + i) using S, runs in
-    result_success S i
-  | EnvSxp =>
-    result_not_implemented "Rf_envlength"
-  | _ =>
-    result_success S 1
-  end.
-
 Definition ALTLOGICAL_ELT S x i :=
   add%stack "ALTLOGICAL_ELT" in
   read%Logical x_i := x at i using S in
@@ -1208,6 +1034,363 @@ Definition RAW_ELT S x i :=
   else
     read%Pointer x_i := x at i using S in
     result_success S x_i.
+
+
+(** ** duplicate.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/duplicate.c. **)
+
+Definition lazy_duplicate S s :=
+  add%stack "lazy_duplicate" in
+  let%success s_t := TYPEOF S s using S in
+  run%success
+    match s_t with
+    | NilSxp
+    | SymSxp
+    | EnvSxp
+    | SpecialSxp
+    | BuiltinSxp
+    | ExtptrSxp
+    | BcodeSxp
+    | WeakrefSxp
+    | CharSxp
+    | PromSxp =>
+      result_skip S
+    | CloSxp
+    | ListSxp
+    | LangSxp
+    | DotSxp
+    | ExprSxp
+    | VecSxp
+    | LglSxp
+    | IntSxp
+    | RealSxp
+    | CplxSxp
+    | RawSxp
+    | StrSxp
+    | S4Sxp =>
+      map%pointer s with set_named_plural using S in
+      result_skip S
+    | _ =>
+      result_error S "Unimplemented type."
+    end using S in
+  result_success S s.
+
+Definition DUPLICATE_ATTRIB S vto vfrom deep :=
+  add%stack "DUPLICATE_ATTRIB" in
+  let%success a := ATTRIB S vfrom using S in
+  ifb a <> R_NilValue then
+    let%success a_duplicate := runs_duplicate1 runs S a deep using S in
+    run%success SET_ATTRIB S vto a_duplicate using S in
+    let%success vfrom_object := OBJECT S vfrom using S in
+    run%success SET_OBJECT S vto vfrom_object using S in
+    if%success IS_S4_OBJECT S vfrom using S then
+      SET_S4_OBJECT S vto
+    else UNSET_S4_OBJECT S vto
+  else result_skip S.
+
+Definition duplicate_child S s (deep : bool) :=
+  add%stack "duplicate_child" in
+  if deep then
+    runs_duplicate1 runs S s true
+  else lazy_duplicate S s.
+
+Definition duplicate_list S s deep :=
+  add%stack "duplicate_list" in
+  fold%success val := (R_NilValue : SEXP)
+  along s
+  as _, _ do
+    let (S, val) := CONS S R_NilValue val in
+    result_success S val using S, runs, globals in
+  fold%success vp := val
+  along s
+  as s, _, s_list do
+    let sp_car := list_carval s_list in
+    let%success sp_car_duplicate := duplicate_child S sp_car deep using S in
+    set%car vp := sp_car_duplicate using S in
+    set%tag vp := list_tagval s_list using S in
+    run%success DUPLICATE_ATTRIB S vp s deep using S in
+    read%list _, vp_cdr, _ := vp using S in
+    result_success S vp_cdr using S, runs, globals in
+  result_success S val.
+
+(** The following two functions are actually from main/memory.c. They
+  are placed here to solve a circular file dependency. **)
+
+Definition SET_VECTOR_ELT S x i v :=
+  add%stack "SET_VECTOR_ELT" in
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
+    result_error S "It can onlybe applied to a list."
+  else
+    let%success x_len := XLENGTH S x using S in
+    ifb i < 0 \/ i >= x_len then
+      result_error S "Outbound index."
+    else
+      write%Pointer x at i := v using S in
+      result_success S v.
+
+Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
+  add%stack "SET_STRING_ELT" in
+  let%success x_type := TYPEOF S x using S in
+  ifb x_type <> StrSxp then
+    result_error S "It can only be applied to a character vector."
+  else
+    let%success v_type := TYPEOF S v using S in
+    ifb v_type <> CharSxp then
+      result_error S "The value must be a CharSxp."
+    else
+      let%success x_len := XLENGTH S x using S in
+      ifb i < 0 \/ i >= x_len then
+        result_error S "Outbound index."
+      else
+        write%Pointer x at i := v using S in
+        result_skip S.
+
+Definition COPY_TRUELENGTH S (vto vfrom : SEXP) :=
+  add%stack "COPY_TRUELENGTH" in
+  let%success vfrom_growable := IS_GROWABLE S vfrom using S in
+  if negb vfrom_growable then
+    result_not_implemented "SET_TRUELENGTH"
+  else result_skip S.
+
+Definition duplicate1 S s deep :=
+  add%stack "duplicate1" in
+  run%exit
+    if%success ALTREP S s using S then
+      result_not_implemented "ALTREP_DUPLICATE_EX"
+    else result_rskip S using S in
+  let%success s_type := TYPEOF S s using S in
+  let%exit t :=
+    match s_type with
+    | NilSxp
+    | SymSxp
+    | EnvSxp
+    | SpecialSxp
+    | BuiltinSxp
+    | ExtptrSxp
+    | BcodeSxp
+    | WeakrefSxp =>
+      result_rreturn S s
+    | CloSxp =>
+      read%clo _, s_clo := s using S in
+      let t_ :=
+        make_SExpRec_clo R_NilValue
+          (clo_formals s_clo) (clo_body s_clo) (clo_env s_clo) in
+      let (S, t) := alloc_SExp S t_ in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      (** JIT functions have been ignored here. **)
+      result_rsuccess S t
+    | ListSxp =>
+      let%success t := duplicate_list S s deep using S in
+      result_rsuccess S t
+    | LangSxp =>
+      let%success t := duplicate_list S s deep using S in
+      map%pointer s with set_type LangSxp using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      result_rsuccess S t
+    | DotSxp =>
+      let%success t := duplicate_list S s deep using S in
+      map%pointer s with set_type DotSxp using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      result_rsuccess S t
+    | CharSxp =>
+      result_rreturn S s
+    | ExprSxp
+    | VecSxp =>
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      do%success
+      for i from 0 to n - 1 do
+        let%success s_i := VECTOR_ELT S s i using S in
+        let%success s_i_duplicated := duplicate_child S s_i deep using S in
+        run%success SET_VECTOR_ELT S t i s_i_duplicated using S in
+        result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
+      result_rsuccess S t
+    | LglSxp =>
+      result_not_implemented "Atomic vector case."
+    | IntSxp =>
+      result_not_implemented "Atomic vector case."
+    | RealSxp =>
+      result_not_implemented "Atomic vector case."
+    | CplxSxp =>
+      result_not_implemented "Atomic vector case."
+    | RawSxp =>
+      result_not_implemented "Raw case."
+    | StrSxp =>
+      result_not_implemented "Atomic vector case."
+    | PromSxp =>
+      result_rreturn S s
+    | S4Sxp =>
+      result_not_implemented "S4 case."
+    | _ => result_error S "Unimplemented type."
+    end using S in
+  let%success t_type := TYPEOF S t using S in
+  run%success
+    ifb t_type = s_type then
+      let%success s_obj := OBJECT S s using S in
+      run%success SET_OBJECT S t s_obj using S in
+      if%success IS_S4_OBJECT S s using S then
+        SET_S4_OBJECT S t
+      else UNSET_S4_OBJECT S t
+    else result_skip S using S in
+  result_success S t.
+
+Definition duplicate S s :=
+  add%stack "duplicate" in
+  duplicate1 S s true.
+
+Definition shallow_duplicate S s :=
+  add%stack "shallow_duplicate" in
+  duplicate1 S s false.
+
+(** The following function is actually from main/memory.c. It has been
+  placed here to solve a circular file dependency. **)
+Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
+  add%stack "SHALLOW_DUPLICATE_ATTRIB" in
+  read%defined vfrom_ := vfrom using S in
+  let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
+  run%success SET_ATTRIB S vto vfrom_attrib using S in
+  map%pointer vto with set_obj (obj vfrom_) using S in
+  run%success
+    if%success IS_S4_OBJECT S vfrom using S then
+      SET_S4_OBJECT S vto
+    else UNSET_S4_OBJECT S vto using S in
+  result_skip S.
+
+
+Definition isVector S s :=
+  add%stack "isVector" in
+  let%success s_type := TYPEOF S s using S in
+  match s_type with
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | RawSxp
+  | VecSxp
+  | ExprSxp =>
+    result_success S true
+  | _ =>
+    result_success S false
+  end.
+
+Definition R_cycle_detected S s child :=
+  add%stack "R_cycle_detected" in
+  let%success child_type := TYPEOF S child using S in
+  ifb s = child then
+    match child_type with
+    | NilSxp
+    | SymSxp
+    | EnvSxp
+    | SpecialSxp
+    | BuiltinSxp
+    | ExtptrSxp
+    | BcodeSxp
+    | WeakrefSxp =>
+      result_success S false
+    | _ =>
+      result_success S true
+    end
+  else
+    run%exit
+      read%defined child_ := child using S in
+      ifb attrib child_ <> R_NilValue then
+        if%success runs_R_cycle_detected runs S s (attrib child_) using S then
+          result_rreturn S true
+        else result_rskip S
+      else result_rskip S using S in
+    if%success isPairList S child using S then
+      fold%return
+      along child
+      as el, el_, el_list do
+        let%success r :=
+          runs_R_cycle_detected runs S s (list_carval el_list) using S in
+        ifb s = el \/ r then
+          result_rreturn S true
+        else
+          let%success r :=
+            runs_R_cycle_detected runs S s (attrib el_) using S in
+          ifb attrib el_ <> R_NilValue /\ r then
+            result_rreturn S true
+          else result_rskip S
+      using S, runs, globals in
+      result_success S false
+    else
+      if%success isVectorList S child using S then
+        read%VectorPointer child_ := child using S in
+        do%let r := false
+        for e in%array VecSxp_data child_ do
+          if r then result_success S r
+          else runs_R_cycle_detected runs S s e using S
+      else result_success S false.
+
+
+(** * dstruct.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/dstruct.c. **)
+
+Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
+  add%stack "mkPRIMSXP" in
+  let type := if type then BuiltinSxp else SpecialSxp in
+  let%success R_FunTab := get_R_FunTab S using S in
+  let FunTabSize := ArrayList.length R_FunTab in
+  (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
+  ifb offset >= FunTabSize then
+    result_error S "Offset is out of range"
+  else
+    read%Pointer result := mkPRIMSXP_primCache at offset using S in
+    ifb result = R_NilValue then
+      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
+      write%Pointer mkPRIMSXP_primCache at offset := result using S in
+      result_success S result
+    else
+      let%success result_type := TYPEOF S result using S in
+      ifb result_type <> type then
+        result_error S "Requested primitive type is not consistent with cached value."
+      else result_success S result.
+
+Definition mkCLOSXP S (formals body rho : SEXP) :=
+  add%stack "mkCLOSXP" in
+  let%success body_type := TYPEOF S body using S in
+  match body_type with
+  | CloSxp
+  | BuiltinSxp
+  | SpecialSxp
+  | DotSxp
+  | AnySxp =>
+    result_error S "Invalid body argument."
+  | _ =>
+    let env :=
+      ifb rho = R_NilValue then
+        (R_GlobalEnv : SEXP)
+      else rho in
+    let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
+    result_success S c
+  end.
+
+
+(** ** Rinlinedfuns.c **)
+
+(** The function names of this section corresponds to the function
+  names in the file include/Rinlinedfuns.c.  The most important
+  functions of eval.c are however only shown in a previous section.**)
+
+Definition R_FixupRHS S x y :=
+  add%stack "R_FixupRHS" in
+  let%success y_named := NAMED S y using S in
+  ifb y <> R_NilValue /\ y_named <> named_temporary then
+    if%success R_cycle_detected S x y using S then
+      duplicate S y
+    else
+      map%pointer y with set_named_plural using S in
+      result_success S y
+  else result_success S y.
 
 Definition isVectorizable S (s : SEXP) :=
   add%stack "isVectorizable" in
@@ -1280,43 +1463,6 @@ Definition isValidString S x :=
   let%success x_0 := STRING_ELT S x 0 using S in
   let%success x_0_type := TYPEOF S x_0 using S in
   result_success S (decide (x_type = StrSxp /\ x_len > 0 /\ x_0_type <> NilSxp)).
-
-
-(** ** memory.c **)
-
-(** The function names of this section corresponds to the function
-  names in the file main/memory.c. The most important functions of
-  memory.c are however only shown in a later section. **)
-
-Definition SET_VECTOR_ELT S x i v :=
-  add%stack "SET_VECTOR_ELT" in
-  let%success x_type := TYPEOF S x using S in
-  ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
-    result_error S "It can onlybe applied to a list."
-  else
-    let%success x_len := XLENGTH S x using S in
-    ifb i < 0 \/ i >= x_len then
-      result_error S "Outbound index."
-    else
-      write%Pointer x at i := v using S in
-      result_success S v.
-
-Definition SET_STRING_ELT S (x : SEXP) i v : result unit :=
-  add%stack "SET_STRING_ELT" in
-  let%success x_type := TYPEOF S x using S in
-  ifb x_type <> StrSxp then
-    result_error S "It can only be applied to a character vector."
-  else
-    let%success v_type := TYPEOF S v using S in
-    ifb v_type <> CharSxp then
-      result_error S "The value must be a CharSxp."
-    else
-      let%success x_len := XLENGTH S x using S in
-      ifb i < 0 \/ i >= x_len then
-        result_error S "Outbound index."
-      else
-        write%Pointer x at i := v using S in
-        result_skip S.
 
 
 (** ** eval.c **)
@@ -2645,11 +2791,14 @@ Definition removeAttrib S (vec name : SEXP) :=
           result_skip S using S in
       result_success S (R_NilValue : SEXP).
 
+Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
+  add%stack "classgets" in
+  result_not_implemented "".
+
 Definition setAttrib S (vec name val : SEXP) :=
   add%stack "setAttrib" in
   let%success name :=
-    let%success name_type := TYPEOF S name using S in
-    ifb name_type = StrSxp then
+    if%success isString S name using S then
       let%success str := STRING_ELT S name 0 using S in
       installTrChar S str
     else result_success S name using S in
@@ -2660,8 +2809,7 @@ Definition setAttrib S (vec name val : SEXP) :=
       result_error S "Attempt to set an attribute on NULL."
     else
       let%success val :=
-        let%success val_named := NAMED S val using S in
-        ifb val_named <> named_temporary then
+        if%success MAYBE_REFERENCED S val using S then
           R_FixupRHS S vec val
         else result_success S val using S in
       ifb name = R_NamesSymbol then

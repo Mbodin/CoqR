@@ -15,7 +15,7 @@ AT=
 %: Makefile.coq phony
 	${AT}+make -f Makefile.coq $@
 
-all: all_coq all_interp all_html
+all: all_coq all_interp all_html random
 
 all_coq: Makefile.coq
 	${AT}+make -f Makefile.coq all
@@ -23,7 +23,7 @@ all_coq: Makefile.coq
 all_html: Makefile.coq
 	${AT}+make -f Makefile.coq html
 
-clean: Makefile.coq clean_interp
+clean: Makefile.coq clean_interp clean_random
 	${AT}+make -f Makefile.coq clean
 	${AT}rm -f Makefile.coq
 
@@ -36,7 +36,7 @@ Makefile: ;
 
 phony: ;
 
-.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run random
+.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run random clean_random
 
 clean_all: clean clean_tlc
 
@@ -83,9 +83,13 @@ low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 
 random: gen/gen.native
 	${AT}mkdir gen/tests || true
-	${AT}for i in `seq -w 999`; do gen/gen.native -smart -max-step 1000 gen/gram > gen/tests/$$i.R; done
+	${AT}for i in `seq -w 99`; do gen/gen.native -smart -max-step 1000 gen/gram > gen/tests/$$i.R; done
 
 gen/gen.native: gen/gen.ml gen/lexer.mll gen/parser.mly
 	${AT}cd gen ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" gen.native ; cd ..
 
+clean_random:
+	${AT}rm gen/gen.native || true
+	${AT}rm -Rf gen/_build || true
+	${AT}rm -Rf gen/tests || true # Please don’t add anything to this folder.
 

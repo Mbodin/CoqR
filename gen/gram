@@ -108,7 +108,7 @@
 
     program -often> programatom " ;\n" program ;
     program -> programatom ;
-    program -rare> ;
+    # program -rare> ;
 
     lefthandside -often> variable ;
     lefthandside -rare> "attr (" lefthandside ", " string ")" ;

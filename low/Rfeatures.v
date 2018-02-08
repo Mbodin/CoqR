@@ -69,10 +69,6 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
 (** The function names of this section corresponds to the function names
   in the file main/attrib.c. **)
 
-Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
-  add%stack "classgets" in
-  result_not_implemented "".
-
 (** This enumeration is used in a local definition. **)
 Inductive enum_none_partial_partial2_full :=
   | enum_none
@@ -201,7 +197,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
     let obj := args_car in
     let%success obj :=
       if%success MAYBE_SHARED S obj using S then
-        shallow_duplicate S obj
+        shallow_duplicate globals runs S obj
       else result_success S obj using S in
     (** The initialisation of [do_attrgets_formals] is done in [do_attrgets_init] in Rinit. **)
     let%success argList :=
@@ -1065,7 +1061,7 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
       else eval globals runs S expr rho using S in
     let%success nval :=
       if%success MAYBE_SHARED S nval using S then
-        shallow_duplicate S nval
+        shallow_duplicate globals runs S nval
       else result_success S nval using S in
     let (S, r) := CONS_NR globals S nval expr in
     result_success S r
@@ -1111,7 +1107,7 @@ Definition SET_TEMPVARLOC_FROM_CAR S loc lhs :=
   read%list lhs_car, _, _ := lhs using S in
   let v := lhs_car in
   if%success MAYBE_SHARED S v using S then
-    let%success v := shallow_duplicate S v using S in
+    let%success v := shallow_duplicate globals runs S v using S in
     run%success ENSURE_NAMED S v using S in
     set%car lhs := v using S in
     result_skip S in
@@ -1433,7 +1429,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
     | EnvSxp =>
       result_success S env
     | ListSxp =>
-      let%success d := duplicate S args_cdr_car using S in
+      let%success d := duplicate globals runs S args_cdr_car using S in
       NewEnvironment globals runs S R_NilValue d encl
     | VecSxp =>
       result_not_implemented "VectorToPairListNamed"
@@ -1886,7 +1882,7 @@ Definition complex_unary S (code : int) s1 :=
     let%success ans :=
       if%success NO_REFERENCES S s1 using S then
         result_success S s1
-      else duplicate S s1 using S in
+      else duplicate globals runs S s1 using S in
     read%VectorComplex s1_ := s1 using S in
     let px := VecSxp_data s1_ in
     let pa := ArrayListExtra.map (fun x =>
@@ -1976,7 +1972,7 @@ Definition R_binary S (call op x y : SEXP) : result SEXP :=
           ifb ny <> 0 then
             result_error S "Recycling array of length 1 in an array-vector arithmetic is depreciated."
           else
-            let%success x := duplicate S x using S in
+            let%success x := duplicate globals runs S x using S in
             run%success setAttrib globals runs S x R_DimSymbol R_NilValue using S in
             result_skip S
         else result_skip S using S in
@@ -1985,7 +1981,7 @@ Definition R_binary S (call op x y : SEXP) : result SEXP :=
           ifb nx <> 0 then
             result_error S "Recycling array of length 1 in an array-vector arithmetic is depreciated."
           else
-            let%success y := duplicate S y using S in
+            let%success y := duplicate globals runs S y using S in
             run%success setAttrib globals runs S y R_DimSymbol R_NilValue using S in
             result_skip S
         else result_skip S using S in
@@ -2101,7 +2097,7 @@ Definition R_binary S (call op x y : SEXP) : result SEXP :=
       else result_skip S using S in
     let%success val :=
       ifb xS4 \/ yS4 then
-        asS4 S val true true
+        asS4 globals runs S val true true
       else result_success S val using S in
     result_success S val.
 
@@ -2147,7 +2143,7 @@ Definition integer_unary S (code : int) s1 :=
     let%success ans :=
       if%success NO_REFERENCES S s1 using S then
         result_success S s1
-      else duplicate S s1 using S in
+      else duplicate globals runs S s1 using S in
     read%VectorInteger s1_ := s1 using S in
     let px := VecSxp_data s1_ in
     let pa := ArrayListExtra.map (fun x =>
@@ -2165,7 +2161,7 @@ Definition real_unary S (code : int) s1 :=
     let%success ans :=
       if%success NO_REFERENCES S s1 using S then
         result_success S s1
-      else duplicate S s1 using S in
+      else duplicate globals runs S s1 using S in
     read%VectorReal s1_ := s1 using S in
     let px := VecSxp_data s1_ in
     let pa := ArrayListExtra.map (fun x => Double.opp x) px in
@@ -2369,7 +2365,7 @@ Definition math1 S sa f (lcall : SEXP) :=
     read%defined sa_ := sa using S in
     run%success
       ifb sa <> sy /\ attrib sa_ <> R_NilValue then
-        SHALLOW_DUPLICATE_ATTRIB S sy sa
+        SHALLOW_DUPLICATE_ATTRIB globals runs S sy sa
       else result_skip S using S in
     result_success S sy.
 
@@ -2975,6 +2971,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_inherits := fun S _ _ => result_bottom S ;
       runs_getAttrib := fun S _ _ => result_bottom S ;
       runs_R_cycle_detected := fun S _ _ => result_bottom S ;
+      runs_duplicate1 := fun S _ _ => result_bottom S ;
       runs_stripAttrib := fun S _ _ => result_bottom S ;
       runs_evalseq := fun S _ _ _ _ => result_bottom S ;
       runs_R_isMissing := fun S _ _ => result_bottom S ;
@@ -3004,6 +3001,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_inherits := wrap inherits ;
       runs_getAttrib := wrap getAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
+      runs_duplicate1 := wrap duplicate1 ;
       runs_stripAttrib := wrap stripAttrib ;
       runs_evalseq := wrap evalseq ;
       runs_R_isMissing := wrap R_isMissing ;

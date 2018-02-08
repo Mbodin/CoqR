@@ -14,6 +14,7 @@ Record runs_type : Type := runs_type_intro {
     runs_inherits : state -> SEXP -> string -> result bool ;
     runs_getAttrib : state -> SEXP -> SEXP -> result SEXP ;
     runs_R_cycle_detected : state -> SEXP -> SEXP -> result bool ;
+    runs_duplicate1 : state -> SEXP -> bool -> result SEXP ;
     runs_stripAttrib : state -> SEXP -> SEXP -> result SEXP ;
     runs_evalseq : state -> SEXP -> SEXP -> bool -> SEXP -> result SEXP ;
     runs_R_isMissing : state -> SEXP -> SEXP -> result bool ;
