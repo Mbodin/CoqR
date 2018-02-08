@@ -36,7 +36,7 @@ Makefile: ;
 
 phony: ;
 
-.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run
+.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run random
 
 clean_all: clean clean_tlc
 
@@ -81,6 +81,11 @@ low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
 
+random: gen/gen.native
+	${AT}mkdir gen/tests || true
+	${AT}for i in `seq -w 999`; do gen/gen.native -smart -max-step 1000 gen/gram > gen/tests/$$i.R; done
+
 gen/gen.native: gen/gen.ml gen/lexer.mll gen/parser.mly
 	${AT}cd gen ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" gen.native ; cd ..
+
 
