@@ -22,14 +22,17 @@
     variable -rare> "f" ;
     variable -rare> primitive ;
 
-    string -often> "\"" stringcontent "\"" ;
-    string -> "'" stringcontent "'" ;
+    string -> "\"" stringcontent "\"" ;
+    string -rare> "'" stringcontent "'" ;
 
     stringcontent -> ;
     stringcontent -> "a" ;
     stringcontent -> "b" ;
     stringcontent -> "c" ;
     stringcontent -> " " ;
+    stringcontent -rare> "\\" ;
+    stringcontent -rare> "\"" ;
+    stringcontent -rare> "'" ;
     stringcontent -> digit ;
     stringcontent -> primitive ;
     stringcontent -> stringcontent stringcontent ;
@@ -74,16 +77,16 @@
     argument -rare> "..." ;
     argument -rare> primitivefun ;
 
-    programret -> expression ;
-    programret -> "{\n" program "\n}" ;
+    programret -often> expression ;
+    programret -rare> "{\n" program "\n}" ;
     programret -> "{\n" program "\n" expression " }" ;
 
-    programatom -> lefthandside asn expression ;
-    programatom -rare> lefthandside asn lefthandside asn expression ;
-    programatom -rare> lefthandside asn lefthandside asn lefthandside asn expression ;
-    programatom -rare> expression asnright lefthandside ;
-    programatom -rare> expression asnright lefthandside asnright lefthandside ;
-    programatom -rare> lefthandside asn expression asnright lefthandside ;
+    asnexpr -> lefthandside asn expression ;
+    asnexpr -rare> lefthandside asn lefthandside asn expression ;
+    asnexpr -rare> lefthandside asn lefthandside asn lefthandside asn expression ;
+    asnexpr -rare> expression asnright lefthandside ;
+    asnexpr -rare> expression asnright lefthandside asnright lefthandside ;
+    asnexpr -rare> lefthandside asn expression asnright lefthandside ;
 
     asn -often> " <- " ;
     asn -> " <<- " ;
@@ -92,17 +95,20 @@
     asnright -often> " -> " ;
     asnright -> " ->> " ;
 
-    programatom -> exprapp ;
+    programatom -often> exprapp ;
+    programatom -often> asnexpr ;
     programatom -rare> expression ;
     programatom -rare> "{\n" program "\n}" ;
+    programatom -> ifexpr ;
 
-    programatom -> "if (" expression ") " programatom ;
-    programatom -> "if (" expression ") " programatom " else " programatom ;
-    programatom -> "if (" expression ") {\n" program " }" ;
-    programatom -> "if (" expression ") {\n" program "\n} else {\n" program " }" ;
+    ifexpr -> "if (" expression ") " programatom ;
+    ifexpr -> "if (" expression ") " programatom " else " programatom ;
+    ifexpr -> "if (" expression ") {\n" program " }" ;
+    ifexpr -> "if (" expression ") {\n" program "\n} else {\n" program " }" ;
 
     program -often> programatom " ;\n" program ;
-    program -> ;
+    program -> programatom ;
+    program -rare> ;
 
     lefthandside -often> variable ;
     lefthandside -rare> "attr (" lefthandside ", " string ")" ;
@@ -128,42 +134,46 @@
     expression -> exprfun ;
     expression -> exprapp ;
     expression -> exprlookup ;
-    expression -> exprarith ;
-    expression -> exprbool ;
+    expression -often> exprarith ;
+    expression -often> exprbool ;
     expression -> primitive ;
-    expression -> exprcst ;
+    expression -often> exprcst ;
     expression -rare> ".." digits ;
     expression -rare> "(" programatom ")" ;
 
     exprarith -often> variable ;
     exprarith -often> number ;
-    exprarith -often> "(" exprarith ")" ;
-    exprarith -> exprarith " + " exprarith ;
-    exprarith -> exprarith " - " exprarith ;
-    exprarith -> exprarith " * " exprarith ;
-    exprarith -> exprarith " / " exprarith ;
-    exprarith -> exprarith " ^ " exprarith ;
-    exprarith -> exprarith " %% " exprarith ;
-    exprarith -> exprarith " : " exprarith ;
-    exprarith -rare> exprarith " ~ " exprarith ;
-    exprarith -> expression ;
+    exprarith -> "(" exprarith ")" ;
+    exprarith -> exprarithaux ;
+    exprarith -rare> expression ;
     exprarith -rare> exprbool ;
+
+    exprarithaux -> exprarith " + " exprarith ;
+    exprarithaux -> exprarith " - " exprarith ;
+    exprarithaux -> exprarith " * " exprarith ;
+    exprarithaux -> exprarith " / " exprarith ;
+    exprarithaux -> exprarith " ^ " exprarith ;
+    exprarithaux -> exprarith " %% " exprarith ;
+    exprarithaux -> exprarith " : " exprarith ;
+    exprarithaux -rare> exprarith " ~ " exprarith ;
 
     exprbool -often> variable ;
     exprbool -> "TRUE" ;
     exprbool -> "FALSE" ;
+    exprbool -> exprboolaux ;
     exprbool -often> "(" exprbool ")" ;
-    exprbool -> exprarith " > " exprarith ;
-    exprbool -> exprarith " >= " exprarith ;
-    exprbool -> exprarith " < " exprarith ;
-    exprbool -> exprarith " <= " exprarith ;
-    exprbool -> exprarith " == " exprarith ;
-    exprbool -> exprarith " != " exprarith ;
-    exprbool -> exprbool " & " exprbool ;
-    exprbool -> exprbool " | " exprbool ;
-    exprbool -> "! " exprbool ;
     exprbool -rare> exprarith ;
     exprbool -rare> expression ;
+
+    exprboolaux -> exprarith " > " exprarith ;
+    exprboolaux -> exprarith " >= " exprarith ;
+    exprboolaux -> exprarith " < " exprarith ;
+    exprboolaux -> exprarith " <= " exprarith ;
+    exprboolaux -> exprarith " == " exprarith ;
+    exprboolaux -> exprarith " != " exprarith ;
+    exprboolaux -> exprbool " & " exprbool ;
+    exprboolaux -> exprbool " | " exprbool ;
+    exprboolaux -> "! " exprbool ;
 
     exprlookup -> expression " [" expression "]" ;
     exprlookup -> expression " [[" expression "]]" ;
