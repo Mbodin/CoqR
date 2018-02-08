@@ -81,3 +81,6 @@ low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
 
+gen/gen.native: gen/gen.ml gen/lexer.mll gen/parser.mly
+	${AT}cd gen ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" gen.native ; cd ..
+

@@ -339,6 +339,7 @@ attr (1, c ())
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "a") ; attr (a, "a") <- 3 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc") ; attr (a, "ab") <- 4 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc")
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "ab") <- 3 ; attr (a, "a")
 "attr<-" <- function (x, y, value) x <- value + 1 ; a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f")
+attr (attr, "f") <- 1 ; attr ; attr (attr, "f")
 
 # Tests about cat (for outputs).
 .Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))
@@ -366,7 +367,8 @@ a:::b
 
 # These are tests to test the tester and the parser.
 "function" ; 'function' ; 1 # function
-"Error" ; 'Error' ; 1 # Error
+"Error" ; 'Error' ; "Error:" ; 'Error:' ; 1 # Error
+"Warning" ; 'Warning' ; "Warning:" ; 'Warning:' ; 1 # Warning
 "function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
 "" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
 ')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
