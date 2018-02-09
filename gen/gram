@@ -12,7 +12,9 @@
 #   - otherwise, a reduction marked either as -often>, ->, or -rare> is taken, randomly (uniformly).
 #   This algorithm is repeated until no nonterminal are left.
 
-    start -> program ;
+    start -> init sep program ;
+
+    sep -> " ;\n" ;
 
     variable -> "a" ;
     variable -> "b" ;
@@ -88,6 +90,10 @@
     asnexpr -rare> expression asnright lefthandside asnright lefthandside ;
     asnexpr -rare> lefthandside asn expression asnright lefthandside ;
 
+    init -often> lefthandside asn constant sep init ;
+    init -> asnexpr sep init ;
+    init -rare> ;
+
     asn -often> " <- " ;
     asn -> " <<- " ;
     asn -> " = " ;
@@ -106,14 +112,14 @@
     ifexpr -> "if (" expression ") {\n" program " }" ;
     ifexpr -> "if (" expression ") {\n" program "\n} else {\n" program " }" ;
 
-    program -often> programatom " ;\n" program ;
+    program -often> programatom sep program ;
     program -> programatom ;
     # program -rare> ;
 
     lefthandside -often> variable ;
     lefthandside -rare> "attr (" lefthandside ", " string ")" ;
     lefthandside -rare> string ;
-    lefthandside -rare> primitivefun ;
+    lefthandside -> primitivefun ;
 
     exprapp -> exprfun " ()" ;
     exprapp -> exprfun " (" callarg ")" ;
@@ -179,6 +185,9 @@
     exprlookup -> expression " [[" expression "]]" ;
     exprlookup -rare> expression " [" expression ", " expression "]" ;
     exprlookup -rare> expression " [[" expression ", " expression "]]" ;
+
+    constant -> exprcst ;
+    constant -> primitive ;
 
     exprcst -> string ;
     exprcst -> number ;

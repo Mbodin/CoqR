@@ -298,6 +298,11 @@ Definition isString S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = StrSxp)).
 
+Definition isReal S s :=
+  add%stack "isReal" in
+  let%success s_type := TYPEOF S s using S in
+  result_success S (decide (s_type = RealSxp)).
+
 Definition isNull S s :=
   add%stack "isNull" in
   let%success s_type := TYPEOF S s using S in
@@ -1211,21 +1216,76 @@ Definition duplicate1 S s deep :=
       run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | LglSxp =>
-      result_not_implemented "Atomic vector case."
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      run%success
+        ifb n = 1 then
+          read%Logical s_0 := s at 0 using S in
+          write%Logical t at 0 := s_0 using S in
+          result_skip S
+        else
+          read%VectorLogical s_ := s using S in
+          write%VectorLogical t := s_ using S in
+          result_skip S using S in
+      result_rsuccess S t
     | IntSxp =>
-      result_not_implemented "Atomic vector case."
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      run%success
+        ifb n = 1 then
+          read%Integer s_0 := s at 0 using S in
+          write%Integer t at 0 := s_0 using S in
+          result_skip S
+        else
+          read%VectorInteger s_ := s using S in
+          write%VectorInteger t := s_ using S in
+          result_skip S using S in
+      result_rsuccess S t
     | RealSxp =>
-      result_not_implemented "Atomic vector case."
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      run%success
+        ifb n = 1 then
+          read%Real s_0 := s at 0 using S in
+          write%Real t at 0 := s_0 using S in
+          result_skip S
+        else
+          read%VectorReal s_ := s using S in
+          write%VectorReal t := s_ using S in
+          result_skip S using S in
+      result_rsuccess S t
     | CplxSxp =>
-      result_not_implemented "Atomic vector case."
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      run%success
+        ifb n = 1 then
+          read%Complex s_0 := s at 0 using S in
+          write%Complex t at 0 := s_0 using S in
+          result_skip S
+        else
+          read%VectorComplex s_ := s using S in
+          write%VectorComplex t := s_ using S in
+          result_skip S using S in
+      result_rsuccess S t
     | RawSxp =>
       result_not_implemented "Raw case."
     | StrSxp =>
-      result_not_implemented "Atomic vector case."
+      let%success n := XLENGTH S s using S in
+      let%success t := allocVector S s_type n using S in
+      run%success
+        ifb n = 1 then
+          read%Pointer s_0 := s at 0 using S in
+          write%Pointer t at 0 := s_0 using S in
+          result_skip S
+        else
+          read%VectorPointer s_ := s using S in
+          write%VectorPointer t := s_ using S in
+          result_skip S using S in
+      result_rsuccess S t
     | PromSxp =>
       result_rreturn S s
     | S4Sxp =>
-      result_not_implemented "S4 case."
+      result_not_implemented "allocS4Object"
     | _ => result_error S "Unimplemented type."
     end using S in
   let%success t_type := TYPEOF S t using S in
@@ -3826,12 +3886,12 @@ Definition asLogicalNoNA S (s call : SEXP) :=
         else result_error S "Argument is not interpretable as logical."
     else result_success S cond.
 
-Definition replaceCall S fu val args rhs :=
+Definition replaceCall S vfun val args rhs :=
   add%stack "replaceCall" in
   let%success args_len := R_length S args using S in
   let (S, tmp) := allocList S (3 + args_len) in
   let ptmp := tmp in
-  set%car ptmp := fu using S in
+  set%car ptmp := vfun using S in
   read%list _, ptmp_cdr, _ := ptmp using S in
   let ptmp := ptmp_cdr in
   set%car ptmp := val using S in
@@ -3849,9 +3909,9 @@ Definition replaceCall S fu val args rhs :=
   map%pointer tmp with set_type LangSxp using S in
   result_success S tmp.
 
-Definition assignCall S op symbol fu val args rhs :=
+Definition assignCall S op symbol vfun val args rhs :=
   add%stack "assignCall" in
-  let%success val := replaceCall S fu val args rhs using S in
+  let%success val := replaceCall S vfun val args rhs using S in
   lang3 S op symbol val.
 
 Definition forcePromise S (e : SEXP) : result SEXP :=

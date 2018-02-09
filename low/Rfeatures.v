@@ -1072,35 +1072,35 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
     result_not_implemented "R_SetVarLocValue"
   else result_error S "Target of assignment expands to non-language object.".
 
-Definition lookupAssignFcnSymbol S fu :=
+Definition lookupAssignFcnSymbol S vfun :=
   add%stack "lookupAssignFcnSymbol" in
-  findVarInFrame globals runs S R_ReplaceFunsTable fu.
+  findVarInFrame globals runs S R_ReplaceFunsTable vfun.
 
-Definition enterAssignFcnSymbol S fu val :=
+Definition enterAssignFcnSymbol S vfun val :=
   add%stack "enterAssignFcnSymbol" in
-  defineVar globals runs S fu val R_ReplaceFunsTable.
+  defineVar globals runs S vfun val R_ReplaceFunsTable.
 
-Definition installAssignFcnSymbol S fu :=
+Definition installAssignFcnSymbol S vfun :=
   add%stack "installAssignFcnSymbol" in
-  let%success fu_name := PRINTNAME S fu using S in
+  let%success fu_name := PRINTNAME S vfun using S in
   let%success fu_name_ := CHAR S fu_name using S in
   let%success val := install globals runs S (fu_name_ ++ "<-") using S in
-  run%success enterAssignFcnSymbol S fu val using S in
+  run%success enterAssignFcnSymbol S vfun val using S in
   result_success S val.
 
-Definition getAssignFcnSymbol S (fu : SEXP) :=
+Definition getAssignFcnSymbol S (vfun : SEXP) :=
   add%stack "getAssignFcnSymbol" in
-  ifb fu = R_SubsetSym then
+  ifb vfun = R_SubsetSym then
     result_success S (R_SubassignSym : SEXP)
-  else ifb fu = R_Subset2Sym then
+  else ifb vfun = R_Subset2Sym then
     result_success S (R_Subassign2Sym : SEXP)
-  else ifb fu = R_DollarSymbol then
+  else ifb vfun = R_DollarSymbol then
     result_success S (R_DollarGetsSymbol : SEXP)
   else
-    let%success val := lookupAssignFcnSymbol S fu using S in
+    let%success val := lookupAssignFcnSymbol S vfun using S in
     ifb val <> R_UnboundValue then
       result_success S val
-    else installAssignFcnSymbol S fu.
+    else installAssignFcnSymbol S vfun.
 
 Definition SET_TEMPVARLOC_FROM_CAR S loc lhs :=
   add%stack "SET_TEMPVARLOC_FROM_CAR" in
@@ -2748,6 +2748,18 @@ Definition numeric_relop S code s1 s2 :=
       NUMERIC_RELOP_double id id S code ans n n1 n2 (readREAL s1) (readREAL s2) ISNAN ISNAN using S in
   result_success S ans.
 
+Definition string_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+  add%stack "string_relop" in
+  result_not_implemented "".
+
+Definition complex_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+  add%stack "complex_relop" in
+  result_not_implemented "".
+
+Definition raw_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+  add%stack "raw_relop" in
+  result_not_implemented "".
+
 Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
   add%stack "do_relop_dflt" in
   let%success op_val := PRIMVAL runs S op using S in
@@ -2799,7 +2811,176 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
       /\ nx > 0 /\ ny > 0 /\ (nx = 1 \/ ny = 1) then
     numeric_relop S op_val x y
   else
-    result_not_implemented "".
+    let%success x :=
+      let%success iS := isSymbol S x using S in
+      let%success x_type := TYPEOF S x using S in
+      ifb iS \/ x_type = LangSxp then
+        let%success tmp := allocVector globals S StrSxp 1 using S in
+        let%success tmp_0 :=
+          if iS then
+            PRINTNAME S x
+          else result_not_implemented "deparse1" using S in
+        run%success SET_STRING_ELT S tmp 0 tmp_0 using S in
+        result_success S tmp
+      else result_success S x using S in
+    let%success y :=
+      let%success iS := isSymbol S y using S in
+      let%success y_type := TYPEOF S y using S in
+      ifb iS \/ y_type = LangSxp then
+        let%success tmp := allocVector globals S StrSxp 1 using S in
+        let%success tmp_0 :=
+          if iS then
+            PRINTNAME S y
+          else result_not_implemented "deparse1" using S in
+        run%success SET_STRING_ELT S tmp 0 tmp_0 using S in
+        result_success S tmp
+      else result_success S y using S in
+    let%success x :=
+      if%success isNull S x using S then
+        allocVector globals S IntSxp 0
+      else result_success S x using S in
+    let%success y :=
+      if%success isNull S y using S then
+        allocVector globals S IntSxp 0
+      else result_success S y using S in
+    let%success x_vector := isVector S x using S in
+    let%success y_vector := isVector S y using S in
+    ifb ~ x_vector \/ ~ y_vector then
+      result_error S "Comparison is possible only for atomic and list types"
+    else
+      let%success x_type := TYPEOF S x using S in
+      let%success y_type := TYPEOF S y using S in
+      ifb x_type = ExprSxp \/ y_type = ExprSxp then
+        result_error S "Comparison is now allowed for expressions"
+      else
+        let%success xarray := isArray globals runs S x using S in
+        let%success yarray := isArray globals runs S y using S in
+        let%success xts := isTs globals runs S x using S in
+        let%success yts := isTs globals runs S y using S in
+        let%success (dims, xnames, ynames) :=
+          ifb xarray \/ yarray then
+            let%success dims :=
+              ifb xarray /\ yarray then
+                let%success conf := conformable globals runs S x y using S in
+                if negb conf then
+                  result_error S "Non-conformable arrays."
+                else getAttrib globals runs S x R_DimSymbol
+              else ifb xarray /\ (ny <> 0 \/ nx = 0) then
+                getAttrib globals runs S x R_DimSymbol
+              else ifb yarray /\ (nx <> 0 \/ ny = 0) then
+                getAttrib globals runs S y R_DimSymbol
+              else result_success S (R_NilValue : SEXP) using S in
+            let%success xnames := getAttrib globals runs S x R_DimNamesSymbol using S in
+            let%success ynames := getAttrib globals runs S y R_DimNamesSymbol using S in
+            result_success S (dims, xnames, ynames)
+          else
+            let%success xnames := getAttrib globals runs S x R_NamesSymbol using S in
+            let%success ynames := getAttrib globals runs S y R_NamesSymbol using S in
+            result_success S (R_NilValue : SEXP, xnames, ynames) using S in
+        let%success (tsp, klass) :=
+          ifb xts \/ yts then
+            ifb xts /\ yts then
+              let%success c := tsConform globals runs S x y using S in
+              if negb c then
+                result_error S "Non-conformable time-series."
+              else
+                let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+                let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+                result_success S (tsp, klass)
+            else
+              let%success x_len := xlength globals runs S x using S in
+              let%success y_len := xlength globals runs S y using S in
+              if xts then
+                ifb x_len < y_len then
+                  result_error S "Time-series/vector length mismatch."
+                else
+                  let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+                  let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+                  result_success S (tsp, klass)
+              else
+                ifb y_len < x_len then
+                  result_error S "Time-series/vector length mismatch."
+                else
+                  let%success tsp := getAttrib globals runs S y R_TspSymbol using S in
+                  let%success klass := getAttrib globals runs S y R_ClassSymbol using S in
+                  result_success S (tsp, klass)
+          else result_success S (NULL, NULL) using S in
+        let%success x :=
+          ifb nx > 0 /\ ny > 0 then
+            (* A warning has been formalised out here. *)
+            let%success x_str := isString S x using S in
+            let%success y_str := isString S y using S in
+            ifb x_str \/ y_str then
+              let%success x := coerceVector globals runs S x StrSxp using S in
+              let%success y := coerceVector globals runs S y StrSxp using S in
+              string_relop S op_val x y
+            else
+              let%success x_cplx := isComplex S x using S in
+              let%success y_cplx := isComplex S y using S in
+              ifb x_cplx \/ y_cplx then
+                let%success x := coerceVector globals runs S x CplxSxp using S in
+                let%success y := coerceVector globals runs S y CplxSxp using S in
+                complex_relop S op_val x y
+              else
+                let%success x_num := isNumeric globals runs S x using S in
+                let%success y_num := isNumeric globals runs S y using S in
+                let%success x_lgl := isLogical S x using S in
+                let%success y_lgl := isLogical S y using S in
+                ifb (x_num \/ x_lgl) /\ (y_num \/ y_lgl) then
+                  numeric_relop S op_val x y
+                else
+                  let%success x_real := isReal S x using S in
+                  let%success y_real := isReal S y using S in
+                  ifb x_real \/ y_real then
+                    let%success x := coerceVector globals runs S x RealSxp using S in
+                    let%success y := coerceVector globals runs S y RealSxp using S in
+                    numeric_relop S op_val x y
+                  else
+                    let%success x_int := isInteger globals runs S x using S in
+                    let%success y_int := isInteger globals runs S y using S in
+                    ifb x_int \/ y_int then
+                      let%success x := coerceVector globals runs S x IntSxp using S in
+                      let%success y := coerceVector globals runs S y IntSxp using S in
+                      numeric_relop S op_val x y
+                    else ifb x_lgl \/ y_lgl then
+                      let%success x := coerceVector globals runs S x LglSxp using S in
+                      let%success y := coerceVector globals runs S y LglSxp using S in
+                      numeric_relop S op_val x y
+                    else ifb x_type = RawSxp \/ y_type = RawSxp then
+                      let%success x := coerceVector globals runs S x RawSxp using S in
+                      let%success y := coerceVector globals runs S y RawSxp using S in
+                      raw_relop S op_val x y
+                    else result_error S "Comparison of these types is not implemented."
+          else allocVector globals S LglSxp 0 using S in
+        run%success
+          ifb dims <> R_NilValue then
+            run%success setAttrib globals runs S x R_DimSymbol dims using S in
+            ifb xnames <> R_NilValue then
+              run%success setAttrib globals runs S x R_DimNamesSymbol xnames using S in
+              result_skip S
+            else ifb ynames <> R_NilValue then
+              run%success setAttrib globals runs S x R_DimNamesSymbol ynames using S in
+              result_skip S
+            else result_skip S
+          else
+            let%success x_len := xlength globals runs S x using S in
+            let%success xnames_len := xlength globals runs S xnames using S in
+            ifb xnames <> R_NilValue /\ x_len = xnames_len then
+              run%success setAttrib globals runs S x R_NamesSymbol xnames using S in
+              result_skip S
+            else
+              let%success ynames_len := xlength globals runs S ynames using S in
+              ifb ynames <> R_NilValue /\ x_len = ynames_len then
+                run%success setAttrib globals runs S x R_NamesSymbol ynames using S in
+                result_skip S
+              else result_skip S using S in
+        run%success
+          ifb xts \/ yts then
+            run%success setAttrib globals runs S x R_TspSymbol tsp using S in
+            run%success setAttrib globals runs S x R_ClassSymbol klass using S in
+            result_skip S
+          else result_skip S using S in
+        result_success S x.
 
 Definition do_relop S (call op args env : SEXP) : result SEXP :=
   add%stack "do_relop" in
