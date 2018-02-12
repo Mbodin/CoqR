@@ -1234,7 +1234,7 @@ Definition CheckFormals S ls :=
     result_skip S
   else result_error S "Invalid formal argument list (not a list).".
 
-Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
+Definition asym := [":=" ; "<-" ; "<<-" ; "="]%string.
 
 Definition lookupAssignFcnSymbol S vfun :=
   add%stack "lookupAssignFcnSymbol" in

@@ -11,7 +11,7 @@ NULL ; TRUE ; FALSE ; 1 ; 1L ; 0 ; -0 ; 0L ; -0L ; 1i ; -1i ; 0i ; -0i ; NaN ; I
 function (x) x ; function () 1 ; function () x
 NA_character_ ; NA_complex_ ; NA_real_ ; NA_integer_ ; NA
 .Internal ; T ; F
-0.5 ; .5 ; .50 ; 0.50 ; 00.50
+0.5 ; .5 ; .50 ; 0.50 ; 00.50 ; 0000 ; 0000L ; 0000i ; -0000 ; -0000L ; -0000i
 0.99999999999999999999 ; 0.99999999999999999999999999999999
 
 # Tests about aborting primitives.
@@ -380,8 +380,10 @@ attr (x, "f") = 1
 attr (x, "f") <<- 1
 attr (is.na, "f") <- 1 ; is.na ; is.na (9)
 a <- NA_character_ ; attr (a, "f") = -1 ; attr (a, "g") <- -1 ; attr (a, "h") <<- -1
-a <- 9 ; attr (a, "f") <- 8 ; a <- 9 ; attr (a, "f")
+a <- 9 ; attr (a, "f") <- 8 ; a <- 9 ; attr (a, "f") ; f
 attr (1, "a") ; attr (1, "a") <- 4 ; attr (1, "a") ; 1
+b <- attr (a, "f") <- a <- 2 ; 2 ; a ; b ; attr (a, "f")
+b <- attr (a, "f") <- 2 -> a -> c ; a ; b ; c ; attr (a, "f") ; attr (c, "f")
 a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; a + 1 ; attr (a + 1, "f")
 a <- 1 ; attr (attr (a, "f"), "g") <- 4
 a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; attr (attr (attr (a, "f"), "g"), "f") <- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "f") ; a

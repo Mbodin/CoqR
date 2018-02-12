@@ -91,5 +91,5 @@ gen/gen.native: gen/gen.ml gen/lexer.mll gen/parser.mly
 clean_random:
 	${AT}rm gen/gen.native || true
 	${AT}rm -Rf gen/_build || true
-	${AT}rm -Rf gen/tests || true # Please don’t add anything to this folder.
+	${AT}rm -Rf gen/tests/*.R || true
 
