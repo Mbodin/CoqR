@@ -306,9 +306,10 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
       if type0 infos = IntSxp then
         "(vector integer)" ^ print_vector print_integer v
       else if type0 infos = LglSxp then
-        "(vector boolean)" ^ print_vector print_logical v
+        "(vector logical)" ^ print_vector print_logical v
       else
-        "(vector integer whose type is decorelated from its vector)" ^ print_vector print_integer v
+        "(vector integer whose type is decorelated from its vector: " ^ print_SExpType (type0 infos) ^ ")"
+        ^ print_vector print_integer v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
     | SExpRec_VectorReal v -> "(vector real)" ^ print_vector print_float v
     | SExpRec_VectorPointer v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
@@ -424,13 +425,18 @@ let rec print_SExpRec_like_R_aux prefix_list d s g p e =
         let v = vector_SExpRec_vecsxp v in
         print_str (char_list_to_string (ArrayList.to_list (vecSxp_data v)))
     | SExpRec_VectorInteger v ->
-      print_vector "integer" print_integer v
+      if ty = IntSxp then
+        print_vector "integer" print_integer v
+      else if ty = LglSxp then
+        print_vector "logical" print_logical v
+      else
+        print_vector ("decorelated integer: " ^ print_SExpType ty) print_logical v
     | SExpRec_VectorComplex v ->
       print_vector "complex" print_rComplex v
     | SExpRec_VectorReal v ->
       print_vector "numeric" print_float v
     | SExpRec_VectorPointer v ->
-      if ty = VecSxp then
+      if ty = VecSxp || ty = ExprSxp then
         print_vectorlist t (fun p -> fetch_print_SExpRec_like_R ~prefix_list:p) v
       else print_vector t fetch_print_SExpRec_like_R v in
   let attrs =

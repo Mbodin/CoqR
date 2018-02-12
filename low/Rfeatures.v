@@ -379,6 +379,191 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
     else result_error S "Unimplemented predicate." using S in
   result_success S ans.
 
+Definition do_isna S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_isna" in
+  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_check1arg S args call "x" using S in
+  let%success (disp, ans) :=
+    DispatchOrEval globals runs S call op "is.na" args rho true true using S in
+  if disp then
+    result_success S ans
+  else
+    let args := ans in
+    read%list args_car, _, _ := args using S in
+    let x := args_car in
+    let%success n := xlength globals runs S x using S in
+    let%success ans := allocVector globals S LglSxp n using S in
+    let%success x_type := TYPEOF S x using S in
+    run%success
+      let LIST_VEC_NA S s i :=
+        let%success s_vec := isVector S s using S in
+        let%success s_len := R_length globals runs S s using S in
+        ifb ~ s_vec \/ s_len <> 1 then
+          write%Logical ans at i := false using S in
+          result_skip S
+        else
+          let%success s_type := TYPEOF S s using S in
+          match s_type with
+          | LglSxp
+          | IntSxp =>
+            let%success s_0 := INTEGER_ELT S s 0 using S in
+            write%Logical ans at i := decide (s_0 = NA_INTEGER) using S in
+            result_skip S
+          | RealSxp =>
+            let%success s_0 := REAL_ELT S s 0 using S in
+            write%Logical ans at i := ISNAN s_0 using S in
+            result_skip S
+          | StrSxp =>
+            let%success s_0 := STRING_ELT S s 0 using S in
+            write%Logical ans at i := decide (s_0 = NA_STRING) using S in
+            result_skip S
+          | CplxSxp =>
+            let%success v := COMPLEX_ELT S s 0 using S in
+            write%Logical ans at i := ISNAN (Rcomplex_r v) || ISNAN (Rcomplex_i v) using S in
+            result_skip S
+          | _ =>
+            write%Logical ans at i := false using S in
+            result_skip S
+          end in
+      match x_type with
+      | LglSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := LOGICAL_ELT S x i using S in
+          write%Logical ans at i := decide (x_i = NA_LOGICAL) using S in
+          result_skip S using S
+      | IntSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := INTEGER_ELT S x i using S in
+          write%Logical ans at i := decide (x_i = NA_INTEGER) using S in
+          result_skip S using S
+      | RealSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := REAL_ELT S x i using S in
+          write%Logical ans at i := ISNAN x_i using S in
+          result_skip S using S
+      | CplxSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := COMPLEX_ELT S x i using S in
+          write%Logical ans at i := ISNAN (Rcomplex_r x_i) || ISNAN (Rcomplex_i x_i) using S in
+          result_skip S using S
+      | StrSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := STRING_ELT S x i using S in
+          write%Logical ans at i := decide (x_i = NA_STRING) using S in
+          result_skip S using S
+      | ListSxp =>
+        do%success x := x
+        for i from 0 to n - 1 do
+          read%list x_car, x_cdr, _ := x using S in
+          run%success LIST_VEC_NA S x_car i using S in
+          result_success S x_cdr using S in
+        result_skip S
+      | VecSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success s := VECTOR_ELT S x i using S in
+          LIST_VEC_NA S s i using S
+      | RawSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          write%Logical ans at i := false using S in
+          result_skip S using S
+      | NilSxp => result_skip S
+      | _ => result_error S "Non-(list or vector)."
+      end using S in
+    run%success copyDimAndNames globals runs S x ans using S in
+    result_success S ans.
+
+
+Definition do_isnan S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_isnan" in
+  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_check1arg S args call "x" using S in
+  let%success (disp, ans) :=
+    DispatchOrEval globals runs S call op "is.na" args rho true true using S in
+  if disp then
+    result_success S ans
+  else
+    let args := ans in
+    read%list args_car, _, _ := args using S in
+    let x := args_car in
+    let%success n := xlength globals runs S x using S in
+    let%success ans := allocVector globals S LglSxp n using S in
+    let%success x_type := TYPEOF S x using S in
+    run%success
+      match x_type with
+      | StrSxp
+      | RawSxp
+      | NilSxp
+      | LglSxp
+      | IntSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          write%Logical ans at i := false using S in
+          result_skip S using S
+      | RealSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := REAL_ELT S x i using S in
+          write%Logical ans at i := R_IsNaN x_i using S in
+          result_skip S using S
+      | CplxSxp =>
+        do%let
+        for i from 0 to n - 1 do
+          let%success x_i := COMPLEX_ELT S x i using S in
+          write%Logical ans at i := R_IsNaN (Rcomplex_r x_i) || R_IsNaN (Rcomplex_i x_i) using S in
+          result_skip S using S
+      | _ => result_error S "Default method not implemented for this type."
+      end using S in
+    run%success copyDimAndNames globals runs S x ans using S in
+    result_success S ans.
+
+Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_isvector" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let x := args_car in
+  read%list args_cdr_car, _, _ := args_cdr using S in
+  let%success args_cdr_car_str := isString S args_cdr_car using S in
+  let%success args_cdr_car_len := LENGTH globals S args_cdr_car using S in
+  ifb ~ args_cdr_car_str \/ args_cdr_car_len <> 1 then
+    result_error S "Invalid ‘mode’ argument."
+  else
+    let%success args_cdr_car_0 := STRING_ELT S args_cdr_car 0 using S in
+    let%success stype := CHAR S args_cdr_car_0 using S in
+    let stype := ifb stype = "name"%string then "symbol"%string else stype in
+    let%success ans := allocVector globals S LglSxp 1 using S in
+    run%success
+      ifb stype = "any"%string then
+        let%success x_vec := isVector S x using S in
+        write%Logical ans at 0 := x_vec using S in
+        result_skip S
+      else ifb stype = "numeric"%string then
+        let%success x_vec := isVector S x using S in
+        let%success x_lgl := isLogical S x using S in
+        write%Logical ans at 0 := x_vec && negb x_lgl using S in
+        result_skip S
+      else result_not_implemented "type2char" using S in
+    run%success
+      read%Logical ans_0 := ans at 0 using S in
+      let%success args_car_attr := ATTRIB S args_car using S in
+      ifb ans_0 <> 0 /\ args_car_attr <> R_NilValue then
+        let a := args_car_attr in
+        fold%let
+        along a
+        as _, a_tag do
+          ifb a_tag <> R_NamesSymbol then
+            write%Logical ans at 0 := false using S in
+            result_skip S
+          else result_skip S using S, runs, globals
+      else result_skip S using S in
+    result_success S ans.
+
 
 (** * envir.c **)
 
@@ -1024,8 +1209,9 @@ Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
 Definition do_c S (call op args env : SEXP) : result SEXP :=
   add%stack "do_c" in
   run%success Rf_checkArityCall S op args call using S in
-  let%success (r, ans) := DispatchAnyOrEval globals runs S call op "c" args env true true using S in
-  if r then result_success S ans
+  let%success (disp, ans) :=
+    DispatchAnyOrEval globals runs S call op "c" args env true true using S in
+  if disp then result_success S ans
   else do_c_dftl S call op ans env.
 
 
@@ -1049,28 +1235,6 @@ Definition CheckFormals S ls :=
   else result_error S "Invalid formal argument list (not a list).".
 
 Definition asym := [":=" ; "<-" ; "<<-" ; "-"]%string.
-
-Definition evalseq S expr rho (forcelocal : bool) tmploc :=
-  add%stack "evalseq" in
-  if%success isNull S expr using S then
-    result_error S "Invalid left side assignment."
-  else if%success isSymbol S expr using S then
-    let%success nval :=
-      if forcelocal then
-        EnsureLocal globals runs S expr rho
-      else eval globals runs S expr rho using S in
-    let%success nval :=
-      if%success MAYBE_SHARED S nval using S then
-        shallow_duplicate globals runs S nval
-      else result_success S nval using S in
-    let (S, r) := CONS_NR globals S nval expr in
-    result_success S r
-  else if%success isLanguage globals S expr using S then
-    read%list _, expr_cdr, _ := expr using S in
-    read%list expr_cdr_car, _, _ := expr_cdr using S in
-    let%success val := runs_evalseq runs S expr_cdr_car rho forcelocal tmploc using S in
-    result_not_implemented "R_SetVarLocValue"
-  else result_error S "Target of assignment expands to non-language object.".
 
 Definition lookupAssignFcnSymbol S vfun :=
   add%stack "lookupAssignFcnSymbol" in
@@ -1132,7 +1296,8 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
     read%list expr_car, expr_cdr, _ := expr using S in
     read%list expr_cdr_car, _, _ := expr_cdr using S in
     let%success op_val := PRIMVAL runs S op using S in
-    let%success lhs := evalseq S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
+    let%success lhs :=
+      evalseq globals runs S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
     let%success rhsprom := mkRHSPROMISE globals S args_cdr_car rhs using S in
     do%success (rhs, lhs, expr) := (rhs, lhs, expr)
     while
@@ -1205,8 +1370,8 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_set S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_set" in
+  let%success op_val := PRIMVAL runs S op using S in
   let wrong S :=
-    let%success op_val := PRIMVAL runs S op using S in
     ifb op_val < 0 then
       result_error S "Negative offset."
     else
@@ -1230,7 +1395,6 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
         else result_success S lhs using S in
       let%success rhs := eval globals runs S args_cdr_car rho using S in
       run%success INCREMENT_NAMED S rhs using S in
-      let%success op_val := PRIMVAL runs S op using S in
       ifb op_val = 2 then
         read%env _, rho_env := rho using S in
         run%success setVar globals runs S lhs rhs (env_enclos rho_env) using S in
@@ -3684,12 +3848,12 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "is.single" do_is (999)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.na" (dummy_function "do_isna") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "is.nan" (dummy_function "do_isnan") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.na" do_isna (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.nan" do_isnan (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "is.finite" (dummy_function "do_isfinite") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "is.infinite" (dummy_function "do_isinfinite") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "is.vector" (dummy_function "do_isvector") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "is.vector" do_isvector (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "proc.time" (dummy_function "do_proctime") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "gc.time" (dummy_function "do_gctime") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;

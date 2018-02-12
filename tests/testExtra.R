@@ -5,6 +5,15 @@
 # A test passes if the output of the tested interpreter is the same than R’s.
 # All step should return the same output.
 
+# Constants
+NULL ; TRUE ; FALSE ; 1 ; 1L ; 0 ; -0 ; 0L ; -0L ; 1i ; -1i ; 0i ; -0i ; NaN ; Inf ; -Inf
+'' ; "" ; 'TRUE' ; "FALSE" ; '1' ; "1L" ; '0' ; "-0" ; '0L' ; "-0L" ; '1i' ; "0i" ; '-0i' ; "NaN" ; 'Inf' ; "-Inf"
+function (x) x ; function () 1 ; function () x
+NA_character_ ; NA_complex_ ; NA_real_ ; NA_integer_ ; NA
+.Internal ; T ; F
+0.5 ; .5 ; .50 ; 0.50 ; 00.50
+0.99999999999999999999 ; 0.99999999999999999999999999999999
+
 # Tests about aborting primitives.
 return
 return (1)
@@ -186,6 +195,7 @@ is.array (1) ; is.array (NULL) ; is.array ("1") ; is.array (1L) ; is.array (NA) 
 is.vector (1) ; is.vector (NULL) ; is.vector ("1") ; is.vector (1L) ; is.vector (NA) ; is.vector (NaN) ; is.vector (Inf) ; is.vector (5i) ; is.vector (1 + 3i) ; is.vector (x = -1) ; is.vector ("x" = -1) ; is.vector (y = -1)
 is.single (1) ; is.single (NULL) ; is.single ("1") ; is.single (1L) ; is.single (NA) ; is.single (NaN) ; is.single (Inf) ; is.single (5i) ; is.single (1 + 3i) ; is.single (x = -1) ; is.single ("x" = -1) ; is.single (y = -1)
 is.raw (1) ; is.raw (NULL) ; is.raw ("1") ; is.raw (1L) ; is.raw (NA) ; is.raw (NaN) ; is.raw (Inf) ; is.raw (5i) ; is.raw (1 + 3i) ; is.raw (x = -1) ; is.raw ("x" = -1) ; is.raw (y = -1)
+is.na (1) ; is.na (NULL) ; is.na ("1") ; is.na (1L) ; is.na (NA) ; is.na (NA_character_) ; is.na (NA_complex_) ; is.na (NA_real_) ; is.na (NA_integer_) ; is.na (NaN) ; is.na (Inf) ; is.na (x = -1) ; is.na ("x" = -1) ; is.na (y = -1)
 
 # Tests about implicit conversions and equality.
 TRUE + TRUE ; TRUE + FALSE ; FALSE + FALSE
@@ -239,13 +249,14 @@ c (4i, 1L) ; c (4i, NULL) ; c (4i, TRUE) ; c (4i, "a") ; c (4i, NA) ; c (4i, NaN
 c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
 c (1) ; c (1L) ; c (1i) ; c (TRUE) ; c ("a") ; c (NA) ; c (NaN) ; c (Inf)
 c () ; c (NULL) ; c (NULL, NULL, NULL, NA, NULL, NULL, NULL)
-c (x = 1)
+c (NA, 1) ; c (NA_character_, 1) ; c (NA_complex_, 1) ; c (NA_character_, NA_complex_, 1)
+c (x = 1) ; c (y = 1)
 c (1:10) ; c (c) ; c (function (x) x)
 list (c ()) ; list (c (1)) ; list (c (1, 2), c ("1", "2"))
 list () ; c (list ()) ; c (list (1)) ; c (list (1, 2), list ("1", "2")) ; c (list (1, TRUE, "a")) ; c (list (1, TRUE, "a"), list (), list (NA), list (FALSE))
 list (1, 2) ; list (list (1, 2), list (3, 4)) ; list (NULL) ; list (NA) ; list (NaN) ; list (FALSE) ; list (NULL, NA, NaN, FALSE) ; list (NULL, NA, NaN, FALSE, list (list (list (list ()), 9)), '', list)
 c (1, TRUE) ; c (1, TRUE, list ()) ; c (1, TRUE, "a", NULL, list (), NA, list (FALSE), function (x) x)
-list () == list () ; list () == c () ; list () == 1 ; list () == NA ; list () == NaN ; list == list
+NULL == list () ; NULL == c () ; list () == list () ; list () == c () ; list () == 1 ; list () == NA ; list () == NaN ; list == list
 list (1) == c (1) ; list (1) == 1 ; list (1) == c (1L) ; list (1) == c (1i) ; list (1L) == c (1i) ; list (1) == list (1)
 NA == "NA" ; list (NA) == NA ; list (NA) == "NA" ; list ("NA") == "NA" ; list ("NA") == NA
 list (1, TRUE) == c ("1", "TRUE") ; list (TRUE, TRUE) == c ("true", "T") ; list (TRUE, TRUE) == c (1) ; list (TRUE, "") == c (1) ; list ("") == c (1) ; list (" ") == c (1) ; list (1, TRUE) == c (TRUE, "")
@@ -321,6 +332,8 @@ NA <<- 1
 "TRUE" <<- 1 ; "FALSE" <<- 2 ; TRUE ; FALSE
 f <<- function (x) x <<- 1 ; x <<- 2 ; f (3) ; x
 f <<- function (x) function (y) x <<- 1 ; x <<- 2 ; f (3) (4) ; x
+f <- function (x) x <<- 1 ; x <- 2 ; f (3) ; x
+f <- function (x) function (y) x <<- 1 ; x <- 2 ; f (3) (4) ; x
 x = y = 2 ; x ; y
 x = 2 ; x = x = x + 1 ; x
 x = 2 ; y = x = x + 1 ; y ; x
@@ -355,7 +368,20 @@ a = b <- 1 ; a ; b
 "NULL" <- 1 ; NULL ; NULL <- 1
 
 # Tests about attributes and targetted assignments.
-attr (1, "a") ; attr (1, "a") <- 4
+attr (1, 1)
+attr (1, "") ; attr (a, NA_character_) ; attr (a, NA)
+attr (1, NULL)
+attr (1, c ("f", "g"))
+attr (1, character ())
+attr (1, c ())
+attr (x, "f")
+attr (x, "f") <- 1
+attr (x, "f") = 1
+attr (x, "f") <<- 1
+attr (is.na, "f") <- 1 ; is.na ; is.na (9)
+a <- NA_character_ ; attr (a, "f") = -1 ; attr (a, "g") <- -1 ; attr (a, "h") <<- -1
+a <- 9 ; attr (a, "f") <- 8 ; a <- 9 ; attr (a, "f")
+attr (1, "a") ; attr (1, "a") <- 4 ; attr (1, "a") ; 1
 a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; a + 1 ; attr (a + 1, "f")
 a <- 1 ; attr (attr (a, "f"), "g") <- 4
 a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; attr (attr (attr (a, "f"), "g"), "f") <- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "f") ; a
@@ -373,12 +399,6 @@ a <- NULL ; attr (a, "f") <- 2
 a <- -10:10 ; a ; a [3] <- 9 ; a ; a [6:9] ; a > 0 ; a = 0 ; a [a = 0] <- 8 ; a ; a [a < 1] <- 7 ; a ; a [-2] ; a [-4:-7]
 a <- -10:10 ; attr (a, "x") <- 9 ; attr (a, "x") ; attr (a [1], "x") ; attr (a [-1], "x") ; attr (a [1], "y") <- 8 ; a ; attr (a [1], "y") ; attr (a, "y") ; b <- a [1] ; attr (b, "z") <- 7 ; attr (b, "z") ; attr (a [1], "z")
 a <- -10:10 ; a [c (TRUE, FALSE, TRUE)] ; a [80:90] ; a [-9:0] ; a [c ("x", "y")] ; a [NA] ; a [NaN] ; a [c (TRUE, FALSE, NA)] ; a ["TRUE"] ; a [0] ; a [a]
-attr (1, 1)
-attr (1, "") ; attr (a, NA_character_) ; attr (a, NA)
-attr (1, NULL)
-attr (1, c ("f", "g"))
-attr (1, character ())
-attr (1, c ())
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "a") ; attr (a, "a") <- 3 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc") ; attr (a, "ab") <- 4 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc")
 a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "ab") <- 3 ; attr (a, "a")
 "attr<-" <- function (x, y, value) x <- value + 1 ; a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f")
@@ -402,12 +422,6 @@ a = NULL ; attr (a, "f") = 2
 a = -10:10 ; a ; a [3] = 9 ; a ; a [6:9] ; a > 0 ; a = 0 ; a [a = 0] = 8 ; a ; a [a < 1] = 7 ; a ; a [-2] ; a [-4:-7]
 a = -10:10 ; attr (a, "x") = 9 ; attr (a, "x") ; attr (a [1], "x") ; attr (a [-1], "x") ; attr (a [1], "y") = 8 ; a ; attr (a [1], "y") ; attr (a, "y") ; b = a [1] ; attr (b, "z") = 7 ; attr (b, "z") ; attr (a [1], "z")
 a = -10:10 ; a [c (TRUE, FALSE, TRUE)] ; a [80:90] ; a [-9:0] ; a [c ("x", "y")] ; a [NA] ; a [NaN] ; a [c (TRUE, FALSE, NA)] ; a ["TRUE"] ; a [0] ; a [a]
-attr (1, 1)
-attr (1, "") ; attr (a, NA_character_) ; attr (a, NA)
-attr (1, NULL)
-attr (1, c ("f", "g"))
-attr (1, character ())
-attr (1, c ())
 a = 1 ; attr (a, "abc") = 2 ; attr (a, "a") ; attr (a, "a") = 3 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc") ; attr (a, "ab") = 4 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc")
 a = 1 ; attr (a, "abc") = 2 ; attr (a, "ab") = 3 ; attr (a, "a")
 "attr=" = function (x, y, value) x = value + 1 ; a = 1 ; attr (a, "f") = 2 ; a ; attr (a, "f")

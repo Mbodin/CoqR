@@ -163,8 +163,7 @@ Extract Constant lt_int_decidable => "(<)".
 Extract Constant le_int_decidable => "(<=)".
 Extract Constant ge_nat_decidable => "(>=)".*)
 
-(* LATER: When the parser will be in Coq, most of what is forcely being extracted here will be useless. *)
-Extraction "low.ml" all_GlobalVariables
-  Parsing ScalarReal ScalarInteger ScalarComplex mkNA R_PosInf R_NaN NA_INTEGER NA_REAL make_Rcomplex mkString R_IsNA R_IsNAN
+Extraction "low.ml"
+  Parsing mkNA R_NaN mkString all_GlobalVariables
   setup_Rmainloop empty_state eval_global.
 

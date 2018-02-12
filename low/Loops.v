@@ -304,6 +304,14 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'usin
   (fold_left_listSxp runs globals S le e (fun S a l_car l_tag => iterate))
   (at level 50, left associativity) : monad_scope.
 
+Notation "'fold%let' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals" :=
+  (fold%let _ := tt
+   along le
+   as l_car, l_tag
+   do iterate
+   using S, runs, globals)
+  (at level 50, left associativity) : monad_scope.
+
 Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals" :=
   (fold%let x := e
    along le

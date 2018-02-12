@@ -503,6 +503,21 @@ Definition SET_PRCODE S x v :=
   write%defined x := x_ using S in
   result_skip S.
 
+Definition SET_SYMVALUE S x v :=
+  add%stack "SET_SYMVALUE" in
+  read%sym x_, x_sym := x using S in
+  let x_sym := {|
+      sym_pname := sym_pname x_sym ;
+      sym_value := v ;
+      sym_internal := sym_internal x_sym
+    |} in
+  let x_ := {|
+      NonVector_SExpRec_header := x_ ;
+      NonVector_SExpRec_data := x_sym
+    |} in
+  write%defined x := x_ using S in
+  result_skip S.
+
 (** Note: there is a macro definition renaming [NewEnvironment] to
   [Rf_NewEnvironment] in the file include/Defn.h. As a consequence,
   the compiled C files references [Rf_NewEnvironment] and not
@@ -923,6 +938,8 @@ Definition lcons S car cdr :=
   let (S, e) := CONS S car cdr in
   map%pointer e with set_type LangSxp using S in
   result_success S e.
+
+Definition LCONS := lcons.
 
 Definition list1 S s :=
   CONS S s R_NilValue.
@@ -1562,7 +1579,7 @@ Definition PREXPR S e :=
 Definition R_IsNA (x : double) :=
   decide (Double.getNaNData x = Some 1954)%positive.
 
-Definition R_IsNAN x :=
+Definition R_IsNaN x :=
   match Double.getNaNData x with
   | Some i => decide (i <> 1954)%positive
   | None => false
@@ -2328,6 +2345,11 @@ Definition R_SetVarLocValue S vl value :=
   add%stack "R_SetVarLocValue" in
   SET_BINDING_VALUE S vl value.
 
+Definition R_GetVarLocSymbol S vl :=
+  add%stack "R_GetVarLocSymbol" in
+  read%list _, _, vl_tag := vl using S in
+  result_success S vl_tag.
+
 Definition BINDING_VALUE S b :=
   add%stack "BINDING_VALUE" in
   read%list b_car, _, _ := b using S in
@@ -2371,41 +2393,66 @@ Definition defineVar S (symbol value rho : SEXP) : result unit :=
   add%stack "defineVar" in
   ifb rho = R_EmptyEnv then
     result_error S "Can not assign values in the empty environment."
+  else if%success IS_USER_DATABASE S rho using S then
+    result_not_implemented "R_ObjectTable"
+  else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
+    gsetVar S symbol value rho
   else
-    if%success IS_USER_DATABASE S rho using S then
-      result_not_implemented "R_ObjectTable"
+    if%success IS_SPECIAL_SYMBOL S symbol using S then
+      run%success SET_SPECIAL_SYMBOL S rho false using S in
+      result_skip S in
+    (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+    read%env _, rho_env := rho using S in
+    fold%return
+    along env_frame rho_env
+    as frame, _, frame_list do
+      ifb list_tagval frame_list = symbol then
+        run%success SET_BINDING_VALUE S frame value using S in
+        run%success SET_MISSING S frame 0 ltac:(nbits_ok) using S in
+        result_rreturn S tt
+      else result_rskip S using S, runs, globals in
+    if%success FRAME_IS_LOCKED S rho using S then
+      result_error S "Can not add a binding to a locked environment."
     else
-      ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
-        gsetVar S symbol value rho
-      else
-        if%success IS_SPECIAL_SYMBOL S symbol using S then
-          run%success SET_SPECIAL_SYMBOL S rho false using S in
-          result_skip S in
-        (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
-        read%env _, rho_env := rho using S in
-        fold%return
-        along env_frame rho_env
-        as frame, _, frame_list do
-          ifb list_tagval frame_list = symbol then
-            run%success SET_BINDING_VALUE S frame value using S in
-            run%success SET_MISSING S frame 0 ltac:(nbits_ok) using S in
-            result_rreturn S tt
-          else
-            result_rskip S using S, runs, globals in
-        if%success FRAME_IS_LOCKED S rho using S then
-          result_error S "Can not add a binding to a locked environment."
-        else
-          let (S, l) := CONS S value (env_frame rho_env) in
-          run%success SET_FRAME S rho l using S in
-          set%tag l := symbol using S in
-          result_skip S.
+      let (S, l) := CONS S value (env_frame rho_env) in
+      run%success SET_FRAME S rho l using S in
+      set%tag l := symbol using S in
+      result_skip S.
+
+Definition SET_SYMBOL_BINDING_VALUE S sym val :=
+  add%stack "SET_SYMBOL_BINDING_VALUE" in
+  if%success BINDING_IS_LOCKED S sym using S then
+    result_error S "Cannot change value of locked binding."
+  else if%success IS_ACTIVE_BINDING S sym using S then
+    read%sym _, sym_sym := sym using S in
+    setActiveValue S (sym_value sym_sym) val
+  else SET_SYMVALUE S sym val.
 
 Definition setVarInFrame S (rho symbol value : SEXP) :=
   add%stack "setVarInFrame" in
   ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
+  else if%success IS_USER_DATABASE S rho using S then
+    result_not_implemented "R_ObjectTable"
+  else ifb rho = R_BaseNamespace \/ rho = R_BaseEnv then
+    read%sym _, symbol_sym := symbol using S in
+    ifb sym_value symbol_sym = R_UnboundValue then
+      result_success S (R_NilValue : SEXP)
+    else
+      run%success SET_SYMBOL_BINDING_VALUE S symbol value using S in
+      result_success S symbol
   else
-    result_not_implemented "".
+    (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
+    read%env _, rho_env := rho using S in
+    fold%return
+    along env_frame rho_env
+    as frame, _, frame_list do
+      ifb list_tagval frame_list = symbol then
+        run%success SET_BINDING_VALUE S frame value using S in
+        run%success SET_MISSING S frame 0 ltac:(nbits_ok) using S in
+        result_rreturn S symbol
+      else result_rskip S using S, runs, globals in
+      result_success S (R_NilValue : SEXP).
 
 Definition setVar S (symbol value rho : SEXP) :=
   add%stack "setVar" in
@@ -3781,6 +3828,29 @@ Definition CreateTag S x :=
       installTrChar S x_0
     else result_not_implemented "deparse1".
 
+Definition copyDimAndNames S x ans :=
+  add%stack "copyDimAndNames" in
+  if%success isVector S x using S then
+    let%success dims := getAttrib S x R_DimSymbol using S in
+    run%success
+      ifb dims <> R_NilValue then
+        run%success setAttrib S ans R_DimSymbol dims using S in
+        result_skip S
+      else result_skip S using S in
+    if%success isArray S x using S then
+      let%success names := getAttrib S x R_DimNamesSymbol using S in
+      ifb names <> R_NilValue then
+        run%success setAttrib S ans R_DimNamesSymbol names using S in
+        result_skip S
+      else result_skip S
+    else
+      let%success names := getAttrib S x R_NamesSymbol using S in
+      ifb names <> R_NilValue then
+        run%success setAttrib S ans R_NamesSymbol names using S in
+        result_skip S
+      else result_skip S
+  else result_skip S.
+
 
 (** ** objects.c **)
 
@@ -4314,9 +4384,6 @@ Definition eval S (e rho : SEXP) :=
     else
       match e_type with
       | BcodeSxp =>
-        (** See Line 3543 of src/main/eval.c, for a definition of this bytecode,
-          Line 5966 of the same file for the evaluator.
-          We do not consider byte code for now in this formalisation. **)
         result_not_implemented "bcEval"
       | SymSxp =>
         ifb e = R_DotsSymbol then
@@ -4399,6 +4466,45 @@ Definition eval S (e rho : SEXP) :=
       | _ => result_error S "Type unimplemented in the R source code."
       end
   end.
+
+Definition evalseq S expr rho (forcelocal : bool) tmploc :=
+  add%stack "evalseq" in
+  if%success isNull S expr using S then
+    result_error S "Invalid left side assignment."
+  else if%success isSymbol S expr using S then
+    let%success nval :=
+      if forcelocal then
+        EnsureLocal S expr rho
+      else
+        read%env _, rho_env := rho using S in
+        eval S expr (env_enclos rho_env) using S in
+    let%success nval :=
+      if%success MAYBE_SHARED S nval using S then
+        shallow_duplicate S nval
+      else result_success S nval using S in
+    let (S, r) := CONS_NR S nval expr in
+    result_success S r
+  else if%success isLanguage S expr using S then
+    read%list expr_car, expr_cdr, _ := expr using S in
+    read%list expr_cdr_car, expr_cdr_cdr, _ := expr_cdr using S in
+    let%success val := runs_evalseq runs S expr_cdr_car rho forcelocal tmploc using S in
+    read%list val_car, _, _ := val using S in
+    run%success R_SetVarLocValue S tmploc val_car using S in
+    let%success tmploc_sym := R_GetVarLocSymbol S tmploc using S in
+    let%success nexpr := LCONS S tmploc_sym expr_cdr_cdr using S in
+    let%success nexpr := LCONS S expr_car nexpr using S in
+    let%success nval := eval S nexpr rho using S in
+    let%success nval :=
+      let%success nval_mr := MAYBE_REFERENCED S nval using S in
+      let%success nval_ms := MAYBE_SHARED S nval using S in
+      read%list nval_car, _, _ := nval using S in
+      let%success nval_car_ms := MAYBE_SHARED S nval_car using S in
+      ifb nval_mr /\ (nval_ms \/ nval_car_ms) then
+        shallow_duplicate S nval
+      else result_success S nval using S in
+    let (S, r) := CONS_NR S nval val in
+    result_success S r
+  else result_error S "Target of assignment expands to non-language object.".
 
 (** Evaluates the expression in the global environment. **)
 Definition eval_global S e :=
