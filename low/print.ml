@@ -250,8 +250,8 @@ let is_temporary e =
   named infos = Named_temporary
 
 let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details, vector_line, charvec_string) t s g e =
+  let infos = get_SxpInfo e in
   let print_basic =
-    let infos = get_SxpInfo e in
     print_SExpType (type0 infos) ^ " " ^
     (if obj infos then "(obj) " else "") ^
     "(" ^ print_named (named infos) ^ ") " ^
@@ -302,8 +302,13 @@ let print_SExpRec_debug d (show_gp, gp_opt, show_attrib, show_data, show_details
         indent d ^ "\"" ^ char_list_to_string (ArrayList.to_list (vecSxp_data v)) ^ "\""
       else
         print_vector print_character v
-    | SExpRec_VectorLogical v -> "(vector logical)" ^ print_vector print_logical v
-    | SExpRec_VectorInteger v -> "(vector integer)" ^ print_vector print_integer v
+    | SExpRec_VectorInteger v ->
+      if type0 infos = IntSxp then
+        "(vector integer)" ^ print_vector print_integer v
+      else if type0 infos = LglSxp then
+        "(vector boolean)" ^ print_vector print_logical v
+      else
+        "(vector integer whose type is decorelated from its vector)" ^ print_vector print_integer v
     | SExpRec_VectorComplex v -> "(vector complex)" ^ print_vector print_rComplex v
     | SExpRec_VectorReal v -> "(vector real)" ^ print_vector print_float v
     | SExpRec_VectorPointer v -> "(vector pointer)" ^ print_vector (print_pointer t s g) v in
@@ -418,8 +423,6 @@ let rec print_SExpRec_like_R_aux prefix_list d s g p e =
       else
         let v = vector_SExpRec_vecsxp v in
         print_str (char_list_to_string (ArrayList.to_list (vecSxp_data v)))
-    | SExpRec_VectorLogical v ->
-      print_vector "logical" print_logical v
     | SExpRec_VectorInteger v ->
       print_vector "integer" print_integer v
     | SExpRec_VectorComplex v ->

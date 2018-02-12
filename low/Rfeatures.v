@@ -2731,9 +2731,11 @@ Definition numeric_relop S code s1 s2 :=
   let%success s2_in := isInteger globals runs S s2 using S in
   let%success s2_lg := isLogical S s2 using S in
   let readINTEGER s S i :=
+    add%stack "readINTEGER" in
     read%Integer r := s at i using S in
     result_success S r in
   let readREAL s S i :=
+    add%stack "readREAL" in
     read%Real r := s at i using S in
     result_success S r in
   run%success

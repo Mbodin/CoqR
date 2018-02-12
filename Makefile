@@ -83,7 +83,7 @@ low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
 
 random: gen/gen.native
 	${AT}mkdir gen/tests || true
-	${AT}for i in `seq -w 99`; do gen/gen.native -smart -max-step 1000 gen/gram > gen/tests/$$i.R; done
+	${AT}for i in `seq -w 99`; do gen/gen.native -smart -max-step 300 gen/gram > gen/tests/$$i.R; done
 
 gen/gen.native: gen/gen.ml gen/lexer.mll gen/parser.mly
 	${AT}cd gen ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" gen.native ; cd ..

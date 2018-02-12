@@ -102,17 +102,15 @@ Definition get_VectorChar e_ :=
   | _ => None
   end.
 
-Definition get_VectorLogical e_ :=
-  match e_ with
-  | SExpRec_VectorLogical e_ => Some e_
-  | _ => None
-  end.
-
 Definition get_VectorInteger e_ :=
   match e_ with
   | SExpRec_VectorInteger e_ => Some e_
   | _ => None
   end.
+
+(** Logical values and integer values are stored the same way. **)
+Definition get_VectorLogical := get_VectorInteger.
+Definition SExpRec_VectorLogical := SExpRec_VectorInteger.
 
 Definition get_VectorComplex e_ :=
   match e_ with
@@ -137,7 +135,6 @@ Definition get_SxpInfo e_ :=
   match e_ return SxpInfo with
   | SExpRec_NonVector e_ => e_
   | SExpRec_VectorChar e_ => e_
-  | SExpRec_VectorLogical e_ => e_
   | SExpRec_VectorInteger e_ => e_
   | SExpRec_VectorComplex e_ => e_
   | SExpRec_VectorReal e_ => e_
@@ -149,7 +146,6 @@ Definition get_SExpRecHeader e_ :=
   match e_ return SExpRecHeader with
   | SExpRec_NonVector e_ => e_
   | SExpRec_VectorChar e_ => e_
-  | SExpRec_VectorLogical e_ => e_
   | SExpRec_VectorInteger e_ => e_
   | SExpRec_VectorComplex e_ => e_
   | SExpRec_VectorReal e_ => e_
@@ -217,8 +213,6 @@ Definition map_header f e_ :=
     SExpRec_NonVector (map_header_NonVector_SExpRec f e_)
   | SExpRec_VectorChar e_ =>
     SExpRec_VectorChar (map_header_Vector_SExpRec f e_)
-  | SExpRec_VectorLogical e_ =>
-    SExpRec_VectorLogical (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorInteger e_ =>
     SExpRec_VectorInteger (map_header_Vector_SExpRec f e_)
   | SExpRec_VectorComplex e_ =>
@@ -312,8 +306,6 @@ Definition get_VecSxp_length e_ :=
   | SExpRec_NonVector e_ =>
     None
   | SExpRec_VectorChar e_ =>
-    Some (VecSxp_length e_)
-  | SExpRec_VectorLogical e_ =>
     Some (VecSxp_length e_)
   | SExpRec_VectorInteger e_ =>
     Some (VecSxp_length e_)

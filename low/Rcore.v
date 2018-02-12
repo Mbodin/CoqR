@@ -712,7 +712,6 @@ Definition STDVEC_LENGTH S x :=
   match x_ with
   | SExpRec_NonVector _ => result_impossible S "Not a vector."
   | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorLogical x_ => result_success S (VecSxp_length x_)
   | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
   | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
   | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)

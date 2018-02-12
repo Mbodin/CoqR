@@ -162,7 +162,7 @@ let print_stats _ =
 let generate rules p_often p_rare =
   let emergency_occured = ref false in
   let rec emergency l =
-      print_string ("Maximum number of steps reached" ^ if !emergency_occured then " again. " else ". ") ;
+      if !verbose then print_string ("Maximum number of steps reached" ^ if !emergency_occured then " again. " else ". ") ;
     if !smart && not !emergency_occured then (
       if !verbose then print_endline "Trying to fix things…" ;
       emergency_occured := true ;

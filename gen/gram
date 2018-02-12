@@ -32,9 +32,10 @@
     stringcontent -> "b" ;
     stringcontent -> "c" ;
     stringcontent -> " " ;
-    stringcontent -rare> "\\" ;
-    stringcontent -rare> "\"" ;
-    stringcontent -rare> "'" ;
+    stringcontent -rare> "\\\\" ;
+    stringcontent -rare> "\\\"" ;
+    stringcontent -rare> "\\n" ;
+    stringcontent -rare> "\\'" ;
     stringcontent -> digit ;
     stringcontent -> primitive ;
     stringcontent -> stringcontent stringcontent ;
@@ -90,9 +91,9 @@
     asnexpr -rare> expression asnright lefthandside asnright lefthandside ;
     asnexpr -rare> lefthandside asn expression asnright lefthandside ;
 
-    init -often> lefthandside asn constant sep init ;
-    init -> asnexpr sep init ;
-    init -rare> ;
+    init -often> variable asn constant sep init ;
+    init -> lefthandside asn constant sep init ;
+    init -rare> variable asn constant ;
 
     asn -often> " <- " ;
     asn -> " <<- " ;

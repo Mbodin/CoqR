@@ -177,7 +177,7 @@ Record Rcomplex := make_Rcomplex {
 Inductive SExpRec :=
   | SExpRec_NonVector : NonVector_SExpRec -> SExpRec
   | SExpRec_VectorChar : Vector_SExpRec character -> SExpRec
-  | SExpRec_VectorLogical : Vector_SExpRec int (** This type be surprising, but do not forget that R have three-valued booleans, and use integers to represent them. **) -> SExpRec (* FIXME: As for the field [named], we may want to declare a special type for this. *)
+  (** R uses integers to represent three-valued booleans. **)
   | SExpRec_VectorInteger : Vector_SExpRec int -> SExpRec
   (* | SExpRec_VectorRaw : Vector_SExpRec Rbyte -> SExpRec *)
   | SExpRec_VectorComplex : Vector_SExpRec Rcomplex -> SExpRec
