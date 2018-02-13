@@ -1395,13 +1395,13 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
         else result_success S lhs using S in
       let%success rhs := eval globals runs S args_cdr_car rho using S in
       run%success INCREMENT_NAMED S rhs using S in
-      ifb op_val = 2 then
-        read%env _, rho_env := rho using S in
-        run%success setVar globals runs S lhs rhs (env_enclos rho_env) using S in
-        result_success S rhs
-      else
-        run%success defineVar globals runs S lhs rhs rho using S in
-        result_success S rhs
+      run%success
+        ifb op_val = 2 then
+          read%env _, rho_env := rho using S in
+          setVar globals runs S lhs rhs (env_enclos rho_env)
+        else
+          defineVar globals runs S lhs rhs rho using S in
+      result_success S rhs
     | LangSxp => applydefine S call op args rho
     | _ => result_error S "Invalid left-hand side to assignment."
     end.
@@ -1542,7 +1542,7 @@ Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   run%success
     ifb jmp <> Ctxt_Break then
-      do%let while result_success S true do
+      do%let whileb True do
         run%success eval globals runs S body rho using S in
         result_skip S using S, runs
     else result_skip S using S in

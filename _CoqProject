@@ -27,6 +27,7 @@
 ./low/Extraction.v
 
 ./low/MonadTactics.v
+./low/Path.v
 ./low/Rinvariants.v
 ./low/Relation.v
 

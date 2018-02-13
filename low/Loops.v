@@ -50,7 +50,10 @@ Notation "'do%let' a ':=' e 'while' expr 'do' stat 'using' S ',' runs" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'while' expr 'do' stat 'using' S ',' runs" :=
-  (do%let _ := tt while expr do stat using S, runs)
+  (do%let _ := tt
+   while expr
+   do stat
+   using S, runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'while' expr 'do' stat 'using' S ',' runs" :=
@@ -85,6 +88,55 @@ Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'while' 
   (do%let x := a
    while let '(a1, a2, a3, a4, a5, a6) := x in expr
    do let '(a1, a2, a3, a4, a5, a6) := x in stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' a ':=' e 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let a := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let (a1, a2) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let (a1, a2, a3) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let (a1, a2, a3, a4) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let (a1, a2, a3, a4, a5) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs" :=
+  (do%let (a1, a2, a3, a4, a5, a6) := a
+   while result_success S (decide expr)
+   do stat
    using S, runs)
   (at level 50, left associativity) : monad_scope.
 
@@ -150,6 +202,61 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
    cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'do%success' 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' a ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success a := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success (a1, a2) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success (a1, a2, a3) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success (a1, a2, a3, a4) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success (a1, a2, a3, a4, a5) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%success (a1, a2, a3, a4, a5, a6) := a
+   while result_success S (decide expr)
+   do stat
+   using S, runs in
+   cont)
+  (at level 50, left associativity) : monad_scope.
 
 (** ** Fold **)
 
@@ -159,7 +266,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
 Definition fold_left_listSxp_gen runs (globals : Globals) A S (l : SEXP) (a : A)
     (iterate : state -> A -> SEXP -> SExpRec -> ListSxp_struct -> result A) : result A :=
   do%success (l, a) := (l, a)
-  while result_success S (decide (l <> global_mapping globals R_NilValue))
+  whileb l <> global_mapping globals R_NilValue
   do
     read%list l_, l_list := l using S in
     let%success a := iterate S a l l_ l_list using S in
@@ -602,6 +709,62 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whil
    do let (a1, a2, a3, a4, a5, a6) := a in stat
    using S, runs
    in let (a1, a2, a3, a4, a5, a6) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' a ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return a := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' '(' a1 ',' a2 ')' ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return (a1, a2) := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return (a1, a2, a3) := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return (a1, a2, a3, a4) := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return (a1, a2, a3, a4, a5) := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whileb' expr 'do' stat 'using' S ',' runs 'in' cont" :=
+  (do%return (a1, a2, a3, a4, a5, a6) := e
+   while result_success S (decide expr)
+   do stat
+   using S, runs
+   in cont)
   (at level 50, left associativity) : monad_scope.
 
 

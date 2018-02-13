@@ -37,11 +37,13 @@ f <- function () next ; while (TRUE) f ()
 while (TRUE) (function () break) ()
 while (TRUE) (function () next) ()
 (function () repeat return (1)) ()
+x <- 0 ; (function () return (1) -> x) () ; (function () x <- return (2)) () ; x
 (function () while (TRUE) return (1)) ()
 (function () while (FALSE) return (1)) () ; (function () if (FALSE) return (1)) ()
 x <- 10 ; while (x > 5) x <- x - 1 ; x
 x <- 10 ; repeat if (x < 5) break else x <- x - 1 ; x
 x <- 10 ; while (x > 5) { repeat break ; x <- x - 1 ; next ; x <- x + 1 } ; x
+a <- FALSE ; while (TRUE) if (a) a <- break else a <- TRUE ; a
 
 # Tests about if.
 if ("TRUE") 1 else ""
@@ -76,6 +78,9 @@ if (FALSE) 1
 if (TRUE) 1
 if (a <- TRUE) NULL else NULL ; a
 1 + if (TRUE) 2
+x <- if (TRUE) 3 ; x
+1 + if (FALSE) 2
+x <- if (FALSE) 3 ; x
 if (NA) NaN else ""
 if (NaN) 1L else NaN
 if (NULL) NaN else FALSE
@@ -353,6 +358,15 @@ f = function (x) function (y) x = 1 ; x = 2 ; f (3) (4) ; x
 a <- b = 2
 a = b <- 1 ; a ; b
 "<-<-" <- function (a, b, value) c (a, b, value) ; a <- b = 2 ; a ; b
+f <- function (x) { g <- function (y) x <- 1 ; g () ; x } ; x <- 2 ; f (3) ; x
+f <- function (x) { g <- function (y) x = 1 ; g () ; x } ; x <- 2 ; f (3) ; x
+f <- function (x) { g <- function (y) x <<- 1 ; g () ; x } ; x <- 2 ; f (3) ; x
+f <- function (x) { g <- function (y) x <- 1 ; g () ; x } ; x <- 2 ; f (x) ; x
+f <- function (x) { g <- function (y) x = 1 ; g () ; x } ; x <- 2 ; f (x) ; x
+f <- function (x) { g <- function (y) x <<- 1 ; g () ; x } ; x <- 2 ; f (x) ; x
+f <- function () { g <- function (y) x <- 1 ; g () ; x } ; x <- 2 ; f () ; x
+f <- function () { g <- function (y) x = 1 ; g () ; x } ; x <- 2 ; f () ; x
+f <- function () { g <- function (y) x <<- 1 ; g () ; x } ; x <- 2 ; f () ; x
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3
@@ -379,6 +393,7 @@ attr (x, "f") <- 1
 attr (x, "f") = 1
 attr (x, "f") <<- 1
 attr (is.na, "f") <- 1 ; is.na ; is.na (9)
+a <- 1 ; attr (a, "f") <- NULL ; a ; attr (a, "f") ; attr (a, "f") <- 1 ; a ; attr (a, "f")
 a <- NA_character_ ; attr (a, "f") = -1 ; attr (a, "g") <- -1 ; attr (a, "h") <<- -1
 a <- 9 ; attr (a, "f") <- 8 ; a <- 9 ; attr (a, "f") ; f
 attr (1, "a") ; attr (1, "a") <- 4 ; attr (1, "a") ; 1
@@ -429,6 +444,12 @@ a = 1 ; attr (a, "abc") = 2 ; attr (a, "ab") = 3 ; attr (a, "a")
 "attr=" = function (x, y, value) x = value + 1 ; a = 1 ; attr (a, "f") = 2 ; a ; attr (a, "f")
 "attr<-" = function (x, y, value) x = value + 1 ; a = 1 ; attr (a, "f") = 2 ; a ; attr (a, "f")
 attr (attr, "f") = 1 ; attr ; attr (attr, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") <- 2 ; attr (a, "f") } ; f (3) ; a ; attr (a, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") = 2 ; attr (a, "f") } ; f (3) ; a ; attr (a, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") <<- 2 ; attr (a, "f") } ; f (3) ; a ; attr (a, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") <- 2 ; attr (a, "f") } ; f (a) ; a ; attr (a, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") = 2 ; attr (a, "f") } ; f (a) ; a ; attr (a, "f")
+a <- 1 ; f <- function (a) { attr (a, "f") <<- 2 ; attr (a, "f") } ; f (a) ; a ; attr (a, "f")
 
 # Tests about cat (for outputs).
 .Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))
@@ -459,11 +480,12 @@ a:::b
 "Error" ; 'Error' ; "Error:" ; 'Error:' ; 1 # Error
 "Warning" ; 'Warning' ; "Warning:" ; 'Warning:' ; 1 # Warning
 "function (x) x" ; 'function (x) x' ; function (x) x ; function (x) function (y) x ; 1 # function (x) x
-"" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
-')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
-'\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
 "[1] 1" ; 1
 "function" <- 42
 "" <- 9
+"" ; '' ; "''" ; '""' ; "\"" ; '\'' ; "\'" ; '\"' ; '\\' ; "\\" ; '\\\'' ; "\\\"" ; '#' ; "#" # '"
+')' ; "(" ; "\'\"\'" ; '\"\'\"' ; "\\'\\'" ; '\\"\\"'
+'\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
+';' ; ";"
 # q ("no")
 

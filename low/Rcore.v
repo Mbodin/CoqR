@@ -527,7 +527,7 @@ Definition NewEnvironment S (namelist valuelist rho : SEXP) : result SEXP :=
   add%stack "NewEnvironment" in
   let (S, newrho) := alloc_SExp S (make_SExpRec_env R_NilValue valuelist rho) in
   do%success (v, n) := (valuelist, namelist)
-  while result_success S (decide (v <> R_NilValue /\ n <> R_NilValue)) do
+  whileb v <> R_NilValue /\ n <> R_NilValue do
     read%list _, n_cdr, n_tag := n using S in
     set%tag v := n_tag using S in
     read%list _, v_cdr, _ := v using S in
@@ -769,7 +769,7 @@ Definition xlength S s :=
   | LangSxp
   | DotSxp =>
     do%success (s, i) := (s, 0)
-    while result_success S (decide (s <> NULL /\ s <> R_NilValue)) do
+    whileb s <> NULL /\ s <> R_NilValue do
       read%list _, s_cdr, _ := s using S in
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
@@ -800,8 +800,7 @@ Definition R_length S s :=
   | LangSxp
   | DotSxp =>
     do%success (s, i) := (s, 0)
-    while result_success S (decide (s <> NULL /\ s <> R_NilValue))
-    do
+    whileb s <> NULL /\ s <> R_NilValue do
       read%list _, s_cdr, _ := s using S in
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
@@ -1624,7 +1623,7 @@ Definition nthcdr S s n :=
   let%success s_t := TYPEOF S s using S in
   ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
     do%success (s, n) := (s, n)
-    while result_success S (decide (n > 0)) do
+    whileb n > 0 do
       ifb s = R_NilValue then
         result_error S "List too short."
       else
@@ -2133,7 +2132,7 @@ Definition matchArgs_second S actuals formals supplied fargused :=
 Definition matchArgs_third S (formals actuals supplied : SEXP) :=
   add%stack "matchArgs_third" in
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
-  while result_success S (decide (f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots)) do
+  whileb f <> R_NilValue /\ b <> R_NilValue /\ ~ seendots do
     read%list _, f_cdr, f_tag := f using S in
     read%list a_car, a_cdr, _ := a using S in
     ifb f_tag = R_DotsSymbol then
@@ -2288,7 +2287,7 @@ Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
       as endp, _, endp_list do
         let endTag := list_tagval endp_list in
         do%success (addVars, s, sprev) := (addVars, addVars, R_NilValue : SEXP)
-        while result_success S (decide (s <> endp)) do
+        whileb s <> endp do
           read%list _, s_cdr, s_tag := s using S in
             ifb s_tag = endTag then
               ifb sprev = R_NilValue then
@@ -2456,15 +2455,15 @@ Definition setVarInFrame S (rho symbol value : SEXP) :=
 
 Definition setVar S (symbol value rho : SEXP) :=
   add%stack "setVar" in
-  do%success rho := rho
-  while result_success S (decide (rho <> R_EmptyEnv)) do
+  do%return rho := rho
+  whileb rho <> R_EmptyEnv do
     let%success vl :=
       setVarInFrame S rho symbol value using S in
     ifb vl <> R_NilValue then
-      result_success S (R_EmptyEnv : SEXP)
+      result_rreturn S tt
     else
       read%env rho_, rho_env := rho using S in
-      result_success S (env_enclos rho_env)
+      result_rsuccess S (env_enclos rho_env)
   using S, runs in
   defineVar S symbol value R_GlobalEnv.
 
@@ -2530,7 +2529,7 @@ Definition findVar S symbol rho :=
     result_error S "Argument ‘rho’ is not an environment."
   else
     do%return rho := rho
-    while result_success S (decide (rho <> R_EmptyEnv)) do
+    whileb rho <> R_EmptyEnv do
       let%success vl := findVarInFrame3 S rho symbol true using S in
       ifb vl <> R_UnboundValue then
         result_rreturn S vl
@@ -2634,7 +2633,7 @@ Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
       result_success S rho
     else result_success S rho using S in
   do%return rho := rho
-  while result_success S (decide (rho <> R_EmptyEnv)) do
+  whileb rho <> R_EmptyEnv do
     let%success vl := findVarInFrame3 S rho symbol true using S in
     run%return
       ifb vl <> R_UnboundValue then
@@ -2827,19 +2826,19 @@ Definition installAttrib S vec name val :=
   else ifb vec_type = SymSxp then
     result_error S "Cannot set attribute on a symbol."
   else
-    read%defined vec_ := vec using S in
+    let%success vec_attr := ATTRIB S vec using S in
     fold%return t := R_NilValue : SEXP
-    along attrib vec_
+    along vec_attr
     as s, _, s_list do
       ifb list_tagval s_list = name then
         set%car s := val using S in
-          result_rreturn S val
+        result_rreturn S val
       else result_rsuccess S s
     using S, runs, globals in
     let (S, s) := CONS S val R_NilValue in
     set%tag s := name using S in
     run%success
-      ifb attrib vec_ = R_NilValue then
+      ifb vec_attr = R_NilValue then
         set%attrib vec := s using S in
         result_skip S
       else
@@ -2867,8 +2866,8 @@ Definition removeAttrib S (vec name : SEXP) :=
   ifb vec_type = CharSxp then
     result_error S "Cannot set attribute on a CharSxp."
   else
-    let%success pl := isPairList S vec using S in
-    ifb name = R_NamesSymbol /\ pl then
+    let%success vec_pl := isPairList S vec using S in
+    ifb name = R_NamesSymbol /\ vec_pl then
       fold%success
       along vec
       as t, _, _ do
@@ -2877,24 +2876,23 @@ Definition removeAttrib S (vec name : SEXP) :=
       using S, runs, globals in
       result_success S (R_NilValue : SEXP)
     else
-      read%defined vec_ := vec using S in
       run%success
         ifb name = R_DimSymbol then
           let%success r :=
-            stripAttrib S R_DimNamesSymbol (attrib vec_) using S in
+            let%success vec_attr := ATTRIB S vec using S in
+            stripAttrib S R_DimNamesSymbol vec_attr using S in
           set%attrib vec := r using S in
           result_skip S
-        else
-          result_skip S using S in
+        else result_skip S using S in
       let%success r :=
-        stripAttrib S R_DimSymbol (attrib vec_) using S in
+        let%success vec_attr := ATTRIB S vec using S in
+        stripAttrib S name vec_attr using S in
       set%attrib vec := r using S in
       run%success
         ifb name = R_ClassSymbol then
           set%obj vec := false using S in
           result_skip S
-        else
-          result_skip S using S in
+        else result_skip S using S in
       result_success S (R_NilValue : SEXP).
 
 Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
@@ -4495,12 +4493,14 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
     let%success nexpr := LCONS S expr_car nexpr using S in
     let%success nval := eval S nexpr rho using S in
     let%success nval :=
-      let%success nval_mr := MAYBE_REFERENCED S nval using S in
-      let%success nval_ms := MAYBE_SHARED S nval using S in
-      read%list nval_car, _, _ := nval using S in
-      let%success nval_car_ms := MAYBE_SHARED S nval_car using S in
-      ifb nval_mr /\ (nval_ms \/ nval_car_ms) then
-        shallow_duplicate S nval
+      if%success MAYBE_REFERENCED S nval using S then
+        if%success MAYBE_SHARED S nval using S then
+          shallow_duplicate S nval
+        else
+          read%list nval_car, _, _ := nval using S in
+          if%success MAYBE_SHARED S nval_car using S then
+            shallow_duplicate S nval
+          else result_success S nval
       else result_success S nval using S in
     let (S, r) := CONS_NR S nval val in
     result_success S r

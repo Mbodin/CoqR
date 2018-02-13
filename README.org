@@ -166,6 +166,10 @@ This file formalises functions for parsing R expressions.
 
 Provides tactics to easily manipulate the monads defined in Monads.v and Loops.v.
 
+*** Path.
+
+Provides abstractions to reason about the heap.
+
 *** Rinvariants.v
 
 Proofs of some invariants respected by the functions defined in Rcore.v,
