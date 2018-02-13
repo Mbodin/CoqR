@@ -13,16 +13,6 @@ Variable runs : runs_type.
   would like to remember the path taken to get this pointer.  This is
   what this abstraction tries to catch. **)
 
-Inductive step_prim :=
-  | Sprim
-  .
-
-Definition move_along_step_prim s S prim :=
-  match s with
-  | Sprim =>
-    read_R_FunTab runs S (prim_offset prim)
-  end.
-
 Inductive step_sym :=
   | Ssym_pname
   | Ssym_value
@@ -89,7 +79,6 @@ Definition move_along_step_prom s :=
 
 Inductive path_step :=
   | Sattrib : path_step
-  | SNonVectorPrim : step_prim -> path_step
   | SNonVectorSym : step_sym -> path_step
   | SNonVectorList : step_list -> path_step
   | SNonVectorEnv : step_env -> path_step
@@ -97,22 +86,19 @@ Inductive path_step :=
   | SNonVectorProm : step_prom -> path_step
   | SVectorPointer : nat -> path_step
   .
-Coercion SNonVectorPrim : step_prim >-> path_step.
 Coercion SNonVectorSym : step_sym >-> path_step.
 Coercion SNonVectorList : step_list >-> path_step.
 Coercion SNonVectorEnv : step_env >-> path_step.
 Coercion SNonVectorClo : step_clo >-> path_step.
 Coercion SNonVectorProm : step_prom >-> path_step.
 
-Definition move_along_step s (S : state) e :=
+Definition move_along_path_step s (S : state) e :=
   LibOption.apply_on (read_SExp S e) (fun e_ =>
     let non_vector_case {T} (step : T -> SEXP) (proj : _ -> option T) :=
       LibOption.apply_on (get_NonVector e_) (fun e_ =>
-        LibOption.map step (proj (NonVector_SExpRec_data e_))) in
+        LibOption.map step (proj e_)) in
     match s with
     | Sattrib => Some (attrib e_)
-    | SNonVectorPrim s =>
-      non_vector_case (move_along_step_prim s S) get_primSxp
     | SNonVectorSym s =>
       non_vector_case (move_along_step_sym s) get_symSxp
     | SNonVectorList s =>
@@ -123,8 +109,9 @@ Definition move_along_step s (S : state) e :=
       non_vector_case (move_along_step_clo s) get_cloSxp
     | SNonVectorProm s =>
       non_vector_case (move_along_step_prom s) get_promSxp
-    (*| SVectorPointer : nat -> path_step*)
-    | _ => None
+    | SVectorPointer n =>
+      LibOption.apply_on (get_VectorPointer e_) (fun e_ =>
+        nth_option n (VecSxp_data e_))
     end).
 
 Inductive context_step :=
@@ -207,10 +194,13 @@ Inductive path :=
 Fixpoint move_along_path p S :=
   match p with
   | Pentry e => move_along_entry_point e S
-  | Pstep p s => move_along_step s S (move_along_path p S)
+  | Pstep p s =>
+    LibOption.apply (move_along_path_step s S) (move_along_path p S)
   end.
 
 Definition path_from_list (el : entry_point * list path_step) :=
   let (e, l) := el in
   fold_left (fun s p => Pstep p s) (Pentry e) l.
+
+End Parametrised.
 

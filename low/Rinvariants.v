@@ -3,7 +3,7 @@
   defined in Rcore, Rinit, and Rfeatures. **)
 
 Set Implicit Arguments.
-Require Export Rinit Rfeatures.
+Require Export Rinit Rfeatures Path.
 
 
 (* TODO *)
