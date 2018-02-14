@@ -114,6 +114,9 @@ Definition move_along_path_step s (S : state) e :=
         nth_option n (VecSxp_data e_))
     end).
 
+Definition move_along_path_from p (S : state) e :=
+  fold_left (fun s => LibOption.apply (move_along_path_step s S)) (Some e) p.
+
 Inductive context_step :=
   | Scontext_nextcontext
   | Scontext_jumptarget
