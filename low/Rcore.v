@@ -1764,7 +1764,7 @@ Definition translateChar S x :=
   add%stack "translateChar" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
-    result_error S "Must be called on a [CharSxp]."
+    result_error S "Must be called on a CharSxp."
   else
     (** The original C program deals with encoding here. **)
     CHAR S x.
@@ -1773,7 +1773,7 @@ Definition installTrChar S x :=
   add%stack "installTrChar" in
   let%success x_type := TYPEOF S x using S in
   ifb x_type <> CharSxp then
-    result_error S "Must be called on a [CharSxp]."
+    result_error S "Must be called on a CharSxp."
   else
     (** The original C program deals with encoding here. **)
     installChar S x.
@@ -2785,7 +2785,7 @@ Definition getAttrib S (vec name : SEXP) :=
   add%stack "getAttrib" in
   let%success vec_type := TYPEOF S vec using S in
   ifb vec_type = CharSxp then
-    result_error S "Can not have attributes on a [CharSxp]."
+    result_error S "Can not have attributes on a CharSxp."
   else
     read%defined vec_ := vec using S in
     ifb attrib vec_ = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then

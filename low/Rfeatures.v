@@ -170,7 +170,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
   ifb op_val <> 0 then
     let%success input := allocVector globals S StrSxp 1 using S in
     read%list _, args_cdr, _ := args using S in
-    read%list args_cdr_car, _, _ := args using S in
+    read%list args_cdr_car, _, _ := args_cdr using S in
     let nlist := args_cdr_car in
     run%success
       if%success isSymbol S nlist using S then
@@ -180,7 +180,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
         let%success nlist_0 := STRING_ELT S nlist 0 using S in
         SET_STRING_ELT S input 0 nlist_0
       else result_error S "Invalid type for slot name." using S in
-    set%car args := input using S in
+    set%car args_cdr := input using S in
     let%success (disp, ans) :=
       DispatchOrEval globals runs S call op "@<-" args env false false using S in
     if disp then
@@ -1355,7 +1355,7 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
     run%success SET_TEMPVARLOC_FROM_CAR S tmploc lhs using S in
     let%success R_asymSymbol_op :=
       ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
-        result_error S "Out of bound access to [R_asymSymbol]."
+        result_error S "Out of bound access to R_asymSymbol."
       else
         let%defined sym := nth_option (Z.to_nat op_val) (R_asymSymbol S) using S in
         result_success S sym using S in

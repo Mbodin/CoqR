@@ -284,10 +284,10 @@ let _ =
               print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals) in
             let get_and_print_memory_cell str =
               let p = Debug.read_pointer s globals str in
-              print_endline (Print.print_pointed_value 2 (expr_options ()) !readable_pointers s globals p) in
+              print_endline (Print.print_pointed_value 0 (expr_options ()) !readable_pointers s globals p) in
             let get_and_print_list str =
               let p = Debug.read_pointer s globals str in
-              print_endline (Print.print_list 2 (expr_options ()) !readable_pointers s globals p) in
+              print_endline (Print.print_list 0 (expr_options ()) !readable_pointers s globals p) in
             let print_list_fun _ =
               print_endline (Debug.list_all_fun 2) in
             let save_state str =

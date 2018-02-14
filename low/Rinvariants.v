@@ -6,6 +6,21 @@ Set Implicit Arguments.
 Require Export Rinit Rfeatures Path.
 
 
+Inductive null_pointer_exceptions : path -> Prop :=
+  .
+
+Record safe_state (S : state) := make_safe_state {
+    no_null_pointer : forall p,
+      ~ null_pointer_exceptions p ->
+      move_along_path p S <> Some NULL ;
+    safe_bindings : forall p pointer,
+      move_along_path p S = Some pointer ->
+      pointer <> NULL ->
+      exists pointer',
+        read_SExp S pointer = Some pointer'
+  }.
+
+
 (* TODO *)
 
 (* I think that it would be easy to use tactics to check that [setup_Rmainloop]

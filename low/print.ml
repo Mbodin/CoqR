@@ -337,11 +337,11 @@ let rec iterate_on_list failure f f_end s g p =
         )
       | _ -> failure "[iterate_on_list] Vector element found instead of a list."
 
-let rec print_SExpRec_like_R_aux prefix_list d s g p e =
-  let fetch_print_SExpRec_like_R ?(prefix_list=prefix_list) p =
+let rec print_SExpRec_like_R_aux prefix_list attrib_prefix_list d s g p e =
+  let fetch_print_SExpRec_like_R ?(prefix_list = prefix_list) ?(attrib_prefix_list = attrib_prefix_list) p =
     match get_memory_cell s p with
     | None -> "(Invalid pointer)"
-    | Some e -> print_SExpRec_like_R_aux prefix_list d s g p e in
+    | Some e -> print_SExpRec_like_R_aux prefix_list attrib_prefix_list d s g p e in
   let print_vector t f v =
     let v = ArrayList.to_list (vecSxp_data (vector_SExpRec_vecsxp v)) in
     if v = [] then
@@ -437,19 +437,19 @@ let rec print_SExpRec_like_R_aux prefix_list d s g p e =
       print_vector "numeric" print_float v
     | SExpRec_VectorPointer v ->
       if ty = VecSxp || ty = ExprSxp then
-        print_vectorlist t (fun p -> fetch_print_SExpRec_like_R ~prefix_list:p) v
+        print_vectorlist t (fun p -> fetch_print_SExpRec_like_R ~prefix_list:p ~attrib_prefix_list:"") v
       else print_vector t fetch_print_SExpRec_like_R v in
   let attrs =
     iterate_on_list (fun msg ->
         prerr_endline ("[print_SExpRec_like_R] Error when trying to display attributes: " ^ msg) ;
         indent d ^ "(Error while printing attributes)")
       (fun v t n ->
-        indent d ^ "attr(," ^ fetch_print_SExpRec_like_R t ^ ")"
-        ^ indent d ^ fetch_print_SExpRec_like_R v ^ n)
+        let p = attrib_prefix_list ^ "attr(," ^ fetch_print_SExpRec_like_R t ^ ")" in
+        indent d ^ p ^ indent d ^ fetch_print_SExpRec_like_R v ~attrib_prefix_list:p ^ n)
       "" s g (attrib (get_SExpRecHeader e)) in
   base ^ attrs
 
-let print_SExpRec_like_R = print_SExpRec_like_R_aux ""
+let print_SExpRec_like_R = print_SExpRec_like_R_aux "" ""
 
 let print_SExpRec d (opts, print_unlike_R) t s g p e =
   if print_unlike_R then
@@ -527,6 +527,7 @@ let rec print_context d ce t s g ctxt =
   expert (indent d ^ "jump mask: " ^ print_context_type ctxt.context_jumpmask)
 
 let print_state d (context, all_context, memory, globals, initials, no_temporary, fetch_global, t) expr_options s g =
+  (if memory || globals || initials || context then indent_no_break d else "") ^
   (if memory then
     "Memory:" ^ indent (d + 2) ^
     print_memory (d + 2) s g t no_temporary expr_options (state_memory s)
