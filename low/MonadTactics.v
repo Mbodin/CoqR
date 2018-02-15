@@ -502,6 +502,7 @@ Lemma let_VectorPointer_aborts : forall A S e_ (cont : _ -> _ -> result A),
   aborting_result (let%VectorPointer e_vector := e_ using S in cont S e_vector).
 Proof. introv D. applys~ impossible_result_aborting_result let_VectorPointer_abort. Qed.
 
+
 (* TODO: All the monads of Loops.v. There are not a lot, but they should be handled well. *)
 
 

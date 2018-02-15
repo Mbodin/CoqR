@@ -717,6 +717,9 @@ Definition isVectorList S s :=
     result_success S false
   end.
 
+(** The following function is actually from main/altrep.c. It has been
+  placed here to solve a circular file dependency. **)
+
 Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
   add%stack "ALTREP_LENGTH" in
   result_not_implemented "".
@@ -2730,6 +2733,63 @@ Definition R_isMissing S (symbol rho : SEXP) :=
       else result_success S false.
 
 
+(** ** altrep.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/altrep.c. **)
+
+Definition R_new_altrep S class data1 data2 :=
+  add%stack "R_new_altrep" in
+  let%success sclass := R_SEXP S class using S in
+  let%success type := ALTREP_CLASS_BASE_TYPE S sclass using S in
+  let (S, ans) := CONS S data1 data2 in
+  map%pointer ans with set_type type using S in
+  run%success SET_ALTREP_CLASS S ans sclass using S in
+  result_success S ans.
+
+Definition new_compact_intseq S n (n1 inc : int) :=
+  add%stack "new_compact_intseq" in
+  ifb n = 1 then
+    let (S, r) := ScalarInteger S n1 in
+    result_success S r
+  else ifb inc <> 1 /\ inc <> (-1)%Z then
+    result_error S "Compact sequences can only have an increment of -1 or 1."
+  else
+    let%success info := allocVector S IntSxp 3 using S in
+    write%Real info at 0 := n using S in
+    write%Real info at 1 := n1 using S in
+    write%Real info at 2 := inc using S in
+    let%success ans := R_new_altrep S R_compact_intseq_class info R_NilValue using S in
+    run%success MARK_NOT_MUTABLE S ans using S in
+    result_success S ans.
+
+Definition new_compact_realseq S n (n1 inc : double) :=
+  add%stack "new_compact_realseq" in
+  ifb n = 1 then
+    let (S, r) := ScalarReal S n1 in
+    result_success S r
+  else ifb inc <> 1 /\ inc <> (-1)%Z then
+    result_error S "Compact sequences can only have an increment of -1 or 1."
+  else
+    let%success info := allocVector S RealSxp 3 using S in
+    write%Real info at 0 := n using S in
+    write%Real info at 1 := n1 using S in
+    write%Real info at 2 := inc using S in
+    let%success ans := R_new_altrep S R_compact_realseq_class info R_NilValue using S in
+    run%success MARK_NOT_MUTABLE S ans using S in
+    result_success S ans.
+
+Definition R_compact_intrange S (n1 n2 : nat) :=
+  add%stack "R_compact_intrange" in
+  let n :=
+    ifb n1 <= n2 then
+      n2 - n1 + 1
+    else n1 - n2 + 1 in
+  ifb n1 <= INT_MIN \/ n1 > INT_MAX \/ n2 <= INT_MIN \/ n2 > INT_MAX then
+    new_compact_realseq S n n1 (ifb n1 <= n2 then 1 else -1)
+  else new_compact_intseq S n n1 (ifb n1 <= n2 then 1 else -1).
+
+
 (** ** attrib.c **)
 
 (** The function names of this section corresponds to the function names
@@ -2787,33 +2847,28 @@ Definition getAttrib S (vec name : SEXP) :=
   ifb vec_type = CharSxp then
     result_error S "Can not have attributes on a CharSxp."
   else
-    read%defined vec_ := vec using S in
-    ifb attrib vec_ = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
+    let%success vec_attr := ATTRIB S vec using S in
+    ifb vec_attr = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
       result_success S (R_NilValue : SEXP)
     else
-      let%success name_type := TYPEOF S name using S in
       let%success name :=
-        ifb name_type = StrSxp then
-          read%VectorPointer name_ := name using S in
-          let%success str := STRING_ELT S name 0 using S in
-          let%success sym := installTrChar S str using S in
-          result_success S sym
+        if%success isString S name using S then
+          let%success name_0 := STRING_ELT S name 0 using S in
+          let%success name_sym := installTrChar S name_0 using S in
+          result_success S name_sym
         else result_success S name using S in
       ifb name = R_RowNamesSymbol then
         let%success s := getAttrib0 S vec name using S in
-        read%defined s_ := s using S in
-        if%success isInteger S s using S then
-          let%defined s_length := get_VecSxp_length s_ using S in
-          ifb s_length = 2 then
-            let%Integer s_0 := s_ at 0 using S in
-            ifb s_0 = R_NaInt then
-              let%Integer s_1 := s_ at 1 using S in
-              let n := abs s_1 in
-              let (S, s) :=
-                alloc_vector_int S
-                  (ArrayList.from_list (map (id : nat -> int) (seq 1 n))) in
-              result_success S s
-            else result_success S s
+        let%success s_in := isInteger S s using S in
+        let%success s_len := LENGTH S s using S in
+        ifb s_in /\ s_len = 2 then
+          read%Integer s_0 := s at 0 using S in
+          ifb s_0 = NA_INTEGER then
+            read%Integer s_1 := s at 1 using S in
+            let n := abs s_1 in
+            ifb n > 0 then
+              R_compact_intrange S 1 n
+            else allocVector S IntSxp 0
           else result_success S s
         else result_success S s
       else getAttrib0 S vec name.
