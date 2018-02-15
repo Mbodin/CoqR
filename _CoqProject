@@ -28,7 +28,7 @@
 
 ./low/MonadTactics.v
 ./low/Path.v
-./low/Rinvariants.v
+./low/Invariants.v
 ./low/Relation.v
 
 

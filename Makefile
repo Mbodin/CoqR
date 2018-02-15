@@ -23,6 +23,8 @@ all_coq: Makefile.coq
 all_html: Makefile.coq
 	${AT}+make -f Makefile.coq html
 
+doc: all_html
+
 clean: Makefile.coq clean_interp clean_random
 	${AT}+make -f Makefile.coq clean
 	${AT}rm -f Makefile.coq
@@ -34,9 +36,7 @@ _CoqProject: ;
 
 Makefile: ;
 
-phony: ;
-
-.PHONY: all clean clean_all phony all_interp clean_interp tlc clean_tlc run random clean_random
+.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run random clean_random
 
 clean_all: clean clean_tlc
 

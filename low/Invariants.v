@@ -1,4 +1,4 @@
-(** Rinvariants.
+(** Invariants.
   Contains the proofs of some invariants respected by the functions
   defined in Rcore, Rinit, and Rfeatures. **)
 

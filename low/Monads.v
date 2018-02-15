@@ -2,64 +2,10 @@
   Provides monads to manipulate R objects easily. **)
 
 Set Implicit Arguments.
-Require Export State.
+Require Export State InternalTypes.
 
 
-(** * Monadic Type **)
-
-(** A monad type for results. **)
-Inductive result (A : Type) :=
-  | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
-  | result_longjump : state -> nat -> context_type -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
-  | result_error_stack : state -> list string -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
-  | result_impossible_stack : state -> list string -> string -> result A (** This result should never happen. We provide a string and a call stack to help debugging. **)
-  | result_not_implemented_stack : list string -> string -> result A (** The result relies on a feature not yet implemented. **)
-  | result_bottom : state -> result A (** We went out of fuel during the computation. **)
-  .
-Arguments result_longjump [A].
-Arguments result_error_stack [A].
-Arguments result_impossible_stack [A].
-Arguments result_not_implemented_stack [A].
-Arguments result_bottom [A].
-
-(** A precision about [result_not_implemented] and [result_error]:
-  if the C source code of R throw a not-implemented error, we consider
-  this as an error thrown in the original interpreter and use the
-  constructor [result_error].
-  We only throw [result_not_implemented] when our Coq code has not
-  implemented a behaviour of R.
-  The construct [result_error] thus models the errors thrown by the
-  R program. **)
-
-(** The difference between [result_error] and [result_impossible] is
-  that [result_error] is thrown when the R interpreter throws an error
-  (usally using the [error] C function), and [result_impossible] is
-  thrown when R does not throw an error, but we know for sure that such
-  a case can never happen, or such a case would lead an undefined
-  behaviour in the original program. Typically because the C program accepts
-  an impossible case to be missing, but that Coq does not recognise this
-  case to be impossible. So if there is a possible case in which Coq
-  must return something, but that the R interpreter in C does not cover
-  this case (for instance by writting [e->type] without checking whether
-  [e] actually maps to a valid expression), the Coq interpreter will
-  return [result_impossible]. **)
-
-
-Definition result_error (A : Type) S msg : result A :=
-  result_error_stack S nil msg.
-Arguments result_error [A].
-
-Definition result_impossible (A : Type) S msg : result A :=
-  result_impossible_stack S nil msg.
-Arguments result_impossible [A].
-
-Definition result_not_implemented (A : Type) msg : result A :=
-  result_not_implemented_stack nil msg.
-Arguments result_not_implemented [A].
-
-Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
-
+(** The monadic type is defined in the file InternalTypes.v. **)
 
 Delimit Scope monad_scope with monad.
 Open Scope monad_scope.
@@ -390,12 +336,12 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
 
 (** ** Vectors **)
 
-Definition read_cell_Vector_SExpRec A `{Inhab A} B (v : Vector_SExpRec A) n cont : result B :=
-  let c := ArrayList.read v n in
+Definition read_cell_Vector_SExpRec A B S (v : Vector_SExpRec A) n cont : result B :=
+  let%defined c := ArrayList.read_option v n with "read_cell_Vector_SExpRec" using S in
   cont c.
 
-Notation "'read%cell' c ':=' v 'at' n 'in' cont" :=
-  (read_cell_Vector_SExpRec v n (fun c => cont))
+Notation "'read%cell' c ':=' v 'at' n 'using' S 'in' cont" :=
+  (read_cell_Vector_SExpRec S v n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
 
@@ -431,7 +377,7 @@ Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorChar A S e_ n cont : result A :=
   let%VectorChar e_ := e_ using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -440,7 +386,7 @@ Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Char A S e n cont : result A :=
   read%VectorChar e_ := e using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'read%Char' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -467,6 +413,7 @@ Notation "'write%Char' e 'at' n ':=' c 'using' S 'in' cont" :=
   (write_nth_cell_VectorChar S e n c (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
+
 Definition let_VectorLogical A S e_ cont : result A :=
   let%defined e_vector := get_VectorLogical e_ with "let_VectorLogical" using S in
   cont S e_vector.
@@ -486,7 +433,7 @@ Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorLogical A S e_ n cont : result A :=
   let%VectorLogical e_ := e_ using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -495,7 +442,7 @@ Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Logical A S e n cont : result A :=
   read%VectorLogical e_ := e using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'read%Logical' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -542,7 +489,7 @@ Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorInteger A S e_ n cont : result A :=
   let%VectorInteger e_ := e_ using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -551,7 +498,7 @@ Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Integer A S e n cont : result A :=
   read%VectorInteger e_ := e using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'read%Integer' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -579,62 +526,6 @@ Notation "'write%Integer' e 'at' n ':=' c 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition let_VectorComplex A S e_ cont : result A :=
-  let%defined e_vector := get_VectorComplex e_ with "let_VectorComplex" using S in
-  cont S e_vector.
-
-Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorComplex S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorComplex A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorComplex" using S in
-  let%VectorComplex e_vector := e_ using S in
-  cont e_vector.
-
-Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorComplex S e (fun e_ => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_nth_cell_VectorComplex A S e_ n cont : result A :=
-  let%VectorComplex e_ := e_ using S in
-  read%cell c := e_ at n in
-  cont c.
-
-Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorComplex S e_ n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_nth_cell_Complex A S e n cont : result A :=
-  read%VectorComplex e_ := e using S in
-  read%cell c := e_ at n in
-  cont c.
-
-Notation "'read%Complex' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Complex S e n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_VectorComplex A S e v cont : result A :=
-  read%VectorComplex e_ := e using S in
-  let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorComplex e_ using S in
-  cont S.
-
-Notation "'write%VectorComplex' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorComplex S e v (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_nth_cell_VectorComplex A S e n c cont : result A :=
-  read%VectorComplex e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorComplex" using S in
-  write%defined e := SExpRec_VectorComplex e_ using S in
-  cont S.
-
-Notation "'write%Complex' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorComplex S e n c (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-
 Definition let_VectorReal A S e_ cont : result A :=
   let%defined e_vector := get_VectorReal e_ with "let_VectorReal" using S in
   cont S e_vector.
@@ -654,7 +545,7 @@ Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorReal A S e_ n cont : result A :=
   let%VectorReal e_ := e_ using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -663,7 +554,7 @@ Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Real A S e n cont : result A :=
   read%VectorReal e_ := e using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'read%Real' c ':=' e 'at' n 'using' S 'in' cont" :=
@@ -691,6 +582,62 @@ Notation "'write%Real' e 'at' n ':=' c 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
+Definition let_VectorComplex A S e_ cont : result A :=
+  let%defined e_vector := get_VectorComplex e_ with "let_VectorComplex" using S in
+  cont S e_vector.
+
+Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
+  (let_VectorComplex S e_ (fun S e_vector => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_as_VectorComplex A S (e : SEXP) cont : result A :=
+  let%defined e_ := read_SExp S e with "read_as_VectorComplex" using S in
+  let%VectorComplex e_vector := e_ using S in
+  cont e_vector.
+
+Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
+  (read_as_VectorComplex S e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorComplex A S e_ n cont : result A :=
+  let%VectorComplex e_ := e_ using S in
+  read%cell c := e_ at n using S in
+  cont c.
+
+Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_VectorComplex S e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Complex A S e n cont : result A :=
+  read%VectorComplex e_ := e using S in
+  read%cell c := e_ at n using S in
+  cont c.
+
+Notation "'read%Complex' c ':=' e 'at' n 'using' S 'in' cont" :=
+  (read_nth_cell_Complex S e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_VectorComplex A S e v cont : result A :=
+  read%VectorComplex e_ := e using S in
+  let e_ := update_Vector_SExpRec e_ v in
+  write%defined e := SExpRec_VectorComplex e_ using S in
+  cont S.
+
+Notation "'write%VectorComplex' e ':=' v 'using' S 'in' cont" :=
+  (write_VectorComplex S e v (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorComplex A S e n c cont : result A :=
+  read%VectorComplex e_ := e using S in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorComplex" using S in
+  write%defined e := SExpRec_VectorComplex e_ using S in
+  cont S.
+
+Notation "'write%Complex' e 'at' n ':=' c 'using' S 'in' cont" :=
+  (write_nth_cell_VectorComplex S e n c (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
 Definition let_VectorPointer A S e_ cont : result A :=
   let%defined e_vector := get_VectorPointer e_ with "let_VectorPointer" using S in
   cont S e_vector.
@@ -710,7 +657,7 @@ Notation "'read%VectorPointer' e_ ':=' e 'using' S 'in' cont" :=
 
 Definition read_nth_cell_VectorPointer A S e_ n cont : result A :=
   let%VectorPointer e_ := e_ using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
@@ -719,7 +666,7 @@ Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
 
 Definition read_nth_cell_Pointer A S e n cont : result A :=
   read%VectorPointer e_ := e using S in
-  read%cell c := e_ at n in
+  read%cell c := e_ at n using S in
   cont c.
 
 Notation "'read%Pointer' c ':=' e 'at' n 'using' S 'in' cont" :=

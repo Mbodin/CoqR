@@ -189,6 +189,8 @@ Ltac destruct_SExpRec := destruct_SExpRec_aux false false.
 
 (** ** Lemmae **)
 
+(** *** Function definitions **)
+
 Lemma add_stack_pass : forall A fname S (a : A),
   add%stack fname in (result_success S a) = result_success S a.
 Proof. reflexivity. Qed.
@@ -197,6 +199,14 @@ Lemma add_stack_aborts : forall A fname (r : result A),
   aborting_result r ->
   aborting_result (add%stack fname in r).
 Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma add_stack_simplify : forall A fname r S (a : A),
+  r = result_success S a ->
+  add%stack fname in r = result_success S a.
+Proof. introv E. substs~. Qed.
+
+
+(** *** [let]-monads **)
 
 Lemma if_success_pass : forall A B S a (cont : state -> A -> result B),
   let%success a := result_success S a using S in cont S a
@@ -212,19 +222,34 @@ Lemma if_success_aborts : forall A B r (cont : state -> A -> result B),
   aborting_result (let%success a := r using S in cont S a).
 Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
 
-Lemma if_defined_pass : forall A B S a (cont : state -> A -> result B),
-  let%defined a := Some a using S in cont S a
-  = 'let a := a in cont S a.
+Lemma if_defined_msg_pass : forall A B S a msg (cont : A -> result B),
+  let%defined a := Some a with msg using S in cont a
+  = 'let a := a in cont a.
 Proof. reflexivity. Qed.
 
-Definition if_defined_abort : forall A B S (cont : state -> A -> result B),
-    impossible_result (let%defined a := None using S in cont S a).
+Definition if_defined_msg_abort : forall A B S msg (cont : A -> result B),
+    impossible_result (let%defined a := None with msg using S in cont a).
 Proof. reflexivity. Qed.
 
-Lemma if_defined_aborts : forall A B S (cont : state -> A -> result B),
-  aborting_result (let%defined a := None using S in cont S a).
+Lemma if_defined_msg_aborts : forall A B S msg (cont : A -> result B),
+  aborting_result (let%defined a := None with msg using S in cont a).
+Proof. introv. applys~ impossible_result_aborting_result if_defined_msg_abort. Qed.
+
+Lemma if_defined_pass : forall A B S a (cont : A -> result B),
+  let%defined a := Some a using S in cont a
+  = 'let a := a in cont a.
+Proof. introv. apply~ if_defined_msg_pass. Qed.
+
+Definition if_defined_abort : forall A B S (cont : A -> result B),
+    impossible_result (let%defined a := None using S in cont a).
+Proof. introv. apply~ if_defined_msg_abort. Qed.
+
+Lemma if_defined_aborts : forall A B S (cont : A -> result B),
+  aborting_result (let%defined a := None using S in cont a).
 Proof. introv. applys~ impossible_result_aborting_result if_defined_abort. Qed.
 
+
+(** *** Basic Language Elements **)
 
 Lemma if_is_prim_pass : forall A S header offset (cont : _ -> _ -> result A),
   let%prim a_, a_prim :=
@@ -346,6 +371,47 @@ Lemma if_is_prom_aborts : forall A S (e_ : SExpRec) (cont : _ -> _ -> result A),
   aborting_result (let%prom a_, a_prom := e_ using S in cont a_ a_prom).
 Proof. introv D. applys~ impossible_result_aborting_result if_is_prom_abort. Qed.
 
+
+(** ** Vectors **)
+
+Lemma read_cell_Vector_SExpRec_pass : forall A B `{Inhab A} S
+    (v : Vector_SExpRec A) i (cont : _ -> result B),
+  i < ArrayList.length v ->
+  read%cell c := v at i using S in cont c
+  = cont (ArrayList.read v i).
+Proof.
+  introv I. unfolds. eapply ArrayList.read_option_Some in I.
+  rewrite I. rewrite if_defined_msg_pass. reflexivity.
+Qed.
+
+Lemma read_cell_Vector_SExpRec_abort : forall A B S
+    (v : Vector_SExpRec A) i (cont : _ -> result B),
+  i >= ArrayList.length v ->
+  impossible_result (read%cell c := v at i using S in cont c).
+Proof.
+  introv I. unfolds read_cell_Vector_SExpRec.
+  eapply ArrayList.read_option_None in I. rewrite I.
+  apply~ if_defined_msg_abort.
+Qed.
+
+Lemma read_cell_Vector_SExpRec_aborts : forall A B S
+    (v : Vector_SExpRec A) i (cont : _ -> result B),
+  i >= ArrayList.length v ->
+  aborting_result (read%cell c := v at i using S in cont c).
+Proof. introv D. applys~ impossible_result_aborting_result read_cell_Vector_SExpRec_abort. Qed.
+
+Lemma update_Vector_SExpRec_cell_pass : forall A (v : Vector_SExpRec A) n c,
+  n < ArrayList.length v ->
+  update_Vector_SExpRec_cell v n c
+  = Some (update_Vector_SExpRec v (ArrayList.write v n c)).
+Proof. introv I. unfolds. cases_if as C; autos~. fold_bool. rew_refl in C. false*. Qed.
+
+Lemma update_Vector_SExpRec_cell_abort : forall A (v : Vector_SExpRec A) n c,
+  n >= ArrayList.length v ->
+  update_Vector_SExpRec_cell v n c = None.
+Proof. introv I. unfolds. cases_if as C; autos~. fold_bool. rew_refl in C. false. math. Qed.
+
+
 Lemma let_VectorChar_pass : forall A S e_ (cont : _ -> _ -> result A),
   let%VectorChar e_vector := SExpRec_VectorChar e_ using S in cont S e_vector
   = cont S e_.
@@ -436,74 +502,78 @@ Lemma let_VectorPointer_aborts : forall A S e_ (cont : _ -> _ -> result A),
   aborting_result (let%VectorPointer e_vector := e_ using S in cont S e_vector).
 Proof. introv D. applys~ impossible_result_aborting_result let_VectorPointer_abort. Qed.
 
-(* FIXME: Why complex are dealt before reals in Monads.v? *)
-
-(* TODO: From [read_as_prim]. Although these probably won’t get any
-  useful lemmae without the paths of Path.v because of reading operations. *)
-
-(* TODO: [read_nth_cell_Vector*]. FIXME: Change its definition to use ArrayList.read_option. *)
-
-(* TODO: map%*, write_nth_cell_Vector* using the paths. *)
-
-(* TODO: All the monads of Loops.v. *)
+(* TODO: All the monads of Loops.v. There are not a lot, but they should be handled well. *)
 
 
 (** ** Tactics **)
 
 Ltac get_pass_lemma t :=
   match get_head t with
-  | add_stack => constr:(add_stack_pass)
-  | if_success => constr:(if_success_pass)
-  | if_defined => constr:(if_defined_pass)
-  | if_is_prim => constr:(if_is_prim_pass)
-  | if_is_sym => constr:(if_is_sym_pass)
-  | if_is_list => constr:(if_is_list_pass)
-  | if_is_env => constr:(if_is_env_pass)
-  | if_is_clo => constr:(if_is_clo_pass)
-  | if_is_prom => constr:(if_is_prom_pass)
-  | let_VectorChar => constr:(let_VectorChar_pass)
-  | let_VectorLogical => constr:(let_VectorLogical_pass)
-  | let_VectorInteger => constr:(let_VectorInteger_pass)
-  | let_VectorReal => constr:(let_VectorReal_pass)
-  | let_VectorComplex => constr:(let_VectorComplex_pass)
-  | let_VectorPointer => constr:(let_VectorPointer_pass)
+  | add_stack => add_stack_pass
+  | if_success => if_success_pass
+  | if_defined_msg => if_defined_msg_pass
+  | if_defined => if_defined_pass
+  | if_is_prim => if_is_prim_pass
+  | if_is_sym => if_is_sym_pass
+  | if_is_list => if_is_list_pass
+  | if_is_env => if_is_env_pass
+  | if_is_clo => if_is_clo_pass
+  | if_is_prom => if_is_prom_pass
+  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_pass
+  | update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_pass
+  | let_VectorChar => let_VectorChar_pass
+  | let_VectorLogical => let_VectorLogical_pass
+  | let_VectorInteger => let_VectorInteger_pass
+  | let_VectorReal => let_VectorReal_pass
+  | let_VectorComplex => let_VectorComplex_pass
+  | let_VectorPointer => let_VectorPointer_pass
   end.
 
 Ltac get_abort_lemma t :=
   match get_head t with
-  | if_success => constr:(if_success_abort)
-  | if_defined => constr:(if_defined_abort)
-  | if_is_prim => constr:(if_is_prim_abort)
-  | if_is_sym => constr:(if_is_sym_abort)
-  | if_is_list => constr:(if_is_list_abort)
-  | if_is_env => constr:(if_is_env_abort)
-  | if_is_clo => constr:(if_is_clo_abort)
-  | if_is_prom => constr:(if_is_prom_abort)
-  | let_VectorChar => constr:(let_VectorChar_abort)
-  | let_VectorLogical => constr:(let_VectorLogical_abort)
-  | let_VectorInteger => constr:(let_VectorInteger_abort)
-  | let_VectorReal => constr:(let_VectorReal_abort)
-  | let_VectorComplex => constr:(let_VectorComplex_abort)
-  | let_VectorPointer => constr:(let_VectorPointer_abort)
+  | if_success => if_success_abort
+  | if_defined_msg => if_defined_msg_abort
+  | if_defined => if_defined_abort
+  | if_is_prim => if_is_prim_abort
+  | if_is_sym => if_is_sym_abort
+  | if_is_list => if_is_list_abort
+  | if_is_env => if_is_env_abort
+  | if_is_clo => if_is_clo_abort
+  | if_is_prom => if_is_prom_abort
+  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_abort
+  | update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_abort
+  | let_VectorChar => let_VectorChar_abort
+  | let_VectorLogical => let_VectorLogical_abort
+  | let_VectorInteger => let_VectorInteger_abort
+  | let_VectorReal => let_VectorReal_abort
+  | let_VectorComplex => let_VectorComplex_abort
+  | let_VectorPointer => let_VectorPointer_abort
   end.
 
 Ltac get_aborts_lemma t :=
   match get_head t with
-  | add_stack => constr:(add_stack_aborts)
-  | if_success => constr:(if_success_aborts)
-  | if_defined => constr:(if_defined_aborts)
-  | if_is_prim => constr:(if_is_prim_aborts)
-  | if_is_sym => constr:(if_is_sym_aborts)
-  | if_is_list => constr:(if_is_list_aborts)
-  | if_is_env => constr:(if_is_env_aborts)
-  | if_is_clo => constr:(if_is_clo_aborts)
-  | if_is_prom => constr:(if_is_prom_aborts)
-  | let_VectorChar => constr:(let_VectorChar_aborts)
-  | let_VectorLogical => constr:(let_VectorLogical_aborts)
-  | let_VectorInteger => constr:(let_VectorInteger_aborts)
-  | let_VectorReal => constr:(let_VectorReal_aborts)
-  | let_VectorComplex => constr:(let_VectorComplex_aborts)
-  | let_VectorPointer => constr:(let_VectorPointer_aborts)
+  | add_stack => add_stack_aborts
+  | if_success => if_success_aborts
+  | if_defined_msg => if_defined_msg_aborts
+  | if_defined => if_defined_aborts
+  | if_is_prim => if_is_prim_aborts
+  | if_is_sym => if_is_sym_aborts
+  | if_is_list => if_is_list_aborts
+  | if_is_env => if_is_env_aborts
+  | if_is_clo => if_is_clo_aborts
+  | if_is_prom => if_is_prom_aborts
+  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_aborts
+  | let_VectorChar => let_VectorChar_aborts
+  | let_VectorLogical => let_VectorLogical_aborts
+  | let_VectorInteger => let_VectorInteger_aborts
+  | let_VectorReal => let_VectorReal_aborts
+  | let_VectorComplex => let_VectorComplex_aborts
+  | let_VectorPointer => let_VectorPointer_aborts
+  end.
+
+Ltac get_simplify_lemma t :=
+  match get_head t with
+  | add_stack => add_stack_simplify
   end.
 
 Ltac unfolds_get_impossible :=
@@ -529,46 +599,60 @@ Ltac solve_premises :=
     first [
         reflexivity
       | discriminate
-      | autos~ ] ].
+      | autos~
+      | match goal with
+        |- context [ ArrayList.length ] => math
+        end ] ].
 
-Ltac munfold_with_subresult t r :=
-  result_computed r;
+Ltac unfold_monad_pass t :=
+  let P := get_pass_lemma t in
+  rewrite P; try solve_premises.
+
+Ltac unfold_monad_simplify t :=
+  let S := get_simplify_lemma t in
+  apply S; try solve_premises.
+
+Ltac unfold_monad_with_subresult t r :=
   first [
-      let P := get_pass_lemma t in
-      rewrite P; try solve_premises
+      result_computed r;
+      first [
+          unfold_monad_pass t
+        | let A := get_abort_lemma t in
+          first [
+              rewrite A; try solve_premises
+            | rewrite rewrite_impossible_result with (r := t);
+              [| apply A; try solve_premises ];
+              unfolds_get_impossible
+            | let H := fresh "Habort" in
+              asserts H: (aborting_result r);
+              [ first [
+                    reflexivity
+                  | let AT := get_aborts_lemma t in
+                    apply AT; try solve_premises ]
+              | rewrite A with H ] ] ]
+    | unfold_monad_simplify t ].
+
+Ltac unfold_monad_without_subresult t :=
+  first [
+      unfold_monad_pass t
     | let A := get_abort_lemma t in
       first [
           rewrite A; try solve_premises
         | rewrite rewrite_impossible_result with (r := t);
           [| apply A; try solve_premises ];
-          unfolds_get_impossible
-        | let H := fresh "Habort" in
-          asserts H: (aborting_result r);
-          [ first [
-                reflexivity
-              | let AT := get_aborts_lemma t in
-                apply AT; try solve_premises ]
-          | rewrite A with H ] ] ].
+          unfolds_get_impossible ]
+    | unfold_monad_simplify t ].
 
-Ltac munfold_without_subresult t :=
-  first [
-      let P := get_pass_lemma t in
-      rewrite P; try solve_premises
-    | let A := get_abort_lemma t in
-      first [
-          rewrite A; try solve_premises
-        | rewrite rewrite_impossible_result with (r := t);
-          [| apply A; try solve_premises ];
-          unfolds_get_impossible ] ].
-
-Ltac munfold :=
+Ltac unfold_monad :=
   match goal with
   | |- context [ add_stack ?fname ?r ] =>
-    munfold_with_subresult (add_stack fname r) r
+    unfold_monad_with_subresult (add_stack fname r) r
   | |- context [ if_success ?r ?cont ] =>
-    munfold_with_subresult (if_success r cont) r
+    unfold_monad_with_subresult (if_success r cont) r
+  | |- context [ if_defined_msg ?msg ?S ?o ?cont ] =>
+    unfold_monad_without_subresult (if_defined_msg msg S o cont)
   | |- context [ if_defined ?S ?o ?cont ] =>
-    munfold_without_subresult (if_defined S o cont)
+    unfold_monad_without_subresult (if_defined S o cont)
   | |- context [ result_skip ?S ] =>
     unfolds result_skip
   | |- context [ if_then_else_success ?b ?c1 ?c2 ] =>
@@ -578,9 +662,121 @@ Ltac munfold :=
   | |- context [ if_option_defined ?c ?cont1 ?cont2 ] =>
     unfolds if_option_defined
   | |- context [ if_is_prim ?S ?e_ ?cont ] =>
-    munfold_without_subresult (if_is_prim S e_ cont)
+    unfold_monad_without_subresult (if_is_prim S e_ cont)
+  | |- context [ if_is_sym ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_sym S e_ cont)
+  | |- context [ if_is_list ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_list S e_ cont)
+  | |- context [ if_is_env ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_env S e_ cont)
+  | |- context [ if_is_clo ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_clo S e_ cont)
+  | |- context [ if_is_prom ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_prom S e_ cont)
+  | |- context [ read_as_prim ?S ?e ?cont ] =>
+    unfolds read_as_prim
+  | |- context [ read_as_sym ?S ?e ?cont ] =>
+    unfolds read_as_sym
+  | |- context [ read_as_list ?S ?e ?cont ] =>
+    unfolds read_as_list
+  | |- context [ read_as_list_all ?S ?e ?cont ] =>
+    unfolds read_as_list_all
+  | |- context [ read_as_list_components ?S ?e ?cont ] =>
+    unfolds read_as_list_components
+  | |- context [ read_as_env ?S ?e ?cont ] =>
+    unfolds read_as_env
+  | |- context [ read_as_clo ?S ?e ?cont ] =>
+    unfolds read_as_clo
+  | |- context [ read_as_prom ?S ?e ?cont ] =>
+    unfolds read_as_prom
+  | |- context [ read_cell_Vector_SExpRec ?S ?v ?n ?cont ] =>
+    unfold_monad_without_subresult (read_cell_Vector_SExpRec S v n cont)
+  | |- context [ update_Vector_SExpRec_cell ?v ?n ?c ] =>
+    unfold_monad_without_subresult (update_Vector_SExpRec_cell v n c)
+  | |- context [ let_VectorChar ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorChar S e_ cont)
+  | |- context [ read_as_VectorChar ?S ?e ?cont ] =>
+    unfolds read_as_VectorChar
+  | |- context [ read_nth_cell_VectorChar ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorChar
+  | |- context [ read_nth_cell_Char ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorChar
+  | |- context [ write_VectorChar ?S ?e ?v ?cont ] =>
+    unfolds write_VectorChar
+  | |- context [ write_nth_cell_VectorChar ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorChar
+  | |- context [ let_VectorLogical ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorLogical S e_ cont)
+  | |- context [ read_as_VectorLogical ?S ?e ?cont ] =>
+    unfolds read_as_VectorLogical
+  | |- context [ read_nth_cell_VectorLogical ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorLogical
+  | |- context [ read_nth_cell_Logical ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorLogical
+  | |- context [ write_VectorLogical ?S ?e ?v ?cont ] =>
+    unfolds write_VectorLogical
+  | |- context [ write_nth_cell_VectorLogical ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorLogical
+  | |- context [ let_VectorInteger ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorInteger S e_ cont)
+  | |- context [ read_as_VectorInteger ?S ?e ?cont ] =>
+    unfolds read_as_VectorInteger
+  | |- context [ read_nth_cell_VectorInteger ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorInteger
+  | |- context [ read_nth_cell_Integer ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorInteger
+  | |- context [ write_VectorInteger ?S ?e ?v ?cont ] =>
+    unfolds write_VectorInteger
+  | |- context [ write_nth_cell_VectorInteger ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorInteger
+  | |- context [ let_VectorReal ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorReal S e_ cont)
+  | |- context [ read_as_VectorReal ?S ?e ?cont ] =>
+    unfolds read_as_VectorReal
+  | |- context [ read_nth_cell_VectorReal ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorReal
+  | |- context [ read_nth_cell_Real ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorReal
+  | |- context [ write_VectorReal ?S ?e ?v ?cont ] =>
+    unfolds write_VectorReal
+  | |- context [ write_nth_cell_VectorReal ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorReal
+  | |- context [ let_VectorComplex ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorComplex S e_ cont)
+  | |- context [ read_as_VectorComplex ?S ?e ?cont ] =>
+    unfolds read_as_VectorComplex
+  | |- context [ read_nth_cell_VectorComplex ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorComplex
+  | |- context [ read_nth_cell_Complex ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorComplex
+  | |- context [ write_VectorComplex ?S ?e ?v ?cont ] =>
+    unfolds write_VectorComplex
+  | |- context [ write_nth_cell_VectorComplex ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorComplex
+  | |- context [ let_VectorPointer ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorPointer S e_ cont)
+  | |- context [ read_as_VectorPointer ?S ?e ?cont ] =>
+    unfolds read_as_VectorPointer
+  | |- context [ read_nth_cell_VectorPointer ?S ?e_ ?n ?cont ] =>
+    unfolds read_nth_cell_VectorPointer
+  | |- context [ read_nth_cell_Pointer ?S ?e ?n ?cont ] =>
+    unfolds read_nth_cell_VectorPointer
+  | |- context [ write_VectorPointer ?S ?e ?v ?cont ] =>
+    unfolds write_VectorPointer
+  | |- context [ write_nth_cell_VectorPointer ?S ?e ?n ?c ?cont ] =>
+    unfolds write_nth_cell_VectorPointer
+  | |- context [ map_pointer ?S ?map ?p ?cont ] =>
+    unfolds map_pointer
+  | |- context [ map_list ?S ?f ?p ?cont ] =>
+    unfolds map_list
+  | |- context [ set_car ?S ?car ?p ?f ] =>
+    unfolds set_car
+  | |- context [ set_cdr ?S ?cdr ?p ?f ] =>
+    unfolds set_cdr
+  | |- context [ set_tag ?S ?tag ?p ?f ] =>
+    unfolds set_tag
   end.
 
-Ltac munfolds :=
-  repeat (munfold; repeat let_simpl).
+Ltac simplifyR :=
+  repeat (unfold_monad; repeat let_simpl).
 

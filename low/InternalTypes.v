@@ -1,7 +1,64 @@
 (** InternalTypes.
   This file describes various internal data types used in the source of R. **)
 
-Require Import Rinternals Monads.
+Set Implicit Arguments.
+Require Import Rinternals State.
+
+
+(** * Monadic Type **)
+
+(** A monad type for results. **)
+Inductive result (A : Type) :=
+  | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
+  | result_longjump : state -> nat -> context_type -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
+  | result_error_stack : state -> list string -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
+  | result_impossible_stack : state -> list string -> string -> result A (** This result should never happen. We provide a string and a call stack to help debugging. **)
+  | result_not_implemented_stack : list string -> string -> result A (** The result relies on a feature not yet implemented. **)
+  | result_bottom : state -> result A (** We went out of fuel during the computation. **)
+  .
+Arguments result_longjump [A].
+Arguments result_error_stack [A].
+Arguments result_impossible_stack [A].
+Arguments result_not_implemented_stack [A].
+Arguments result_bottom [A].
+
+(** A precision about [result_not_implemented] and [result_error]:
+  if the C source code of R throw a not-implemented error, we consider
+  this as an error thrown in the original interpreter and use the
+  constructor [result_error].
+  We only throw [result_not_implemented] when our Coq code has not
+  implemented a behaviour of R.
+  The construct [result_error] thus models the errors thrown by the
+  R program. **)
+
+(** The difference between [result_error] and [result_impossible] is
+  that [result_error] is thrown when the R interpreter throws an error
+  (usally using the [error] C function), and [result_impossible] is
+  thrown when R does not throw an error, but we know for sure that such
+  a case can never happen, or such a case would lead an undefined
+  behaviour in the original program. Typically because the C program accepts
+  an impossible case to be missing, but that Coq does not recognise this
+  case to be impossible. So if there is a possible case in which Coq
+  must return something, but that the R interpreter in C does not cover
+  this case (for instance by writting [e->type] without checking whether
+  [e] actually maps to a valid expression), the Coq interpreter will
+  return [result_impossible]. **)
+
+
+Definition result_error (A : Type) S msg : result A :=
+  result_error_stack S nil msg.
+Arguments result_error [A].
+
+Definition result_impossible (A : Type) S msg : result A :=
+  result_impossible_stack S nil msg.
+Arguments result_impossible [A].
+
+Definition result_not_implemented (A : Type) msg : result A :=
+  result_not_implemented_stack nil msg.
+Arguments result_not_implemented [A].
+
+Global Instance result_Inhab : forall A, Inhab (result A) :=
+  fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
 
 
 (** * FUNTAB **)

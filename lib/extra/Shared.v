@@ -247,6 +247,48 @@ Proof.
     simpl in E. rewrite nth_succ. apply~ IHl.
 Qed.
 
+Lemma nth_option_Some : forall A (H : Inhab A) n (l : list A),
+  n < length l ->
+  nth_option n l = Some (nth n l).
+Proof.
+  introv I. destruct nth_option eqn: E.
+   eapply nth_option_defined in E. rewrite~ <- E.
+   apply nth_option_length in E. false. math.
+Qed.
+
+Lemma nth_option_update_eq : forall A l i (v : A),
+  i < length l ->
+  nth_option i (update i v l) = Some v.
+Proof.
+  introv I. gen i. induction l; introv I; rew_list in I.
+   false. math.
+   simpl. destruct i as [|i'].
+    reflexivity.
+    apply~ IHl. math.
+Qed.
+
+Lemma nth_option_update_neq : forall A l i j (v : A),
+  i < length l ->
+  i <> j ->
+  nth_option j (update i v l) = nth_option j l.
+Proof.
+  introv I D. gen i j. induction l; introv I D; rew_list in I.
+   false. math.
+   simpl. destruct i as [|i'], j as [|j']; try reflexivity; tryfalse.
+    simpl. apply~ IHl. math.
+Qed.
+
+Lemma update_out : forall A l i (v : A),
+  i >= length l ->
+  update i v l = l.
+Proof.
+  induction l; introv I; rew_list in I.
+   reflexivity.
+   simpl. destruct i as [|i'].
+    false. math.
+    fequals. apply~ IHl. math.
+Qed.
+
 
 Lemma stream_head_nth : forall A (s : stream A),
   stream_head s = LibStream.nth 0 s.

@@ -170,7 +170,7 @@ Provides tactics to easily manipulate the monads defined in Monads.v and Loops.v
 
 Provides abstractions to reason about the heap.
 
-*** Rinvariants.v
+*** Invariants.v
 
 Proofs of some invariants respected by the functions defined in Rcore.v,
 Rinit.v, and Rfeatures.v.
