@@ -1293,15 +1293,15 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
     let%success tmploc := R_findVarLocInFrame globals runs S rho R_TmpvalSymbol using S in
     let%success cntxt :=
       begincontext globals S Ctxt_CCode call R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
-    read%list expr_car, expr_cdr, _ := expr using S in
-    read%list expr_cdr_car, _, _ := expr_cdr using S in
     let%success op_val := PRIMVAL runs S op using S in
     let%success lhs :=
+      read%list _, expr_cdr, _ := expr using S in
+      read%list expr_cdr_car, _, _ := expr_cdr using S in
       evalseq globals runs S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
     let%success rhsprom := mkRHSPROMISE globals S args_cdr_car rhs using S in
     do%success (rhs, lhs, expr) := (rhs, lhs, expr)
     while
-        read%list expr_car, expr_cdr, _ := expr using S in
+        read%list _, expr_cdr, _ := expr using S in
         read%list expr_cdr_car, _, _ := expr_cdr using S in
         isLanguage globals S expr_cdr_car do
       read%list expr_car, expr_cdr, _ := expr using S in
@@ -1333,7 +1333,6 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
       read%list _, lhs_cdr, _ := lhs using S in
       result_success S (rhs, lhs_cdr, expr_cdr_car) using S, runs in
     read%list expr_car, expr_cdr, _ := expr using S in
-    read%list expr_cdr_car, expr_cdr_cdr, _ := expr_cdr using S in
     let%success afun :=
       let%success expr_car_type := TYPEOF S expr_car using S in
       ifb expr_car_type = SymSxp then
@@ -1361,6 +1360,7 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
         result_success S sym using S in
     read%list _, lhs_cdr, _ := lhs using S in
     let%success expr :=
+      read%list _, expr_cdr_cdr, _ := expr_cdr using S in
       assignCall globals runs S R_asymSymbol_op lhs_cdr afun R_TmpvalSymbol expr_cdr_cdr rhsprom using S in
     let%success expr := eval globals runs S expr rho using S in
     run%success endcontext globals runs S cntxt using S in

@@ -91,7 +91,7 @@ Inductive GlobalVariable :=
   | R_TspSymbol
   | R_UnboundValue
   | R_UseNamesSymbol
-  | R_ValueSym
+  | R_valueSym
   | R_WholeSrcrefSymbol
   (** The following global variables are [static] variables of functions **)
   | mkPRIMSXP_primCache

@@ -85,7 +85,7 @@ let all_global_variables =
     (R_TspSymbol, "R_TspSymbol") ;
     (R_UnboundValue, "R_UnboundValue") ;
     (R_UseNamesSymbol, "R_UseNamesSymbol") ;
-    (R_ValueSym, "R_ValueSym") ;
+    (R_valueSym, "R_valueSym") ;
     (R_WholeSrcrefSymbol, "R_WholeSrcrefSymbol") ;
 
     (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ;

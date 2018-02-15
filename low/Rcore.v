@@ -2738,14 +2738,13 @@ Definition R_isMissing S (symbol rho : SEXP) :=
 (** The function names of this section corresponds to the function names
   in the file main/altrep.c. **)
 
-Definition R_new_altrep S class data1 data2 :=
-  add%stack "R_new_altrep" in
-  let%success sclass := R_SEXP S class using S in
-  let%success type := ALTREP_CLASS_BASE_TYPE S sclass using S in
-  let (S, ans) := CONS S data1 data2 in
-  map%pointer ans with set_type type using S in
-  run%success SET_ALTREP_CLASS S ans sclass using S in
-  result_success S ans.
+(** The alternative representation ALTREP is meant to symbolically
+  represent some operations, to avoid allocating trivial arrays into
+  the memory.  The relevant code is however under active
+  developpement, and it would not make sense to start formalising it
+  right now.  We thus implement the following function using the
+  traditionnal representation, although it needs more memory and time
+  resources. **)
 
 Definition new_compact_intseq S n (n1 inc : int) :=
   add%stack "new_compact_intseq" in
@@ -2755,12 +2754,15 @@ Definition new_compact_intseq S n (n1 inc : int) :=
   else ifb inc <> 1 /\ inc <> (-1)%Z then
     result_error S "Compact sequences can only have an increment of -1 or 1."
   else
-    let%success info := allocVector S IntSxp 3 using S in
-    write%Real info at 0 := n using S in
-    write%Real info at 1 := n1 using S in
-    write%Real info at 2 := inc using S in
-    let%success ans := R_new_altrep S R_compact_intseq_class info R_NilValue using S in
-    run%success MARK_NOT_MUTABLE S ans using S in
+    let%success ans := allocVector S IntSxp n using S in
+    let generate :=
+      fix generate start length :=
+        match length with
+        | 0 => nil
+        | S length =>
+          start :: generate (start + inc)%Z length
+        end in
+    write%VectorInteger ans := ArrayList.from_list (generate n1 n) using S in
     result_success S ans.
 
 Definition new_compact_realseq S n (n1 inc : double) :=
@@ -2771,12 +2773,15 @@ Definition new_compact_realseq S n (n1 inc : double) :=
   else ifb inc <> 1 /\ inc <> (-1)%Z then
     result_error S "Compact sequences can only have an increment of -1 or 1."
   else
-    let%success info := allocVector S RealSxp 3 using S in
-    write%Real info at 0 := n using S in
-    write%Real info at 1 := n1 using S in
-    write%Real info at 2 := inc using S in
-    let%success ans := R_new_altrep S R_compact_realseq_class info R_NilValue using S in
-    run%success MARK_NOT_MUTABLE S ans using S in
+    let%success ans := allocVector S RealSxp n using S in
+    let generate :=
+      fix generate start length :=
+        match length with
+        | 0 => nil
+        | S length =>
+          start :: generate (Double.add start inc) length
+        end in
+    write%VectorReal ans := ArrayList.from_list (generate n1 n) using S in
     result_success S ans.
 
 Definition R_compact_intrange S (n1 n2 : nat) :=
@@ -2785,9 +2790,10 @@ Definition R_compact_intrange S (n1 n2 : nat) :=
     ifb n1 <= n2 then
       n2 - n1 + 1
     else n1 - n2 + 1 in
-  ifb n1 <= INT_MIN \/ n1 > INT_MAX \/ n2 <= INT_MIN \/ n2 > INT_MAX then
-    new_compact_realseq S n n1 (ifb n1 <= n2 then 1 else -1)
-  else new_compact_intseq S n n1 (ifb n1 <= n2 then 1 else -1).
+  ifb (n1 : int) <= INT_MIN \/ (n1 : int) > INT_MAX
+      \/ (n2 : int) <= INT_MIN \/ (n2 : int) > INT_MAX then
+    new_compact_realseq S n n1 (ifb n1 <= n2 then 1 else (-1)%Z)
+  else new_compact_intseq S n n1 (ifb n1 <= n2 then 1 else (-1)%Z).
 
 
 (** ** attrib.c **)
@@ -2804,8 +2810,8 @@ Definition isOneDimensionalArray S vec :=
     let%success s := runs_getAttrib runs S vec R_DimSymbol using S in
     let%success s_type := TYPEOF S s using S in
     ifb s_type = IntSxp then
-      let%success len := R_length S s using S in
-      ifb len = 1 then result_success S true
+      let%success s_len := R_length S s using S in
+      ifb s_len = 1 then result_success S true
       else result_success S false
     else result_success S false
   else result_success S false.
@@ -2817,28 +2823,53 @@ Definition getAttrib0 S (vec name : SEXP) :=
       run%return
         if%success isOneDimensionalArray S vec using S then
           let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
-          let%success s_type := TYPEOF S s using S in
-          ifb s_type <> NilSxp then
+          let%success s_null := isNull S s using S in
+          if negb s_null then
             read%Pointer s_0 := s at 0 using S in
-            map%pointer s_0 with set_named_plural using S in
+            run%success MARK_NOT_MUTABLE S s_0 using S in
             result_rreturn S s_0
           else result_rskip S
         else result_rskip S using S in
-      result_not_implemented "R_NamesSymbol case."
+      let%success vec_list := isList S vec using S in
+      let%success vec_lang := isLanguage S vec using S in
+      ifb vec_list \/ vec_lang then
+        let%success len := R_length S vec using S in
+        let%success s := allocVector S StrSxp len using S in
+        fold%success (i, any) := (0, false)
+        along vec
+        as _, vec_tag do
+          let%success any :=
+            ifb vec_tag = R_NilValue then
+              run%success SET_STRING_ELT S s i R_BlankString using S in
+              result_success S any
+            else if%success isSymbol S vec_tag using S then
+              let%success vec_name := PRINTNAME S vec_tag using S in
+              run%success SET_STRING_ELT S s i vec_name using S in
+              result_success S true
+            else result_error S "Invalid type for TAG." using S in
+          result_success S (1 + i, any) using S, runs, globals in
+        if any then
+          let%success s_null := isNull S s using S in
+          run%success
+            if negb s_null then
+              MARK_NOT_MUTABLE S s
+            else result_skip S using S in
+          result_rreturn S s
+        else result_rreturn S (R_NilValue : SEXP)
+      else result_rskip S
     else result_rskip S using S in
-  read%defined vec_ := vec using S in
+  let%success vec_attr := ATTRIB S vec using S in
   fold%return
-  along attrib vec_
-  as s, _, s_list do
-    ifb list_tagval s_list = name then
-      let%success s_car_type := TYPEOF S (list_carval s_list) using S in
+  along vec_attr
+  as s_car, s_tag do
+    ifb s_tag = name then
+      let%success s_car_type := TYPEOF S s_car using S in
       ifb name = R_DimNamesSymbol /\ s_car_type = ListSxp then
         result_error S "Old list is no longer allowed for dimnames attributes."
       else
-        map%pointer (list_carval s_list) with set_named_plural using S in
-        result_rreturn S (list_carval s_list)
-    else result_rskip S
-  using S, runs, globals in
+        run%success MARK_NOT_MUTABLE S s_car using S in
+        result_rreturn S s_car
+    else result_rskip S using S, runs, globals in
   result_success S (R_NilValue : SEXP).
 
 Definition getAttrib S (vec name : SEXP) :=
@@ -4027,7 +4058,7 @@ Definition replaceCall S vfun val args rhs :=
     read%list _, ptmp_cdr, _ := ptmp using S in
     result_success S ptmp_cdr using S, runs, globals in
   set%car ptmp := rhs using S in
-  set%tag ptmp := R_ValueSym using S in
+  set%tag ptmp := R_valueSym using S in
   map%pointer tmp with set_type LangSxp using S in
   result_success S tmp.
 

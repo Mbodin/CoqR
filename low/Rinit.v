@@ -206,9 +206,9 @@ Definition R_initAssignSymbols S :=
   let%success R_Subset2Sym := install globals runs S "[[" using S in
   let%success R_Subassign2Sym := install globals runs S "[[<-" using S in
   let%success R_DollarGetsSymbol := install globals runs S "$<-" using S in
-  let%success R_ValueSym := install globals runs S "value" using S in
+  let%success R_valueSym := install globals runs S "value" using S in
   let%success R_AssignSym := install globals runs S "<-" using S in
-  result_success S (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_ValueSym, R_AssignSym).
+  result_success S (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_valueSym, R_AssignSym).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv S :=
@@ -410,7 +410,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
   run%success
     InitNames_install globals (runs max_step globals) S using S in
-  let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, ValueSym, AssignSym) :=
+  let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, valueSym, AssignSym) :=
     R_initAssignSymbols globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl R_ReplaceFunsTable ReplaceFunsTable ;
                                    decl R_SubsetSym SubsetSym ;
@@ -418,7 +418,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
                                    decl R_Subset2Sym Subset2Sym ;
                                    decl R_Subassign2Sym Subassign2Sym ;
                                    decl R_DollarGetsSymbol DollarGetsSymbol ;
-                                   decl R_ValueSym ValueSym ;
+                                   decl R_valueSym valueSym ;
                                    decl R_AssignSym AssignSym ] }} in
   (* TODO: [initializeDDVALSymbols], [R_initialize_bcode], [R_init_altrep]. *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
