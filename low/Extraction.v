@@ -82,11 +82,11 @@ Extract Constant Double.NaN => "nan".
 Extract Constant Double.NaN1954 =>
   "(let (a, b) = (Obj.magic nan : int * int) in
     let r = (Obj.magic (a, 1954) : float) in
-    assert (compare r nan = 0) ; r)".
-Extract Constant Double.isNaN => "(fun x -> compare x nan = 0)".
+    assert (classify_float r = FP_nan) ; r)".
+Extract Constant Double.isNaN => "(fun x -> classify_float x = FP_nan)".
 Extract Constant Double.getNaNData =>
   "(let f x =
-      if compare x nan = 0 then
+      if classify_float x = FP_nan then
         let (_, b) = (Obj.magic x : int * int) in
         Some b
       else None in
@@ -94,11 +94,13 @@ Extract Constant Double.getNaNData =>
     f)".
 Extract Constant Double.double_comparable =>
   "(fun x y ->
-     if compare x nan = 0 then
-       if compare y nan = 0 then
-         (Obj.magic x : int * int) = (Obj.magic y : int * int)
-       else false
-     else (compare x y = 0))".
+     match classify_float x, classify_float y with
+     | FP_nan, FP_nan ->
+       (Obj.magic x : int * int) = (Obj.magic y : int * int)
+     | FP_zero, FP_zero ->
+       let sign x = copysign 1. x < 0. in
+       sign x = sign y
+     | _, _ -> compare x y = 0)".
 
 Extract Constant Double.opp => "(~-.)".
 Extract Constant Double.fabs => "abs_float".
@@ -159,10 +161,7 @@ Extract Constant ArrayListExtra.map =>
 Extract Constant ArrayList.empty =>
   "Obj.magic (from_list [])".
 
-(*Extract Constant ascii_comparable => "(=)".
-Extract Constant lt_int_decidable => "(<)".
-Extract Constant le_int_decidable => "(<=)".
-Extract Constant ge_nat_decidable => "(>=)".*)
+Extract Constant nat_comparable => "(=)".
 
 Extraction "low.ml"
   Parsing mkNA R_NaN mkString all_GlobalVariables

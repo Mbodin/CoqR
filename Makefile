@@ -75,7 +75,7 @@ low/low.mli: low/Extraction.vo
 	${AT}mv low.mli low/low.mli || true
 
 low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
-	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.native ; cd ..
+	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
 
 # Debug mode
 low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml

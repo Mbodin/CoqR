@@ -37,6 +37,11 @@ It is advised to add the following line into your .bashrc file.
     eval `opam config env`
 #+END_SRC
 
+We recommand a version of OCaml of at least 4.03.
+#+BEGIN_SRC bash
+    opam switch 4.04.0
+#+END_SRC
+
 The following lines ensure that the Coq repository is known by Opam.
 #+BEGIN_SRC bash
     opam repo add coq-released https://coq.inria.fr/opam/released

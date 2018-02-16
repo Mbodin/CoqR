@@ -3,6 +3,9 @@
 
 open Low
 
+(* This looks like a bug: this function should have been extracted. *)
+let make_Rcomplex r i = { rcomplex_r = r; rcomplex_i = i }
+
 
 (** The list of all global variables and their name to be displayed.
   Static variables are not included on purpose.
@@ -214,15 +217,24 @@ let print_named = function
   | Named_plural -> "plural"
 
 let print_float x =
-  if compare x nan = 0 then
+  match classify_float x with
+  | FP_nan ->
     if r_IsNA x then "NA" else "NaN"
-  else if compare x infinity = 0 then "Inf"
-  else if compare x neg_infinity = 0 then "-Inf"
-  else Printf.sprintf "%g" x
+  | FP_infinite ->
+    if compare x infinity = 0 then "Inf"
+    else if compare x neg_infinity = 0 then "-Inf"
+    else assert false
+  | _ -> Printf.sprintf "%g" x
 
 let print_rComplex c =
   if r_IsNA (rcomplex_r c) || r_IsNA (rcomplex_i c) then "NA"
-  else print_float (rcomplex_r c) ^ "+" ^ print_float (rcomplex_i c) ^ "i"
+  else
+    let c =
+      let f x = if x = -0. then 0. else x in
+      make_Rcomplex (f (rcomplex_r c)) (f (rcomplex_i c)) in
+    print_float (rcomplex_r c)
+    ^ (if rcomplex_i c < 0. then "" else "+")
+    ^ print_float (rcomplex_i c) ^ "i"
 
 let print_character c =
   "'" ^ String.make 1 c ^ "'"
