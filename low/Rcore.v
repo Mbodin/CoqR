@@ -224,6 +224,18 @@ Definition SETTER_CLEAR_NAMED S x :=
     result_skip S
   else result_skip S.
 
+Definition RAISE_NAMED S x n :=
+  add%stack "RAISE_NAMED" in
+  let%success x_named := NAMED S x using S in
+  match x_named, n with
+  | (named_temporary | named_unique), named_plural
+  | named_temporary, named_unique =>
+    map%pointer x with set_named n using S in
+    result_skip S
+  | _, _ => result_skip S
+  end.
+
+
 Definition DDVAL_BIT := 0.
 
 Definition DDVAL S x :=
@@ -456,7 +468,7 @@ Definition SET_ATTRIB S x v :=
   ifb v_type <> ListSxp /\ v_type <> NilSxp then
     result_error S "The value must be a pairlist or NULL."
   else
-    map%pointer x with set_attrib v using S in
+    set%attrib x := v using S in
     result_skip S.
 
 Definition STRING_ELT S (x : SEXP) i : result SEXP :=
@@ -721,8 +733,7 @@ Definition isVectorList S s :=
   placed here to solve a circular file dependency. **)
 
 Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
-  add%stack "ALTREP_LENGTH" in
-  result_not_implemented "".
+  unimplemented_function "ALTREP_LENGTH".
 
 Definition STDVEC_LENGTH S x :=
   add%stack "STDVEC_LENGTH" in
@@ -777,7 +788,7 @@ Definition xlength S s :=
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
-    result_not_implemented "Rf_envlength"
+    unimplemented_function "Rf_envlength"
   | _ =>
     result_success S 1
   end.
@@ -808,7 +819,7 @@ Definition R_length S s :=
       result_success S (s_cdr, 1 + i) using S, runs in
     result_success S i
   | EnvSxp =>
-    result_not_implemented "Rf_envlength"
+    unimplemented_function "Rf_envlength"
   | _ =>
     result_success S 1
   end.
@@ -1010,8 +1021,7 @@ Definition LOGICAL_ELT S x i :=
     result_success S x_i.
 
 Definition ALTINTEGER_ELT (S : state) (x : SEXP) (i : nat) : result int :=
-  add%stack "ALTINTEGER_ELT" in
-  result_not_implemented "".
+  unimplemented_function "ALTINTEGER_ELT".
 
 Definition INTEGER_ELT S x i :=
   add%stack "INTEGER_ELT" in
@@ -1022,8 +1032,7 @@ Definition INTEGER_ELT S x i :=
     result_success S x_i.
 
 Definition ALTREAL_ELT (S : state) (x : SEXP) (i : nat) : result double :=
-  add%stack "ALTREAL_ELT" in
-  result_not_implemented "".
+  unimplemented_function "ALTREAL_ELT".
 
 Definition REAL_ELT S x i :=
   add%stack "REAL_ELT" in
@@ -1034,8 +1043,7 @@ Definition REAL_ELT S x i :=
     result_success S x_i.
 
 Definition ALTCOMPLEX_ELT (S : state) (x : SEXP) (i : nat) : result Rcomplex :=
-  add%stack "ALTCOMPLEX_ELT" in
-  result_not_implemented "".
+  unimplemented_function "ALTCOMPLEX_ELT".
 
 Definition COMPLEX_ELT S x i :=
   add%stack "COMPLEX_ELT" in
@@ -1175,14 +1183,14 @@ Definition COPY_TRUELENGTH S (vto vfrom : SEXP) :=
   add%stack "COPY_TRUELENGTH" in
   let%success vfrom_growable := IS_GROWABLE S vfrom using S in
   if negb vfrom_growable then
-    result_not_implemented "SET_TRUELENGTH"
+    unimplemented_function "SET_TRUELENGTH"
   else result_skip S.
 
 Definition duplicate1 S s deep :=
   add%stack "duplicate1" in
   run%exit
     if%success ALTREP S s using S then
-      result_not_implemented "ALTREP_DUPLICATE_EX"
+      unimplemented_function "ALTREP_DUPLICATE_EX"
     else result_rskip S using S in
   let%success s_type := TYPEOF S s using S in
   let%exit t :=
@@ -1303,7 +1311,7 @@ Definition duplicate1 S s deep :=
     | PromSxp =>
       result_rreturn S s
     | S4Sxp =>
-      result_not_implemented "allocS4Object"
+      unimplemented_function "allocS4Object"
     | _ => result_error S "Unimplemented type."
     end using S in
   let%success t_type := TYPEOF S t using S in
@@ -1666,7 +1674,7 @@ Definition StringFromReal S x :=
   add%stack "StringFromReal" in
   if R_IsNA x then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "EncodeRealDrop0".
+  else unimplemented_function "EncodeRealDrop0".
 
 
 (** ** envir.c **)
@@ -2548,7 +2556,7 @@ Definition findVarLocInFrame S (rho symbol : SEXP) :=
   else ifb rho = R_EmptyEnv then
     result_success S (R_NilValue : SEXP)
   else if%success IS_USER_DATABASE S rho using S then
-    result_not_implemented "R_ExternalPtrAddr"
+    unimplemented_function "R_ExternalPtrAddr"
   else
     (** As we do not model hashtabs, we consider that the hashtab is not defined here. **)
     read%env _, rho_env := rho using S in
@@ -2615,12 +2623,11 @@ Definition ddVal S symbol :=
   let%success buf := CHAR S symbol_name using S in
   ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := substring 2 (String.length buf - 2) in
-    result_not_implemented "strtol"
+    unimplemented_function "strtol"
   else result_success S 0.
 
 Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
-  add%stack "ddfindVar" in
-  result_not_implemented "".
+  unimplemented_function "ddfindVar".
 
 
 Definition findFun3 S symbol rho (call : SEXP) : result SEXP :=
@@ -2796,229 +2803,6 @@ Definition R_compact_intrange S (n1 n2 : nat) :=
   else new_compact_intseq S n n1 (ifb n1 <= n2 then 1 else (-1)%Z).
 
 
-(** ** attrib.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/attrib.c. **)
-
-Definition isOneDimensionalArray S vec :=
-  add%stack "isOneDimensionalArray" in
-  let%success ivec := isVector S vec using S in
-  let%success ilist := isList S vec using S in
-  let%success ilang := isLanguage S vec using S in
-  ifb ivec \/ ilist \/ ilang then
-    let%success s := runs_getAttrib runs S vec R_DimSymbol using S in
-    let%success s_type := TYPEOF S s using S in
-    ifb s_type = IntSxp then
-      let%success s_len := R_length S s using S in
-      ifb s_len = 1 then result_success S true
-      else result_success S false
-    else result_success S false
-  else result_success S false.
-
-Definition getAttrib0 S (vec name : SEXP) :=
-  add%stack "getAttrib0" in
-  run%exit
-    ifb name = R_NamesSymbol then
-      run%return
-        if%success isOneDimensionalArray S vec using S then
-          let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
-          let%success s_null := isNull S s using S in
-          if negb s_null then
-            read%Pointer s_0 := s at 0 using S in
-            run%success MARK_NOT_MUTABLE S s_0 using S in
-            result_rreturn S s_0
-          else result_rskip S
-        else result_rskip S using S in
-      let%success vec_list := isList S vec using S in
-      let%success vec_lang := isLanguage S vec using S in
-      ifb vec_list \/ vec_lang then
-        let%success len := R_length S vec using S in
-        let%success s := allocVector S StrSxp len using S in
-        fold%success (i, any) := (0, false)
-        along vec
-        as _, vec_tag do
-          let%success any :=
-            ifb vec_tag = R_NilValue then
-              run%success SET_STRING_ELT S s i R_BlankString using S in
-              result_success S any
-            else if%success isSymbol S vec_tag using S then
-              let%success vec_name := PRINTNAME S vec_tag using S in
-              run%success SET_STRING_ELT S s i vec_name using S in
-              result_success S true
-            else result_error S "Invalid type for TAG." using S in
-          result_success S (1 + i, any) using S, runs, globals in
-        if any then
-          let%success s_null := isNull S s using S in
-          run%success
-            if negb s_null then
-              MARK_NOT_MUTABLE S s
-            else result_skip S using S in
-          result_rreturn S s
-        else result_rreturn S (R_NilValue : SEXP)
-      else result_rskip S
-    else result_rskip S using S in
-  let%success vec_attr := ATTRIB S vec using S in
-  fold%return
-  along vec_attr
-  as s_car, s_tag do
-    ifb s_tag = name then
-      let%success s_car_type := TYPEOF S s_car using S in
-      ifb name = R_DimNamesSymbol /\ s_car_type = ListSxp then
-        result_error S "Old list is no longer allowed for dimnames attributes."
-      else
-        run%success MARK_NOT_MUTABLE S s_car using S in
-        result_rreturn S s_car
-    else result_rskip S using S, runs, globals in
-  result_success S (R_NilValue : SEXP).
-
-Definition getAttrib S (vec name : SEXP) :=
-  add%stack "getAttrib" in
-  let%success vec_type := TYPEOF S vec using S in
-  ifb vec_type = CharSxp then
-    result_error S "Can not have attributes on a CharSxp."
-  else
-    let%success vec_attr := ATTRIB S vec using S in
-    ifb vec_attr = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
-      result_success S (R_NilValue : SEXP)
-    else
-      let%success name :=
-        if%success isString S name using S then
-          let%success name_0 := STRING_ELT S name 0 using S in
-          let%success name_sym := installTrChar S name_0 using S in
-          result_success S name_sym
-        else result_success S name using S in
-      ifb name = R_RowNamesSymbol then
-        let%success s := getAttrib0 S vec name using S in
-        let%success s_in := isInteger S s using S in
-        let%success s_len := LENGTH S s using S in
-        ifb s_in /\ s_len = 2 then
-          read%Integer s_0 := s at 0 using S in
-          ifb s_0 = NA_INTEGER then
-            read%Integer s_1 := s at 1 using S in
-            let n := abs s_1 in
-            ifb n > 0 then
-              R_compact_intrange S 1 n
-            else allocVector S IntSxp 0
-          else result_success S s
-        else result_success S s
-      else getAttrib0 S vec name.
-
-Definition installAttrib S vec name val :=
-  add%stack "installAttrib" in
-  let%success vec_type := TYPEOF S vec using S in
-  ifb vec_type = CharSxp then
-    result_error S "Cannot set attribute on a CharSxp."
-  else ifb vec_type = SymSxp then
-    result_error S "Cannot set attribute on a symbol."
-  else
-    let%success vec_attr := ATTRIB S vec using S in
-    fold%return t := R_NilValue : SEXP
-    along vec_attr
-    as s, _, s_list do
-      ifb list_tagval s_list = name then
-        set%car s := val using S in
-        result_rreturn S val
-      else result_rsuccess S s
-    using S, runs, globals in
-    let (S, s) := CONS S val R_NilValue in
-    set%tag s := name using S in
-    run%success
-      ifb vec_attr = R_NilValue then
-        set%attrib vec := s using S in
-        result_skip S
-      else
-        set%cdr t := s using S in
-        result_skip S using S in
-    result_success S val.
-
-Definition stripAttrib S (tag lst : SEXP) :=
-  add%stack "stripAttrib" in
-  ifb lst = R_NilValue then
-    result_success S lst
-  else
-    read%list _, lst_cdr, lst_tag := lst using S in
-    ifb tag = lst_tag then
-      runs_stripAttrib runs S tag lst_cdr
-    else
-      let%success r :=
-        runs_stripAttrib runs S tag lst_cdr using S in
-      set%cdr lst := r using S in
-      result_success S lst.
-
-Definition removeAttrib S (vec name : SEXP) :=
-  add%stack "removeAttrib" in
-  let%success vec_type := TYPEOF S vec using S in
-  ifb vec_type = CharSxp then
-    result_error S "Cannot set attribute on a CharSxp."
-  else
-    let%success vec_pl := isPairList S vec using S in
-    ifb name = R_NamesSymbol /\ vec_pl then
-      fold%success
-      along vec
-      as t, _, _ do
-        set%tag t := R_NilValue using S in
-        result_skip S
-      using S, runs, globals in
-      result_success S (R_NilValue : SEXP)
-    else
-      run%success
-        ifb name = R_DimSymbol then
-          let%success r :=
-            let%success vec_attr := ATTRIB S vec using S in
-            stripAttrib S R_DimNamesSymbol vec_attr using S in
-          set%attrib vec := r using S in
-          result_skip S
-        else result_skip S using S in
-      let%success r :=
-        let%success vec_attr := ATTRIB S vec using S in
-        stripAttrib S name vec_attr using S in
-      set%attrib vec := r using S in
-      run%success
-        ifb name = R_ClassSymbol then
-          set%obj vec := false using S in
-          result_skip S
-        else result_skip S using S in
-      result_success S (R_NilValue : SEXP).
-
-Definition classgets (S : state) (vec klass : SEXP) : result SEXP :=
-  add%stack "classgets" in
-  result_not_implemented "".
-
-Definition setAttrib S (vec name val : SEXP) :=
-  add%stack "setAttrib" in
-  let%success name :=
-    if%success isString S name using S then
-      let%success str := STRING_ELT S name 0 using S in
-      installTrChar S str
-    else result_success S name using S in
-  ifb val = R_NilValue then
-    removeAttrib S vec name
-  else
-    ifb vec = R_NilValue then
-      result_error S "Attempt to set an attribute on NULL."
-    else
-      let%success val :=
-        if%success MAYBE_REFERENCED S val using S then
-          R_FixupRHS S vec val
-        else result_success S val using S in
-      ifb name = R_NamesSymbol then
-        result_not_implemented "namesgets"
-      else ifb name = R_DimSymbol then
-        result_not_implemented "dimgets"
-      else ifb name = R_DimNamesSymbol then
-        result_not_implemented "dimnamesgets"
-      else ifb name = R_ClassSymbol then
-        result_not_implemented "classgets"
-      else ifb name = R_TspSymbol then
-        result_not_implemented "tspgets"
-      else ifb name = R_CommentSymbol then
-        result_not_implemented "commentgets"
-      else ifb name = R_RowNamesSymbol then
-        result_not_implemented "row_names_gets"
-      else installAttrib S vec name val.
-
-
 (** ** utils.c **)
 
 (** The function names of this section corresponds to the function names
@@ -3113,7 +2897,7 @@ Definition IntegerFromString S (x : SEXP) :=
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "R_strtod."
+    unimplemented_function "R_strtod."
   else result_success S NA_INTEGER.
 
 Definition IntegerFromLogical x :=
@@ -3193,7 +2977,7 @@ Definition RealFromString S (x : SEXP) :=
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "R_strtod."
+    unimplemented_function "R_strtod."
   else result_success S NA_REAL.
 
 Definition asReal S x :=
@@ -3244,8 +3028,7 @@ Definition coerceSymbol S v type :=
   result_success S rval.
 
 Definition PairToVectorList (S : state) (x : SEXP) : result SEXP :=
-  add%stack "PairToVectorList" in
-  result_not_implemented "".
+  unimplemented_function "PairToVectorList".
 
 Definition ComplexFromString S (x : SEXP) :=
   add%stack "ComplexFromString" in
@@ -3254,7 +3037,7 @@ Definition ComplexFromString S (x : SEXP) :=
       let%success c := CHAR S x using S in
       result_success S (negb (isBlankString c))
     else result_success S false using S then
-    result_not_implemented "R_strtod."
+    unimplemented_function "R_strtod."
   else result_success S (make_Rcomplex NA_REAL NA_REAL).
 
 Definition ComplexFromLogical x :=
@@ -3319,7 +3102,7 @@ Definition coercePairList S v type :=
           ifb v_car_is /\ v_car_len = 1 then
             let%success v_car_0 := STRING_ELT S v_car 0 using S in
             SET_STRING_ELT S rval i v_car_0
-          else result_not_implemented "deparse1line" using S in
+          else unimplemented_function "deparse1line" using S in
         result_success S (1 + i) using S, runs, globals in
       result_rsuccess S (rval, n)
     else ifb type = VecSxp then
@@ -3386,8 +3169,7 @@ Definition coercePairList S v type :=
   result_success S rval.
 
 Definition coerceVectorList (S : state) (v : SEXP) (type : SExpType) : result SEXP :=
-  add%stack "coerceVectorList" in
-  result_not_implemented ".".
+  unimplemented_function "coerceVectorList".
 
 Definition StringFromLogical S x :=
   add%stack "StringFromLogical" in
@@ -3401,13 +3183,13 @@ Definition StringFromInteger S x :=
   add%stack "StringFromInteger" in
   ifb x = NA_INTEGER then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "formatInteger".
+  else unimplemented_function "formatInteger".
 
 Definition StringFromComplex S x :=
   add%stack "StringFromComplex" in
   ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
     result_success S (NA_STRING : SEXP)
-  else result_not_implemented "EncodeComplex".
+  else unimplemented_function "EncodeComplex".
 
 Definition coerceToSymbol S v :=
   add%stack "coerceToSymbol" in
@@ -3597,8 +3379,7 @@ Definition coerceToComplex S v :=
   result_success S ans.
 
 Definition coerceToRaw (S : state) (v : SEXP) : result SEXP :=
-  add%stack "coerceToRaw" in
-  result_not_implemented "".
+  unimplemented_function "coerceToRaw".
 
 Definition coerceToString S v :=
   add%stack "coerceToString" in
@@ -3746,10 +3527,10 @@ Definition coerceToVectorList S v :=
     | _ =>
       result_error S "Unimplemented type."
     end using S in
-  let%success tmp := getAttrib S v R_NamesSymbol using S in
+  let%success tmp := runs_getAttrib runs S v R_NamesSymbol using S in
   run%success
     ifb tmp <> R_NilValue then
-      run%success setAttrib S ans R_NamesSymbol tmp using S in
+      run%success runs_setAttrib runs S ans R_NamesSymbol tmp using S in
       result_skip S
     else result_skip S using S in
   result_success S ans.
@@ -3806,10 +3587,10 @@ Definition coerceToPairList S v :=
         result_error S "Unimplemented type."
       end using S in
     result_success S ansp_cdr using S in
-  let%success ansp := getAttrib S v R_NamesSymbol using S in
+  let%success ansp := runs_getAttrib runs S v R_NamesSymbol using S in
   run%success
     ifb ansp <> R_NilValue then
-      run%success setAttrib S ans R_NamesSymbol ansp using S in
+      run%success runs_setAttrib runs S ans R_NamesSymbol ansp using S in
       result_skip S
     else result_skip S using S in
   result_success S ans.
@@ -3823,7 +3604,7 @@ Definition coerceVector S v type :=
     let%success v_s4 := IS_S4_OBJECT S v using S in
     let%exit v :=
       ifb v_s4 /\ v_type = S4Sxp then
-        result_not_implemented "R_getS4DataSlot"
+        unimplemented_function "R_getS4DataSlot"
       else result_rsuccess S v using S in
     let%success ans :=
       let%success v_type := TYPEOF S v using S in
@@ -3860,7 +3641,7 @@ Definition coerceVector S v type :=
                 ifb v_car_is /\ v_car_len = 1 then
                   let%success v_car_0 := STRING_ELT S v_car 0 using S in
                   SET_STRING_ELT S ans i v_car_0
-                else result_not_implemented "deparse1line" using S in
+                else unimplemented_function "deparse1line" using S in
               result_success S (1 + i) using S, runs, globals in
             result_success S ans
       | VecSxp
@@ -3910,30 +3691,395 @@ Definition CreateTag S x :=
         else result_success S false using S then
       let%success x_0 := STRING_ELT S x 0 using S in
       installTrChar S x_0
-    else result_not_implemented "deparse1".
+    else unimplemented_function "deparse1".
 
 Definition copyDimAndNames S x ans :=
   add%stack "copyDimAndNames" in
   if%success isVector S x using S then
-    let%success dims := getAttrib S x R_DimSymbol using S in
+    let%success dims := runs_getAttrib runs S x R_DimSymbol using S in
     run%success
       ifb dims <> R_NilValue then
-        run%success setAttrib S ans R_DimSymbol dims using S in
+        run%success runs_setAttrib runs S ans R_DimSymbol dims using S in
         result_skip S
       else result_skip S using S in
     if%success isArray S x using S then
-      let%success names := getAttrib S x R_DimNamesSymbol using S in
+      let%success names := runs_getAttrib runs S x R_DimNamesSymbol using S in
       ifb names <> R_NilValue then
-        run%success setAttrib S ans R_DimNamesSymbol names using S in
+        run%success runs_setAttrib runs S ans R_DimNamesSymbol names using S in
         result_skip S
       else result_skip S
     else
-      let%success names := getAttrib S x R_NamesSymbol using S in
+      let%success names := runs_getAttrib runs S x R_NamesSymbol using S in
       ifb names <> R_NilValue then
-        run%success setAttrib S ans R_NamesSymbol names using S in
+        run%success runs_setAttrib runs S ans R_NamesSymbol names using S in
         result_skip S
       else result_skip S
   else result_skip S.
+
+
+(** ** attrib.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/attrib.c. **)
+
+Definition isOneDimensionalArray S vec :=
+  add%stack "isOneDimensionalArray" in
+  let%success ivec := isVector S vec using S in
+  let%success ilist := isList S vec using S in
+  let%success ilang := isLanguage S vec using S in
+  ifb ivec \/ ilist \/ ilang then
+    let%success s := runs_getAttrib runs S vec R_DimSymbol using S in
+    let%success s_type := TYPEOF S s using S in
+    ifb s_type = IntSxp then
+      let%success s_len := R_length S s using S in
+      ifb s_len = 1 then result_success S true
+      else result_success S false
+    else result_success S false
+  else result_success S false.
+
+Definition getAttrib0 S (vec name : SEXP) :=
+  add%stack "getAttrib0" in
+  run%exit
+    ifb name = R_NamesSymbol then
+      run%return
+        if%success isOneDimensionalArray S vec using S then
+          let%success s := runs_getAttrib runs S vec R_DimNamesSymbol using S in
+          let%success s_null := isNull S s using S in
+          if negb s_null then
+            read%Pointer s_0 := s at 0 using S in
+            run%success MARK_NOT_MUTABLE S s_0 using S in
+            result_rreturn S s_0
+          else result_rskip S
+        else result_rskip S using S in
+      let%success vec_list := isList S vec using S in
+      let%success vec_lang := isLanguage S vec using S in
+      ifb vec_list \/ vec_lang then
+        let%success len := R_length S vec using S in
+        let%success s := allocVector S StrSxp len using S in
+        fold%success (i, any) := (0, false)
+        along vec
+        as _, vec_tag do
+          let%success any :=
+            ifb vec_tag = R_NilValue then
+              run%success SET_STRING_ELT S s i R_BlankString using S in
+              result_success S any
+            else if%success isSymbol S vec_tag using S then
+              let%success vec_name := PRINTNAME S vec_tag using S in
+              run%success SET_STRING_ELT S s i vec_name using S in
+              result_success S true
+            else result_error S "Invalid type for TAG." using S in
+          result_success S (1 + i, any) using S, runs, globals in
+        if any then
+          let%success s_null := isNull S s using S in
+          run%success
+            if negb s_null then
+              MARK_NOT_MUTABLE S s
+            else result_skip S using S in
+          result_rreturn S s
+        else result_rreturn S (R_NilValue : SEXP)
+      else result_rskip S
+    else result_rskip S using S in
+  let%success vec_attr := ATTRIB S vec using S in
+  fold%return
+  along vec_attr
+  as s_car, s_tag do
+    ifb s_tag = name then
+      let%success s_car_type := TYPEOF S s_car using S in
+      ifb name = R_DimNamesSymbol /\ s_car_type = ListSxp then
+        result_error S "Old list is no longer allowed for dimnames attributes."
+      else
+        run%success MARK_NOT_MUTABLE S s_car using S in
+        result_rreturn S s_car
+    else result_rskip S using S, runs, globals in
+  result_success S (R_NilValue : SEXP).
+
+Definition getAttrib S (vec name : SEXP) :=
+  add%stack "getAttrib" in
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
+    result_error S "Can not have attributes on a CharSxp."
+  else
+    let%success vec_attr := ATTRIB S vec using S in
+    ifb vec_attr = R_NilValue /\ ~ (vec_type  = ListSxp \/ vec_type  = LangSxp) then
+      result_success S (R_NilValue : SEXP)
+    else
+      let%success name :=
+        if%success isString S name using S then
+          let%success name_0 := STRING_ELT S name 0 using S in
+          let%success name_sym := installTrChar S name_0 using S in
+          result_success S name_sym
+        else result_success S name using S in
+      ifb name = R_RowNamesSymbol then
+        let%success s := getAttrib0 S vec name using S in
+        let%success s_in := isInteger S s using S in
+        let%success s_len := LENGTH S s using S in
+        ifb s_in /\ s_len = 2 then
+          read%Integer s_0 := s at 0 using S in
+          ifb s_0 = NA_INTEGER then
+            read%Integer s_1 := s at 1 using S in
+            let n := abs s_1 in
+            ifb n > 0 then
+              R_compact_intrange S 1 n
+            else allocVector S IntSxp 0
+          else result_success S s
+        else result_success S s
+      else getAttrib0 S vec name.
+
+Definition installAttrib S vec name val :=
+  add%stack "installAttrib" in
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
+    result_error S "Cannot set attribute on a CharSxp."
+  else ifb vec_type = SymSxp then
+    result_error S "Cannot set attribute on a symbol."
+  else
+    let%success vec_attr := ATTRIB S vec using S in
+    fold%return t := R_NilValue : SEXP
+    along vec_attr
+    as s, _, s_list do
+      ifb list_tagval s_list = name then
+        set%car s := val using S in
+        result_rreturn S val
+      else result_rsuccess S s
+    using S, runs, globals in
+    let (S, s) := CONS S val R_NilValue in
+    set%tag s := name using S in
+    run%success
+      ifb vec_attr = R_NilValue then
+        run%success SET_ATTRIB S vec s using S in
+        result_skip S
+      else
+        set%cdr t := s using S in
+        result_skip S using S in
+    result_success S val.
+
+Definition stripAttrib S (tag lst : SEXP) :=
+  add%stack "stripAttrib" in
+  ifb lst = R_NilValue then
+    result_success S lst
+  else
+    read%list _, lst_cdr, lst_tag := lst using S in
+    ifb tag = lst_tag then
+      runs_stripAttrib runs S tag lst_cdr
+    else
+      let%success r :=
+        runs_stripAttrib runs S tag lst_cdr using S in
+      set%cdr lst := r using S in
+      result_success S lst.
+
+Definition removeAttrib S (vec name : SEXP) :=
+  add%stack "removeAttrib" in
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
+    result_error S "Cannot set attribute on a CharSxp."
+  else
+    let%success vec_pl := isPairList S vec using S in
+    ifb name = R_NamesSymbol /\ vec_pl then
+      fold%success
+      along vec
+      as t, _, _ do
+        set%tag t := R_NilValue using S in
+        result_skip S
+      using S, runs, globals in
+      result_success S (R_NilValue : SEXP)
+    else
+      run%success
+        ifb name = R_DimSymbol then
+          let%success r :=
+            let%success vec_attr := ATTRIB S vec using S in
+            stripAttrib S R_DimNamesSymbol vec_attr using S in
+          run%success SET_ATTRIB S vec r using S in
+          result_skip S
+        else result_skip S using S in
+      let%success r :=
+        let%success vec_attr := ATTRIB S vec using S in
+        stripAttrib S name vec_attr using S in
+      run%success SET_ATTRIB S vec r using S in
+      run%success
+        ifb name = R_ClassSymbol then
+          set%obj vec := false using S in
+          result_skip S
+        else result_skip S using S in
+      result_success S (R_NilValue : SEXP).
+
+Definition checkNames S x s :=
+  add%stack "checkNames" in
+  let%success x_vec := isVector S x using S in
+  let%success x_list := isList S x using S in
+  let%success x_lang := isLanguage S x using S in
+  ifb x_vec \/ x_list \/ x_lang then
+    let%success s_vec := isVector S s using S in
+    let%success s_list := isList S s using S in
+    ifb ~ s_vec /\ ~ s_list then
+      result_error S "Invalid type for ‘names’: must be a vector."
+    else
+      let%success x_len := xlength S x using S in
+      let%success s_len := xlength S s using S in
+      ifb x_len <> x_len then
+        result_error S "‘names’ attribute must be the same length as the vector."
+      else result_skip S
+  else if%success IS_S4_OBJECT S x using S then
+    result_skip S
+  else result_error S "‘names’ applied to a non-vector.".
+
+Definition classgets S (vec klass : SEXP) :=
+  add%stack "classgets" in
+  let%success klass_null := isNull S klass using S in
+  let%success klass_str := isString S klass using S in
+  ifb klass_null \/ klass_str then
+    let%success ncl := R_length S klass using S in
+    ifb ncl <= 0 then
+      let%success vec_attr := ATTRIB S vec using S in
+      let%success sa := stripAttrib S R_ClassSymbol vec_attr using S in
+      run%success SET_ATTRIB S vec sa using S in
+      run%success SET_OBJECT S vec false using S in
+      result_success S (R_NilValue : SEXP)
+    else
+      ifb vec = R_NilValue then
+        result_error S "Attempt to set an attribute on NULL."
+      else
+        do%break isfactor := false
+        for i from 0 to ncl - 1 do
+          let%success klass_i := STRING_ELT S klass i using S in
+          let%success klass_i_str := CHAR S klass_i using S in
+          ifb klass_i_str = "factor"%string then
+            result_rreturn S true
+          else result_rsuccess S isfactor using S in
+        let%success vec_type := TYPEOF S vec using S in
+        ifb isfactor /\ vec_type <> IntSxp then
+          result_error S "Adding class ‘factor’ to an invalid object."
+        else
+          run%success installAttrib S vec R_ClassSymbol klass using S in
+          run%success SET_OBJECT S vec true using S in
+          result_success S (R_NilValue : SEXP)
+  else
+    result_error S "Attempt to set invalid ‘class’ attribute.".
+
+Definition namesgets S (vec val : SEXP) :=
+  add%stack "namesgets" in
+  let%success val :=
+    if%success isList S val using S then
+      let%success val_vec := isVectorizable S val using S in
+      if negb val_vec then
+        result_error S "Incompatible ‘names’ argument."
+      else
+        let%success vec_len := R_length S vec using S in
+        let%success rval := allocVector S StrSxp vec_len using S in
+        do%success (i, tval) := (0, val)
+        whileb i < vec_len /\ rval <> R_NilValue do
+          read%list tval_car, tval_cdr, _ := tval using S in
+          let%success s := coerceVector S tval_car StrSxp using S in
+          let%success s_0 := STRING_ELT S s 0 using S in
+          run%success SET_STRING_ELT S rval i s_0 using S in
+          result_success S (1 + i, tval_cdr) using S, runs in
+        result_success S rval
+    else coerceVector S val StrSxp using S in
+  let%success val_len := xlength S val using S in
+  let%success vec_len := xlength S vec using S in
+  let%success val :=
+    ifb val_len < vec_len then
+      unimplemented_function "xlengthgets"
+    else result_success S val using S in
+  run%success checkNames S vec val using S in
+  if%success isOneDimensionalArray S vec using S then
+    let (S, val) := CONS S val R_NilValue in
+    run%success runs_setAttrib runs S vec R_DimNamesSymbol val using S in
+    result_success S vec
+  else
+    run%success
+      let%success vec_list := isList S vec using S in
+      let%success vec_lang := isLanguage S vec using S in
+      ifb vec_list \/ vec_lang then
+        fold%success i := 0
+        along vec
+        as s, _, _ do
+          run%success
+            let%success val_i := STRING_ELT S val i using S in
+            let%success val_i_char := CHAR S val_i using S in
+            ifb val_i <> R_NilValue /\ val_i <> R_NaString /\ String.length val_i_char > 0 then
+              let%success ins := installTrChar S val_i using S in
+              set%tag s := ins using S in
+              result_skip S
+            else
+              set%tag s := R_NilValue using S in
+              result_skip S using S in
+          result_success S (1 + i) using S, runs, globals in
+        result_skip S
+      else
+        let%success vec_vec := isVector S vec using S in
+        let%success vec_S4 := IS_S4_OBJECT S vec using S in
+        ifb vec_vec \/ vec_S4 then
+          run%success installAttrib S vec R_NamesSymbol val using S in
+          result_skip S
+        else result_error S "Invalid type to set ‘names’ attribute." using S in
+    result_success S vec.
+
+Definition dimgets S (vec val : SEXP) :=
+  add%stack "dimgets" in
+  let%success vec_vec := isVector S vec using S in
+  let%success vec_list := isList S vec using S in
+  ifb ~ vec_vec /\ ~ vec_list then
+    result_error S "Invalid first argument."
+  else
+    let%success val_vec := isVector S val using S in
+    let%success val_list := isList S val using S in
+    ifb ~ val_vec /\ ~ val_list then
+      result_error S "Invalid second argument."
+    else
+      let%success val := coerceVector S val IntSxp using S in
+      let%success len := xlength S vec using S in
+      let%success ndim := R_length S val using S in
+      ifb ndim = 0 then
+        result_error S "Length-0 dimension vector is invalid."
+      else
+        do%success total := 1 : int
+        for i from 0 to ndim - 1 do
+          read%Integer val_i := val at i using S in
+          ifb val_i = NA_INTEGER then
+            result_error S "The dims contain missing values."
+          else ifb val_i < 0 then
+            result_error S "The dims contain negative values."
+          else result_success S (total * val_i)%Z using S in
+        ifb total <> len then
+          result_error S "dims do not match the length of the object."
+        else
+          run%success removeAttrib S vec R_DimNamesSymbol using S in
+          run%success installAttrib S vec R_DimSymbol val using S in
+          run%success MARK_NOT_MUTABLE S val using S in
+          result_success S vec.
+
+Definition setAttrib S (vec name val : SEXP) :=
+  add%stack "setAttrib" in
+  let%success name :=
+    if%success isString S name using S then
+      let%success str := STRING_ELT S name 0 using S in
+      installTrChar S str
+    else result_success S name using S in
+  ifb val = R_NilValue then
+    removeAttrib S vec name
+  else
+    ifb vec = R_NilValue then
+      result_error S "Attempt to set an attribute on NULL."
+    else
+      let%success val :=
+        if%success MAYBE_REFERENCED S val using S then
+          R_FixupRHS S vec val
+        else result_success S val using S in
+      ifb name = R_NamesSymbol then
+        namesgets S vec val
+      else ifb name = R_DimSymbol then
+        dimgets S vec val
+      else ifb name = R_DimNamesSymbol then
+        unimplemented_function "dimnamesgets"
+      else ifb name = R_ClassSymbol then
+        classgets S vec val
+      else ifb name = R_TspSymbol then
+        unimplemented_function "tspgets"
+      else ifb name = R_CommentSymbol then
+        unimplemented_function "commentgets"
+      else ifb name = R_RowNamesSymbol then
+        unimplemented_function "row_names_gets"
+      else installAttrib S vec name val.
 
 
 (** ** objects.c **)
@@ -3971,11 +4117,20 @@ Definition asS4 S s (flag : bool) (complete : int) :=
       else
         run%return
           ifb complete <> 0 then
-            result_not_implemented "R_getS4DataSlot"
+            unimplemented_function "R_getS4DataSlot"
           else result_rskip S using S in
         run%success UNSET_S4_OBJECT S s using S in
         result_rskip S using S in
     result_success S s.
+
+
+(** ** objects.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/objects.c. **)
+
+Definition R_possible_dispatch (S : state) (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
+  unimplemented_function "R_possible_dispatch".
 
 
 (** ** eval.c **)
@@ -4383,7 +4538,56 @@ Definition DispatchGroup S group (call op args rho : SEXP)
     result_success S None
   else
     let isOps := decide (group = "Ops"%string) in
-    result_not_implemented "".
+    let%success args_len := R_length S args using S in
+    let%success args_car_S4 := IS_S4_OBJECT S args_car using S in
+    let%success args_cdr_car_S4 := IS_S4_OBJECT S args_cdr_car using S in
+    let useS4 :=
+      ifb args_len = 1 /\ ~ args_car_S4 then false
+      else ifb args_len = 2 /\ ~ args_car_S4 /\ ~ args_cdr_car_S4 then false
+      else true in
+    run%exit
+      if useS4 then
+        run%success
+          if isOps then
+            fold%let
+            along args
+            as s, _, _ do
+              set%tag s := R_NilValue using S in
+              result_skip S using S, runs, globals
+          else result_skip S using S in
+        let%success op_hm := R_has_methods S op using S in
+        let%success value := R_possible_dispatch S call op args rho false using S in
+        ifb op_hm /\ value <> NULL then
+          result_rreturn S (Some value)
+        else result_rskip S
+      else result_rskip S using S in
+    read%list call_car, _, _ := call using S in
+    run%exit
+      if%success isSymbol S call_car using S then
+        let%success call_car_name := PRINTNAME S call_car using S in
+        let%success call_car_str := CHAR S call_car_name using S in
+        let cstr := String.index 0 "." call_car_str in
+        match cstr with
+        | None => result_rskip S
+        | Some cstr =>
+          let cstr_ := String.substring (1 + cstr) (String.length call_car_str - cstr - 1) call_car_str in
+          ifb cstr_ = "default"%string then
+            result_rreturn S None
+          else result_rskip S
+        end
+      else result_rskip S using S in
+    let%success nargs :=
+      if isOps then
+        R_length S args
+      else result_success S 1 using S in
+    read%list args_car, args_cdr, _ := args using S in
+    run%exit
+      let%success args_car_obj := isObject S args_car using S in
+      ifb nargs = 1 /\ ~ args_car_obj then
+        result_rreturn S None
+      else result_rskip S using S in
+    let%success generic := PRINTNAME S op using S in
+    unimplemented_function "classForGroupDispatch".
 
 Definition DispatchOrEval S (call op : SEXP) (generic : string) (args rho : SEXP)
     (dropmissing argsevald : bool) : result (bool * SEXP) :=
@@ -4468,7 +4672,7 @@ Definition eval S (e rho : SEXP) :=
     else
       match e_type with
       | BcodeSxp =>
-        result_not_implemented "bcEval"
+        unimplemented_function "bcEval"
       | SymSxp =>
         ifb e = R_DotsSymbol then
           result_error S "‘...’ used in an incorrect context."

@@ -13,6 +13,7 @@ Record runs_type : Type := runs_type_intro {
     runs_eval : state -> SEXP -> SEXP -> result SEXP ;
     runs_inherits : state -> SEXP -> string -> result bool ;
     runs_getAttrib : state -> SEXP -> SEXP -> result SEXP ;
+    runs_setAttrib : state -> SEXP -> SEXP -> SEXP -> result SEXP ;
     runs_R_cycle_detected : state -> SEXP -> SEXP -> result bool ;
     runs_duplicate1 : state -> SEXP -> bool -> result SEXP ;
     runs_stripAttrib : state -> SEXP -> SEXP -> result SEXP ;
@@ -907,6 +908,72 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'al
    cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'fold%break' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (run%success
+     fold%return
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_skip S
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%break' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (let%success a :=
+     fold%return a := e
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_success S a
+   using S in cont)
+    (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%break' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (let%success (a1, a2) :=
+     fold%return (a1, a2) := e
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_success S (a1, a2)
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (let%success (a1, a2, a3) :=
+     fold%return (a1, a2, a3) := e
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_success S (a1, a2, a3)
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (let%success (a1, a2, a3, a4) :=
+     fold%return (a1, a2, a3, a4) := e
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_success S (a1, a2, a3, a4)
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' S ',' runs ',' globals 'in' cont" :=
+  (let%success (a1, a2, a3, a4, a5) :=
+     fold%return (a1, a2, a3, a4, a5) := e
+     along le
+     as l_car, l_tag
+     do iterate
+     using S, runs, globals
+     in result_success S (a1, a2, a3, a4, a5)
+   using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** * Long Jump Monads **)
 
@@ -1193,6 +1260,60 @@ Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for' i
    for i from start to last
    do let '(a1, a2, a3, a4, a5, a6) := a in body using S
    in let '(a1, a2, a3, a4, a5, a6) := a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (run%success
+     do%exit
+     for i from start to last
+     do body using S
+     in result_skip S using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' a ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%success a :=
+     do%exit a := e
+     for i from start to last
+     do body using S
+     in result_success S a using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' '(' a1 ',' a2 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%success (a1, a2) :=
+     do%exit (a1, a2) := e
+     for i from start to last
+     do body using S
+     in result_success S (a1, a2) using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' '(' a1 ',' a2 ',' a3 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%success (a1, a2, a3) :=
+     do%exit (a1, a2, a3) := e
+     for i from start to last
+     do body using S
+     in result_success S (a1, a2, a3) using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%success (a1, a2, a3, a4) :=
+     do%exit (a1, a2, a3, a4) := e
+     for i from start to last
+     do body using S
+     in result_success S (a1, a2, a3, a4) using S
+   in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'do%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'using' S 'in' cont" :=
+  (let%success (a1, a2, a3, a4, a5) :=
+     do%exit (a1, a2, a3, a4, a5) := e
+     for i from start to last
+     do body using S
+     in result_success S (a1, a2, a3, a4, a5) using S
+   in cont)
   (at level 50, left associativity) : monad_scope.
 
 

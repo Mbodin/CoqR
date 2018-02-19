@@ -30,6 +30,12 @@ Notation "'add%stack' fname 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
+Definition unimplemented_function (A : Type) fname : result A :=
+  add%stack fname in
+  result_not_implemented ("Function not implemented: " ++ fname ++ ".").
+Arguments unimplemented_function [A].
+
+
 (** ** [let]-monads **)
 
 (** The monad for result. **)

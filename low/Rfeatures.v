@@ -102,7 +102,7 @@ Definition do_attr S (call op args env : SEXP) : result SEXP :=
       else
         let%success s_type := TYPEOF S s using S in
         ifb s_type = EnvSxp then
-          result_not_implemented "R_checkStack"
+          unimplemented_function "R_checkStack"
         else
           let%success exact :=
             ifb nargs = 3 then
@@ -120,21 +120,19 @@ Definition do_attr S (call op args env : SEXP) : result SEXP :=
           else
             let%success str := translateChar S t_0 using S in
             let%success alist := ATTRIB S s using S in
-            let%success (vmatch, tag) :=
-              fold%return (vmatch, tag) := (enum_none, R_NilValue : SEXP)
-              along alist
-              as _, alist_tag do
-                let tmp := alist_tag in
-                let%success tmp_name := PRINTNAME S tmp using S in
-                let%success s := CHAR S tmp_name using S in
-                ifb s = str then
-                  result_rreturn S (enum_full, tmp)
-                else if String.prefix str s then
-                  ifb vmatch = enum_partial \/ vmatch = enum_partial2 then
-                    result_rsuccess S (enum_partial2, tag)
-                  else result_rsuccess S (enum_partial, tmp)
-                else result_rsuccess S (vmatch, tag) using S, runs, globals in
-              result_success S (vmatch, tag) using S in
+            fold%break (vmatch, tag) := (enum_none, R_NilValue : SEXP)
+            along alist
+            as _, alist_tag do
+              let tmp := alist_tag in
+              let%success tmp_name := PRINTNAME S tmp using S in
+              let%success s := CHAR S tmp_name using S in
+              ifb s = str then
+                result_rreturn S (enum_full, tmp)
+              else if String.prefix str s then
+                ifb vmatch = enum_partial \/ vmatch = enum_partial2 then
+                  result_rsuccess S (enum_partial2, tag)
+                else result_rsuccess S (enum_partial, tmp)
+              else result_rsuccess S (vmatch, tag) using S, runs, globals in
             ifb vmatch = enum_partial2 then
               result_success S (R_NilValue : SEXP)
             else
@@ -191,7 +189,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
       read%list _, ans_cdr_cdr, _ := ans_cdr using S in
       read%list ans_cdr_cdr_car, _, _ := ans_cdr_cdr using S in
       let value := ans_cdr_cdr_car in
-      result_not_implemented "check_slot_assign"
+      unimplemented_function "check_slot_assign"
   else
     read%list args_car, args_cdr, _ := args using S in
     let obj := args_car in
@@ -280,7 +278,7 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
       let%success s4 := IS_S4_OBJECT S args_car using S in
       let%success t := TYPEOF S args_car using S in
       ifb s4 /\ t = S4Sxp then
-        result_not_implemented "R_getS4DataSlot"
+        unimplemented_function "R_getS4DataSlot"
       else
         write%Logical ans at 0 := decide (t = SymSxp) using S in
         result_skip S
@@ -288,7 +286,7 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
       let%success s4 := IS_S4_OBJECT S args_car using S in
       let%success t := TYPEOF S args_car using S in
       ifb s4 /\ t = S4Sxp then
-        result_not_implemented "R_getS4DataSlot"
+        unimplemented_function "R_getS4DataSlot"
       else
         write%Logical ans at 0 := decide (t = EnvSxp) using S in
         result_skip S
@@ -548,7 +546,7 @@ Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
         let%success x_lgl := isLogical S x using S in
         write%Logical ans at 0 := x_vec && negb x_lgl using S in
         result_skip S
-      else result_not_implemented "type2char" using S in
+      else unimplemented_function "type2char" using S in
     run%success
       read%Logical ans_0 := ans at 0 using S in
       let%success args_car_attr := ATTRIB S args_car using S in
@@ -1200,7 +1198,7 @@ Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
       fold%success (nameData, data) := (tt, data)
       along args
       as args_car, _ do
-        result_not_implemented "NewExtractNames" using S, runs, globals in
+        unimplemented_function "NewExtractNames" using S, runs, globals in
       run%success setAttrib globals runs S ans R_NamesSymbol (BindData_ans_names data) using S in
       result_success S data
     else result_success S data using S in
@@ -1554,7 +1552,7 @@ Definition simple_as_environment S arg :=
   let%success arg_s4 := IS_S4_OBJECT S arg using S in
   let%success arg_type := TYPEOF S arg using S in
   ifb arg_s4 /\ arg_type = S4Sxp then
-    result_not_implemented "R_getS4DataSlot"
+    unimplemented_function "R_getS4DataSlot"
   else result_success S (R_NilValue : SEXP).
 
 Definition do_eval S (call op args rho : SEXP) : result SEXP :=
@@ -1583,7 +1581,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
     let%success env_s4 := IS_S4_OBJECT S env using S in
     let%success env_type := TYPEOF S env using S in
     ifb env_s4 /\ env_type = S4Sxp then
-      result_not_implemented "R_getS4DataSlot"
+      unimplemented_function "R_getS4DataSlot"
     else result_success S env using S in
   let%success env_type := TYPEOF S env using S in
   let%success env :=
@@ -1596,7 +1594,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
       let%success d := duplicate globals runs S args_cdr_car using S in
       NewEnvironment globals runs S R_NilValue d encl
     | VecSxp =>
-      result_not_implemented "VectorToPairListNamed"
+      unimplemented_function "VectorToPairListNamed"
     | IntSxp
     | RealSxp =>
       let%success env_len := R_length globals runs S env using S in
@@ -1606,7 +1604,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         let%success frame := asInteger globals S env using S in
         ifb frame = NA_INTEGER then
           result_error S "Invalid argument ‘envir’ after convertion."
-        else result_not_implemented "R_sysframe"
+        else unimplemented_function "R_sysframe"
     | _ => result_error S "Invalid argument ‘envir’."
     end using S in
   let%success expr :=
@@ -1637,7 +1635,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         ifb jmp <> empty_context_type then
           do%let tmp := R_NilValue : SEXP
           for i from 0 to n - 1 do
-            result_not_implemented "getSrcref" using S
+            unimplemented_function "getSrcref" using S
         else
           let tmp := R_ReturnedValue S in
           ifb tmp = R_RestartToken then
@@ -1733,7 +1731,7 @@ Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
     write%Pointer class at 0 := class0 using S in
     let (S, class1) := mkChar globals S "connection" in
     write%Pointer class at 1 := class1 using S in
-    run%success classgets S ans class using S in
+    run%success classgets globals runs S ans class using S in
     run%success
       ifb what > 2 then
         let%success ex_ptr := result_not_implemented "External pointer." using S in
@@ -1909,7 +1907,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                     let%success str := PRINTNAME S s using S in
                     CHAR S str
                   else if%success isVectorAtomic S s using S then
-                    result_not_implemented "EncodeElement0 (First step)"
+                    unimplemented_function "EncodeElement0"
                   else if%success isVectorList S s using S then
                     result_success S ""%string
                   else result_error S "Argument can not be handled by cat." using S in
@@ -1923,7 +1921,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
                         let%success str := STRING_ELT S s (1 + i) using S in
                         trChar S str
                       else
-                        result_not_implemented "EncodeElement0 (Second loop)"
+                        unimplemented_function "EncodeElement0"
                       using S in
                     result_success S (ntot, nlines, p)
                   else result_success S (ntot - 1, nlines, p) using S in
@@ -1944,8 +1942,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
   in the file main/seq.c. **)
 
 Definition cross_colon (S : state) (call s t : SEXP) : result SEXP :=
-  add%stack "cross_colon" in
-  result_not_implemented "".
+  unimplemented_function "cross_colon".
 
 Definition seq_colon S n1 n2 (call : SEXP) : result SEXP :=
   add%stack "seq_colon" in
@@ -2035,8 +2032,7 @@ Definition sign x :=
   in the file main/complex.c. **)
 
 Definition complex_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  add%stack "complex_binary" in
-  result_not_implemented "".
+  unimplemented_function "complex_binary".
 
 Definition complex_unary S (code : int) s1 :=
   add%stack "complex_unary" in
@@ -2056,8 +2052,7 @@ Definition complex_unary S (code : int) s1 :=
     else result_error S "Invalid unary operator.".
 
 Definition complex_math1 (S : state) (call op args env : SEXP) : result SEXP :=
-  add%stack "complex_math1" in
-  result_not_implemented "".
+  unimplemented_function "complex_math1".
 
 
 (** * arithmetic.c **)
@@ -2071,12 +2066,10 @@ Definition R_finite (x : double) :=
 Definition R_FINITE := R_finite.
 
 Definition real_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  add%stack "real_binary" in
-  result_not_implemented "".
+  unimplemented_function "real_binary".
 
 Definition integer_binary (S : state) (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
-  add%stack "integer_binary" in
-  result_not_implemented "".
+  unimplemented_function "integer_binary".
 
 Definition COERCE_IF_NEEDED S v tp :=
   add%stack "COERCE_IF_NEEDED" in
@@ -2401,7 +2394,7 @@ Definition do_arith S (call op args env : SEXP) : result SEXP :=
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+      if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
         result_rreturn S ans
       else result_rskip S
     else ifb argc = 2 then
@@ -2537,7 +2530,7 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
   add%stack "do_math1" in
   run%success Rf_checkArityCall S op args call using S in
   run%success Rf_check1arg S args call "x" using S in
-  if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+  if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
     result_success S ans
   else
     read%list args_car, _, _ := args using S in
@@ -2596,7 +2589,7 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
         let (S, ans) := CONS_NR globals S x elkm in
         run%success DECREMENT_LINKS S x using S in
         result_rreturn S (false, ans)
-      else result_not_implemented "R_mkEVPROMISE_NR"
+      else unimplemented_function "R_mkEVPROMISE_NR"
     else result_rsuccess S (NULL, args) using S in
   let%success (disp, ans) :=
     DispatchOrEval globals runs S call op generic args rho false false using S in
@@ -2647,6 +2640,14 @@ Definition ExtractDropArg S el :=
   ifb drop = NA_LOGICAL then
     result_success S true
   else result_success S (decide (drop <> 0)).
+
+Definition VectorSubset S (x s call : SEXP) :=
+  add%stack "VectorSubset" in
+  ifb s = R_MissingArg then
+    duplicate globals runs S x
+  else
+    let%success attrib := getAttrib globals runs S x R_DimSymbol using S in
+    unimplemented_function "isMatrix".
 
 Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in
@@ -2765,7 +2766,7 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
         let%success ndim := R_length globals runs S dim using S in
         let%success ax :=
           ifb ndim > 1 then
-            result_not_implemented "allocArray"
+            unimplemented_function "allocArray"
           else
             let%success x_len := R_length globals runs S x using S in
             let%success ax := allocVector globals S VecSxp x_len using S in
@@ -2779,7 +2780,83 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
           result_success S (1 + i) using S, runs, globals in
         result_success S ax
       else result_error S "Object is not subsettable." using S in
-    result_not_implemented "VectorSubset".
+    let%success ans :=
+      ifb nsubs < 2 then
+        let%success dim := getAttrib globals runs S x R_DimSymbol using S in
+        let%success ndim := R_length globals runs S dim using S in
+        read%list subs_car, _, _ := subs using S in
+        let%success ans := VectorSubset S ax (ifb nsubs = 1 then subs_car else R_MissingArg) call using S in
+        run%success
+          ifb ndim = 1 then
+            let%success len := R_length globals runs S ans using S in
+            ifb ~ drop \/ len > 1 then
+              let%success nm := getAttrib globals runs S ans R_NamesSymbol using S in
+              let (S, attr) := ScalarInteger globals S len in
+              run%success
+                let%success dim_names := getAttrib globals runs S dim R_NamesSymbol using S in
+                let%success dim_names_null := isNull S dim_names using S in
+                if negb dim_names_null then
+                  run%success setAttrib globals runs S attr R_NamesSymbol dim_names using S in
+                  result_skip S
+                else result_skip S using S in
+              run%success setAttrib globals runs S ans R_DimSymbol attr using S in
+              let%success attrib := getAttrib globals runs S x R_DimNamesSymbol using S in
+              ifb attrib <> R_NilValue then
+                let%success nattrib := duplicate globals runs S attrib using S in
+                run%success SET_VECTOR_ELT S nattrib 0 nm using S in
+                run%success setAttrib globals runs S ans R_DimNamesSymbol nattrib using S in
+                run%success setAttrib globals runs S ans R_NamesSymbol R_NilValue using S in
+                result_skip S
+              else result_skip S
+            else result_skip S
+          else result_skip S using S in
+        result_success S ans
+      else
+        let%success x_dim := getAttrib globals runs S x R_DimSymbol using S in
+        let%success x_dim_len := R_length globals runs S x_dim using S in
+        ifb nsubs <> x_dim_len then
+          result_error S "Incorrect number of dimensions."
+        else ifb nsubs = 2 then
+          unimplemented_function "MatrixSubset"
+        else unimplemented_function "ArraySubset" using S in
+    let%success ans :=
+      ifb type = LangSxp then
+        let ax := ans in
+        let%success ax_len := LENGTH globals S ax using S in
+        let (S, ans) := allocList globals S ax_len in
+        run%success
+          ifb ax_len > 0 then
+            map%pointer ans with set_type LangSxp using S in
+            fold%success i := 0
+            along ans
+            as px, _, _ do
+              let%success ax_i := VECTOR_ELT S ax i using S in
+              set%car px := ax_i using S in
+              result_success S (1 + i) using S, runs, globals in
+            run%success
+              let%success ax_dim := getAttrib globals runs S ax R_DimSymbol using S in
+              setAttrib globals runs S ans R_DimSymbol ax_dim using S in
+            run%success
+              let%success ax_dimn := getAttrib globals runs S ax R_DimNamesSymbol using S in
+              setAttrib globals runs S ans R_DimNamesSymbol ax_dimn using S in
+            run%success
+              let%success ax_names := getAttrib globals runs S ax R_NamesSymbol using S in
+              setAttrib globals runs S ans R_NamesSymbol ax_names using S in
+            run%success
+              let%success ax_named := NAMED S ax using S in
+              RAISE_NAMED S ans ax_named using S in
+            result_skip S
+          else result_skip S using S in
+        result_success S ans
+      else result_success S ans using S in
+    run%success
+      let%success ans_attr := ATTRIB S ans using S in
+      ifb ans_attr <> R_NilValue then
+        run%success setAttrib globals runs S ans R_TspSymbol R_NilValue using S in
+        run%success setAttrib globals runs S ans R_ClassSymbol R_NilValue using S in
+        result_skip S
+      else result_skip S using S in
+    result_success S ans.
 
 Definition do_subset S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset" in
@@ -2819,9 +2896,13 @@ Definition DO_SCALAR_RELOP_int S (oper x y : int) :=
 Definition DO_SCALAR_RELOP_double S (oper : int) (x y : double) :=
   add%stack "DO_SCALAR_RELOP_double" in
   ifb oper = EQOP then
-    result_success S (ScalarLogical globals (decide (x = y)))
+    result_success S (ScalarLogical globals
+      (ifb Double.is_zero x /\ Double.is_zero y then true
+       else decide (x = y)))
   else ifb oper = NEOP then
-    result_success S (ScalarLogical globals (decide (x <> y)))
+    result_success S (ScalarLogical globals
+      (ifb Double.is_zero x /\ Double.is_zero y then false
+       else decide (x <> y)))
   else ifb oper = LTOP then
     result_success S (ScalarLogical globals (decide (x < y)))
   else ifb oper = GTOP then
@@ -2915,16 +2996,13 @@ Definition numeric_relop S code s1 s2 :=
   result_success S ans.
 
 Definition string_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  add%stack "string_relop" in
-  result_not_implemented "".
+  unimplemented_function "string_relop".
 
 Definition complex_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  add%stack "complex_relop" in
-  result_not_implemented "".
+  unimplemented_function "complex_relop".
 
 Definition raw_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  add%stack "raw_relop" in
-  result_not_implemented "".
+  unimplemented_function "raw_relop".
 
 Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
   add%stack "do_relop_dflt" in
@@ -2985,7 +3063,7 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
         let%success tmp_0 :=
           if iS then
             PRINTNAME S x
-          else result_not_implemented "deparse1" using S in
+          else unimplemented_function "deparse1" using S in
         run%success SET_STRING_ELT S tmp 0 tmp_0 using S in
         result_success S tmp
       else result_success S x using S in
@@ -2997,7 +3075,7 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
         let%success tmp_0 :=
           if iS then
             PRINTNAME S y
-          else result_not_implemented "deparse1" using S in
+          else unimplemented_function "deparse1" using S in
         run%success SET_STRING_ELT S tmp 0 tmp_0 using S in
         result_success S tmp
       else result_success S y using S in
@@ -3166,7 +3244,7 @@ Definition do_relop S (call op args env : SEXP) : result SEXP :=
   read%defined arg2_ := arg1 using S in
   run%exit
     ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
-      if%defined ans := DispatchGroup globals S "Ops" call op args env using S then
+      if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
         result_rreturn S ans
       else result_rskip S
     else result_rskip S using S in
@@ -3302,8 +3380,7 @@ End Parameters.
 
 Definition dummy_function name (_ : Globals) (_ : runs_type)
     (S : state) (call op args rho : SEXP) : result SEXP :=
-  add%stack name in
-  result_not_implemented "".
+  unimplemented_function name.
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; try typeclass; constructors; typeclass.
@@ -3317,6 +3394,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_eval := fun S _ _ => result_bottom S ;
       runs_inherits := fun S _ _ => result_bottom S ;
       runs_getAttrib := fun S _ _ => result_bottom S ;
+      runs_setAttrib := fun S _ _ _ => result_bottom S ;
       runs_R_cycle_detected := fun S _ _ => result_bottom S ;
       runs_duplicate1 := fun S _ _ => result_bottom S ;
       runs_stripAttrib := fun S _ _ => result_bottom S ;
@@ -3347,6 +3425,7 @@ Fixpoint runs max_step globals : runs_type :=
       runs_eval := wrap eval ;
       runs_inherits := wrap inherits ;
       runs_getAttrib := wrap getAttrib ;
+      runs_setAttrib := wrap setAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
       runs_duplicate1 := wrap duplicate1 ;
       runs_stripAttrib := wrap stripAttrib ;

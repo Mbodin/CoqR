@@ -239,7 +239,6 @@ NA_complex_ == NA_complex_ ; NA_complex_ = NA_integer_ ; NA_complex_ = NA_charac
 NA_integer_ == NA_complex_ ; NA_integer_ = NA_integer_ ; NA_integer_ = NA_character_ ; NA_integer_ = NA_real_
 NA_character_ == NA_complex_ ; NA_character_ = NA_integer_ ; NA_character_ = NA_character_ ; NA_character_ = NA_real_
 NA_real_ == NA_complex_ ; NA_real_ = NA_integer_ ; NA_real_ = NA_character_ ; NA_real_ = NA_real_
-NA_complex_ ; NA_integer_ ; NA_character_ ; NA_real_
 NULL == 0 ; NULL == NA ; NULL == NaN ; NULL == FALSE ; NULL == TRUE
 0 == -0 ; 0L == -0L ; 1/Inf == 0 ; -1/Inf == 0 ; NaN == Inf - Inf
 .Internal == .Internal
@@ -456,14 +455,17 @@ a <- 1 ; attr (a, "f") <- 2 ; x <- "" ; attr (attr (a, x <- paste (x, "f")), "g"
 f <- function () { x <<- x + 1 ; "f" } ; x <- 0 ; a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, f ()), "g") <- 3 ; x ; a ; attr (a, "f") ; attr (attr (a, "f"), "g")
 a <- 1 ; f <- function () { a <<- 2 ; "f" } ; attr (a, "f") <- 3 ; attr (attr (a, f ()), "g") <- 4 ; a ; attr (a, "f") ; attr (attr (a, "f"), "g")
 
-# Tests about the “dim” and “names” attributes.
+# Tests about special attributes.
 a <- 1:10 ; attr (a, "dim") <- 1
 a <- 1:10 ; attr (a, "dim") <- NaN
 a <- 1:10 ; attr (a, "dim") <- NA
 a <- 1:10 ; attr (a, "dim") <- TRUE
 a <- 1:10 ; attr (a, "dim") <- "a"
+a <- 1:10 ; attr (a, "dim") <- c () ; attr (a, "dim") <- list ()
 a <- 1:10 ; attr (a, "dim") <- "10" ; attr (a, "dim") ; a ; a [5] ; a [5, 1]
 a <- 1:10 ; attr (a, "dim") <- 10.5 ; attr (a, "dim") ; a ; a [5] ; attr (a, "dim") <- 10 ; a ; a [5] ; attr (a, "dim") <- NULL ; a ; a [] ; a [5]
+a <- 1:10 ; attr (a, "dim") <- c (2, -1, 5, -1)
+a <- 1:10 ; attr (a, "dim") <- c (2, NA, 5)
 a <- 1:10 ; attr (a, "dim") <- c (2, 5) ; attr (a, "dim") ; a ; a [5] ; a [2, 3] ; a [0, 0] ; a [] ; a [-1] ; a [-2] ; a [1,] ; a [-1,] ; a [-1, -2] ; a [1, -3] ; attr (a [1, -3], "dim") ; attr (a [1, -3], "dim") <- c (2, 2) ; attr (a [1, -3], "dim")
 a <- 1:27 ; attr (a, "dim") <- c (3, 3, 3) ; a ; a [1] ; a [1, 2, 3] ; a [1, 2]
 a <- 1:27 ; attr (a, "dim") <- c (3, 3, 3, 1) ; a ; a [10] ; a [-1] ; a [1, 2, 3, 1] ; a [1, 2, 3, 1] ; a [1, 2, 3, 0] ; attr (a[-1], "dim")
@@ -477,6 +479,12 @@ a <- 1:10 ; attr (a, "names") <- c (0.5, 1.5, 2, 2.5) ; a ; a [10] ; a [1] ; a [
 a <- 1:4 ; attr (a, "names") <- c (1, 1, 1, 1) ; a ; a [1]
 a <- 1:3 ; attr (a, "names") <- c ("a", "a", "a") ; a ; a ["a"] ; attr (a, "names") <- NULL ; a ; a [NULL]
 a <- 1:2 ; attr (a, "names") <- c ("abc", "def") ; a ["abc"] ; a ["ab"] ; a [""]
+a <- 1 ; attr (a, "class") <- c ("a", "b") ; attr (a, "class") <- 2
+a <- 1 ; attr (a, "class") <- NULL ; a ; attr (a, "class") <- NA
+a <- NULL ; attr (a, "class") <- c () ; attr (a, "class") <- ""
+a <- 1 ; attr (a, "class") <- "factor"
+a <- 1 ; attr (a, "class") <- c ("a", "factor", "b")
+a <- 1L ; attr (a, "class") <- "factor" ; attr (a, "class") <- c ("a", "factor", "b")
 
 # Tests about cat (for outputs).
 .Internal (cat (list ("Hello", "world"), 1, " ", 1000, "", FALSE))

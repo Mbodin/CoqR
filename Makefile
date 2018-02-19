@@ -68,6 +68,9 @@ clean_interp:
 low/funlist.ml: low/low.mli low/gen-funlist.pl
 	${AT}low/gen-funlist.pl
 
+low/Extraction.vo: Makefile.coq
+	${AT}+make -f Makefile.coq $@
+
 low/low.ml: low/Extraction.vo
 	${AT}mv low.ml low/low.ml || true
 
