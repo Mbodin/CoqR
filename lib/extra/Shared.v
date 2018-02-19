@@ -166,6 +166,10 @@ Proof.
   - do 2 rewrite nth_succ. apply~ IHn. rew_list in I. nat_math.
 Qed.
 
+Lemma remove_correct : forall A `{Comparable A} l (a1 a2 : A),
+  mem a1 (remove a2 l) <-> mem a1 l /\ a1 <> a2.
+Proof. introv. unfold remove. rewrite filter_mem_eq. rew_refl*. Qed.
+
 
 Global Instance No_duplicates_decidable : forall A (l : list A),
     Comparable A ->
@@ -748,3 +752,125 @@ Tactic Notation "orefine" uconstr(term) :=
 
 Tactic Notation "simple" "orefine" uconstr(term) :=
   unshelve oexact term.
+
+
+(** * Some extensions of LibBag. **)
+
+Require Import TLC.LibBag.
+
+Global Instance Comparable_BagIn_list : forall T,
+    Comparable T ->
+    BagIn T (list T) :=
+  fun T C => Build_BagIn (@Mem _).
+
+Global Instance Comparable_BagIn_Decidable : forall T t l,
+  Comparable T ->
+  Decidable (t \in l).
+Proof. introv C. simpl. typeclass. Qed.
+
+Global Instance Comparable_BagIn_Decidable_not : forall T t l,
+  Comparable T ->
+  Decidable (t \notin l).
+Proof. introv C. typeclass. Qed.
+
+Global Instance BagEmpty_list : forall T,
+    BagEmpty (list T) :=
+  fun T => Build_BagEmpty nil.
+
+Lemma BagInEmpty_list : forall T `{Comparable T} (t : T),
+  t \notin (\{} : list T).
+Proof. introv I. simpl in I. rewrite Mem_mem in I. rewrite* mem_nil in I. Qed.
+
+Global Instance BagSingle_list : forall T,
+    BagSingle T (list T) :=
+  fun T => Build_BagSingle (fun t => [t]).
+
+Lemma BagInSingle_list : forall T `{Comparable T} (t1 t2 : T),
+  t1 \in (\{t2} : list T) <-> t1 = t2.
+Proof. introv. simpl. iff I; [repeat inverts I as I | substs ]; autos~. Qed.
+
+Global Instance Comparable_BagRemove_list : forall T,
+    Comparable T ->
+    BagRemove (list T) T :=
+  fun T C => Build_BagRemove (fun l t => LibList.remove t l).
+
+Lemma BagRemove_list_notin : forall T `{Comparable T} l (t : T),
+  t \notin l \- t.
+Proof.
+  introv I. simpl in I.
+  rewrite Mem_mem in I. rewrite remove_correct in I. false*.
+Qed.
+
+Lemma BagRemove_list_in : forall T `{Comparable T} l (t1 t2 : T),
+  t1 <> t2 ->
+  t1 \in l ->
+  t1 \in l \- t2.
+Proof. introv D I. simpl in *. rewrite Mem_mem in *. rewrite* remove_correct. Qed.
+
+Global Instance Comparable_BagRemove_list_list : forall T,
+    Comparable T ->
+    BagRemove (list T) (list T) :=
+  fun T C => Build_BagRemove (fun l1 l2 =>
+    filter (fun t => decide (t \notin l2)) l1).
+
+Lemma BagRemove_list_list : forall T `{Comparable T} (l1 l2 : list T) t,
+  t \in l1 \- l2 <-> t \in l1 /\ t \notin l2.
+Proof. introv. simpl. repeat rewrite Mem_mem. rewrite filter_mem_eq. rew_refl*. Qed.
+
+Global Instance Comparable_BagUnion_list : forall T,
+    Comparable T ->
+    BagUnion (list T) :=
+  fun T C => Build_BagUnion (fun l1 l2 => l1 ++ (l2 \- l1)).
+
+Lemma BagUnion_list : forall T `{Comparable T} (l1 l2 : list T) t,
+  t \in l1 \u l2 <-> t \in l1 \/ t \in l2.
+Proof.
+  introv. simpl. repeat rewrite Mem_mem.
+  rewrite mem_app. rewrite filter_mem_eq. rew_refl. iff~ [I|I].
+   inverts~ I.
+   tests I': (t \in l1); autos~. simpl in I'. rewrite~ Mem_mem in I'.
+Qed.
+
+Global Instance Comparable_BagInter_list : forall T,
+    Comparable T ->
+    BagInter (list T) :=
+  fun T C => Build_BagInter (fun l1 l2 =>
+    filter (fun t => decide (t \in l1)) l2).
+
+Lemma BagInter_list : forall T `{Comparable T} (l1 l2 : list T) t,
+  t \in l1 \n l2 <-> t \in l1 /\ t \in l2.
+Proof.
+  introv. simpl. repeat rewrite Mem_mem.
+  rewrite filter_mem_eq. rew_refl. rewrite* Mem_mem.
+Qed.
+
+Global Instance Comparable_BagIncl_list : forall T,
+    Comparable T ->
+    BagIncl (list T) :=
+  fun T C => Build_BagIncl (fun l1 l2 => Forall (fun t => Mem t l2) l1).
+
+Global Instance Comparable_BagIncl_Decidable : forall T `{Comparable T} (l1 l2 : list T),
+  Decidable (l1 \c l2).
+Proof. introv. simpl. typeclass. Qed.
+
+Global Instance Comparable_BagDisjoint_list : forall T,
+    Comparable T ->
+    BagDisjoint (list T) :=
+  fun T C => Build_BagDisjoint (fun l1 l2 => Forall (fun t => ~ Mem t l1) l2).
+
+Global Instance Comparable_BagDisjoint_Decidable : forall T `{Comparable T} (l1 l2 : list T),
+  Decidable (l1 \# l2).
+Proof. introv. simpl. typeclass. Qed.
+
+Lemma BagDisjoint_in : forall T `{Comparable T} (l1 l2 : list T),
+  l1 \# l2 <-> ~ exists t, t \in l1 /\ t \in l2.
+Proof.
+  introv. simpl. rewrite Forall_iff_forall_mem. rew_logic. iff I.
+   introv (I1&I2). applys~ I; rewrite Mem_mem in *; autos*.
+   introv I1 I2. applys~ I. repeat rewrite Mem_mem in *. autos*.
+Qed.
+
+Lemma BagDisjoint_com : forall T `{Comparable T} (l1 l2 : list T),
+  l1 \# l2 <-> l2 \# l1.
+Proof. introv. repeat rewrite BagDisjoint_in. rew_logic*. Qed.
+

@@ -3,6 +3,7 @@
   defined in Rcore, Rinit, and Rfeatures. **)
 
 Set Implicit Arguments.
+Require Import TLC.LibBag.
 Require Export Rinit Rfeatures Path.
 
 
@@ -11,7 +12,62 @@ Definition bound (S : state) p := exists p_, read_SExp S p = Some p_.
 (* Inductive null_pointer_exceptions : path -> Prop := . *)
 
 Definition may_have_type S p l :=
-  exists p_, read_SExp S p = Some p_ /\ Mem (type p_) l.
+  exists p_, read_SExp S p = Some p_ /\ type p_ \in l.
+
+Lemma may_have_type_nil : forall S p,
+  ~ may_have_type S p nil.
+Proof. introv (p_&E&M). applys~ BagInEmpty_list M. Qed.
+
+Lemma may_have_type_merge : forall S p l1 l2,
+  may_have_type S p l1 ->
+  may_have_type S p l2 ->
+  may_have_type S p (l1 \n l2).
+Proof.
+  introv (p1_&E1&M1) (p2_&E2&M2).
+  rewrite E1 in E2. inverts E2. exists p2_. splits~.
+  rewrite~ BagInter_list.
+Qed.
+
+Ltac compute_is_in x l :=
+  match l with
+  | nil => constr:(false)
+  | x :: _ => constr:(true)
+  | _ :: ?l =>
+    let r := compute_is_in x l in r
+  end.
+
+Ltac compute_list_inter l1 l2 :=
+  match l1 with
+  | nil => l1
+  | ?a :: ?l =>
+    let isi := compute_is_in a l2 in
+    let r := compute_list_inter l l2 in
+    match isi with
+    | true => r
+    | false => constr:(a :: r)
+    end
+  end.
+
+Goal 1 = 2.
+  asserts_rewrite (1 = 3).
+
+Ltac simpl_list_inter :=
+  let solve_eq := idtac in
+  repeat match goal with
+  | |- context [ ?l1 \n ?l2 ] =>
+    let l := compute_list_inter l1 l2 in
+    asserts_rewrite (l1 \n l2 = l); [solve_eq|]
+  | H : context [ ?l1 \n ?l2 ] |- _ =>
+    let l := compute_list_inter l1 l2 in
+    asserts_rewrite (l1 \n l2 = l) in H; [solve_eq|]
+  end.
+
+Goal forall l, l = [NilSxp ; IntSxp] \n [IntSxp] -> True.
+  introv I.
+  (*simpl_list_inter.*)
+  let l := compute_list_inter [NilSxp; IntSxp] [IntSxp] in
+  asserts_rewrite ([NilSxp; IntSxp] \n [IntSxp] = l) in I.
+TODO (solve_eq).
 
 Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
     SExpType_corresponds_to_data_NilSxp :
