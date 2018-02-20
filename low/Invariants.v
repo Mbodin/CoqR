@@ -7,12 +7,21 @@ Require Import TLC.LibBag.
 Require Export Rinit Rfeatures Path.
 
 
+(** * Predicates to speak about the memory **)
+
+(** ** A pointer is valid **)
+
 Definition bound (S : state) p := exists p_, read_SExp S p = Some p_.
 
-(* Inductive null_pointer_exceptions : path -> Prop := . *)
+(** ** A pointer is associated a given type **)
 
-Definition may_have_type S p l :=
+Definition may_have_type (S : state) p l :=
   exists p_, read_SExp S p = Some p_ /\ type p_ \in l.
+
+Lemma may_have_type_bound : forall S p l,
+  may_have_type S p l ->
+  bound S p.
+Proof. introv (p_&E&?). exists* p_. Qed.
 
 Lemma may_have_type_nil : forall S p,
   ~ may_have_type S p nil.
@@ -28,46 +37,44 @@ Proof.
   rewrite~ BagInter_list.
 Qed.
 
-Ltac compute_is_in x l :=
-  match l with
-  | nil => constr:(false)
-  | x :: _ => constr:(true)
-  | _ :: ?l =>
-    let r := compute_is_in x l in r
-  end.
+(** ** List pointers **)
 
-Ltac compute_list_inter l1 l2 :=
-  match l1 with
-  | nil => l1
-  | ?a :: ?l =>
-    let isi := compute_is_in a l2 in
-    let r := compute_list_inter l l2 in
-    match isi with
-    | true => r
-    | false => constr:(a :: r)
-    end
-  end.
+Inductive list_type (S : state) p l_t l_car l_tag : Prop := make_list_type {
+  list_type_intro : exists p_ header car cdr tag,
+    read_SExp S p = Some p_
+    /\ p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
+    /\ type p_ \in l_t
+    /\ may_have_type S car l_car
+    /\ list_type S cdr l_t l_car l_tag
+    /\ may_have_type S tag l_tag
+  }.
 
-Goal 1 = 2.
-  asserts_rewrite (1 = 3).
+Lemma list_type_may_have_type : forall S p l_t l_car l_tag,
+  list_type S p l_t l_car l_tag ->
+  may_have_type S p l_t.
+Proof. introv [(p_&?&?&?&?&?&?&?&?&?&?)]. exists* p_. Qed.
 
-Ltac simpl_list_inter :=
-  let solve_eq := idtac in
-  repeat match goal with
-  | |- context [ ?l1 \n ?l2 ] =>
-    let l := compute_list_inter l1 l2 in
-    asserts_rewrite (l1 \n l2 = l); [solve_eq|]
-  | H : context [ ?l1 \n ?l2 ] |- _ =>
-    let l := compute_list_inter l1 l2 in
-    asserts_rewrite (l1 \n l2 = l) in H; [solve_eq|]
-  end.
+Lemma list_type_merge : forall S p l1_t l2_t l1_car l2_car l1_tag l2_tag,
+  list_type S p l1_t l1_car l1_tag ->
+  list_type S p l2_t l2_car l2_tag ->
+  list_type S p (l1_t \n l2_t) (l1_car \n l2_car) (l1_tag \n l2_tag).
+Proof.
+  introv T1 T2. gen l2_t l2_car l2_tag.
+  induction T1 as [(p1_&h1&car1&cdr1&tag1&E1&M1&H1&A1&L1&T1)].
+  introv [(p2_&h2&car2&cdr2&tag2&E2&M2&H2&A2&L2&T2)].
+  constructors. exists p1_ h1 car1 cdr1 tag1.
+  rewrite E1 in E2. inversion E2 as [E3]. rewrite E3 in *.
+  rewrite M2 in M1. inverts M1. splits~.
+  - rewrite~ BagInter_list.
+  - apply~ may_have_type_merge.
+  - 
+  - apply~ may_have_type_merge.
+Qed.
 
-Goal forall l, l = [NilSxp ; IntSxp] \n [IntSxp] -> True.
-  introv I.
-  (*simpl_list_inter.*)
-  let l := compute_list_inter [NilSxp; IntSxp] [IntSxp] in
-  asserts_rewrite ([NilSxp; IntSxp] \n [IntSxp] = l) in I.
-TODO (solve_eq).
+
+(** * Invariants about the state. **)
+
+(* Inductive null_pointer_exceptions : path -> Prop := . *)
 
 Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
     SExpType_corresponds_to_data_NilSxp :
@@ -213,6 +220,48 @@ Record safe_state S := make_safe_state {
       safe_pointer S p
   }.
 
+
+(** * Tactics **)
+
+(** ** Simplifying tactics **)
+
+Ltac compute_is_in x l :=
+  match l with
+  | nil => constr:(false)
+  | x :: _ => constr:(true)
+  | _ :: ?l =>
+    let r := compute_is_in x l in r
+  end.
+
+Ltac compute_list_inter l1 l2 :=
+  match l2 with
+  | nil => l2
+  | ?a :: ?l =>
+    let isi := compute_is_in a l1 in
+    let r := compute_list_inter l1 l in
+    match isi with
+    | true => constr:(a :: r)
+    | false => r
+    end
+  end.
+
+(** The following tactic computes any occurence of [l1 \n l2] in the goal. **)
+Ltac simpl_list_inter :=
+  let solve_eq :=
+    clear; simpl;
+    repeat
+      (rewrite filter_cons;
+       let C := fresh "C" in
+       cases_if as C; fold_bool; rew_refl in C; tryfalse~;
+       fequals; clear C) in
+  repeat match goal with
+  | |- context [ ?l1 \n ?l2 ] =>
+    let l := compute_list_inter l1 l2 in
+    asserts_rewrite (l1 \n l2 = l); [solve_eq|]
+  | H : context [ ?l1 \n ?l2 ] |- _ =>
+    let l := compute_list_inter l1 l2 in
+    asserts_rewrite (l1 \n l2 = l) in H; [solve_eq|]
+  end.
 
 (* TODO *)
 
