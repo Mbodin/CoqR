@@ -155,8 +155,6 @@ Qed.
 
 (** * Invariants about the state. **)
 
-(* Inductive null_pointer_exceptions : path -> Prop := . *)
-
 Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
     SExpType_corresponds_to_data_NilSxp :
       type e_ = NilSxp ->
@@ -180,7 +178,7 @@ Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
       exists header formals body env,
         e_ = make_NonVector_SExpRec header (make_CloSxp_struct formals body env)
         /\ list_type S ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) formals
-        (*/\ may_have_types S ( body[(*TODO*)])*)
+        (*/\ may_have_types S ([(*TODO*)]) body*)
         /\ may_have_types S ([EnvSxp]) env ;
     SExpType_corresponds_to_data_EnvSxp :
       type e_ = EnvSxp ->
@@ -241,7 +239,7 @@ Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
                (make_VecSxp_struct (ArrayList.length array) array))
         (*/\ forall a,
           Mem a (ArrayList.to_list array) ->
-          may_have_types S ( a[(*TODO*)])*) ;
+          may_have_types S ([(*TODO*)]) a*) ;
     SExpType_corresponds_to_data_ExprSxp :
       type e_ = ExprSxp ->
       exists header array,
@@ -249,7 +247,7 @@ Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
                (make_VecSxp_struct (ArrayList.length array) array))
         (*/\ forall a,
           Mem a (ArrayList.to_list array) ->
-          may_have_types S ( a[(*TODO*)])*) ;
+          may_have_types S ([(*TODO*)]) a*) ;
     (** The following four types have not been implemented. **)
     SExpType_corresponds_to_data_BcodeSxp :
       type e_ = BcodeSxp -> True ;
@@ -273,10 +271,40 @@ Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
       type e_ <> FunSxp
   }.
 
+Inductive null_pointer_exceptions_entry : entry_point -> Prop :=
+  | null_pointer_exceptions_context_promargs :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_promargs)
+  | null_pointer_exceptions_context_callfun :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_callfun)
+  | null_pointer_exceptions_context_sysparent :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_sysparent)
+  | null_pointer_exceptions_context_call :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_call)
+  | null_pointer_exceptions_context_cloenv :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_cloenv)
+  | null_pointer_exceptions_context_conexit :
+    null_pointer_exceptions_entry
+      (Econtext (context_path_entry Pstate_context) Scontext_conexit)
+  | null_pointer_exceptions_context_returnValue : forall cp,
+    null_pointer_exceptions_entry (Econtext cp Scontext_returnValue)
+  .
+
+Inductive null_pointer_exceptions_suffix : list path_step -> Prop :=
+  | null_pointer_symbol_value :
+    null_pointer_exceptions_suffix ([SNonVectorSym Ssym_value])
+  (* FIXME: BindData_ans_ptr *)
+  (* FIXME: BindData_ans_names *)
+  .
+
 Record safe_pointer S p := make_safe_pointer {
     pointer_bound : bound S p ;
     no_null_pointer_along_path : forall path,
-      (* ~ null_pointer_exceptions ?? -> *)
+      ~ null_pointer_exceptions_suffix path ->
       move_along_path_from path S p <> Some NULL ;
     safe_bindings_along_path : forall p e,
       move_along_path p S = Some e ->
@@ -289,14 +317,28 @@ Record safe_pointer S p := make_safe_pointer {
   }.
 
 Record safe_state S := make_safe_state {
+    no_null_pointer_entry_point : forall e,
+      ~ null_pointer_exceptions_entry e ->
+      move_along_entry_point e S <> Some NULL ;
     safe_entry_points : forall e p,
       move_along_entry_point e S = Some p ->
+      p <> NULL ->
       safe_pointer S p ;
     only_one_nil : forall p1 p2,
       may_have_types S ([NilSxp]) p1 ->
       may_have_types S ([NilSxp]) p2 ->
       p1 = p2
   }.
+
+Definition safe_result_param A P_success P_error P_longjump (r : result A) :=
+  match r with
+  | result_success S0 r => P_success S0 r
+  | result_longjump S0 n c => P_longjump S0 n c
+  | result_error_stack S0 st msg => P_error S0
+  | result_impossible_stack S0 st msg => False
+  | result_not_implemented_stack st msg => True
+  | result_bottom S0 => True
+  end.
 
 
 (** * Tactics **)

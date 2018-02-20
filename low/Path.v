@@ -205,5 +205,12 @@ Definition path_from_list (el : entry_point * list path_step) :=
   let (e, l) := el in
   fold_left (fun s p => Pstep p s) (Pentry e) l.
 
+Inductive suffix : path -> list path_step -> Prop :=
+  | suffix_nil : forall p, suffix p nil
+  | suffix_cons : forall p s l,
+    suffix p l ->
+    suffix (Pstep p s) (l & s)
+  .
+
 End Parametrised.
 
