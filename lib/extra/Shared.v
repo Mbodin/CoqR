@@ -853,6 +853,39 @@ Global Instance Comparable_BagIncl_Decidable : forall T `{Comparable T} (l1 l2 :
   Decidable (l1 \c l2).
 Proof. introv. simpl. typeclass. Qed.
 
+Lemma BagInIncl : forall T `{Comparable T} (l1 l2 : list T) t,
+  t \in l1 ->
+  l1 \c l2 ->
+  t \in l2.
+Proof.
+  introv I C. simpls. rewrite Forall_iff_forall_mem in C.
+  rewrite Mem_mem in I. applys~ C I.
+Qed.
+
+Lemma BagInIncl_make : forall T `{Comparable T} (l1 l2 : list T),
+  (forall_ t \in l1, t \in l2) ->
+  l1 \c l2.
+Proof.
+  introv I. simpls. rewrite Forall_iff_forall_mem.
+  introv M. rewrite <- Mem_mem in M. applys~ I M.
+Qed.
+
+Lemma BagUnionIncl_left : forall T `{Comparable T} (l1 l2 : list T),
+  l1 \c l1 \u l2.
+Proof. introv. apply BagInIncl_make. introv I. rewrite* BagUnion_list. Qed.
+
+Lemma BagUnionIncl_right : forall T `{Comparable T} (l1 l2 : list T),
+  l2 \c l1 \u l2.
+Proof. introv. apply BagInIncl_make. introv I. rewrite* BagUnion_list. Qed.
+
+Lemma BagInterIncl_left : forall T `{Comparable T} (l1 l2 : list T),
+  l1 \n l2 \c l1.
+Proof. introv. apply BagInIncl_make. introv I. rewrite* BagInter_list in I. Qed.
+
+Lemma BagInterIncl_right : forall T `{Comparable T} (l1 l2 : list T),
+  l1 \n l2 \c l2.
+Proof. introv. apply BagInIncl_make. introv I. rewrite* BagInter_list in I. Qed.
+
 Global Instance Comparable_BagDisjoint_list : forall T,
     Comparable T ->
     BagDisjoint (list T) :=
