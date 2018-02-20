@@ -32,6 +32,21 @@ Definition all_SExpTypes : list SExpType.
   list_all_constructors.
 Defined.
 
+(** All the SExpTypes that can be stored in an object. **)
+Definition all_storable_SExpTypes : list SExpType.
+  let rec filter l :=
+    match l with
+    | nil => l
+    | NewSxp :: ?l => filter l
+    | FreeSxp :: ?l => filter l
+    | FunSxp :: ?l => filter l
+    | ?t :: ?l => let r := filter l in constr:(t :: r)
+    end in
+  let l := eval unfold all_SExpTypes in all_SExpTypes in
+  let l := filter l in
+  exact l.
+Defined.
+
 Definition bool_to_nat (b : bool) : nat :=
   if b then 1 else 0.
 Coercion bool_to_nat : bool >-> nat.
