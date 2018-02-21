@@ -832,6 +832,40 @@ Proof.
   lets E4: alloc_read_SExp_Some E1. rewrite E3 in E4. inverts E4.
 Qed.
 
+Lemma read_write_SExp_eq : forall (S S' : state) p e_,
+  write_SExp S p e_ = Some S' ->
+  read_SExp S' p = Some e_.
+Proof.
+  introv W. unfolds in W. destruct write_memory_SExp eqn:E; inverts W.
+  apply* write_memory_SExp_read_SExp_same.
+Qed.
+
+Lemma read_write_SExp_neq : forall (S S' : state) p1 p2 e_,
+  write_SExp S p1 e_ = Some S' ->
+  p1 <> p2 ->
+  read_SExp S' p2 = read_SExp S p2.
+Proof.
+  introv W D. unfolds in W. destruct write_memory_SExp eqn:E; inverts W.
+  applys* write_memory_SExp_read_SExp D.
+Qed.
+
+Lemma alloc_read_SExp_neq : forall S1 S2 e1 e2 e_,
+  alloc_SExp S1 e_ = (S2, e2) ->
+  e1 <> e2 ->
+  read_SExp S2 e1 = read_SExp S1 e1.
+Proof.
+  introv A D. inverts A. unfolds. simpl. destruct~ e1.
+  unfolds read_SExp_nat. simpl. apply* read_option_write.
+Qed.
+
+Lemma alloc_read_SExp_fresh : forall S S' e e_,
+  alloc_SExp S e_ = (S', e) ->
+  read_SExp S e = None.
+Proof.
+  introv A. inverts A. simpl. apply not_indom_read_option.
+  rewrite stream_head_nth. apply* state_fresh_locations_fresh.
+Qed.
+
 
 (** * Initial Memory **)
 

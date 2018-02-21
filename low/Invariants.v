@@ -167,6 +167,8 @@ Qed.
 
 (** * Invariants about the state. **)
 
+(** ** Invariants **)
+
 Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
     SExpType_corresponds_to_data_NilSxp :
       type e_ = NilSxp ->
@@ -353,6 +355,97 @@ Definition safe_result_param A P_success P_error P_longjump (r : result A) :=
   end.
 
 
+(** ** Transitions between states **)
+
+Definition conserve_old_binding S S' := forall p,
+  bound S p ->
+  bound_such_that S (fun e_ =>
+    bound_such_that S' (fun e'_ => e_ = e'_) p) p.
+
+
+(** ** Useful Lemmae **)
+
+Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
+  alloc_SExp S e_ = (S', e) ->
+  conserve_old_binding S S'.
+Proof.
+  introv A (p_&E&_). exists p_. splits~. exists p_. splits~.
+  eapply alloc_read_SExp_neq in A.
+  - rewrite~ A.
+  - introv D. substs. erewrite alloc_read_SExp_fresh in E; autos*. inverts* E.
+Qed.
+
+
+(** ** Lemmae to be used by tactics **)
+
+Lemma read_bound : forall (S : state) p p_,
+  read_SExp S p = Some p_ ->
+  bound S p.
+Proof. introv E. exists* p_. Qed.
+
+Lemma bound_read : forall (S : state) p,
+  bound S p ->
+  exists p_, read_SExp S p = Some p_.
+Proof. introv (p_&E&_). exists* p_. Qed.
+
+Lemma only_one_nil_SExprRec : forall S p1 p2 e1 e2 e1_ e2_,
+  safe_state S ->
+  move_along_path p1 S = Some e1 ->
+  move_along_path p2 S = Some e2 ->
+  read_SExp S e1 = Some e1_ ->
+  read_SExp S e2 = Some e2_ ->
+  type e1_ = NilSxp ->
+  type e2_ = NilSxp ->
+  e1 = e2.
+Proof.
+  introv Safe M1 M2 R1 R2 T1 T2.
+  applys~ only_one_nil Safe; eexists; splits*; apply~ BagInSingle_list.
+Qed.
+
+Lemma conserve_old_binding_read : forall S S' p p_,
+  conserve_old_binding S S' ->
+  read_SExp S p = Some p_ ->
+  read_SExp S' p = Some p_.
+Proof.
+  introv C E. lets (p1_&E1&(p2_&E2&E3)): C p.
+  - apply* read_bound.
+  - rewrite E in E1. inverts E1. substs~.
+Qed.
+
+Lemma conserve_old_binding_bound : forall S S' p,
+  conserve_old_binding S S' ->
+  bound S p ->
+  bound S' p.
+Proof.
+  introv C (p_&E&_). lets (p1_&E1&(p2_&E2&E3)): C p.
+  - apply* read_bound.
+  - rewrite E in E1. inverts E1. substs. exists~ p2_.
+Qed.
+
+Lemma conserve_old_binding_may_have_types : forall S S' l p,
+  conserve_old_binding S S' ->
+  may_have_types S l p ->
+  may_have_types S' l p.
+Proof.
+  introv C (p_&E&T). lets (p1_&E1&(p2_&E2&E3)): C p.
+  - apply* read_bound.
+  - rewrite E in E1. inverts E1. substs. exists~ p2_.
+Qed.
+
+Lemma conserve_old_binding_list_type : forall S S' l_t l_car l_tag p,
+  conserve_old_binding S S' ->
+  list_type S l_t l_car l_tag p ->
+  list_type S' l_t l_car l_tag p.
+Proof.
+  introv C L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H A L T IH]
+    using list_type_ind'.
+  - apply list_type_nil. applys~ conserve_old_binding_may_have_types C.
+  - apply list_type_cons. exists p_. splits~.
+    + applys~ conserve_old_binding_read C.
+    + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
+Qed.
+
+
 (** * General tactics **)
 
 (** ** Simplifying tactics **)
@@ -409,17 +502,13 @@ Ltac simplify_context :=
   match goal with
   | T : may_have_types ?S nil ?p |- _ =>
     false; applys~ may_have_types_nil T
-  | T1 : may_have_types ?S1 ?l1 ?p1,
-    T2 : may_have_types ?S2 ?l2 ?p2 |- _ =>
-    syntactically_the_same p1 p2;
-    syntactically_the_same S1 S2;
+  | T1 : may_have_types ?S ?l1 ?p,
+    T2 : may_have_types ?S ?l2 ?p |- _ =>
     let T3 := fresh T1 T2 in
     lets T3: may_have_types_merge (rm T1) (rm T2);
     rename T3 into T1
-  | T1 : list_type ?S1 ?l1_t ?l1_car ?l1_tag ?p1,
-    T2 : list_type ?S2 ?l2_t ?l2_car ?l2_tag ?p2 |- _ =>
-    syntactically_the_same p1 p2;
-    syntactically_the_same S1 S2;
+  | T1 : list_type ?S ?l1_t ?l1_car ?l1_tag ?p,
+    T2 : list_type ?S ?l2_t ?l2_car ?l2_tag ?p |- _ =>
     let T3 := fresh T1 T2 in
     lets T3: list_type_merge (rm T1) (rm T2);
     rename T3 into T1
@@ -469,7 +558,8 @@ Ltac explode_list T :=
 Ltac clear_trivial :=
   repeat match goal with
   | T : True |- _ => clear T
-  | E : ?x = ?y |- _ => syntactically_the_same x y; clear E
+  | E : ?x = ?x |- _ => clear E
+  | H1 : ?P, H2 : ?P |- _ => clear H2
   | I : ?x \in [?y] |- _ => explode_list I
   end.
 
@@ -497,6 +587,119 @@ Ltac rewrite_read_SExp :=
   end; clear_trivial.
 
 
+(** ** Tactics taking advantage of the invariants **)
+
+(** *** Getting the invariant **)
+
+Ltac get_safe_state S :=
+  match goal with
+  | H : safe_state S |- _ => H
+  | H : safe_result_param ?P_success _ _ (result_success S _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S r, P_success S r -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    lets~ R: (rm I) H;
+    R
+  | H : safe_result_param _ ?P_error _ (result_error S _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S, P_error S -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    lets~ R: (rm I) H;
+    R
+  | H : safe_result_param _ _ ?P_longjump (result_longjump S _ _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S n c, P_longjump S n c -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    lets~ R: (rm I) H;
+    R
+  end.
+
+Ltac get_safe_pointer S p :=
+  match goal with
+  | H : safe_pointer S p |- _ => H
+  | _ =>
+    let H := get_safe_state S in
+    let R := fresh "Safe" in
+    lets~ R: safe_entry_points H;
+    R
+  end.
+
+Ltac get_safe_SExpRec S e_ :=
+  match goal with
+  | H : safe_SExpRec S e_ |- _ => H
+  | P : read_SExp S ?e = Some e_ |- _ =>
+    let H := get_safe_pointer S e in
+    let R := fresh "Safe" in
+    lets~ R: safe_SExpRec_along_path H P;
+    R
+  end.
+
+
+(** *** Simplifying the context **)
+
+Ltac simplify_context_using_invariant :=
+  repeat match goal with
+  | T1 : may_have_types ?S ([NilSxp]) ?p1,
+    T2 : may_have_types ?S ([NilSxp]) ?p2 |- _ =>
+    let Safe := get_safe_state S in
+    let E := fresh "E" in
+    lets E: only_one_nil Safe T1 (rm T2);
+    try rewrite E in *; clear_trivial
+  | R1 : read_SExp ?S ?p1 = Some ?p1_,
+    R2 : read_SExp ?S ?p2 = Some ?p2_,
+    T1 : type (get_SxpInfo ?p1_) = NilSxp,
+    T2 : type (get_SxpInfo ?p2_) = NilSxp |- _ =>
+    let Safe := get_safe_state S in
+    let E := fresh "E" in
+    lets~ E: only_one_nil_SExprRec Safe R1 R2 T1 T2;
+    try rewrite E in *;
+    let E_ := fresh "E_" in
+    asserts E_: (p1_ = p2_); [rewrite R1 in R2; inverts~ R2|];
+    try rewrite E_ in *;
+    clear_trivial
+  | _ => simplify_context
+  end.
+
+
+(** ** Transitions between states **)
+
+Ltac transition_conserve S S' :=
+  let C :=
+    match goal with
+    | C : conserve_old_binding S S' |- _ => C
+    | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
+      let C := fresh "C" in
+      lets~ C: alloc_SExp_conserve_old_binding E;
+      C
+    end in
+  first [
+      syntactically_the_same S S'
+    | repeat match goal with
+      | E : read_SExp S ?p = Some ?p_ |- _ =>
+        let E' := fresh E in
+        lets E': conserve_old_binding_read C (rm E);
+        rename E' into E
+      | E : bound S ?p |- _ =>
+        let E' := fresh E in
+        lets E': conserve_old_binding_bound C (rm E);
+        rename E' into E
+      | E : may_have_types S ?l ?p |- _ =>
+        let E' := fresh E in
+        lets E': conserve_old_binding_may_have_types C (rm E);
+        rename E' into E
+      | E : list_type S ?l_t ?l_car ?l_tag ?p |- _ =>
+        let E' := fresh E in
+        lets E': conserve_old_binding_list_type C (rm E);
+        rename E' into E
+      end ].
+
+(* TODO: transition_write_SExp *)
+(* TODO: Link these tactics to computeR. *)
+
+
 (** * Lemmae **)
 
 (** ** TYPEOF **)
@@ -514,9 +717,38 @@ Ltac get_result_lemma t :=
   | TYPEOF => TYPEOF_result
   end.
 
+Ltac solve_incl :=
+  solve [
+      apply~ BagUnionIncl_left
+    | apply~ BagUnionIncl_right
+    | apply~ BagInterIncl_left
+    | apply~ BagInterIncl_right
+    | apply* BagInIncl_make ].
+
+Ltac solve_premises_lemmae :=
+  autos~;
+  match goal with
+  | |- bound ?S ?p =>
+    solve [
+        apply~ may_have_types_bound
+      | apply* bound_such_that_weaken
+      | apply~ read_bound; solve_premises_lemmae ]
+  | |- bound_such_that ?S ?p =>
+    solve [
+        apply* bound_such_that_weaken ]
+  | |- may_have_types ?S ?l ?p =>
+    solve [
+        apply~ list_type_may_have_types; solve_premises_lemmae
+      | apply~ may_have_types_weaken; solve_incl ]
+  | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
+    solve [
+        apply~ list_type_nil ]
+  | |- _ => solve_premises
+  end.
+
 Ltac apply_result_lemma t :=
   let L := get_result_lemma t in
-  rewrite~ L; simplify_context.
+  rewrite L; simplify_context_using_invariant; try solve_premises_lemmae.
 
 Ltac computeR_step :=
   simplifyR;
@@ -526,7 +758,8 @@ Ltac computeR_step :=
     rewrite_read_SExp
   | |- context [ TYPEOF ?S ?e ] =>
     apply_result_lemma (TYPEOF S e)
-  end.
+  end;
+  clear_trivial.
 
 Ltac computeR :=
   repeat computeR_step.
