@@ -4,7 +4,7 @@
 
 Set Implicit Arguments.
 Require Import TLC.LibBag.
-Require Export Rinit Rfeatures Path.
+Require Export Rinit Rfeatures Path MonadTactics.
 
 Open Scope list_scope. (* FIXME: How to disable some notations of LibBag? *)
 
@@ -38,6 +38,18 @@ Proof. introv. apply* bound_such_that_weaken. Qed.
 Lemma may_have_types_nil : forall S p,
   ~ may_have_types S nil p.
 Proof. introv (p_&E&M). applys~ BagInEmpty_list M. Qed.
+
+Lemma may_have_types_cons : forall S t l p,
+  may_have_types S (t :: l) p <->
+  may_have_types S ([t]) p \/ may_have_types S l p.
+Proof.
+  introv. iff I.
+  - lets (p_&E&M): (rm I). apply BagIn_cons in M. lets [M'|M']: (rm M).
+    + left. exists p_. splits~. apply~ BagInSingle_list.
+    + right. exists* p_.
+  - lets [(p_&E&M)|(p_&E&M)]: (rm I); exists p_; splits~; apply* BagIn_cons.
+    left. apply~ BagInSingle_list.
+Qed.
 
 Lemma may_have_types_merge : forall S p l1 l2,
   may_have_types S l1 p ->
@@ -111,7 +123,7 @@ Lemma list_type_may_have_types : forall S p l_t l_car l_tag,
   may_have_types S (l_t \u [NilSxp]) p.
 Proof.
   introv I. destruct~ I as [? ? ? ? I|? ? ? ? (p_&E&h&car&cdr&tag&M&H&A&L&T)].
-  - applys may_have_types_weaken I. apply~ BagUnionIncl_right.
+  - applys~ may_have_types_weaken I. apply~ BagUnionIncl_right.
   - exists p_. splits~. applys~ BagInIncl H. apply~ BagUnionIncl_left.
 Qed.
 
@@ -341,7 +353,7 @@ Definition safe_result_param A P_success P_error P_longjump (r : result A) :=
   end.
 
 
-(** * Tactics **)
+(** * General tactics **)
 
 (** ** Simplifying tactics **)
 
@@ -388,21 +400,136 @@ Ltac simpl_list_inter :=
 
 (** *** Simplifying the context **)
 
+Ltac syntactically_the_same x y :=
+  match x with
+  | y => idtac
+  end.
+
 Ltac simplify_context :=
   match goal with
-  | H1 : may_have_types ?S1 ?l1 ?p1,
-    H2 : may_have_types ?S2 ?l2 ?p2 |- _ =>
-    let H3 := fresh H1 H2 in
-    lets H3: may_have_types_merge (rm H1) (rm H2);
-    rename H3 into H1
-  | H1 : list_type ?S1 ?p1 ?l1_t ?l1_car ?l1_tag,
-    H2 : list_type ?S2 ?p2 ?l2_t ?l2_car ?l2_tag |- _ =>
-    let H3 := fresh H1 H2 in
-    lets H3: list_type_merge (rm H1) (rm H2);
-    rename H3 into H1
+  | T : may_have_types ?S nil ?p |- _ =>
+    false; applys~ may_have_types_nil T
+  | T1 : may_have_types ?S1 ?l1 ?p1,
+    T2 : may_have_types ?S2 ?l2 ?p2 |- _ =>
+    syntactically_the_same p1 p2;
+    syntactically_the_same S1 S2;
+    let T3 := fresh T1 T2 in
+    lets T3: may_have_types_merge (rm T1) (rm T2);
+    rename T3 into T1
+  | T1 : list_type ?S1 ?l1_t ?l1_car ?l1_tag ?p1,
+    T2 : list_type ?S2 ?l2_t ?l2_car ?l2_tag ?p2 |- _ =>
+    syntactically_the_same p1 p2;
+    syntactically_the_same S1 S2;
+    let T3 := fresh T1 T2 in
+    lets T3: list_type_merge (rm T1) (rm T2);
+    rename T3 into T1
   end; simpl_list_inter.
 
 
+(** *** Automatic rewriting **)
+
+(** As this file defines a lot of tactics defining new names, it is
+  best to avoid explicitely having to use these new hypotheses by
+  their names.  The following tactic tries to automatically rewrites
+  what it can. **)
+
+Ltac selfrewrite :=
+  repeat match goal with
+  | H : _ = _ |- _ => rewrite~ H
+  end.
+
+
+(** *** Case analysis on lists **)
+
+Ltac explode_list T :=
+  match type of T with
+  | ?x \in nil =>
+    false; applys~ BagInEmpty_list T
+  | ?x \in [?y] =>
+    let T' := fresh T in
+    asserts T': (x = y); [applys~ BagInSingle_list T|];
+    clear T; rename T' into T
+  | ?x \in (?y :: ?l) =>
+    apply BagIn_cons in T;
+    let T' := fresh T in
+    lets [T'|T']: (rm T); rename T' into T;
+    [|explode_list T]
+  | may_have_types ?S nil ?x =>
+    false; applys~ may_have_types_nil T
+  | may_have_types ?S (?t :: ?l) ?x =>
+    apply may_have_types_cons in T;
+    let T' := fresh T in
+    lets [T'|T']: (rm T); rename T' into T;
+    [|explode_list T]
+  end.
+
+
+(** *** Clearing trivial hypotheses **)
+
+Ltac clear_trivial :=
+  repeat match goal with
+  | T : True |- _ => clear T
+  | E : ?x = ?y |- _ => syntactically_the_same x y; clear E
+  | I : ?x \in [?y] |- _ => explode_list I
+  end.
+
+
+(** ** Unfolding tactics **)
+
+(** *** Dealing with [read_SExp] **)
+
+Ltac rewrite_read_SExp :=
+  match goal with
+  | |- context [ read_SExp (state_memory ?S) ?e ] =>
+    let bound_such_that_prop T :=
+      let e_ := fresh e "_" in
+      let Ee_ := fresh "E" e_ in
+      let Pe_ := fresh T e_ in
+      lets (e_&Ee_&Pe_): (rm T);
+      try rewrite Ee_ in * in
+    match goal with
+    | E : read_SExp S e = _ |- _ => rewrite E
+    | T : may_have_types S ?l e |- _ => bound_such_that_prop T
+    | L : list_type_step S ?l e |- _ => bound_such_that_prop L
+    | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
+    | B : bound S e |- _ => bound_such_that_prop B
+    end
+  end; clear_trivial.
+
+
+(** * Lemmae **)
+
+(** ** TYPEOF **)
+
+Lemma TYPEOF_result : forall S x t,
+  may_have_types S ([t]) x ->
+  TYPEOF S x = result_success S t.
+Proof. introv T. unfolds. rewrite_read_SExp. simplifyR. selfrewrite. Qed.
+
+
+(** * Specific tactics **)
+
+Ltac get_result_lemma t :=
+  match get_head t with
+  | TYPEOF => TYPEOF_result
+  end.
+
+Ltac apply_result_lemma t :=
+  let L := get_result_lemma t in
+  rewrite~ L; simplify_context.
+
+Ltac computeR_step :=
+  simplifyR;
+  rewrite_read_SExp;
+  match goal with
+  | |- context [ read_SExp ?S ?x ] =>
+    rewrite_read_SExp
+  | |- context [ TYPEOF ?S ?e ] =>
+    apply_result_lemma (TYPEOF S e)
+  end.
+
+Ltac computeR :=
+  repeat computeR_step.
 
 
 (* TODO *)

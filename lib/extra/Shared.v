@@ -773,6 +773,10 @@ Global Instance Comparable_BagIn_Decidable_not : forall T t l,
   Decidable (t \notin l).
 Proof. introv C. typeclass. Qed.
 
+Lemma BagIn_cons : forall T `{Comparable T} (x y : T) l,
+  x \in (y :: l) <-> x = y \/ x \in l.
+Proof. introv. iff I; (inverts I as I; [ left~ | right~ ]). Qed.
+
 Global Instance BagEmpty_list : forall T,
     BagEmpty (list T) :=
   fun T => Build_BagEmpty nil.
