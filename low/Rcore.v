@@ -452,15 +452,16 @@ Definition CONS S (car cdr : SEXP) : state * SEXP :=
 
 Definition CONS_NR := CONS.
 
+Fixpoint allocList_aux S n p :=
+  match n with
+  | 0 => (S, p)
+  | S n =>
+    let (S, p) := allocList_aux S n p in
+    CONS S R_NilValue p
+  end.
+
 Definition allocList S (n : nat) : state * SEXP :=
-  let fix aux S n p :=
-    match n with
-    | 0 => (S, p)
-    | S n =>
-      let (S, p) := aux S n p in
-      CONS S R_NilValue p
-    end
-  in aux S n R_NilValue.
+  allocList_aux S n R_NilValue.
 
 Definition SET_ATTRIB S x v :=
   add%stack "SET_ATTRIB" in

@@ -401,6 +401,10 @@ Proof.
     + constructors*.
 Qed.
 
+Lemma No_duplicates_single : forall A (a : A),
+  No_duplicates [a].
+Proof. introv. apply~ No_duplicates_cons. introv I. inverts I. Qed.
+
 Lemma divide_list_No_duplicates : forall A (l l1 l2 : list A),
   No_duplicates l ->
   divide_list l = (l1, l2) ->
