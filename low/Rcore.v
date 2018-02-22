@@ -1416,7 +1416,7 @@ Definition R_cycle_detected S s child :=
       else result_success S false.
 
 
-(** * dstruct.c **)
+(** ** dstruct.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/dstruct.c. **)
@@ -1615,7 +1615,7 @@ Definition ScalarValue2 S x y :=
       allocVector S x_type 1.
 
 
-(** * util.c **)
+(** ** util.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/util.c. **)
@@ -1660,7 +1660,7 @@ Definition tsConform S x y :=
   else result_success S false.
 
 
-(** * printutils.c **)
+(** ** printutils.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/printutils.c. **)

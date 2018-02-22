@@ -7,7 +7,7 @@ Require Export Monads Loops.
 
 (** * Some useful definitions **)
 
-(** Aborting results **)
+(** ** Aborting results **)
 
 Definition aborting_result A (r : result A) :=
   match r with
@@ -25,6 +25,30 @@ Lemma impossible_result_aborting_result : forall A (r : result A),
   impossible_result r ->
   aborting_result r.
 Proof. introv I. destruct r; (reflexivity || false~ I). Qed.
+
+
+(** ** Generic result property **)
+
+Definition result_prop A P_success P_error P_longjump (r : result A) :=
+  match r with
+  | result_success S0 r => P_success S0 r
+  | result_longjump S0 n c => P_longjump S0 n c
+  | result_error_stack S0 st msg => P_error S0
+  | result_impossible_stack S0 st msg => False
+  | result_not_implemented_stack st msg => True
+  | result_bottom S0 => True
+  end.
+
+Lemma result_prop_weaken : forall A (r : result A)
+    (P1_success P2_success : _ -> _ -> Prop)
+    (P1_error P2_error : _ -> Prop)
+    (P1_longjump P2_longjump : _ -> _ -> _ -> Prop),
+  (forall S r, P1_success S r -> P2_success S r) ->
+  (forall S, P1_error S -> P2_error S) ->
+  (forall S n c, P1_longjump S n c -> P2_longjump S n c) ->
+  result_prop P1_success P1_error P1_longjump r ->
+  result_prop P2_success P2_error P2_longjump r.
+Proof. introv I1 I2 I3. destruct r; simpl; autos~. Qed.
 
 
 (** ** Updating the type of a result **)
@@ -205,6 +229,11 @@ Lemma add_stack_simplify : forall A fname r S (a : A),
   add%stack fname in r = result_success S a.
 Proof. introv E. substs~. Qed.
 
+Lemma add_stack_result : forall A P_success P_error P_longjump fname (r : result A),
+  result_prop P_success P_error P_longjump r ->
+  result_prop P_success P_error P_longjump (add%stack fname in r).
+Proof. introv E. destruct~ r. Qed.
+
 
 (** *** [let]-monads **)
 
@@ -221,6 +250,14 @@ Lemma if_success_aborts : forall A B r (cont : state -> A -> result B),
   aborting_result r ->
   aborting_result (let%success a := r using S in cont S a).
 Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma if_success_result : forall A B r (cont : state -> A -> result B)
+    (P_success P'_success : _ -> _ -> Prop) P_error P_longjump,
+  (forall S a, P_success S a ->
+    result_prop P'_success P_error P_longjump (cont S a)) ->
+  result_prop P_success P_error P_longjump r ->
+  result_prop P'_success P_error P_longjump (let%success a := r using S in cont S a).
+Proof. introv I P. destruct* r. Qed.
 
 Lemma if_defined_msg_pass : forall A B S a msg (cont : A -> result B),
   let%defined a := Some a with msg using S in cont a
@@ -577,6 +614,12 @@ Ltac get_simplify_lemma t :=
   | add_stack => add_stack_simplify
   end.
 
+Ltac get_result_lemma t :=
+  match get_head t with
+  | add_stack => add_stack_result
+  | if_success => if_success_result
+  end.
+
 Ltac unfolds_get_impossible :=
   try unfolds get_impossible_stack_state;
   try unfolds get_impossible_stack_stack;
@@ -610,8 +653,15 @@ Ltac unfold_monad_pass t :=
   rewrite P; try solve_premises.
 
 Ltac unfold_monad_simplify t :=
-  let S := get_simplify_lemma t in
-  apply S; try solve_premises.
+  first [
+      let S := get_simplify_lemma t in
+      first [
+          solve [ apply* S; solve_premises ]
+        | apply S; try solve_premises ]
+    | let R := get_result_lemma t in
+      first [
+          solve [ apply* R; solve_premises ]
+        | apply R; try solve_premises ] ].
 
 Ltac unfold_monad_with_subresult t r :=
   first [

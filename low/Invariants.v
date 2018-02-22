@@ -1,6 +1,5 @@
 (** Invariants.
-  Contains the proofs of some invariants respected by the functions
-  defined in Rcore, Rinit, and Rfeatures. **)
+  States some invariants of R’s heap, as well as tactics to manipulate it. **)
 
 Set Implicit Arguments.
 Require Import TLC.LibBag.
@@ -344,16 +343,6 @@ Record safe_state S := make_safe_state {
       p1 = p2
   }.
 
-Definition safe_result_param A P_success P_error P_longjump (r : result A) :=
-  match r with
-  | result_success S0 r => P_success S0 r
-  | result_longjump S0 n c => P_longjump S0 n c
-  | result_error_stack S0 st msg => P_error S0
-  | result_impossible_stack S0 st msg => False
-  | result_not_implemented_stack st msg => True
-  | result_bottom S0 => True
-  end.
-
 
 (** ** Transitions between states **)
 
@@ -550,6 +539,21 @@ Ltac explode_list T :=
     let T' := fresh T in
     lets [T'|T']: (rm T); rename T' into T;
     [|explode_list T]
+  | Mem ?x nil =>
+    rewrite Mem_nil_eq in T; false~ T
+  | Mem ?x (?y :: ?l) =>
+    rewrite Mem_cons_eq in T;
+    let T' := fresh T in
+    lets [T'|T']: (rm T); rename T' into T;
+    [|explode_list T]
+  | mem ?x nil =>
+    rewrite mem_nil in T; false~ T
+  | mem ?x (?y :: ?l) =>
+    rewrite mem_cons in T;
+    rew_refl in T;
+    let T' := fresh T in
+    lets [T'|T']: (rm T); rename T' into T;
+    [|explode_list T]
   end.
 
 
@@ -586,6 +590,28 @@ Ltac rewrite_read_SExp :=
     end
   end; clear_trivial.
 
+(** Tries to prove a new equality of the form [write_SExp S p p_]. **)
+Ltac define_write_SExp S p p_ :=
+  match goal with
+  | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
+  | _ =>
+    let S' := fresh S in
+    let ES' := fresh "E" S' in
+    destruct (write_SExp S p p_) as [|S'] eqn:ES';
+    [ solve [
+          false;
+          match goal with
+          | A : alloc_SExp _ _ = (S, p) |- _ =>
+            applys~ alloc_write_SExp_not_None A ES'
+          | E : read_SExp S p = Some _ |- _ =>
+            let R := fresh "R" in
+            forwards~ R: write_read_SExp_None (rm ES');
+            rewrite R in E; inverts~ E
+          end
+        | autos~; simpl; autos* ]
+    | try rewrite ES'; try assumption ]
+  end.
+
 
 (** ** Tactics taking advantage of the invariants **)
 
@@ -594,21 +620,21 @@ Ltac rewrite_read_SExp :=
 Ltac get_safe_state S :=
   match goal with
   | H : safe_state S |- _ => H
-  | H : safe_result_param ?P_success _ _ (result_success S _) |- _ =>
+  | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
     let I := fresh "Impl" in
     asserts I: (forall S r, P_success S r -> safe_state S);
     [solve [autos*]|];
     let R := fresh "Safe" in
     lets~ R: (rm I) H;
     R
-  | H : safe_result_param _ ?P_error _ (result_error S _) |- _ =>
+  | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
     let I := fresh "Impl" in
     asserts I: (forall S, P_error S -> safe_state S);
     [solve [autos*]|];
     let R := fresh "Safe" in
     lets~ R: (rm I) H;
     R
-  | H : safe_result_param _ _ ?P_longjump (result_longjump S _ _) |- _ =>
+  | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
     let I := fresh "Impl" in
     asserts I: (forall S n c, P_longjump S n c -> safe_state S);
     [solve [autos*]|];
@@ -616,6 +642,13 @@ Ltac get_safe_state S :=
     lets~ R: (rm I) H;
     R
   end.
+
+Goal forall S, result_prop (fun S i => safe_state S /\ i > 0) (fun _ => False) (fun _ _ _ => False) (result_success S 1) -> False.
+  introv I.
+  asserts I': (forall S r, (fun S i => safe_state S /\ i > 0) S r -> safe_state S).
+  autos*.
+  lets R: (rm I') I.
+  let r := get_safe_state S in set (X := r).
 
 Ltac get_safe_pointer S p :=
   match goal with
@@ -664,9 +697,70 @@ Ltac simplify_context_using_invariant :=
   end.
 
 
+(** ** Proving that different locations are different **)
+
+(** We carry an hypothesis of the form [No_duplicates [p1; …; pn]]
+  aiming to differentiate as many pointers [SEXP] as possible. **)
+
+(** Generates a proof of [Nth n p l] if possible. **)
+Ltac find_Nth_No_duplicates p l :=
+  match l with
+  | p :: ?l' => constr:(Nth_here l' p)
+  | ?x :: ?l' =>
+    let N := find_Nth_No_duplicates p l' in
+    constr:(Nth_next x N)
+  end.
+
+Ltac prove_locations_different :=
+  match goal with
+  | |- ?p1 <> ?p2 =>
+    match goal with
+    | D : No_duplicates ?l |- _ =>
+      solve [
+        let N1 := find_Nth_No_duplicates p1 l in
+        let N2 := find_Nth_No_duplicates p2 l in
+        let E := fresh "E" in
+        forwards E: No_duplicates_Nth D N1 N2;
+        false~ E ]
+    | A : alloc_SExp ?S _ = (?S', p1),
+      R : read_SExp ?S p2 = Some _ |- _ =>
+      applys~ alloc_read_SExp_diff A R
+    | A : alloc_SExp ?S _ = (?S', p2),
+      R : read_SExp ?S p1 = Some _ |- _ =>
+      let E := fresh "E" in
+      introv E; symmetry in E;
+      applys~ alloc_read_SExp_diff A R E
+    end
+  end.
+
+Ltac prepare_No_duplicates_hypothesis :=
+  match goal with
+  | D : @No_duplicates SEXP _ |- _ => idtac
+  | _ =>
+    let D := fresh "D" in
+    forwards D: (No_duplicates_nil SEXP)
+  end.
+
+Ltac prepare_proofs_that_locations_are_different :=
+  prepare_No_duplicates_hypothesis;
+  repeat match goal with
+  | D : No_duplicates ?l,
+    A : alloc_SExp ?S ?p_ = (?S', ?p) |- _ =>
+    let D' := fresh D in
+    forwards D': No_duplicates_cons p D;
+    [ abstract (
+        let M := fresh "M" in
+        introv M;
+        explode_list M;
+        prove_locations_different)
+    | clear D; rename D' into D ]
+  end.
+
+
 (** ** Transitions between states **)
 
 Ltac transition_conserve S S' :=
+  prepare_proofs_that_locations_are_different;
   let C :=
     match goal with
     | C : conserve_old_binding S S' |- _ => C
@@ -682,6 +776,9 @@ Ltac transition_conserve S S' :=
         let E' := fresh E in
         lets E': conserve_old_binding_read C (rm E);
         rename E' into E
+      | A : alloc_SExp _ ?p_ = (S, ?p) |- _ =>
+        let E := fresh "E" in
+        lets E: alloc_read_SExp_eq (rm A)
       | E : bound S ?p |- _ =>
         let E' := fresh E in
         lets E': conserve_old_binding_bound C (rm E);
@@ -696,8 +793,32 @@ Ltac transition_conserve S S' :=
         rename E' into E
       end ].
 
-(* TODO: transition_write_SExp *)
-(* TODO: Link these tactics to computeR. *)
+Ltac transition_write_SExp S S' :=
+  prepare_proofs_that_locations_are_different;
+  let W :=
+    match goal with
+    | W : write_SExp S ?p ?p_ = Some S' |- _ => W
+    | E : Some S' = write_SExp S ?p ?p_ |- _ =>
+      let W := fresh E in
+      lets W: E; symmetry in W; try clear E;
+      W
+    end in
+  let R := fresh "E" in
+  lets~ R: read_write_SExp_eq W;
+  repeat match goal with
+  | E : read_SExp S ?p = Some ?p_ |- _ =>
+    match type of R with
+    | read_SExp S' p = _ => clear E
+    | read_SExp S' _ = _ =>
+      let E' := fresh E in
+      lets E': read_write_SExp_neq R E;
+      [ prove_locations_different | clear E ]
+    end
+  | A : alloc_SExp _ ?p_ = (S, ?p) |- _ => TODO
+  | E : bound S ?p |- _ => idtac "TODO"
+  | E : may_have_types S ?l ?p |- _ => idtac "TODO"
+  | E : list_type S ?l_t ?l_car ?l_tag ?p |- _ => idtac "TODO"
+  end.
 
 
 (** * Lemmae **)
@@ -756,6 +877,19 @@ Ltac computeR_step :=
   match goal with
   | |- context [ read_SExp ?S ?x ] =>
     rewrite_read_SExp
+  | |- context [ write_SExp ?S ?p ?p_ ] =>
+    define_write_SExp S p p_;
+    match goal with
+    | E : write_SExp S p p_ = Some ?S' |- _ =>
+      repeat rewrite E;
+      transition_write_SExp S S'
+    end
+  | |- context [ alloc_SExp ?S ?p_ ] =>
+    let p := fresh "p" in
+    let S' := fresh S in
+    let E := fresh "E" S' in
+    destruct (alloc_SExp S p_) as [S' p] eqn: E;
+    transition_conserve S S'
   | |- context [ TYPEOF ?S ?e ] =>
     apply_result_lemma (TYPEOF S e)
   end;
@@ -763,15 +897,4 @@ Ltac computeR_step :=
 
 Ltac computeR :=
   repeat computeR_step.
-
-
-(* TODO *)
-
-(* I think that it would be easy to use tactics to check that [setup_Rmainloop]
-  is indeed of the form [result_success S globals] or something like that. *)
-
-(** It would be nice to prove that the read-eval-print-loop can not
-  return a [result_impossible]. **)
-
-(** If runs returns a result, then adding fuel does not change it. **)
 

@@ -20,8 +20,9 @@ Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
 
+(** * Interpreter functions **)
 
-(** * errors.c **)
+(** ** errors.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/errors.c. **)
@@ -32,7 +33,7 @@ Definition WrongArgCount A S s : result A :=
 Arguments WrongArgCount [A].
 
 
-(** * util.c **)
+(** ** util.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/util.c. **)
@@ -64,7 +65,7 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
     else result_skip S.
 
 
-(** * attrib.c **)
+(** ** attrib.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/attrib.c. **)
@@ -215,7 +216,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
       result_success S obj.
 
 
-(** * coerce.c **)
+(** ** coerce.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/coerce.c. **)
@@ -563,7 +564,7 @@ Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
     result_success S ans.
 
 
-(** * envir.c **)
+(** ** envir.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/envir.c. **)
@@ -636,7 +637,7 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
     else result_error S "It can only be used for arguments.".
 
 
-(** * bind.c **)
+(** ** bind.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/bind.c. **)
@@ -1214,7 +1215,7 @@ Definition do_c S (call op args env : SEXP) : result SEXP :=
 
 
 
-(** * eval.c **)
+(** ** eval.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/eval.c. **)
@@ -1650,7 +1651,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
   result_success S expr.
 
 
-(** * connections.c **)
+(** ** connections.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/connections.c. **)
@@ -1741,7 +1742,7 @@ Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
     result_success S ans.
 
 
-(** * printutils.c **)
+(** ** printutils.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/printutils.c. **)
@@ -1753,7 +1754,7 @@ Definition Rprint S str :=
   run_print S con_num str.
 
 
-(** * builtin.c **)
+(** ** builtin.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/builtin.c. **)
@@ -1936,7 +1937,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
             result_success S (R_NilValue : SEXP).
 
 
-(** * seq.c **)
+(** ** seq.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/seq.c. **)
@@ -2014,7 +2015,7 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
       else seq_colon S n1 n2 call.
 
 
-(** * sign.c **)
+(** ** sign.c **)
 
 (** The function names of this section corresponds to the function names
   in the file nmath/sign.c. **)
@@ -2026,7 +2027,7 @@ Definition sign x :=
   else (-1)%Z.
 
 
-(** * complex.c **)
+(** ** complex.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/complex.c. **)
@@ -2055,7 +2056,7 @@ Definition complex_math1 (S : state) (call op args env : SEXP) : result SEXP :=
   unimplemented_function "complex_math1".
 
 
-(** * arithmetic.c **)
+(** ** arithmetic.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/arithmetic.c. **)
@@ -2570,7 +2571,7 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
       end.
 
 
-(** * subset.c **)
+(** ** subset.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/subset.c. **)
@@ -2872,7 +2873,7 @@ Definition do_subset S (call op args rho : SEXP) : result SEXP :=
   else do_subset_dflt S call op ans rho.
 
 
-(** * relop.c **)
+(** ** relop.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/relop.c. **)
@@ -3253,7 +3254,7 @@ Definition do_relop S (call op args env : SEXP) : result SEXP :=
   else do_relop_dflt S call op arg1 arg2.
 
 
-(** * names.c **)
+(** ** names.c **)
 
 (** The function names of this section corresponds to the function names
   in the file main/names.c. **)

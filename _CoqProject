@@ -29,6 +29,7 @@
 ./low/MonadTactics.v
 ./low/Path.v
 ./low/Invariants.v
+./low/InvariantProofs.v
 ./low/Relation.v
 
 

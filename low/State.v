@@ -866,6 +866,17 @@ Proof.
   rewrite stream_head_nth. apply* state_fresh_locations_fresh.
 Qed.
 
+Lemma alloc_read_SExp_eq : forall S S' e e_,
+  alloc_SExp S e_ = (S', e) ->
+  read_SExp S' e = Some e_.
+Proof. introv A. inverts A. apply read_option_write_same. Qed.
+
+Lemma alloc_read_SExp_diff : forall S S' p p' p_ p'_,
+  alloc_SExp S p_ = (S', p) ->
+  read_SExp S p' = Some p'_ ->
+  p <> p'.
+Proof. introv A E N. substs. rewrite (alloc_read_SExp_fresh A) in E. inverts~ E. Qed.
+
 
 (** * Initial Memory **)
 

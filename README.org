@@ -177,6 +177,10 @@ Provides abstractions to reason about the heap.
 
 *** Invariants.v
 
+States some invariants of R’s heap, as well as tactics to manipulate it.
+
+*** InvariantProofs.v
+
 Proofs of some invariants respected by the functions defined in Rcore.v,
 Rinit.v, and Rfeatures.v.
 
