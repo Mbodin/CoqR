@@ -831,3 +831,11 @@ Ltac unfold_monad :=
 Ltac simplifyR :=
   repeat (unfold_monad; repeat let_simpl).
 
+Ltac cutR P :=
+  match goal with
+  | |- result_prop ?P_success ?P_error ?P_longjump (if_success ?r ?cont) =>
+    first [
+        eapply if_success_result with (P_success := P)
+      | eapply if_success_result with (P_success := fun S _ => P S) ]
+  end.
+

@@ -535,6 +535,14 @@ Lemma conserve_old_binding_move_along_path_from_inv : forall S S' p e e',
   move_along_path_from p S e = Some e'.
 Admitted. (* TODO *)
 
+Lemma conserve_old_binding_move_along_path_None : forall S S' p e e',
+  conserve_old_binding S S' ->
+  bound S e ->
+  move_along_path_from p S e = Some e' ->
+  read_SExp S e' = None ->
+  read_SExp S' e' = None.
+Admitted. (* TODO *)
+
 Lemma conserve_old_binding_move_along_path_inv : forall S S' p e,
   conserve_old_binding S S' ->
   move_along_path p S' = Some e ->
@@ -572,13 +580,62 @@ Proof.
         rewrite E' in R. inverts~ R.
         applys~ conserve_old_binding_safe_SExpRec C.
         applys safe_SExpRec_along_path_from OKS R' E.
-      * false. forwards~ B: safe_bindings_along_path_from R'.
-        -- applys~ no_null_pointer_along_path_from R'. skip (* TODO: We may have to restructure a little this proof. *).
-        -- lets (e'_&E'): bound_read B. rewrite E' in E. inverts E.
+      * false. forwards~ N: conserve_old_binding_move_along_path_None C R' E.
+        -- applys~ pointer_bound OKS.
+        -- rewrite N in R. inverts~ R.
 Qed.
+
+Lemma alloc_SExp_safe_state : forall S S' p p_,
+  alloc_SExp S p_ = (S', p) ->
+  safe_state S ->
+  safe_SExpRec S p_ ->
+  safe_state S'.
+Proof.
+Admitted. (* TODO *)
+
+Lemma safe_make_SExpRec_list : forall S attrib car cdr tag,
+  safe_pointer S attrib ->
+  safe_pointer S car ->
+  safe_pointer S cdr ->
+  safe_pointer S tag ->
+  may_have_types S ([NilSxp; CharSxp]) tag ->
+  safe_SExpRec S (make_SExpRec_list attrib car cdr tag).
+Admitted. (* TODO *)
 
 
 (** * General tactics **)
+
+(** ** Applying the right lemma **)
+
+Ltac solve_incl :=
+  solve [
+      apply~ BagUnionIncl_left
+    | apply~ BagUnionIncl_right
+    | apply~ BagInterIncl_left
+    | apply~ BagInterIncl_right
+    | apply* BagInIncl_make ].
+
+Ltac solve_premises_lemmae :=
+  autos~;
+  match goal with
+  | |- bound ?S ?p =>
+    solve [
+        apply~ may_have_types_bound
+      | apply* bound_such_that_weaken
+      | apply~ read_bound; solve_premises_lemmae ]
+  | |- bound_such_that ?S ?p =>
+    solve [
+        apply* bound_such_that_weaken ]
+  | |- may_have_types ?S ?l ?p =>
+    solve [
+        apply~ list_type_may_have_types; solve_premises_lemmae
+      | apply~ may_have_types_weaken; solve_incl ]
+  | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
+    solve [
+        apply~ list_type_nil ]
+  | |- _ => solve_premises
+  end.
+
 
 (** ** Simplifying tactics **)
 
@@ -801,9 +858,22 @@ Ltac get_safe_SExpRec S e_ cont :=
   | H : safe_SExpRec S e_ |- _ => cont H
   | P : read_SExp S ?e = Some e_ |- _ =>
     get_safe_pointer S e ltac:(fun H =>
-      let R := fresh "Safe" in
+      let R := fresh "OK" in
       lets~ R: safe_SExpRec_along_path H P; [idtac];
       cont R)
+  | _ =>
+    match e_ with
+    | make_SExpRec_list ?attrib ?car ?cdr ?tag =>
+      get_safe_pointer S attrib ltac:(fun OKattrib =>
+        get_safe_pointer S car ltac:(fun OKcar =>
+          get_safe_pointer S cdr ltac:(fun OKcdr =>
+            get_safe_pointer S tag ltac:(fun OKtag =>
+              let R := fresh "OK" in
+              lets~ R: safe_make_SExpRec_list OKattrib OKcar OKcdr OKtag;
+              try solve_premises_lemmae;
+              [idtac];
+              cont R))))
+    end
   end.
 
 
@@ -1036,18 +1106,31 @@ Ltac transition_conserve S S' :=
       lets~ C: alloc_SExp_conserve_old_binding E;
       cont C
     end in
+  let update_safe_props_from_alloc A S S' p_ :=
+    repeat match goal with
+    | OKS : safe_state S |- _ =>
+      get_safe_SExpRec S p_ ltac:(fun OKp_ =>
+        let OKS' := fresh "OK" S' in
+        forwards~ OKS': alloc_SExp_safe_state A (rm OKS) OKp_;
+        let OKp_' := fresh OKp_ in
+        forwards~ OKp_': conserve_old_binding_safe_SExpRec (rm OKp_);
+        try applys~ alloc_SExp_conserve_old_binding A;
+        [idtac])
+    end in
   find_conserve ltac:(fun C =>
     first [
         syntactically_the_same S S'
       | repeat match goal with
-        | A : alloc_SExp _ ?p_ = (S, ?p) |- _ =>
+        | A : alloc_SExp ?S0 ?p_ = (S, ?p) |- _ =>
+          update_safe_props_from_alloc A S0 S p_;
           let E := fresh "E" in
           lets E: alloc_read_SExp_eq (rm A)
         | E : read_SExp S ?p = Some ?p_ |- _ =>
           let E' := fresh E in
           lets E': conserve_old_binding_read C (rm E);
           rename E' into E
-        | A : alloc_SExp _ ?p_ = (S', ?p) |- _ =>
+        | A : alloc_SExp ?S0 ?p_ = (S', ?p) |- _ =>
+          update_safe_props_from_alloc A S0 S' p_;
           let E := fresh "E" in
           lets E: alloc_read_SExp_eq (rm A)
         | B : bound S ?p |- _ =>
@@ -1131,7 +1214,8 @@ Lemma CONS_safe : forall globals S S' l_t l_car l_tag car cdr l,
   /\ list_type S' l_t l_car ([NilSxp] \u l_tag) l.
 Proof.
   introv OKS OKG Lcdr Tcar E. unfolds in E.
-  transition_conserve S S'. (*TODO*)
+  transition_conserve S S'.
+  (*TODO*)
 Admitted. (*
   splits~.
 Qed.
@@ -1187,38 +1271,23 @@ Ltac get_result_lemma t :=
   | TYPEOF => TYPEOF_result
   end.
 
-Ltac solve_incl :=
-  solve [
-      apply~ BagUnionIncl_left
-    | apply~ BagUnionIncl_right
-    | apply~ BagInterIncl_left
-    | apply~ BagInterIncl_right
-    | apply* BagInIncl_make ].
-
-Ltac solve_premises_lemmae :=
-  autos~;
+Ltac solve_premises_smart :=
   match goal with
-  | |- bound ?S ?p =>
-    solve [
-        apply~ may_have_types_bound
-      | apply* bound_such_that_weaken
-      | apply~ read_bound; solve_premises_lemmae ]
-  | |- bound_such_that ?S ?p =>
-    solve [
-        apply* bound_such_that_weaken ]
-  | |- may_have_types ?S ?l ?p =>
-    solve [
-        apply~ list_type_may_have_types; solve_premises_lemmae
-      | apply~ may_have_types_weaken; solve_incl ]
-  | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
-    solve [
-        apply~ list_type_nil ]
-  | |- _ => solve_premises
+  | |- safe_state ?S =>
+    get_safe_state S ltac:(fun OKS => apply~ OKS)
+  | |- safe_pointer ?S ?p =>
+    get_safe_pointer S p ltac:(fun OKp => apply~ OKp)
+  | |- safe_SExpRec ?S ?p_ =>
+    get_safe_SExpRec S p_ ltac:(fun OKp_ => apply~ OKp_)
+  | |- _ <> _ => prove_locations_different
+  | _ => solve_premises_lemmae
   end.
 
 Ltac apply_result_lemma t :=
   let L := get_result_lemma t in
-  rewrite L; simplify_context_using_invariant; try solve_premises_lemmae.
+  (rewrite L || eapply L);
+  simplify_context_using_invariant;
+  try solve_premises_smart.
 
 Ltac computeR_step :=
   simplifyR;
