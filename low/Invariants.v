@@ -349,23 +349,25 @@ Inductive null_pointer_exceptions_suffix : list path_step -> Prop :=
 
 Record safe_pointer S p := make_safe_pointer {
     pointer_bound : bound S p ;
-    no_null_pointer_along_path : forall path,
+    no_null_pointer_along_path_from : forall path p',
       ~ null_pointer_exceptions_suffix path ->
-      move_along_path_from path S p <> Some NULL ;
-    safe_bindings_along_path : forall p e,
-      move_along_path p S = Some e ->
+      move_along_path_from path S p = Some p' ->
+      p' <> NULL ;
+    safe_bindings_along_path_from : forall path e,
+      move_along_path_from path S p = Some e ->
       e <> NULL ->
       bound S e ;
-    safe_SExpRec_along_path : forall p e e_,
-      move_along_path p S = Some e ->
+    safe_SExpRec_along_path_from : forall path e e_,
+      move_along_path_from path S p = Some e ->
       read_SExp S e = Some e_ ->
       safe_SExpRec S e_
   }.
 
 Record safe_state S := make_safe_state {
-    no_null_pointer_entry_point : forall e,
+    no_null_pointer_entry_point : forall e p,
       ~ null_pointer_exceptions_entry e ->
-      move_along_entry_point e S <> Some NULL ;
+      move_along_entry_point e S = Some p ->
+      p <> NULL ;
     safe_entry_points : forall e p,
       move_along_entry_point e S = Some p ->
       p <> NULL ->
@@ -397,7 +399,21 @@ Definition conserve_old_binding S S' := forall p,
     bound_such_that S' (fun e'_ => e_ = e'_) p) p.
 
 
-(** ** Useful Lemmae **)
+(** ** Lemmae **)
+
+Lemma safe_bindings_along_path : forall S path e,
+  safe_state S ->
+  move_along_path path S = Some e ->
+  e <> NULL ->
+  bound S e.
+Admitted. (* TODO *)
+
+Lemma safe_SExpRec_along_path : forall S path e e_,
+  safe_state S ->
+  move_along_path path S = Some e ->
+  read_SExp S e = Some e_ ->
+  safe_SExpRec S e_.
+Admitted. (* TODO *)
 
 Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
   alloc_SExp S e_ = (S', e) ->
@@ -408,9 +424,6 @@ Proof.
   - rewrite~ A.
   - introv D. substs. erewrite alloc_read_SExp_fresh in E; autos*. inverts* E.
 Qed.
-
-
-(** ** Lemmae to be used by tactics **)
 
 Lemma read_bound : forall (S : state) p p_,
   read_SExp S p = Some p_ ->
@@ -477,6 +490,91 @@ Proof.
   - apply list_type_cons. exists p_. splits~.
     + applys~ conserve_old_binding_read C.
     + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
+Qed.
+
+Lemma conserve_old_binding_transitive : forall S1 S2 S3,
+  conserve_old_binding S1 S2 ->
+  conserve_old_binding S2 S3 ->
+  conserve_old_binding S1 S3.
+Proof.
+  introv C1 C2 (p_&E&_). exists p_. splits~.
+  forwards~ E1: conserve_old_binding_read C1 (rm E).
+  forwards~ E2: conserve_old_binding_read C2 (rm E1).
+  exists p_. splits~.
+Qed.
+
+Lemma conserve_old_binding_move_along_path_step : forall S S' p e e',
+  conserve_old_binding S S' ->
+  move_along_path_step p S e = Some e' ->
+  move_along_path_step p S' e = Some e'.
+Proof.
+  introv C E. unfolds in E. destruct (read_SExp S e) eqn: R.
+  - unfolds. forwards R': conserve_old_binding_read C R. rewrite~ R'.
+  - inverts~ E.
+Qed.
+
+Lemma conserve_old_binding_move_along_path_from : forall S S' p e e',
+  conserve_old_binding S S' ->
+  move_along_path_from p S e = Some e' ->
+  move_along_path_from p S' e = Some e'.
+Proof.
+  introv C M. unfolds move_along_path_from.
+  rewrite fold_left_eq_fold_right in *.
+  gen e e'. induction (rev p); introv M.
+  - inverts~ M.
+  - rew_list in *. destruct fold_right eqn: F.
+    + simpl in M. forwards M': conserve_old_binding_move_along_path_step C M.
+      erewrite IHl; [apply M'|]. rewrite~ F.
+    + inverts~ M.
+Qed.
+
+Lemma conserve_old_binding_move_along_path_from_inv : forall S S' p e e',
+  conserve_old_binding S S' ->
+  bound S e ->
+  move_along_path_from p S' e = Some e' ->
+  move_along_path_from p S e = Some e'.
+Admitted. (* TODO *)
+
+Lemma conserve_old_binding_move_along_path_inv : forall S S' p e,
+  conserve_old_binding S S' ->
+  move_along_path p S' = Some e ->
+  move_along_path p S = Some e.
+Admitted. (* TODO *)
+
+Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
+  conserve_old_binding S S' ->
+  safe_SExpRec S p_ ->
+  safe_SExpRec S' p_.
+Admitted. (* TODO *)
+
+Lemma conserve_old_binding_safe_pointer : forall S S' p,
+  conserve_old_binding S S' ->
+  safe_pointer S p ->
+  safe_pointer S' p.
+Proof.
+  introv C OKS. constructors~.
+  - (* pointer_bound *)
+    applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
+  - (* no_null_pointer_along_path_from *)
+    introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
+    applys~ conserve_old_binding_move_along_path_from_inv C.
+    applys~ pointer_bound OKS.
+  - (* safe_bindings_along_path_from *)
+    introv E D. forwards E': conserve_old_binding_move_along_path_from_inv C E.
+    + applys~ pointer_bound OKS.
+    + applys~ conserve_old_binding_bound C.
+      applys~ safe_bindings_along_path_from OKS E'.
+  - (* safe_SExpRec_along_path_from *)
+    introv M R. forwards R': conserve_old_binding_move_along_path_from_inv C M.
+    + applys~ pointer_bound OKS.
+    + destruct (read_SExp S e) as [e'_|] eqn: E.
+      * forwards E': conserve_old_binding_read C E.
+        rewrite E' in R. inverts~ R.
+        applys~ conserve_old_binding_safe_SExpRec C.
+        applys safe_SExpRec_along_path_from OKS R' E.
+      * false. forwards~ B: safe_bindings_along_path_from R'.
+        -- applys~ no_null_pointer_along_path_from R'. skip (* TODO: We may have to restructure a little this proof. *).
+        -- lets (e'_&E'): bound_read B. rewrite E' in E. inverts E.
 Qed.
 
 
@@ -753,8 +851,7 @@ Lemma noteq_sym : forall A (x y : A), x <> y -> y <> x.
 Proof. autos*. Qed.
 
 Ltac prove_locations_different :=
-  match goal with
-  | |- ?p1 <> ?p2 =>
+  let aux p1 p2 :=
     match goal with
     | D : No_duplicates ?l |- _ =>
       abstract (
@@ -832,47 +929,98 @@ Ltac prove_locations_different :=
       solve [
         let E := fresh "E" in
         introv E; substs; simplify_context; false~ ]
+    end in
+  match goal with
+  | |- ?p1 <> ?p2 => aux p1 p2
+  | |- ?p1 = ?p2 -> False => aux p1 p2
+  end.
+
+Ltac add_in_No_duplicates p :=
+  (** First step: we add it in any hypothesis we can. **)
+  repeat match goal with
+  | D : No_duplicates ?l |- _ =>
+    let already_in := compute_is_in p l in
+    match already_in with
+    | false =>
+      let D' := fresh D in
+      forwards D': No_duplicates_cons p D;
+      [ abstract (
+          let M := fresh "M" in
+          introv M;
+          explode_list M;
+          gen M;
+          prove_locations_different)
+      | clear D; rename D' into D ]
     end
+  end;
+  (** Second step: we check that at least one hypothesis **)
+  match goal with
+  | D : No_duplicates ?l |- _ =>
+    match l with
+    | context [p] =>
+      (** There is at least one hypothesis about this location. **)
+      idtac
+    end
+  | _ =>
+    (** There are no hypothesis about this location. **)
+    let D := fresh "D" in
+    forwards D: (No_duplicates_single p)
   end.
 
 Ltac prepare_No_duplicates_hypothesis :=
-  match goal with
-  | D : @No_duplicates SEXP _ |- _ => idtac
-  (*| _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_nil SEXP)*)
-  | R : read_SExp _ ?p = Some _ |- _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
-  | L : list_type _ _ _ _ ?p |- _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
-  | T : may_have_types _ _ ?p |- _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
-  | B : bound_such_that _ _ ?p |- _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
+  let already_has p :=
+    match goal with
+    | D : No_duplicates ?l |- _ =>
+      let already_in := compute_is_in p l in
+      match already_in with
+      | true => constr:(true)
+      end
+    | _ => constr:(false)
+    end in
+  let must_be_new p :=
+    let a := already_has p in
+    match a with
+    | false => idtac
+    end in
+  repeat match goal with
   | B : bound _ ?p |- _ =>
-    let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
+    must_be_new p;
+    add_in_No_duplicates p
+  | B : bound_such_that _ _ ?p |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | R : read_SExp _ ?p = Some _ |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | T : may_have_types _ _ ?p |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | L : list_type _ _ _ _ ?p |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | A : alloc_SExp _ _ = (_, ?p) |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | _ =>
+    let r :=
+      match goal with
+      | D : @No_duplicates SEXP _ |- _ => constr:(true)
+      | _ => constr:(false)
+      end in
+    match r with
+    | false =>
+      let D := fresh "D" in
+      forwards D: (No_duplicates_nil SEXP)
+    end
   end.
 
 (** This tactic must be call before the [read_SExp] expressions are
   updated to the new state. **)
 Ltac prepare_proofs_that_locations_are_different :=
   prepare_No_duplicates_hypothesis;
-  repeat match goal with
-  | D : No_duplicates ?l,
-    A : alloc_SExp ?S ?p_ = (?S', ?p) |- _ =>
-    let D' := fresh D in
-    forwards D': No_duplicates_cons p D;
-    [ abstract (
-        let M := fresh "M" in
-        introv M;
-        explode_list M;
-        prove_locations_different)
-    | clear D; rename D' into D ]
+  repeat progress match goal with
+  | A : alloc_SExp ?S ?p_ = (?S', ?p) |- _ =>
+    add_in_No_duplicates p
   end.
 
 
@@ -892,11 +1040,14 @@ Ltac transition_conserve S S' :=
     first [
         syntactically_the_same S S'
       | repeat match goal with
+        | A : alloc_SExp _ ?p_ = (S, ?p) |- _ =>
+          let E := fresh "E" in
+          lets E: alloc_read_SExp_eq (rm A)
         | E : read_SExp S ?p = Some ?p_ |- _ =>
           let E' := fresh E in
           lets E': conserve_old_binding_read C (rm E);
           rename E' into E
-        | A : alloc_SExp _ ?p_ = (S, ?p) |- _ =>
+        | A : alloc_SExp _ ?p_ = (S', ?p) |- _ =>
           let E := fresh "E" in
           lets E: alloc_read_SExp_eq (rm A)
         | B : bound S ?p |- _ =>
@@ -980,13 +1131,8 @@ Lemma CONS_safe : forall globals S S' l_t l_car l_tag car cdr l,
   /\ list_type S' l_t l_car ([NilSxp] \u l_tag) l.
 Proof.
   introv OKS OKG Lcdr Tcar E. unfolds in E.
-  transition_conserve S S'.
+  transition_conserve S S'. (*TODO*)
 Admitted. (*
-  asserts: (l <> cdr).
-      lets (p2_&E'&_): list_type_may_have_types Lcdr.
-      applys~ alloc_read_SExp_diff_previous E'. E (rm E').
-      apply~ noteq_sym.
-  prove_locations_different. (* TODO: Doesn’t work well. *)
   splits~.
 Qed.
 *)
