@@ -183,9 +183,7 @@ Defined.
 
 Lemma flatten_Global_mapping_correct : forall g C,
   g C = flatten_Global_mapping g C.
-Proof.
-  introv. destruct C; reflexivity.
-Qed.
+Proof. introv. destruct C; reflexivity. Qed.
 
 Definition flatten_Globals (g : Globals) : Globals :=
   Globals_with_mapping g (flatten_Global_mapping g).

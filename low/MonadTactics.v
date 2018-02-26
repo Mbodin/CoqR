@@ -2,7 +2,8 @@
   Provides tactics to easily manipulate the monads defined in Monads.v and Loops.v. **)
 
 Set Implicit Arguments.
-Require Export Monads Loops.
+Require Import TLC.LibTactics.
+Require Export Monads Loops Rfeatures.
 
 
 (** * Some useful definitions **)
@@ -76,6 +77,10 @@ Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
 Lemma convert_type_monad_change_proof : forall A B (r : result A) H1 H2,
   (convert_type_monad r H1 : result B) = convert_type_monad r H2.
 Proof. introv. destruct r; (reflexivity || inverts~ H1). Qed.
+
+Lemma convert_type_monad_reflexive : forall A (r : result A) H,
+  convert_type_monad r H = r.
+Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
 
 Lemma convert_type_monad_transitive : forall A B C (r : result A) H1 H2,
   convert_type_monad (convert_type_monad r H1 : result B) H2
@@ -540,7 +545,248 @@ Lemma let_VectorPointer_aborts : forall A S e_ (cont : _ -> _ -> result A),
 Proof. introv D. applys~ impossible_result_aborting_result let_VectorPointer_abort. Qed.
 
 
-(* TODO: All the monads of Loops.v. There are not a lot, but they should be handled well. *)
+(** *** Loops **)
+
+Lemma while_unfold : forall A S (a : A) expr stat runs,
+  while_loop runs S a expr stat
+  = if%success expr S a using S then
+      let%success a := stat S a using S in
+      runs_while_loop runs S a expr stat
+    else
+      result_success S a.
+Proof. introv. reflexivity. Qed.
+
+Lemma while_expr_abort : forall A S (e : A) expr stat runs H,
+  do%let a := e while expr do stat using S, runs = convert_type_monad expr H.
+Proof. introv. apply~ if_success_abort. Qed.
+
+Lemma while_expr_aborts : forall A S (e : A) expr stat runs,
+  aborting_result expr ->
+  aborting_result (do%let a := e while expr do stat using S, runs).
+Proof. introv H. apply~ if_success_aborts. Qed.
+
+Lemma fold_left_listSxp_gen_nil : forall runs globals A S (a : A) iterate,
+  fold_left_listSxp_gen runs globals S (global_mapping globals R_NilValue) a iterate
+  = result_success S a.
+Proof. introv. unfolds. unfolds while_loop. rewrite decide_def. cases_if~. Qed.
+
+Definition runs_fold_left_listSxp_gen runs globals A S l (a : A)
+    (iterate : state -> A -> SEXP -> SExpRec -> ListSxp_struct -> result A) : result A :=
+  let%success (l, a) :=
+    runs_while_loop runs S (l, a)
+      (fun S la => let (l, a) := la in result_success S (decide (l <> global_mapping globals R_NilValue)))
+      (fun S la =>
+        let (l, a) := la in
+        read%list l_, l_list := l using S in
+        let%success a := iterate S a l l_ l_list using S in
+        result_success S (list_cdrval l_list, a)) using S in
+  result_success S a.
+
+Lemma runs_fold_left_listSxp_gen_eq : forall n globals,
+  runs_fold_left_listSxp_gen (runs (1 + n) globals) = fold_left_listSxp_gen (runs n globals).
+Proof. introv. reflexivity. Qed.
+
+Lemma fold_left_listSxp_gen_cons : forall runs globals A S l (a : A) iterate,
+  l <> global_mapping globals R_NilValue ->
+  fold_left_listSxp_gen runs globals S l a iterate
+  = read%list l_, l_list := l using S in
+    let%success a := iterate S a l l_ l_list using S in
+    runs_fold_left_listSxp_gen runs globals S (list_cdrval l_list) a iterate.
+Proof.
+  introv D. unfolds. unfolds while_loop. rewrite decide_def. cases_if~.
+  simpl. unfolds read_as_list. destruct (read_SExp S l) as [l_|]; try reflexivity.
+  simpl. destruct_SExpRec_deep_full l_; try reflexivity.
+  repeat rewrite if_is_list_pass. simpl. destruct~ iterate.
+Qed.
+
+Lemma fold_left_listSxp_nil : forall runs globals A S (a : A) iterate,
+  fold_left_listSxp runs globals S (global_mapping globals R_NilValue) a iterate
+  = result_success S a.
+Proof. introv. apply~ fold_left_listSxp_gen_nil. Qed.
+
+Definition runs_fold_left_listSxp runs globals A S l (a : A) iterate :=
+  runs_fold_left_listSxp_gen runs globals S l a (fun S a _ _ l_list =>
+    iterate S a (list_carval l_list) (list_tagval l_list)).
+
+Lemma runs_fold_left_listSxp_eq : forall n globals,
+  runs_fold_left_listSxp (runs (1 + n) globals) = fold_left_listSxp (runs n globals).
+Proof. introv. unfolds. rewrite~ runs_fold_left_listSxp_gen_eq. Qed.
+
+Lemma fold_left_listSxp_cons : forall runs globals A S l (a : A) iterate,
+  l <> global_mapping globals R_NilValue ->
+  fold_left_listSxp runs globals S l a iterate
+  = read%list l_car, l_cdr, l_tag := l using S in
+    let%success a := iterate S a l_car l_tag using S in
+    runs_fold_left_listSxp runs globals S l_cdr a iterate.
+Proof. introv D. unfolds. rewrite~ fold_left_listSxp_gen_cons. Qed.
+
+Lemma match_rresult_pass : forall A B C S r (cont : _ -> A -> result (normal_return B C)),
+  let%return a := result_rsuccess S r using S in cont S a = cont S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma match_rresult_pass_return : forall A B C S r (cont : _ -> C -> result (normal_return B A)),
+  let%return a := result_rreturn S r using S in cont S a = result_rreturn S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma match_rresult_abort : forall A B C r (cont : _ -> A -> result (normal_return B C)) H,
+  let%return a := r using S in cont S a = convert_type_monad r H.
+Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma match_rresult_aborts : forall A B C r (cont : state -> A -> result (normal_return B C)),
+  aborting_result r ->
+  aborting_result (let%return a := r using S in cont S a).
+Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma exit_rresult_pass : forall A B S r (cont : _ -> A -> result B),
+  let%exit a := result_rsuccess S r using S in cont S a = cont S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma exit_rresult_pass_return : forall A B S r (cont : _ -> A -> result B),
+  let%exit a := result_rreturn S r using S in cont S a = result_success S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma exit_rresult_abort : forall A B r (cont : _ -> A -> result B) H,
+  let%exit a := r using S in cont S a = convert_type_monad r H.
+Proof. introv. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma exit_rresult_aborts : forall A B r (cont : state -> A -> result B),
+  aborting_result r ->
+  aborting_result (let%exit a := r using S in cont S a).
+Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
+
+Lemma continue_and_condition_pass : forall A B S (r : A) expr,
+  continue_and_condition S (normal_result (B := B) r) expr = expr S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma continue_and_condition_pass_return : forall A B S (r : B) expr,
+  continue_and_condition S (return_result (A := A) r) expr = result_success S false.
+Proof. introv. reflexivity. Qed.
+
+Lemma get_success_pass : forall A B S (r : A) expr,
+  get_success S (normal_result (B := B) r) expr = expr S r.
+Proof. introv. reflexivity. Qed.
+
+Lemma get_success_pass_return : forall A B S (r : B) expr,
+  get_success S (return_result (A := A) r) expr = result_rreturn S r.
+Proof. introv. reflexivity. Qed.
+
+
+(** *** Long Jumps **)
+
+Lemma set_longjump_simplify : forall A runs S mask cjmpbuf f (a : A),
+  f S mask = result_success S a ->
+  set_longjump runs S mask cjmpbuf f = result_success S a.
+Proof. introv E. unfolds. rewrite~ E. Qed.
+
+Lemma set_longjump_result : forall A runs S mask cjmpbuf (f : _ -> _ -> result A)
+    P_success P_error P_longjump,
+  (forall S S' mask',
+    f S mask = result_longjump S' cjmpbuf mask' ->
+    result_prop P_success P_error P_longjump (runs_set_longjump runs S' mask' cjmpbuf f)) ->
+  (forall S n mask',
+    f S mask = result_longjump S cjmpbuf mask' ->
+    n <> cjmpbuf ->
+    P_longjump S n mask') ->
+  result_prop P_success P_error P_longjump (f S mask) ->
+  result_prop P_success P_error P_longjump (set_longjump runs S mask cjmpbuf f).
+Proof.
+  introv I1 I2 R. unfolds set_longjump. destruct (f S mask) eqn: E; autos~.
+  cases_if as C; autos~. fold_bool. rew_refl in C. substs. applys~ I1 E.
+Qed.
+
+
+(** *** Finite Loops **)
+
+Lemma for_list_nil : forall A B S (a : A) body,
+  for_list S a (nil : list B) body = result_success S a.
+Proof. introv. reflexivity. Qed.
+
+Lemma for_list_fold_left_abort : forall A B (a : result A) (l : list B) body H,
+  fold_left (fun i r =>
+    let%success a := r using S in
+    body S a i) a l = convert_type_monad a H.
+Proof.
+  introv. induction l.
+  - rewrite~ convert_type_monad_reflexive.
+  - simpl. rewrite if_success_abort with (H := H). rewrite~ convert_type_monad_reflexive.
+    rewrite IHl. rewrite~ convert_type_monad_reflexive.
+Qed.
+
+Lemma for_list_cons : forall A B S (a : A) (b : B) l body,
+  for_list S a (b :: l) body
+  = let%success r := body S a b using S in for_list S r l body.
+Proof.
+  introv. unfolds. simpl. destruct (body S a b) eqn:E; try reflexivity;
+    asserts Ab: (aborting_result (body S a b)); rewrite E in *; try reflexivity;
+    rewrite for_list_fold_left_abort with (H := Ab); reflexivity.
+Qed.
+
+Lemma for_list_last : forall A B S (a : A) (b : B) l body,
+  for_list S a (l & b) body
+  = let%success r := for_list S a l body using S in body S r b.
+Proof. introv. unfolds. rew_list~. Qed.
+
+Lemma for_list_concat : forall A B S (a : A) (l1 l2 : list B) body,
+  for_list S a (l1 ++ l2) body
+  = let%success r := for_list S a l1 body using S in for_list S r l2 body.
+Proof.
+  introv. unfolds. rew_list~. set (F := fold_left _ _ l1). destruct F eqn: E; try reflexivity;
+    asserts Ab: (aborting_result F); rewrite E in *; try reflexivity;
+    rewrite for_list_fold_left_abort with (H := Ab); reflexivity.
+Qed.
+
+Lemma for_loop_ends : forall A S (a : A) start last body,
+  last < start ->
+  for_loop S a start last body = result_success S a.
+Proof. introv I. unfolds. cases_if as C; autos~. fold_bool. rew_refl in C. false C. math. Qed.
+
+Lemma for_loop_forwards : forall A S (a : A) start last body,
+  last >= start ->
+  for_loop S a start last body
+  = let%success a := body S a start using S in for_loop S a (1 + start) last body.
+Proof.
+  introv I. unfolds. cases_if as C.
+  - fold_bool. rew_refl in C. false. math.
+  - clear C. cases_if as C; fold_bool; rew_refl in C.
+    + asserts: (last = start); [ math | substs ].
+      asserts_rewrite ((1 + Z.to_nat start - start = 1)%nat).
+      * rewrite Nat2Z.id. math.
+      * simpl. rewrite~ for_list_cons.
+    + asserts: (1 + Z.to_nat last - start > 1)%nat.
+      * rewrite Nat2Z.id. math.
+      * destruct (1 + Z.to_nat last - start)%nat as [|n] eqn: E; try (false; math).
+        simpl. rewrite~ for_list_cons. fequals. extens. introv.
+        asserts_rewrite~ (Z.to_nat last - start = n)%nat. math.
+Qed.
+
+Lemma for_loop_backwards : forall A S (a : A) start last body,
+  last >= start ->
+  for_loop S a start last body
+  = let%success a := for_loop S a start (last - 1) body using S in body S a last.
+Proof.
+  introv I. unfolds. cases_if as C.
+  - fold_bool. rew_refl in C. false. math.
+  - clear C. cases_if as C; fold_bool; rew_refl in C.
+    + asserts: (last = start); [ math | substs ].
+      asserts_rewrite ((1 + Z.to_nat start - start = 1)%nat).
+      * rewrite Nat2Z.id. math.
+      * simpl. rewrite~ for_list_cons. destruct~ body.
+    + asserts_rewrite (seq start (1 + Z.to_nat last - start) = seq start (1 + Z.to_nat (last - 1) - start) & last).
+      * asserts_rewrite ((1 + Z.to_nat (last - 1) - start) = 1 + (1 + Z.to_nat last - start))%nat.
+        -- skip. (* TODO *)
+        -- skip. (* TODO: Lemma about seq. *)
+      * rewrite~ for_list_last.
+Qed.
+
+Lemma for_loop_split : forall A S (a : A) start last k body,
+  start <= k ->
+  k <= last ->
+  for_loop S a start last body
+  = let%success r := for_loop S a start k body using S in for_loop S a k last body.
+Proof.
+Admitted. (* TODO *)
+
+(* FIXME: Something for for_array? *)
 
 
 (** ** Tactics **)
@@ -565,6 +811,13 @@ Ltac get_pass_lemma t :=
   | let_VectorReal => let_VectorReal_pass
   | let_VectorComplex => let_VectorComplex_pass
   | let_VectorPointer => let_VectorPointer_pass
+  | fold_left_listSxp_gen => constr:(>> fold_left_listSxp_gen_nil fold_left_listSxp_gen_cons)
+  | fold_left_listSxp => constr:(>> fold_left_listSxp_nil fold_left_listSxp_cons)
+  | match_rresult => constr:(>> match_rresult_pass match_rresult_pass_return)
+  | exit_rresult => constr:(>> exit_rresult_pass exit_rresult_pass_return)
+  | continue_and_condition => constr:(>> continue_and_condition_pass continue_and_condition_pass_return)
+  | get_success => constr:(>> get_success_pass get_success_pass_return)
+  | for_list => constr:(>> for_list_nil for_list_cons for_list_last)
   end.
 
 Ltac get_abort_lemma t :=
@@ -586,6 +839,9 @@ Ltac get_abort_lemma t :=
   | let_VectorReal => let_VectorReal_abort
   | let_VectorComplex => let_VectorComplex_abort
   | let_VectorPointer => let_VectorPointer_abort
+  | while_loop => while_expr_abort
+  | match_rresult => match_rresult_abort
+  | exit_rresult => exit_rresult_abort
   end.
 
 Ltac get_aborts_lemma t :=
@@ -607,17 +863,17 @@ Ltac get_aborts_lemma t :=
   | let_VectorReal => let_VectorReal_aborts
   | let_VectorComplex => let_VectorComplex_aborts
   | let_VectorPointer => let_VectorPointer_aborts
+  | while_loop => while_expr_aborts
+  | match_rresult => match_rresult_aborts
+  | exit_rresult => exit_rresult_aborts
   end.
 
 Ltac get_simplify_lemma t :=
   match get_head t with
-  | add_stack => add_stack_simplify
-  end.
-
-Ltac get_result_lemma t :=
-  match get_head t with
-  | add_stack => add_stack_result
+  | add_stack => constr:(>> add_stack_result add_stack_simplify)
   | if_success => if_success_result
+  | while_loop => while_unfold
+  | set_longjump => constr:(>> set_longjump_result set_longjump_simplify)
   end.
 
 Ltac unfolds_get_impossible :=
@@ -645,23 +901,45 @@ Ltac solve_premises :=
       | discriminate
       | autos~
       | match goal with
-        |- context [ ArrayList.length ] => math
+        | |- _ < _ => math
+        | |- _ > _ => math
+        | |- _ <= _ => math
+        | |- _ >= _ => math
+        | |- (_ < _)%nat => math
+        | |- (_ > _)%nat => math
+        | |- (_ <= _)%nat => math
+        | |- (_ >= _)%nat => math
+        | |- (_ < _)%I => math
+        | |- (_ > _)%I => math
+        | |- (_ <= _)%I => math
+        | |- (_ >= _)%I => math
+        | |- context [ ArrayList.length ] => math
         end ] ].
 
 Ltac unfold_monad_pass t :=
   let P := get_pass_lemma t in
-  rewrite P; try solve_premises.
+  let L := list_boxer_of P in
+  let rec try_all_lemmae L :=
+    match L with
+    | boxer ?S :: ?L' =>
+      first [
+          rewrite P; try solve_premises
+        | try_all_lemmae L' ]
+    end in
+  try_all_lemmae L.
 
 Ltac unfold_monad_simplify t :=
-  first [
-      let S := get_simplify_lemma t in
+  let L := get_simplify_lemma t in
+  let L := list_boxer_of L in
+  let rec try_all_lemmae L :=
+    match L with
+    | boxer ?S :: ?L' =>
       first [
-          solve [ apply* S; solve_premises ]
-        | apply S; try solve_premises ]
-    | let R := get_result_lemma t in
-      first [
-          solve [ apply* R; solve_premises ]
-        | apply R; try solve_premises ] ].
+          solve [ (apply* S || rewrite* S); solve_premises ]
+        | (apply S || rewrite S); try solve_premises
+        | try_all_lemmae L' ]
+    end in
+  try_all_lemmae L.
 
 Ltac unfold_monad_with_subresult t r :=
   first [
@@ -694,16 +972,71 @@ Ltac unfold_monad_without_subresult t :=
           unfolds_get_impossible ]
     | unfold_monad_simplify t ].
 
-Ltac unfold_monad :=
+Ltac deal_with_bottom :=
+  first [
+      reflexivity
+    | autos* ].
+
+Ltac make_runs_deeper r :=
+  let rew n :=
+    first [
+        asserts_rewrite (S n = 1 + n)%nat in *; [ reflexivity |]
+      | asserts_rewrite (S n = 1 + n) in *; [ reflexivity |] ] in
+  match r with
+  | runs (1 + ?n) ?globals => idtac
+  | runs (S ?n) ?globals => rew n
+  | runs ?n ?globals =>
+    let n' := fresh n in
+    destruct n as [|n'];
+    [ deal_with_bottom | rew n']
+  end.
+
+Ltac unfold_runs :=
   match goal with
-  | |- context [ add_stack ?fname ?r ] =>
-    unfold_monad_with_subresult (add_stack fname r) r
-  | |- context [ if_success ?r ?cont ] =>
-    unfold_monad_with_subresult (if_success r cont) r
-  | |- context [ if_defined_msg ?msg ?S ?o ?cont ] =>
-    unfold_monad_without_subresult (if_defined_msg msg S o cont)
-  | |- context [ if_defined ?S ?o ?cont ] =>
-    unfold_monad_without_subresult (if_defined S o cont)
+  | |- context [ runs_while_loop ?runs ?S ?a ?expr ?stat ] =>
+    make_runs_deeper runs
+  | |- context [ runs_set_longjump ?runs ?S ?t ?n ?f ] =>
+    make_runs_deeper runs
+  | |- context [ runs_eval ?runs ?S ?e ?rho ] =>
+    make_runs_deeper runs
+  | |- context [ runs_inherits ?runs ?S ?e ?str ] =>
+    make_runs_deeper runs
+  | |- context [ runs_getAttrib ?runs ?S ?e ?a ] =>
+    make_runs_deeper runs
+  | |- context [ runs_setAttrib ?runs ?S ?e ?a ?v ] =>
+    make_runs_deeper runs
+  | |- context [ runs_R_cycle_detected ?runs ?S ?e ?r ] =>
+    make_runs_deeper runs
+  | |- context [ runs_duplicate1 ?runs ?S ?e ?deep ] =>
+    make_runs_deeper runs
+  | |- context [ runs_stripAttrib ?runs ?S ?e ?a ] =>
+    make_runs_deeper runs
+  | |- context [ runs_evalseq ?runs ?S ?e ?rho ?local ?loc ] =>
+    make_runs_deeper runs
+  | |- context [ runs_R_isMissing ?runs ?S ?e ?rho ] =>
+    make_runs_deeper runs
+  | |- context [ runs_AnswerType ?runs ?S ?e ?re ?us ?da ?ca ] =>
+    make_runs_deeper runs
+  | |- context [ runs_ListAnswer ?runs ?S ?e ?re ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_StringAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_LogicalAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_IntegerAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_RealAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_ComplexAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_RawAnswer ?runs ?S ?e ?bi ?da ] =>
+    make_runs_deeper runs
+  | |- context [ runs_R_FunTab ?runs ] =>
+    make_runs_deeper runs
+  end.
+
+Ltac unfold_definitions :=
+  match goal with
   | |- context [ result_skip ?S ] =>
     unfolds result_skip
   | |- context [ if_then_else_success ?b ?c1 ?c2 ] =>
@@ -712,18 +1045,6 @@ Ltac unfold_monad :=
     unfolds if_then_success
   | |- context [ if_option_defined ?c ?cont1 ?cont2 ] =>
     unfolds if_option_defined
-  | |- context [ if_is_prim ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_prim S e_ cont)
-  | |- context [ if_is_sym ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_sym S e_ cont)
-  | |- context [ if_is_list ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_list S e_ cont)
-  | |- context [ if_is_env ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_env S e_ cont)
-  | |- context [ if_is_clo ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_clo S e_ cont)
-  | |- context [ if_is_prom ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (if_is_prom S e_ cont)
   | |- context [ read_as_prim ?S ?e ?cont ] =>
     unfolds read_as_prim
   | |- context [ read_as_sym ?S ?e ?cont ] =>
@@ -740,12 +1061,6 @@ Ltac unfold_monad :=
     unfolds read_as_clo
   | |- context [ read_as_prom ?S ?e ?cont ] =>
     unfolds read_as_prom
-  | |- context [ read_cell_Vector_SExpRec ?S ?v ?n ?cont ] =>
-    unfold_monad_without_subresult (read_cell_Vector_SExpRec S v n cont)
-  | |- context [ update_Vector_SExpRec_cell ?v ?n ?c ] =>
-    unfold_monad_without_subresult (update_Vector_SExpRec_cell v n c)
-  | |- context [ let_VectorChar ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorChar S e_ cont)
   | |- context [ read_as_VectorChar ?S ?e ?cont ] =>
     unfolds read_as_VectorChar
   | |- context [ read_nth_cell_VectorChar ?S ?e_ ?n ?cont ] =>
@@ -756,8 +1071,6 @@ Ltac unfold_monad :=
     unfolds write_VectorChar
   | |- context [ write_nth_cell_VectorChar ?S ?e ?n ?c ?cont ] =>
     unfolds write_nth_cell_VectorChar
-  | |- context [ let_VectorLogical ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorLogical S e_ cont)
   | |- context [ read_as_VectorLogical ?S ?e ?cont ] =>
     unfolds read_as_VectorLogical
   | |- context [ read_nth_cell_VectorLogical ?S ?e_ ?n ?cont ] =>
@@ -768,8 +1081,6 @@ Ltac unfold_monad :=
     unfolds write_VectorLogical
   | |- context [ write_nth_cell_VectorLogical ?S ?e ?n ?c ?cont ] =>
     unfolds write_nth_cell_VectorLogical
-  | |- context [ let_VectorInteger ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorInteger S e_ cont)
   | |- context [ read_as_VectorInteger ?S ?e ?cont ] =>
     unfolds read_as_VectorInteger
   | |- context [ read_nth_cell_VectorInteger ?S ?e_ ?n ?cont ] =>
@@ -780,8 +1091,6 @@ Ltac unfold_monad :=
     unfolds write_VectorInteger
   | |- context [ write_nth_cell_VectorInteger ?S ?e ?n ?c ?cont ] =>
     unfolds write_nth_cell_VectorInteger
-  | |- context [ let_VectorReal ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorReal S e_ cont)
   | |- context [ read_as_VectorReal ?S ?e ?cont ] =>
     unfolds read_as_VectorReal
   | |- context [ read_nth_cell_VectorReal ?S ?e_ ?n ?cont ] =>
@@ -792,8 +1101,6 @@ Ltac unfold_monad :=
     unfolds write_VectorReal
   | |- context [ write_nth_cell_VectorReal ?S ?e ?n ?c ?cont ] =>
     unfolds write_nth_cell_VectorReal
-  | |- context [ let_VectorComplex ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorComplex S e_ cont)
   | |- context [ read_as_VectorComplex ?S ?e ?cont ] =>
     unfolds read_as_VectorComplex
   | |- context [ read_nth_cell_VectorComplex ?S ?e_ ?n ?cont ] =>
@@ -804,8 +1111,6 @@ Ltac unfold_monad :=
     unfolds write_VectorComplex
   | |- context [ write_nth_cell_VectorComplex ?S ?e ?n ?c ?cont ] =>
     unfolds write_nth_cell_VectorComplex
-  | |- context [ let_VectorPointer ?S ?e_ ?cont ] =>
-    unfold_monad_without_subresult (let_VectorPointer S e_ cont)
   | |- context [ read_as_VectorPointer ?S ?e ?cont ] =>
     unfolds read_as_VectorPointer
   | |- context [ read_nth_cell_VectorPointer ?S ?e_ ?n ?cont ] =>
@@ -826,6 +1131,71 @@ Ltac unfold_monad :=
     unfolds set_cdr
   | |- context [ set_tag ?S ?tag ?p ?f ] =>
     unfolds set_tag
+  | |- context [ result_rskip ?S ] =>
+    unfolds result_rskip
+  | _ => unfold_runs
+  end.
+
+Ltac unfold_monad :=
+  match goal with
+  | |- context [ add_stack ?fname ?r ] =>
+    unfold_monad_with_subresult (add_stack fname r) r
+  | |- context [ if_success ?r ?cont ] =>
+    unfold_monad_with_subresult (if_success r cont) r
+  | |- context [ if_defined_msg ?msg ?S ?o ?cont ] =>
+    unfold_monad_without_subresult (if_defined_msg msg S o cont)
+  | |- context [ if_defined ?S ?o ?cont ] =>
+    unfold_monad_without_subresult (if_defined S o cont)
+  | |- context [ if_is_prim ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_prim S e_ cont)
+  | |- context [ if_is_sym ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_sym S e_ cont)
+  | |- context [ if_is_list ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_list S e_ cont)
+  | |- context [ if_is_env ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_env S e_ cont)
+  | |- context [ if_is_clo ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_clo S e_ cont)
+  | |- context [ if_is_prom ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (if_is_prom S e_ cont)
+  | |- context [ read_cell_Vector_SExpRec ?S ?v ?n ?cont ] =>
+    unfold_monad_without_subresult (read_cell_Vector_SExpRec S v n cont)
+  | |- context [ update_Vector_SExpRec_cell ?v ?n ?c ] =>
+    unfold_monad_without_subresult (update_Vector_SExpRec_cell v n c)
+  | |- context [ let_VectorChar ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorChar S e_ cont)
+  | |- context [ let_VectorLogical ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorLogical S e_ cont)
+  | |- context [ let_VectorInteger ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorInteger S e_ cont)
+  | |- context [ let_VectorReal ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorReal S e_ cont)
+  | |- context [ let_VectorComplex ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorComplex S e_ cont)
+  | |- context [ let_VectorPointer ?S ?e_ ?cont ] =>
+    unfold_monad_without_subresult (let_VectorPointer S e_ cont)
+  | |- context [ while_loop ?runs ?S ?a ?expr ?stat ] =>
+    make_runs_deeper runs;
+    unfold_monad_without_subresult (while_loop runs S a expr stat)
+  | |- context [ runs_fold_left_listSxp_gen ?runs ] =>
+    make_runs_deeper runs;
+    rewrite~ runs_fold_left_listSxp_gen_eq
+  | |- context [ fold_left_listSxp_gen ?runs ?globals ?S ?l ?a ?iterate ] =>
+    unfold_monad_without_subresult (fold_left_listSxp_gen runs globals S l a iterate)
+  | |- context [ runs_fold_left_listSxp ?runs ] =>
+    make_runs_deeper runs;
+    rewrite~ runs_fold_left_listSxp_eq
+  | |- context [ fold_left_listSxp ?runs ?globals ?S ?l ?a ?iterate ] =>
+    unfold_monad_without_subresult (fold_left_listSxp runs globals S l a iterate)
+  | |- context [ match_rresult ?r ?cont ] =>
+    unfold_monad_with_subresult (match_rresult r cont) r
+  | |- context [ exit_rresult ?r ?cont ] =>
+    unfold_monad_with_subresult (exit_rresult r cont) r
+  | |- context [ continue_and_condition ?S ?r ?cont ] =>
+    unfold_monad_without_subresult (continue_and_condition S r cont)
+  | |- context [ get_success ?S ?r ?cont ] =>
+    unfold_monad_without_subresult (get_success S r cont)
+  | _ => unfold_definitions
   end.
 
 Ltac simplifyR :=
@@ -837,5 +1207,9 @@ Ltac cutR P :=
     first [
         eapply if_success_result with (P_success := P)
       | eapply if_success_result with (P_success := fun S _ => P S) ]
+  | |- result_prop ?P_success ?P_error ?P_longjump (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
+    first [
+        eapply set_longjump_result with (P_longjump := P)
+      | eapply set_longjump_result with (P_longjump := fun S _ _ => P S) ]
   end.
 

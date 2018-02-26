@@ -2181,13 +2181,9 @@ Definition R_binary S (call op x y : SEXP) : result SEXP :=
   let%success (tsp, klass) :=
     ifb xts \/ yts then
       ifb xts /\ yts then
-        let%success c := tsConform globals runs S x y using S in
-        if negb c then
-          result_error S "Non conformable time-series."
-        else
-          let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
-          let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
-          result_success S (tsp, klass)
+        let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+        let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+        result_success S (tsp, klass)
       else if xts then
         ifb nx < ny then
           result_error S "Time-series/vector length mismatch."
@@ -3125,13 +3121,9 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
         let%success (tsp, klass) :=
           ifb xts \/ yts then
             ifb xts /\ yts then
-              let%success c := tsConform globals runs S x y using S in
-              if negb c then
-                result_error S "Non-conformable time-series."
-              else
-                let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
-                let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
-                result_success S (tsp, klass)
+              let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
+              let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+              result_success S (tsp, klass)
             else
               let%success x_len := xlength globals runs S x using S in
               let%success y_len := xlength globals runs S y using S in

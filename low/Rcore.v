@@ -1644,22 +1644,6 @@ Definition nthcdr S s n :=
     result_success S s
   else result_error S "No CDR.".
 
-Definition tsConform S x y :=
-  add%stack "tsConform" in
-  let%success x := runs_getAttrib runs S x R_TspSymbol using S in
-  let%success y := runs_getAttrib runs S y R_TspSymbol using S in
-  ifb x <> R_NilValue /\ y <> R_NilValue then
-    let%success x_type := TYPEOF S x using S in
-    let%success y_type := TYPEOF S y using S in
-    ifb x_type = RealSxp /\ y_type = RealSxp then
-      (** This already made very few meaning in the original code… **)
-      read%Real x_0 := x at 0 using S in
-      read%Real x_1 := x at 1 using S in
-      read%Real x_2 := x at 2 using S in
-      result_success S (decide (x_0 = x_0 /\ x_1 = x_1 /\ x_2 = x_2))
-    else result_success S false
-  else result_success S false.
-
 
 (** ** printutils.c **)
 
