@@ -698,7 +698,8 @@ Qed.
 (** *** Finite Loops **)
 
 Lemma for_list_nil : forall A B S (a : A) body,
-  for_list S a (nil : list B) body = result_success S a.
+  do%let a := a for i in%list nil : list B do body S a i using S
+  = result_success S a.
 Proof. introv. reflexivity. Qed.
 
 Lemma for_list_fold_left_abort : forall A B (a : result A) (l : list B) body H,
@@ -713,22 +714,33 @@ Proof.
 Qed.
 
 Lemma for_list_cons : forall A B S (a : A) (b : B) l body,
-  for_list S a (b :: l) body
-  = let%success r := body S a b using S in for_list S r l body.
+  do%let a := a for i in%list b :: l do body S a i using S
+  = let%success r := body S a b using S in
+    do%let a := r for i in%list l do body S a i using S.
 Proof.
   introv. unfolds. simpl. destruct (body S a b) eqn:E; try reflexivity;
     asserts Ab: (aborting_result (body S a b)); rewrite E in *; try reflexivity;
     rewrite for_list_fold_left_abort with (H := Ab); reflexivity.
 Qed.
 
+Lemma for_list_map : forall A B C S (a : A) (f : B -> C) l body,
+  do%let a := a for i in%list map f l do body S a i using S
+  = do%let a := a for i in%list l do body S a (f i) using S.
+Proof.
+  introv. gen S a. induction l; introv.
+  - do 2 rewrite for_list_nil. reflexivity.
+  - rew_list. do 2 rewrite for_list_cons. fequals. extens. intros S' a'. apply~ IHl.
+Qed.
+
 Lemma for_list_last : forall A B S (a : A) (b : B) l body,
-  for_list S a (l & b) body
-  = let%success r := for_list S a l body using S in body S r b.
+  do%let a := a for i in%list l & b do body S a i using S
+  = do%success a := a for i in%list l do body S a i using S in body S a b.
 Proof. introv. unfolds. rew_list~. Qed.
 
 Lemma for_list_concat : forall A B S (a : A) (l1 l2 : list B) body,
-  for_list S a (l1 ++ l2) body
-  = let%success r := for_list S a l1 body using S in for_list S r l2 body.
+  do%let a := a for i in%list l1 ++ l2 do body S a i using S
+  = do%success a := a for i in%list l1 do body S a i using S in
+    do%let a := a for i in%list l2 do body S a i using S.
 Proof.
   introv. unfolds. rew_list~. set (F := fold_left _ _ l1). destruct F eqn: E; try reflexivity;
     asserts Ab: (aborting_result F); rewrite E in *; try reflexivity;
@@ -737,13 +749,14 @@ Qed.
 
 Lemma for_loop_ends : forall A S (a : A) start last body,
   last < start ->
-  for_loop S a start last body = result_success S a.
+  do%let a := a for i from start to last do body S a i using S = result_success S a.
 Proof. introv I. unfolds. cases_if as C; autos~. fold_bool. rew_refl in C. false C. math. Qed.
 
 Lemma for_loop_forwards : forall A S (a : A) start last body,
   last >= start ->
-  for_loop S a start last body
-  = let%success a := body S a start using S in for_loop S a (1 + start) last body.
+  do%let a := a for i from start to last do body S a i using S
+  = let%success a := body S a start using S in
+    do%let a := a for i from 1 + start to last do body S a i using S.
 Proof.
   introv I. unfolds. cases_if as C.
   - fold_bool. rew_refl in C. false. math.
@@ -761,8 +774,9 @@ Qed.
 
 Lemma for_loop_backwards : forall A S (a : A) start last body,
   last >= start ->
-  for_loop S a start last body
-  = let%success a := for_loop S a start (last - 1) body using S in body S a last.
+  do%let a := a for i from start to last do body S a i using S
+  = do%success a := a for i from start to last - 1 do body S a i using S in
+    body S a last.
 Proof.
   introv I. unfolds. cases_if as C.
   - fold_bool. rew_refl in C. false. math.
@@ -772,21 +786,35 @@ Proof.
       * rewrite Nat2Z.id. math.
       * simpl. rewrite~ for_list_cons. destruct~ body.
     + asserts_rewrite (seq start (1 + Z.to_nat last - start) = seq start (1 + Z.to_nat (last - 1) - start) & last).
-      * asserts_rewrite ((1 + Z.to_nat (last - 1) - start) = 1 + (1 + Z.to_nat last - start))%nat.
-        -- skip. (* TODO *)
-        -- skip. (* TODO: Lemma about seq. *)
+      * rewrite Nat2Z.id. asserts_rewrite (Z.to_nat (last - 1) = last - 1)%nat.
+        -- apply Z_to_nat_sub with (b := 1%nat). math.
+        -- clear S. asserts_rewrite ((1 + last - start)%nat = S (last - start)); [math|].
+           rewrite seq_last. repeat fequals; math.
       * rewrite~ for_list_last.
 Qed.
 
 Lemma for_loop_split : forall A S (a : A) start last k body,
   start <= k ->
   k <= last ->
-  for_loop S a start last body
-  = let%success r := for_loop S a start k body using S in for_loop S a k last body.
+  do%let a := a for i from start to last do body S a i using S
+  = do%success a := a for i from start to k do body S a i using S in
+    do%let a := a for i from 1 + k to last do body S a i using S.
 Proof.
-Admitted. (* TODO *)
+  introv I1 I2. unfolds. rewrite seq_split with (k := (1 + k - start)%nat).
+  - rewrite~ for_list_concat.
+    repeat (let C := fresh "C" in cases_if as C; fold_bool; rew_refl in C;
+            try (false; math)); repeat rewrite Nat2Z.id in *.
+    + fequals. extens. intros S' a'.
+      asserts_rewrite (1 + last - start - (1 + k - start) = 0)%nat; [math|].
+      rewrite seq_0. rewrite~ for_list_nil.
+    + fequals. extens. intros S' a'. do 2 fequals; math.
+  - rewrite Nat2Z.id. math.
+Qed.
 
-(* FIXME: Something for for_array? *)
+Lemma for_array_map : forall A B C S (a : A) (f : B -> C) array body,
+  do%let a := a for i in%array ArrayListExtra.map f array do body S a i using S
+  = do%let a := a for i in%array array do body S a (f i) using S.
+Proof. introv. apply~ for_list_map. Qed.
 
 
 (** ** Tactics **)
@@ -874,6 +902,9 @@ Ltac get_simplify_lemma t :=
   | if_success => if_success_result
   | while_loop => while_unfold
   | set_longjump => constr:(>> set_longjump_result set_longjump_simplify)
+  | for_list => for_list_map
+  | for_loop => for_loop_backwards
+  | for_array => for_array_map
   end.
 
 Ltac unfolds_get_impossible :=

@@ -278,6 +278,42 @@ Proof.
       asserts_rewrite (n = len); [math|]. apply~ seq_Nth. math.
 Qed.
 
+Lemma seq_0 : forall start,
+  seq start 0 = nil.
+Proof. reflexivity. Qed.
+
+Lemma seq_1 : forall start,
+  seq start 1 = [start].
+Proof. reflexivity. Qed.
+
+Lemma seq_split : forall start len k,
+  k <= len ->
+  seq start len = seq start k ++ seq (start + k) (len - k).
+Proof.
+  introv I. apply Nth_equiv. introv. tests I': (n < k); iff N.
+  - apply Nth_app_l. forwards N': seq_Nth; [applys~ Nth_lt_length N|].
+    rewrite seq_length in N'. forwards: Nth_func N N'. substs.
+    applys~ seq_Nth.
+  - forwards [N'|(m&E&N')]: Nth_app_inv (rm N);
+      (forwards N: seq_Nth; [applys~ Nth_lt_length N'|]);
+      rewrite seq_length in N; forwards: Nth_func N N'; substs.
+    + applys~ seq_Nth. math.
+    + rewrite seq_length in *. rewrite <- Nat.add_assoc.
+      applys~ seq_Nth. math.
+  - applys Nth_app_r (n - k).
+    + forwards N': seq_Nth; [applys~ Nth_lt_length N|].
+      rewrite seq_length in N'. forwards: Nth_func N N'. substs.
+      asserts_rewrite (start + n = (start + k) + (n - k)); [math|].
+      applys~ seq_Nth. apply Nth_lt_length in N. rewrite seq_length in N. math.
+    + rewrite seq_length. math.
+  - forwards [N'|(m&E&N')]: Nth_app_inv (rm N);
+      (forwards N: seq_Nth; [applys~ Nth_lt_length N'|]);
+      rewrite seq_length in N; forwards: Nth_func N N'; substs.
+    + applys~ seq_Nth. apply Nth_lt_length in N. rewrite seq_length in N. math.
+    + rewrite seq_length in *. rewrite <- Nat.add_assoc.
+      applys~ seq_Nth. apply Nth_lt_length in N. rewrite seq_length in N. math.
+Qed.
+
 Lemma In_Mem : forall A l (a : A),
   Mem a l <-> In a l.
 Proof.
@@ -557,6 +593,18 @@ Proof.
     + applys~ IHl.
       * applys~ divide_list_Mem_inv El.
       * inverts~ ND.
+Qed.
+
+
+Lemma Z_to_nat_sub : forall a b : nat,
+  a >= b ->
+  Z.to_nat (a - b) = (a - b)%nat.
+Proof.
+  introv I. gen a. induction b; introv I.
+  - asserts_rewrite (a - 0%nat = a)%I; [math|]. rewrite Nat2Z.id. math.
+  - destruct a.
+    + false. math.
+    + simpl. rewrite <- IHb; try fequals; math.
 Qed.
 
 
