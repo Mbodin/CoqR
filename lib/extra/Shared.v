@@ -13,14 +13,6 @@ Notation " [ x ; .. ; y ] " := (cons x .. (cons y nil) ..) : list_scope.
 
 Set Implicit Arguments.
 
-Lemma length_datatype_length : forall A (l : list A),
-  length l = Datatypes.length l.
-Proof. introv. induction~ l. simpl. rewrite~ length_cons. Qed.
-
-Lemma seq_length : forall start len,
-  length (seq start len) = len.
-Proof. introv. rewrite length_datatype_length. apply~ seq_length. Qed.
-
 
 (** * To be added in TLC when the library will be ready. **)
 
@@ -125,6 +117,20 @@ Lemma Nth_Mem : forall A l (x : A) n,
   Mem x l.
 Proof. introv N. rewrite Mem_mem. apply* Nth_mem. Qed.
 
+Lemma Nth_equiv : forall A (l1 l2 : list A),
+  (forall n x, Nth n l1 x <-> Nth n l2 x) ->
+  l1 = l2.
+Proof.
+  induction l1 as [|a1 l1]; introv E; destruct~ l2 as [|a2 l2].
+  - forwards N: Nth_here l2 a2. apply E in N. inverts~ N.
+  - forwards N: Nth_here l1 a1. apply E in N. inverts~ N.
+  - fequals.
+    + forwards N: Nth_here l1 a1. apply E in N. inverts~ N.
+    + apply~ IHl1. introv. iff I.
+      * forwards N: Nth_next a1 I. apply E in N. inverts~ N.
+      * forwards N: Nth_next a2 I. apply E in N. inverts~ N.
+Qed.
+
 
 Lemma Mem_last_inv : forall A l (x e : A),
   Mem x (l & e) ->
@@ -144,6 +150,9 @@ Proof. introv N. induction N; constructors~. Qed.
 Lemma Nth_last : forall A l (x : A),
   Nth (length l) (l & x) x.
 Proof. introv. induction l; rew_list; constructors~. Qed.
+
+Lemma map_List_map : map = List.map.
+Proof. extens. intros A B f l. induction~ l. simpl. rew_list. fequals. Qed.
 
 Lemma Mem_map_inv : forall A B (f : A -> B) l y,
   Mem y (map f l) ->
@@ -166,10 +175,120 @@ Proof.
   - do 2 rewrite nth_succ. apply~ IHn. rew_list in I. nat_math.
 Qed.
 
+Lemma map_Nth : forall A B (f : A -> B) l n x,
+  Nth n l x ->
+  Nth n (map f l) (f x).
+Proof. introv N. induction N; [ apply~ Nth_here | apply~ Nth_next ]. Qed.
+
 Lemma remove_correct : forall A `{Comparable A} l (a1 a2 : A),
   mem a1 (remove a2 l) <-> mem a1 l /\ a1 <> a2.
 Proof. introv. unfold remove. rewrite filter_mem_eq. rew_refl*. Qed.
 
+
+Lemma head_tail : forall A l (a : A),
+  head l = Some a ->
+  a :: tail l = l.
+Proof. introv E. destruct l; inverts~ E. Qed.
+
+Lemma head_Nth : forall A l (a : A),
+  head l = Some a <-> Nth 0 l a.
+Proof.
+  introv. destruct l.
+  - iff I; inverts~ I.
+  - iff I; inverts~ I. constructors~.
+Qed.
+
+Lemma cut_list_cons : forall A l (a : A),
+  l <> nil ->
+  Nth 0 l a ->
+  exists l', l = a :: l'.
+Proof. introv D N. destruct l; inverts* N. Qed.
+
+Lemma Nth_rev : forall A l n (a : A),
+  n < length l ->
+  Nth n l a <-> Nth (length l - 1 - n) (rev l) a.
+Proof.
+  introv In. gen n. induction l; introv; rew_list; iff I.
+  - inverts I.
+  - inverts I.
+  - simpl. inverts I as I.
+    + eapply Nth_app_r; [constructors*|]. rew_list. math.
+    + eapply Nth_app_l. apply IHl in I.
+      asserts_rewrite (length l - 0 - S n0 = length l - 1 - n0); [math|].
+      apply~ I. math.
+  - simpl in I. forwards [N|(m&E&N)]: Nth_app_inv I.
+    + destruct n.
+      * apply Nth_lt_length in N. rew_list in N. false. math.
+      * asserts_rewrite (length l - 0 - S n = length l - 1 - n) in N; [math|].
+        apply IHl in N; [ apply~ Nth_next | math ].
+    + repeat inverts N as N. rew_list in E.
+      asserts: (n = 0); [ math |]. substs. constructors~.
+Qed.
+
+Lemma cut_list_last : forall A l (a : A),
+  l <> nil ->
+  Nth (length l - 1) l a ->
+  exists l', l = l' & a.
+Proof.
+  introv D N. exists (rev (tail (rev l))). apply rev_inj. rew_list.
+  rewrite~ head_tail. apply~ head_Nth. apply~ Nth_rev.
+  + destruct l; tryfalse. rew_list. math.
+  + rew_list.
+    asserts_rewrite (length l - 1 - 0 = length l - 1); [ math | apply~ N ].
+Qed.
+
+Lemma length_datatype_length : forall A (l : list A),
+  length l = Datatypes.length l.
+Proof. introv. induction~ l. simpl. rewrite~ length_cons. Qed.
+
+Lemma seq_length : forall start len,
+  length (seq start len) = len.
+Proof. introv. rewrite length_datatype_length. apply~ seq_length. Qed.
+
+Lemma seq_Nth : forall len start n,
+  n < len ->
+  Nth n (seq start len) (start + n).
+Proof.
+  introv I. gen start n. induction len; introv I.
+  - false. math.
+  - destruct n.
+    + simpl. asserts_rewrite (start + 0 = start); [ math | constructors~ ].
+    + apply Nth_next. fold seq. rewrite <- seq_shift.
+      asserts_rewrite (start + S n = S (start + n)); [math|].
+      rewrite <- map_List_map. apply map_Nth. apply IHlen. math.
+Qed.
+
+Lemma seq_last : forall start len,
+  seq start (S len) = seq start len & (start + len).
+Proof.
+  introv. apply Nth_equiv. introv. iff I.
+  - forwards N: seq_Nth.
+    + applys Nth_lt_length I.
+    + rewrite seq_length in N. forwards: Nth_func I N. substs.
+      tests: (n = len).
+      * eapply Nth_app_r; [ constructors* | rewrite~ seq_length ].
+      * applys Nth_app_l. apply~ seq_Nth.
+        apply Nth_lt_length in I. rewrite seq_length in I. math.
+  - forwards [N|(m&E&N)]: Nth_app_inv (rm I).
+    + forwards N': seq_Nth.
+      * applys Nth_lt_length N.
+      * rewrite seq_length in N'. forwards: Nth_func N N'. substs.
+        apply~ seq_Nth. apply Nth_lt_length in N. rewrite seq_length in N. math.
+    + repeat inverts N as N. rewrite seq_length in E.
+      asserts_rewrite (n = len); [math|]. apply~ seq_Nth. math.
+Qed.
+
+Lemma In_Mem : forall A l (a : A),
+  Mem a l <-> In a l.
+Proof.
+  introv. iff I.
+  - induction I; [left~|right~].
+  - induction l; inverts I as I; constructors~.
+Qed.
+
+Lemma No_duplicates_NoDup : forall A (l : list A),
+  No_duplicates l <-> NoDup l.
+Proof. introv. iff D; induction D; constructors~; introv I; apply In_Mem in I; autos~. Qed.
 
 Global Instance No_duplicates_decidable : forall A (l : list A),
     Comparable A ->
@@ -324,7 +443,7 @@ Lemma not_indom_write : forall K V (h : heap K V) k k' v',
   k <> k' ->
   ~ indom h k ->
   ~ indom (write h k' v') k.
-Admitted.
+Proof. introv D I1 I2. forwards~: @indom_write_inv I2. Qed.
 
 Lemma read_option_write : forall K `{Comparable K} V (h : heap K V) k k' v,
   k <> k' ->
