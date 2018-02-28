@@ -907,22 +907,37 @@ Ltac Forall2_splits :=
   repeat splits;
   repeat first [ apply Forall2_nil | apply Forall2_cons ].
 
-(** See message “[Coq-Club] finer control over typeclass instance refinement” on the Coq list. **)
 
-Tactic Notation "oexact'" open_constr(term) :=
-  exact term.
+(** * Useful tactics **)
 
-Tactic Notation "oexact" uconstr(term) :=
-  lazymatch goal with
-  |- ?G => oexact' (term : G)
+Ltac apply_first_base L :=
+  let L := list_boxer_of L in
+  match L with
+  | boxer ?P :: ?L' =>
+    apply~ P || apply_first_base L'
   end.
 
-Tactic Notation "orefine" uconstr(term) :=
-  unshelve oexact term;
-  shelve_unifiable.
+Tactic Notation "apply_first" constr(E) :=
+  apply_first_base E.
+Tactic Notation "apply_first" constr(E0) constr(A1) :=
+  apply_first (>> E0 A1).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) :=
+  apply_first (>> E0 A1 A2).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) :=
+  apply_first (>> E0 A1 A2 A3).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) :=
+  apply_first (>> E0 A1 A2 A3 A4).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) constr(A5) :=
+  apply_first (>> E0 A1 A2 A3 A4 A5).
 
-Tactic Notation "simple" "orefine" uconstr(term) :=
-  unshelve oexact term.
+
+Ltac applys_first L A :=
+  let L := list_boxer_of L in
+  let A := list_boxer_of A in
+  match L with
+  | boxer ?P :: ?L' =>
+    applys_base (boxer P :: A) || applys_first L' A
+  end.
 
 
 (** * Some extensions of LibBag. **)
@@ -1081,4 +1096,24 @@ Qed.
 Lemma BagDisjoint_com : forall T `{Comparable T} (l1 l2 : list T),
   l1 \# l2 <-> l2 \# l1.
 Proof. introv. repeat rewrite BagDisjoint_in. rew_logic*. Qed.
+
+
+(** * Miscellaneous **)
+
+(** See message “[Coq-Club] finer control over typeclass instance refinement” on the Coq list. **)
+
+Tactic Notation "oexact'" open_constr(term) :=
+  exact term.
+
+Tactic Notation "oexact" uconstr(term) :=
+  lazymatch goal with
+  |- ?G => oexact' (term : G)
+  end.
+
+Tactic Notation "orefine" uconstr(term) :=
+  unshelve oexact term;
+  shelve_unifiable.
+
+Tactic Notation "simple" "orefine" uconstr(term) :=
+  unshelve oexact term.
 

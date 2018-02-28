@@ -952,7 +952,7 @@ Ltac unfold_monad_pass t :=
   let L := list_boxer_of P in
   let rec try_all_lemmae L :=
     match L with
-    | boxer ?S :: ?L' =>
+    | boxer ?P :: ?L' =>
       first [
           rewrite P; try solve_premises
         | try_all_lemmae L' ]
