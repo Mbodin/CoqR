@@ -114,8 +114,60 @@ Definition move_along_path_step s (S : state) e :=
         nth_option n (VecSxp_data e_))
     end).
 
+Lemma move_along_path_step_NULL : forall s S,
+  move_along_path_step s S NULL = None.
+Proof. introv. unfolds. rewrite~ read_SExp_NULL. Qed.
+
 Definition move_along_path_from p (S : state) e :=
   fold_left (fun s => LibOption.apply (move_along_path_step s S)) (Some e) p.
+
+Lemma move_along_path_from_NULL : forall p S,
+  p <> nil ->
+  move_along_path_from p S NULL = None.
+Proof.
+  introv D. destruct p as [|s p]; tryfalse.
+  unfolds. simpl. rewrite move_along_path_step_NULL. clear D s. induction p.
+  - reflexivity.
+  - rew_list. simpl. apply~ IHp.
+Qed.
+
+Lemma move_along_path_from_nil : forall S e,
+  move_along_path_from nil S e = Some e.
+Proof. introv. reflexivity. Qed.
+
+Lemma move_along_path_from_cons : forall S s p e1 e2 e3,
+  move_along_path_step s S e1 = Some e2 ->
+  move_along_path_from p S e2 = Some e3 ->
+  move_along_path_from (s :: p) S e1 = Some e3.
+Proof. introv E1 E2. unfolds. rew_list. simpl. rewrite* E1. Qed.
+
+Lemma move_along_path_from_last : forall S s p e1 e2 e3,
+  move_along_path_from p S e1 = Some e2 ->
+  move_along_path_step s S e2 = Some e3 ->
+  move_along_path_from (p & s) S e1 = Some e3.
+Proof. introv E1 E2. unfolds. rew_list. unfolds in E1. rewrite* E1. Qed.
+
+Lemma move_along_path_from_cons_inv : forall S s p e1 e3,
+  move_along_path_from (s :: p) S e1 = Some e3 ->
+  exists e2,
+    move_along_path_step s S e1 = Some e2
+    /\ move_along_path_from p S e2 = Some e3.
+Proof.
+  introv E. unfolds in E. rew_list in E. simpl in E. destruct* move_along_path_step.
+  false. induction p.
+  - inverts E.
+  - rew_list in E. simpl in E. applys~ IHp E.
+Qed.
+
+Lemma move_along_path_from_last_inv : forall S s p e1 e3,
+  move_along_path_from (p & s) S e1 = Some e3 ->
+  exists e2,
+    move_along_path_from p S e1 = Some e2
+    /\ move_along_path_step s S e2 = Some e3.
+Proof.
+  introv E. unfolds in E. rew_list in E. destruct @fold_left eqn: E'; tryfalse~.
+  simpl in E. eexists. splits*.
+Qed.
 
 Inductive context_step :=
   | Scontext_nextcontext

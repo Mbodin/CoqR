@@ -201,7 +201,7 @@ Qed.
 
 (** ** Invariants **)
 
-Record safe_SExpRec S (e_ : SExpRec) := make_safe_SExpRec {
+Record safe_SExpRec S (e_ : SExpRec) : Prop := make_safe_SExpRec {
     SExpType_corresponds_to_data_NilSxp :
       type e_ = NilSxp ->
       exists header car cdr tag,
@@ -347,23 +347,32 @@ Inductive null_pointer_exceptions_suffix : list path_step -> Prop :=
   (* FIXME: BindData_ans_names *)
   .
 
-Record safe_pointer S p := make_safe_pointer {
+Inductive null_pointer_exceptions_path : path -> Prop :=
+  | null_pointer_exceptions_path_entry_point : forall e,
+    null_pointer_exceptions_entry e ->
+    null_pointer_exceptions_path (Pentry e)
+  | null_pointer_exceptions_path_suffix : forall p l,
+    null_pointer_exceptions_suffix l ->
+    suffix p l ->
+    null_pointer_exceptions_path p
+  .
+
+CoInductive safe_pointer S p : Prop := make_safe_pointer {
     pointer_bound : bound S p ;
     no_null_pointer_along_path_from : forall path p',
       ~ null_pointer_exceptions_suffix path ->
       move_along_path_from path S p = Some p' ->
       p' <> NULL ;
-    safe_bindings_along_path_from : forall path e,
-      move_along_path_from path S p = Some e ->
+    safe_pointer_along_path_step : forall s e,
+      move_along_path_step s S p = Some e ->
       e <> NULL ->
-      bound S e ;
-    safe_SExpRec_along_path_from : forall path e e_,
-      move_along_path_from path S p = Some e ->
-      read_SExp S e = Some e_ ->
-      safe_SExpRec S e_
+      safe_pointer S e ;
+    safe_SExpRec_read : forall p_,
+      read_SExp S p = Some p_ ->
+      safe_SExpRec S p_
   }.
 
-Record safe_state S := make_safe_state {
+Record safe_state S : Prop := make_safe_state {
     no_null_pointer_entry_point : forall e p,
       ~ null_pointer_exceptions_entry e ->
       move_along_entry_point e S = Some p ->
@@ -380,7 +389,7 @@ Record safe_state S := make_safe_state {
 
 Inductive null_pointer_exceptions_globals : GlobalVariable -> Prop := .
 
-Record safe_globals S globals := make_safe_globals {
+Record safe_globals S globals : Prop := make_safe_globals {
     globals_not_NULL : forall g,
       ~ null_pointer_exceptions_globals g ->
       read_globals globals g <> NULL ;
@@ -393,7 +402,7 @@ Record safe_globals S globals := make_safe_globals {
 
 (** ** Transitions between states **)
 
-Definition conserve_old_binding S S' := forall p,
+Definition conserve_old_binding S S' : Prop := forall p,
   bound S p ->
   bound_such_that S (fun e_ =>
     bound_such_that S' (fun e'_ => e_ = e'_) p) p.
@@ -401,12 +410,72 @@ Definition conserve_old_binding S S' := forall p,
 
 (** ** Lemmae **)
 
+Lemma safe_pointer_along_path_from : forall S p path e,
+  safe_pointer S p ->
+  move_along_path_from path S p = Some e ->
+  e <> NULL ->
+  safe_pointer S e.
+Proof.
+  introv OKp E D. gen p e. induction path; introv OKp E D.
+  - rewrite move_along_path_from_nil in E. inverts~ E.
+  - forwards (e2&E1&E2): move_along_path_from_cons_inv E.
+    applys~ IHpath E2. applys~ safe_pointer_along_path_step E1.
+    introv ?. substs. destruct path.
+    + rewrite move_along_path_from_nil in E2. inverts~ E2.
+    + rewrite move_along_path_from_NULL in E2; [ inverts E2 | discriminate ].
+Qed.
+
+Lemma safe_SExpRec_along_path_from : forall S p path e e_,
+  safe_pointer S p ->
+  move_along_path_from path S p = Some e ->
+  read_SExp S e = Some e_ ->
+  safe_SExpRec S e_.
+Proof.
+  introv OKp E R. forwards~ OKe: safe_pointer_along_path_from E.
+  - introv ?. substs. rewrite read_SExp_NULL in R. inverts R.
+  - applys~ safe_SExpRec_read OKe.
+Qed.
+
+Lemma safe_pointer_along_path : forall S path e,
+  safe_state S ->
+  move_along_path path S = Some e ->
+  e <> NULL ->
+  safe_pointer S e.
+Proof.
+  introv OKS E D. gen e. induction path; introv E D.
+  - applys~ safe_entry_points E.
+  - simpl in E. destruct move_along_path eqn:E'.
+    + simpl in E. forwards~ OKs: IHpath.
+      * introv ?. substs. rewrite move_along_path_step_NULL in E. inverts E.
+      * applys~ safe_pointer_along_path_step OKs E.
+    + inverts E.
+Qed.
+
+Lemma no_null_pointer_along_path : forall S path e,
+  safe_state S ->
+  move_along_path path S = Some e ->
+  ~ null_pointer_exceptions_path path ->
+  e <> NULL.
+Proof.
+  introv OKS E NE D. destruct path.
+  - applys~ no_null_pointer_entry_point E.
+    introv NE'. apply NE. applys~ null_pointer_exceptions_path_entry_point NE'.
+  - simpl in E. destruct move_along_path eqn: E'.
+    + forwards~ OKe: safe_pointer_along_path E'.
+      * introv ?. substs. simpl in E. rewrite move_along_path_step_NULL in E. inverts~ E.
+      * applys~ no_null_pointer_along_path_from OKe.
+        -- introv NE'. apply NE. applys~ null_pointer_exceptions_path_suffix NE'.
+           apply suffix_cons. apply suffix_nil.
+        -- substs. apply E.
+    + inverts E.
+Qed.
+
 Lemma safe_bindings_along_path : forall S path e,
   safe_state S ->
   move_along_path path S = Some e ->
   e <> NULL ->
   bound S e.
-Admitted. (* TODO *)
+Proof. introv OKS E D. forwards~ OKe: safe_pointer_along_path E D. applys pointer_bound OKe. Qed.
 
 Lemma safe_SExpRec_along_path : forall S path e e_,
   safe_state S ->
@@ -528,11 +597,20 @@ Proof.
     + inverts~ M.
 Qed.
 
+Lemma conserve_old_binding_move_along_path_step_inv : forall S S' s e e',
+  conserve_old_binding S S' ->
+  bound S e ->
+  move_along_path_step s S' e = Some e' ->
+  move_along_path_step s S e = Some e'.
+Proof.
+Admitted. (* TODO *)
+
 Lemma conserve_old_binding_move_along_path_from_inv : forall S S' p e e',
   conserve_old_binding S S' ->
   bound S e ->
   move_along_path_from p S' e = Some e' ->
   move_along_path_from p S e = Some e'.
+Proof.
 Admitted. (* TODO *)
 
 Lemma conserve_old_binding_move_along_path_None : forall S S' p e e',
@@ -541,18 +619,21 @@ Lemma conserve_old_binding_move_along_path_None : forall S S' p e e',
   move_along_path_from p S e = Some e' ->
   read_SExp S e' = None ->
   read_SExp S' e' = None.
+Proof.
 Admitted. (* TODO *)
 
 Lemma conserve_old_binding_move_along_path_inv : forall S S' p e,
   conserve_old_binding S S' ->
   move_along_path p S' = Some e ->
   move_along_path p S = Some e.
+Proof.
 Admitted. (* TODO *)
 
 Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
   conserve_old_binding S S' ->
   safe_SExpRec S p_ ->
   safe_SExpRec S' p_.
+Proof.
 Admitted. (* TODO *)
 
 Lemma conserve_old_binding_safe_pointer : forall S S' p,
@@ -567,23 +648,18 @@ Proof.
     introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
     applys~ conserve_old_binding_move_along_path_from_inv C.
     applys~ pointer_bound OKS.
-  - (* safe_bindings_along_path_from *)
-    introv E D. forwards E': conserve_old_binding_move_along_path_from_inv C E.
+  - (* safe_bindings_along_path_step *)
+    skip. (*introv E D. forwards E': conserve_old_binding_move_along_path_step_inv C E.
     + applys~ pointer_bound OKS.
-    + applys~ conserve_old_binding_bound C.
-      applys~ safe_bindings_along_path_from OKS E'.
-  - (* safe_SExpRec_along_path_from *)
-    introv M R. forwards R': conserve_old_binding_move_along_path_from_inv C M.
-    + applys~ pointer_bound OKS.
-    + destruct (read_SExp S e) as [e'_|] eqn: E.
-      * forwards E': conserve_old_binding_read C E.
-        rewrite E' in R. inverts~ R.
-        applys~ conserve_old_binding_safe_SExpRec C.
-        applys safe_SExpRec_along_path_from OKS R' E.
-      * false. forwards~ N: conserve_old_binding_move_along_path_None C R' E.
-        -- applys~ pointer_bound OKS.
-        -- rewrite N in R. inverts~ R.
-Qed.
+    + applys~ safe_pointer_along_path_step E.*)
+  - (* safe_SExpRec_read *)
+    introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
+    + forwards E': conserve_old_binding_read C E.
+      rewrite E' in R. inverts~ R.
+      applys~ conserve_old_binding_safe_SExpRec C.
+      applys~ safe_SExpRec_read E.
+    + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
+Admitted.
 
 Lemma alloc_SExp_safe_state : forall S S' p p_,
   alloc_SExp S p_ = (S', p) ->
@@ -600,6 +676,7 @@ Lemma safe_make_SExpRec_list : forall S attrib car cdr tag,
   safe_pointer S tag ->
   may_have_types S ([NilSxp; CharSxp]) tag ->
   safe_SExpRec S (make_SExpRec_list attrib car cdr tag).
+Proof.
 Admitted. (* TODO *)
 
 
