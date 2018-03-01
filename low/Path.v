@@ -204,6 +204,10 @@ Fixpoint move_along_context_path p S :=
     LibOption.apply (move_along_context_step s) (move_along_context_path p S)
   end.
 
+Lemma move_along_context_path_state_with_memory : forall S p m,
+  move_along_context_path p (state_with_memory S m) = move_along_context_path p S.
+Proof. introv. induction~ p. simpl. rewrite~ IHp. Qed.
+
 Inductive context_field :=
   | Scontext_promargs
   | Scontext_callfun
@@ -240,6 +244,15 @@ Definition move_along_entry_point e S :=
   | EReturnedValue => Some (R_ReturnedValue S)
   | EasymSymbol n => nth_option n (R_asymSymbol S)
   end.
+
+Lemma move_along_entry_point_state_with_memory : forall S e m,
+  move_along_entry_point e (state_with_memory S m) = move_along_entry_point e S.
+Proof. introv. destruct~ e. simpl. rewrite~ move_along_context_path_state_with_memory. Qed.
+
+Lemma move_along_entry_point_alloc_SExp : forall S S' e p p_,
+  alloc_SExp S p_ = (S', p) ->
+  move_along_entry_point e S' = move_along_entry_point e S.
+Proof. introv E. inverts E. apply~ move_along_entry_point_state_with_memory. Qed.
 
 Inductive path :=
   | Pentry : entry_point -> path

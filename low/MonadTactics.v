@@ -899,9 +899,8 @@ Ltac get_aborts_lemma t :=
 Ltac get_simplify_lemma t :=
   match get_head t with
   | add_stack => constr:(>> add_stack_result add_stack_simplify)
-  | if_success => if_success_result
   | while_loop => while_unfold
-  | set_longjump => constr:(>> set_longjump_result set_longjump_simplify)
+  | set_longjump => set_longjump_simplify
   | for_list => for_list_map
   | for_loop => for_loop_backwards
   | for_array => for_array_map
@@ -1235,12 +1234,15 @@ Ltac simplifyR :=
 Ltac cutR P :=
   match goal with
   | |- result_prop ?P_success ?P_error ?P_longjump (if_success ?r ?cont) =>
+    let P' := fresh "P" in
     first [
-        eapply if_success_result with (P_success := P)
-      | eapply if_success_result with (P_success := fun S _ => P S) ]
+        eapply if_success_result with (P_success := P); [introv P'|]
+      | eapply if_success_result with (P_success := fun S _ => P S) ]; [introv P'|]
   | |- result_prop ?P_success ?P_error ?P_longjump (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
+    let E := fresh "E" in
+    let D := fresh "D" in
     first [
-        eapply set_longjump_result with (P_longjump := P)
-      | eapply set_longjump_result with (P_longjump := fun S _ _ => P S) ]
+        eapply set_longjump_result with (P_longjump := P); [introv E|introv E D|]
+      | eapply set_longjump_result with (P_longjump := fun S _ _ => P S) ]; [introv E|introv E D|]
   end.
 
