@@ -840,39 +840,6 @@ Qed.
 
 (** * General tactics **)
 
-(** ** Applying the right lemma **)
-
-Ltac solve_incl :=
-  solve [
-      apply~ BagUnionIncl_left
-    | apply~ BagUnionIncl_right
-    | apply~ BagInterIncl_left
-    | apply~ BagInterIncl_right
-    | apply* BagInIncl_make ].
-
-Ltac solve_premises_lemmae :=
-  autos~;
-  match goal with
-  | |- bound ?S ?p =>
-    solve [
-        apply~ may_have_types_bound
-      | apply* bound_such_that_weaken
-      | apply~ read_bound; solve_premises_lemmae
-      | apply~ pointer_bound; solve_premises_lemmae ]
-  | |- bound_such_that ?S ?p =>
-    solve [
-        apply* bound_such_that_weaken ]
-  | |- may_have_types ?S ?l ?p =>
-    solve [
-        apply~ list_type_may_have_types; solve_premises_lemmae
-      | apply~ may_have_types_weaken; solve_incl ]
-  | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
-    solve [
-        apply~ list_type_nil ]
-  | |- _ => solve_premises
-  end.
-
-
 (** ** Simplifying tactics **)
 
 (** *** Simplifying lists **)
@@ -968,7 +935,7 @@ Ltac syntactically_the_same x y :=
   end.
 
 Ltac simplify_context :=
-  match goal with
+  repeat match goal with
   | T : may_have_types ?S nil ?p |- _ =>
     false; applys~ may_have_types_nil T
   | T1 : may_have_types ?S ?l1 ?p,
@@ -1045,6 +1012,41 @@ Ltac clear_trivial :=
   | E : ?x = ?x |- _ => clear E
   | H1 : ?P, H2 : ?P |- _ => clear H2
   | I : ?x \in [?y] |- _ => explode_list I
+  end.
+
+
+(** ** Applying the right lemma **)
+
+Ltac solve_incl :=
+  solve [
+      apply~ BagUnionIncl_left
+    | apply~ BagUnionIncl_right
+    | apply~ BagInterIncl_left
+    | apply~ BagInterIncl_right
+    | apply* BagInIncl_make ].
+
+Ltac solve_premises_lemmae :=
+  autos~;
+  match goal with
+  | |- bound ?S ?p =>
+    solve [
+        apply~ may_have_types_bound
+      | apply* bound_such_that_weaken
+      | apply~ read_bound; solve_premises_lemmae
+      | apply~ pointer_bound; solve_premises_lemmae ]
+  | |- bound_such_that ?S ?p =>
+    solve [
+        apply* bound_such_that_weaken ]
+  | |- may_have_types ?S ?l ?p =>
+    solve [
+        apply~ list_type_may_have_types;
+        simpl_list_union;
+        solve_premises_lemmae
+      | apply~ may_have_types_weaken; solve_incl ]
+  | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
+    solve [
+        apply~ list_type_nil ]
+  | |- _ => solve_premises
   end.
 
 
@@ -1311,12 +1313,14 @@ Ltac prove_locations_different :=
       let E := fresh B in
       let p2_ := fresh p2 "_" in
       lets (p2_&E&_): list_type_may_have_types B;
+      simpl_list_union;
       applys~ alloc_read_SExp_diff A (rm E)
     | A : alloc_SExp ?S _ = (?S', p2),
       B : list_type ?S _ _ _ p1 |- _ =>
       let E := fresh B in
       let p2_ := fresh p2 "_" in
       lets (p2_&E&_): list_type_may_have_types B;
+      simpl_list_union;
       apply~ noteq_sym;
       applys~ alloc_read_SExp_diff A (rm E)
     | _ => discriminate
@@ -1325,6 +1329,7 @@ Ltac prove_locations_different :=
       solve [
         let E := fresh "E" in
         introv E; rewrite E in R2; rewrite R2 in R1; inverts~ R1 ]
+    | _ => autos~
     | _ =>
       solve [
         let E := fresh "E" in
@@ -1424,8 +1429,46 @@ Ltac prepare_proofs_that_locations_are_different :=
   end.
 
 
+(** ** Proving that different types are different **)
+
+Ltac prove_types_different :=
+  simplify_context;
+  let aux t1 t2 :=
+    let rec rewrite_type t :=
+      match t with
+      | _ =>
+        match goal with
+        | E : t = _ |- _ => rewrite E
+        | E : t \in _ |- _ => explode_list E; rewrite E
+        end
+      | type (get_SxpInfo ?p_) =>
+        match goal with
+        | E : read_SExp (state_memory ?S) ?p = Some p_,
+          T : may_have_types ?S ?l ?p |- _ =>
+          let L := fresh "L" in
+          forwards~ L: may_have_types_read_SExp T E;
+          explode_list L; rewrite L
+        | E : read_SExp (state_memory ?S) ?p = Some p_,
+          L : list_type ?S _ _ _ ?p |- _ =>
+          let T := fresh "T" in
+          forwards~ T: list_type_may_have_types (rm L);
+          simpl_list_union;
+          rewrite_type t
+        end
+      end in
+    solve [
+        try rewrite_type t1; try rewrite_type t2; (discriminate || substs~; discriminate)
+      | let E := fresh "E" in
+        introv E; substs; false~ ] in
+  match goal with
+  | |- ?t1 <> ?t2 => aux t1 t2
+  | |- ?t1 = ?t2 -> False => aux t1 t2
+  end.
+
+
 (** ** Transitions between states **)
 
+(* TODO: transition the [safe_globals] properties too. *)
 Ltac transition_conserve S S' :=
   prepare_proofs_that_locations_are_different;
   let find_conserve cont :=
@@ -1441,8 +1484,9 @@ Ltac transition_conserve S S' :=
     | OKS : safe_state S |- _ =>
       get_safe_SExpRec S p_ ltac:(fun OKp_ =>
         let OKS' := fresh "OK" S' in
-        forwards~ OKS': alloc_SExp_safe_state A (rm OKS) OKp_;
         let OKp_' := fresh OKp_ in
+        forwards~ OKS': alloc_SExp_safe_state (rm OKS) OKp_ A;
+        try prove_types_different ;
         forwards~ OKp_': conserve_old_binding_safe_SExpRec (rm OKp_);
         try applys~ alloc_SExp_conserve_old_binding A;
         [idtac])
@@ -1459,8 +1503,8 @@ Ltac transition_conserve S S' :=
           let E' := fresh E in
           lets E': conserve_old_binding_read C (rm E);
           rename E' into E
-        | A : alloc_SExp ?S0 ?p_ = (S', ?p) |- _ =>
-          update_safe_props_from_alloc A S0 S' p_;
+        | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
+          update_safe_props_from_alloc A S S' p_;
           let E := fresh "E" in
           lets E: alloc_read_SExp_eq (rm A)
         | B : bound S ?p |- _ =>
@@ -1513,9 +1557,9 @@ Ltac transition_write_SExp S S' :=
       | write_SExp S p ?p_ =>
         clear E;
         try match goal with
-        | T : type p_ = ?t |- _ =>
+        | T : type (get_SxpInfo p_) = ?t |- _ =>
           forwards E: may_have_types_write_SExp_eq_exact W T
-        | T : type p_ \in ?t |- _ =>
+        | T : type (get_SxpInfo p_) \in ?t |- _ =>
           forwards E: may_have_types_write_SExp_eq W T
         end
       | _ =>
@@ -1526,7 +1570,9 @@ Ltac transition_write_SExp S S' :=
     (*| E : list_type S ?l_t ?l_car ?l_tag ?p |- _ =>
       Unfortunately the lemma for list types is quite complex:
       we have to prove that we did not rewrite any pointer of the list.
-      For this, we probably need a stronger logics, like separation logic. *)
+      For this, we probably need a stronger logics, like separation logic.
+      Although we might still be able to prove it in the case of alloc_SExp
+      (which is the most common). TODO *)
     end).
 
 
@@ -1537,14 +1583,28 @@ Ltac transition_write_SExp S S' :=
 Lemma CONS_safe : forall globals S S' l_t l_car l_tag car cdr l,
   safe_state S ->
   safe_globals S globals ->
-  list_type S l_t l_car l_tag cdr ->
+  list_type S ([ListSxp]) l_car l_tag cdr ->
   may_have_types S l_car car ->
+  l_car \c all_storable_SExpTypes ->
+  l_tag \c [NilSxp; CharSxp] ->
   CONS globals S car cdr = (S', l) ->
-  safe_state S' /\ safe_pointer S' l
+  safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
   /\ list_type S' l_t l_car ([NilSxp] \u l_tag) l.
 Proof.
-  introv OKS OKG Lcdr Tcar E. unfolds in E.
+  introv OKS OKG Lcdr Tcar Icar Itag E. unfolds in E.
+
+  match type of E with alloc_SExp _ ?p0_ = _ => sets_eq p_: p0_ end.
+  asserts Ad: (safe_SExpRec S p_).
+    { constructors; introv T; try solve [ substs; false~ ].
+      do 4 eexists. splits*.
+      + rewrite~ T. Mem_solve.
+      + applys~ may_have_types_weaken Tcar.
+      + applys~ list_type_weaken Lcdr. solve_incl.
+      + applys~ may_have_types_weaken safe_R_NilValue. skip. (* TODO: [solve_incl] should solve that: add lemmae [BagIncl_cons] and [BagIncl_nil]. *)
+    } (* TODO: can it be done automatically? If so, we may add it to [get_safe_SExpRec]. *)
+
   transition_conserve S S'.
+
   (*TODO*)
 Admitted. (*
   splits~.
@@ -1569,7 +1629,9 @@ Proof.
     forwards~ (OKS'&OKl&Ll): CONS_safe Lp E.
     + skip. (* TODO *)
     + applys~ safe_R_NilValue. skip. (* TODO OKG. *)
-    + splits~. simpl_list_union. apply Ll.
+    + skip. (* TODO: [solve_incl] should be able to solve this. *)
+    + skip. (* TODO: [solve_incl] should be able to solve this. *)
+    + simpl_list_union. splits*.
 Admitted.
 
 Lemma allocList_safe : forall globals S S' n l,

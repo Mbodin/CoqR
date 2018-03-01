@@ -924,27 +924,26 @@ Ltac result_computed r :=
   end.
 
 Ltac solve_premises :=
+  intros;
   solve [
-    intros;
-    first [
-        reflexivity
-      | discriminate
-      | autos~
-      | match goal with
-        | |- _ < _ => math
-        | |- _ > _ => math
-        | |- _ <= _ => math
-        | |- _ >= _ => math
-        | |- (_ < _)%nat => math
-        | |- (_ > _)%nat => math
-        | |- (_ <= _)%nat => math
-        | |- (_ >= _)%nat => math
-        | |- (_ < _)%I => math
-        | |- (_ > _)%I => math
-        | |- (_ <= _)%I => math
-        | |- (_ >= _)%I => math
-        | |- context [ ArrayList.length ] => math
-        end ] ].
+      reflexivity
+    | discriminate
+    | autos~
+    | match goal with
+      | |- _ < _ => math
+      | |- _ > _ => math
+      | |- _ <= _ => math
+      | |- _ >= _ => math
+      | |- (_ < _)%nat => math
+      | |- (_ > _)%nat => math
+      | |- (_ <= _)%nat => math
+      | |- (_ >= _)%nat => math
+      | |- (_ < _)%I => math
+      | |- (_ > _)%I => math
+      | |- (_ <= _)%I => math
+      | |- (_ >= _)%I => math
+      | |- context [ ArrayList.length ] => math
+      end ].
 
 Ltac unfold_monad_pass t :=
   let P := get_pass_lemma t in
