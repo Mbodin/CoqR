@@ -1060,6 +1060,16 @@ Proof.
   introv M. rewrite <- Mem_mem in M. applys~ I M.
 Qed.
 
+Lemma BagInclEmpty : forall T `{Comparable T} (l : list T),
+  \{} \c l.
+Proof. introv. apply BagInIncl_make. introv I. false~ BagInEmpty_list I. Qed.
+
+Lemma BagIncl_cons : forall T `{Comparable T} l1 l2 (t : T),
+  t \in l2 ->
+  l1 \c l2 ->
+  (t :: l1) \c l2.
+Proof. introv M I. applys~ Forall_cons. Qed.
+
 Lemma BagUnionIncl_left : forall T `{Comparable T} (l1 l2 : list T),
   l1 \c l1 \u l2.
 Proof. introv. apply BagInIncl_make. introv I. rewrite* BagUnion_list. Qed.
