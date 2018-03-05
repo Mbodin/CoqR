@@ -104,29 +104,32 @@ Proof. introv (p_'&E&T) R. rewrite E in R. inverts~ R. Qed.
 
 (** ** List pointers **)
 
-Definition list_type_head P S l_t l_car l_tag (p_ : SExpRec) :=
+Definition list_type_head_such_that P Pcar Ptag S l_t l_car l_tag (p_ : SExpRec) :=
   exists header car cdr tag,
     p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
     /\ type p_ \in l_t
-    /\ may_have_types S l_car car
+    /\ may_have_types S l_car car /\ Pcar car
     /\ P S l_t l_car l_tag cdr
-    /\ may_have_types S l_tag tag.
+    /\ may_have_types S l_tag tag /\ Ptag tag.
 
-Definition list_type_step P (S : state) l_t l_car l_tag :=
-  bound_such_that S (list_type_head P S l_t l_car l_tag).
+Definition list_type_step_such_that P Pcar Ptag (S : state) l_t l_car l_tag :=
+  bound_such_that S (list_type_head_such_that P Pcar Ptag S l_t l_car l_tag).
 
-Inductive list_type (S : state) : list SExpType -> list SExpType -> list SExpType -> SEXP -> Prop :=
+Inductive list_type_such_that Pcar Ptag (S : state) : list SExpType -> list SExpType -> list SExpType -> SEXP -> Prop :=
   | list_type_nil : forall p l_t l_car l_tag,
     may_have_types S ([NilSxp]) p ->
-    list_type S l_t l_car l_tag p
+    list_type_such_that Pcar Ptag S l_t l_car l_tag p
   | list_type_cons : forall p l_t l_car l_tag,
-    list_type_step list_type S l_t l_car l_tag p ->
-    list_type S l_t l_car l_tag p
+    list_type_step_such_that (list_type_such_that Pcar Ptag) Pcar Ptag S l_t l_car l_tag p ->
+    list_type_such_that Pcar Ptag S l_t l_car l_tag p
   .
 
-Definition list_head := list_type_head list_type.
+Definition list_head_such_that Pcar Ptag := list_type_head_such_that (list_type_such_that Pcar Ptag) Pcar Ptag.
 
-Fixpoint list_type_ind' S
+Definition list_type := list_type_such_that (fun _ => True) (fun _ => True).
+Definition list_head := list_head_such_that (fun _ => True) (fun _ => True).
+
+Fixpoint list_type_ind (Pcar Ptag : _ -> Prop) S
     (P : list SExpType -> list SExpType -> list SExpType -> SEXP -> Prop)
     (f_nil : forall p l_t l_car l_tag,
        may_have_types S ([NilSxp]) p ->
@@ -136,20 +139,22 @@ Fixpoint list_type_ind' S
        p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag) ->
        type p_ \in l_t ->
        may_have_types S l_car car ->
-       list_type S l_t l_car l_tag cdr ->
+       Pcar car ->
+       list_type_such_that Pcar Ptag S l_t l_car l_tag cdr ->
        may_have_types S l_tag tag ->
+       Ptag tag ->
        P l_t l_car l_tag cdr ->
        P l_t l_car l_tag p)
-    l_t l_car l_tag p (HL : list_type S l_t l_car l_tag p) : P l_t l_car l_tag p.
+    l_t l_car l_tag p (HL : list_type_such_that Pcar Ptag S l_t l_car l_tag p) : P l_t l_car l_tag p.
   refine (
-    match HL in list_type _ l_t l_car l_tag p return P l_t l_car l_tag p with
-    | @list_type_nil _ p l_t l_car l_tag N =>
+    match HL in list_type_such_that _ _ _ l_t l_car l_tag p return P l_t l_car l_tag p with
+    | @list_type_nil _ _ _ p l_t l_car l_tag N =>
       f_nil p l_t l_car l_tag N
-    | @list_type_cons _ p l_t l_car l_tag N => _
+    | @list_type_cons _ _ _ p l_t l_car l_tag N => _
     end).
-  destruct N as (p_&E&h&car&cdr&tag&M&H&A&L&T).
-  refine (f_cons p l_t l_car l_tag _ _ _ _ _ E M H A L T _).
-  applys~ list_type_ind' f_nil f_cons.
+  destruct N as (p_&E&h&car&cdr&tag&M&H&A&HA&L&T&HT).
+  refine (f_cons p l_t l_car l_tag _ _ _ _ _ E M H A HA L T HT _).
+  applys~ list_type_ind f_nil f_cons.
 Defined.
 
 Lemma list_head_may_have_types : forall S l_t l_car l_tag p_,
@@ -166,18 +171,18 @@ Proof.
   - exists p_. splits~. applys~ BagInIncl H. apply~ BagUnionIncl_left.
 Qed.
 
-Lemma list_type_merge : forall S p l1_t l2_t l1_car l2_car l1_tag l2_tag,
-  list_type S l1_t l1_car l1_tag p ->
-  list_type S l2_t l2_car l2_tag p ->
-  list_type S (l1_t \n l2_t) (l1_car \n l2_car) (l1_tag \n l2_tag) p.
+Lemma list_type_merge : forall Pcar Ptag S p l1_t l2_t l1_car l2_car l1_tag l2_tag,
+  list_type_such_that Pcar Ptag S l1_t l1_car l1_tag p ->
+  list_type_such_that Pcar Ptag S l2_t l2_car l2_tag p ->
+  list_type_such_that Pcar Ptag S (l1_t \n l2_t) (l1_car \n l2_car) (l1_tag \n l2_tag) p.
 Proof.
   introv T1 T2. gen l2_t l2_car l2_tag.
-  induction T1 as [? ? ? ? I1|? ? ? ? p1_ h1 car1 cdr1 tag1 E1 M1 H1 A1 L1 T1 IH]
-    using list_type_ind'; introv T.
+  induction T1 as [? ? ? ? I1|? ? ? ? p1_ h1 car1 cdr1 tag1 E1 M1 H1 A1 HA1 L1 T1 HT1 IH]
+    using list_type_ind; introv T.
   - apply~ list_type_nil.
   - inverts T as T.
     + apply~ list_type_nil.
-    + inverts T as (E2&h2&car2&cdr2&tag2&M2&H2&A2&L2&T2).
+    + inverts T as (E2&h2&car2&cdr2&tag2&M2&H2&A2&HA2&L2&T2&HT2).
       rewrite E2 in E1. inversion E1 as [E1']. rewrite E1' in *.
       rewrite M1 in M2. inverts M2.
       apply list_type_cons. exists p1_. splits~. exists h2 car2 cdr2 tag2. splits~.
@@ -186,16 +191,16 @@ Proof.
       * applys~ may_have_types_merge T1 T2.
 Qed.
 
-Lemma list_type_weaken : forall S p l1_t l2_t l1_car l2_car l1_tag l2_tag,
+Lemma list_type_weaken : forall Pcar Ptag S p l1_t l2_t l1_car l2_car l1_tag l2_tag,
   l1_t \c l2_t ->
   l1_car \c l2_car ->
   l1_tag \c l2_tag ->
-  list_type S l1_t l1_car l1_tag p ->
-  list_type S l2_t l2_car l2_tag p.
+  list_type_such_that Pcar Ptag S l1_t l1_car l1_tag p ->
+  list_type_such_that Pcar Ptag S l2_t l2_car l2_tag p.
 Proof.
   introv I1 I2 I3 T. gen l2_t l2_car l2_tag.
-  induction T as [? ? ? ? I1|? ? ? ? p_ h car cdr tag E M H A L T IH]
-    using list_type_ind'; introv Incl1 Incl2 Incl3.
+  induction T as [? ? ? ? I1|? ? ? ? p_ h car cdr tag E M H A HA L T HT IH]
+    using list_type_ind; introv Incl1 Incl2 Incl3.
   - apply~ list_type_nil.
   - apply list_type_cons. exists p_. splits~. exists h car cdr tag. splits~.
     + applys~ BagInIncl H Incl1.
@@ -207,122 +212,6 @@ Qed.
 (** * Invariants about the state. **)
 
 (** ** Invariants **)
-
-Record safe_SExpRec S (e_ : SExpRec) : Prop := make_safe_SExpRec {
-    SExpType_corresponds_to_data_NilSxp :
-      type e_ = NilSxp ->
-      exists header car cdr tag,
-        e_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
-        /\ may_have_types S ([NilSxp]) car
-        /\ may_have_types S ([NilSxp]) cdr
-        /\ may_have_types S ([NilSxp]) tag ;
-    SExpType_corresponds_to_data_SymSxp :
-      type e_ = SymSxp ->
-      exists header pname value internal,
-        e_ = make_NonVector_SExpRec header (make_SymSxp_struct pname value internal)
-        /\ may_have_types S ([CharSxp]) pname
-        (*/\ may_have_types S ([(*TODO*)]) value
-        /\ may_have_types S ([(*TODO*) internal])*) ;
-    SExpType_corresponds_to_data_ListSxp :
-      type e_ = ListSxp ->
-      list_head S ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) e_ ;
-    SExpType_corresponds_to_data_CloSxp :
-      type e_ = CloSxp ->
-      exists header formals body env,
-        e_ = make_NonVector_SExpRec header (make_CloSxp_struct formals body env)
-        /\ list_type S ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) formals
-        (*/\ may_have_types S ([(*TODO*)]) body*)
-        /\ may_have_types S ([EnvSxp]) env ;
-    SExpType_corresponds_to_data_EnvSxp :
-      type e_ = EnvSxp ->
-      exists header frame enclos,
-        e_ = make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos)
-        /\ list_type S ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) frame
-        /\ may_have_types S ([EnvSxp]) enclos ;
-    SExpType_corresponds_to_data_SpecialSxp :
-      type e_ = SpecialSxp ->
-      exists header offset,
-        e_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset) ;
-    SExpType_corresponds_to_data_BuiltinSxp :
-      type e_ = BuiltinSxp ->
-      exists header offset,
-        e_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset) ;
-    SExpType_corresponds_to_data_CharSxp :
-      type e_ = CharSxp ->
-      exists header array,
-        e_ = SExpRec_VectorChar (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array)) ;
-    SExpType_corresponds_to_data_LglSxp :
-      type e_ = LglSxp ->
-      exists header array,
-        e_ = SExpRec_VectorLogical (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array)) ;
-    SExpType_corresponds_to_data_IntSxp :
-      type e_ = IntSxp ->
-      exists header array,
-        e_ = SExpRec_VectorInteger (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array)) ;
-    SExpType_corresponds_to_data_RealSxp :
-      type e_ = RealSxp ->
-      exists header array,
-        e_ = SExpRec_VectorReal (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array)) ;
-    SExpType_corresponds_to_data_CplxSxp :
-      type e_ = CplxSxp ->
-      exists header array,
-        e_ = SExpRec_VectorComplex (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array)) ;
-    SExpType_corresponds_to_data_StrSxp :
-      type e_ = StrSxp ->
-      exists header array,
-        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array))
-        /\ forall a,
-          Mem a (ArrayList.to_list array) ->
-          may_have_types S ([CharSxp]) a ;
-    SExpType_corresponds_to_data_DotSxp :
-      type e_ = DotSxp ->
-      list_head S ([ListSxp ; DotSxp]) all_storable_SExpTypes ([NilSxp]) e_ ;
-    SExpType_not_AnySxp :
-      type e_ <> AnySxp ;
-    SExpType_corresponds_to_data_VecSxp :
-      type e_ = VecSxp ->
-      exists header array,
-        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array))
-        (*/\ forall a,
-          Mem a (ArrayList.to_list array) ->
-          may_have_types S ([(*TODO*)]) a*) ;
-    SExpType_corresponds_to_data_ExprSxp :
-      type e_ = ExprSxp ->
-      exists header array,
-        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
-               (make_VecSxp_struct (ArrayList.length array) array))
-        (*/\ forall a,
-          Mem a (ArrayList.to_list array) ->
-          may_have_types S ([(*TODO*)]) a*) ;
-    (** The following four types have not been implemented. **)
-    SExpType_corresponds_to_data_BcodeSxp :
-      type e_ = BcodeSxp -> True ;
-    SExpType_corresponds_to_data_ExtptrSxp :
-      type e_ = ExtptrSxp -> True ;
-    SExpType_corresponds_to_data_RawSxp :
-      type e_ = RawSxp -> True ;
-    SExpType_corresponds_to_data_S4Sxp :
-      type e_ = S4Sxp -> True ;
-    (** The following two types are only used in the garbagecollector,
-      which has not been formalised. **)
-    SExpType_not_NewSxp :
-      type e_ <> NewSxp ;
-    SExpType_not_FreeSxp :
-      type e_ <> FreeSxp ;
-    (** The following type is not possible in C in an object, as it
-      would need more bytes than actually present.  It is rewriten in
-      practise into CloSxp if someone tries to put it into an
-      object. **)
-    SExpType_not_FunSxp :
-      type e_ <> FunSxp
-  }.
 
 Inductive null_pointer_exceptions_entry_point : entry_point -> Prop :=
   | null_pointer_exceptions_context_promargs :
@@ -364,6 +253,126 @@ Inductive null_pointer_exceptions_path : path -> Prop :=
     null_pointer_exceptions_path p
   .
 
+CoInductive safe_SExpRec_aux safe_pointer S (e_ : SExpRec) : Prop := make_safe_SExpRec {
+    SExpType_corresponds_to_data_NilSxp :
+      type e_ = NilSxp ->
+      exists header car cdr tag,
+        e_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
+        /\ may_have_types S ([NilSxp]) car /\ safe_pointer S car
+        /\ may_have_types S ([NilSxp]) cdr /\ safe_pointer S cdr
+        /\ may_have_types S ([NilSxp]) tag /\ safe_pointer S tag ;
+    SExpType_corresponds_to_data_SymSxp :
+      type e_ = SymSxp ->
+      exists header pname value internal,
+        e_ = make_NonVector_SExpRec header (make_SymSxp_struct pname value internal)
+        /\ may_have_types S ([CharSxp]) pname /\ safe_pointer S pname
+        (*/\ may_have_types S ([(*TODO*)]) value /\ safe_pointer S value
+        /\ may_have_types S ([(*TODO*) internal]) /\ safe_pointer S internal *) ;
+    SExpType_corresponds_to_data_ListSxp :
+      type e_ = ListSxp ->
+      list_head_such_that (safe_pointer S) (safe_pointer S) S
+         ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) e_ ;
+    SExpType_corresponds_to_data_CloSxp :
+      type e_ = CloSxp ->
+      exists header formals body env,
+        e_ = make_NonVector_SExpRec header (make_CloSxp_struct formals body env)
+        /\ list_type_such_that (safe_pointer S) (safe_pointer S) S
+             ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) formals
+        (*/\ may_have_types S ([(*TODO*)]) body*)
+        /\ may_have_types S ([EnvSxp]) env /\ safe_pointer S env ;
+    SExpType_corresponds_to_data_EnvSxp :
+      type e_ = EnvSxp ->
+      exists header frame enclos,
+        e_ = make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos)
+        /\ list_type_such_that (safe_pointer S) (safe_pointer S) S
+              ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) frame
+        /\ may_have_types S ([EnvSxp]) enclos /\ safe_pointer S enclos ;
+    SExpType_corresponds_to_data_SpecialSxp :
+      type e_ = SpecialSxp ->
+      exists header offset,
+        e_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset) ;
+    SExpType_corresponds_to_data_BuiltinSxp :
+      type e_ = BuiltinSxp ->
+      exists header offset,
+        e_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset) ;
+    SExpType_corresponds_to_data_CharSxp :
+      type e_ = CharSxp ->
+      exists header array,
+        e_ = SExpRec_VectorChar (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array)) ;
+    SExpType_corresponds_to_data_LglSxp :
+      type e_ = LglSxp ->
+      exists header array,
+        e_ = SExpRec_VectorLogical (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array)) ;
+    SExpType_corresponds_to_data_IntSxp :
+      type e_ = IntSxp ->
+      exists header array,
+        e_ = SExpRec_VectorInteger (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array)) ;
+    SExpType_corresponds_to_data_RealSxp :
+      type e_ = RealSxp ->
+      exists header array,
+        e_ = SExpRec_VectorReal (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array)) ;
+    SExpType_corresponds_to_data_CplxSxp :
+      type e_ = CplxSxp ->
+      exists header array,
+        e_ = SExpRec_VectorComplex (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array)) ;
+    SExpType_corresponds_to_data_StrSxp :
+      type e_ = StrSxp ->
+      exists header array,
+        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array))
+        /\ forall a,
+          Mem a (ArrayList.to_list array) ->
+          may_have_types S ([CharSxp]) a /\ safe_pointer S a ;
+    SExpType_corresponds_to_data_DotSxp :
+      type e_ = DotSxp ->
+      list_head_such_that (safe_pointer S) (safe_pointer S) S
+        ([ListSxp ; DotSxp]) all_storable_SExpTypes ([NilSxp]) e_ ;
+    SExpType_not_AnySxp :
+      type e_ <> AnySxp ;
+    SExpType_corresponds_to_data_VecSxp :
+      type e_ = VecSxp ->
+      exists header array,
+        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array))
+        (*/\ forall a,
+          Mem a (ArrayList.to_list array) ->
+          may_have_types S ([(*TODO*)]) a /\ safe_pointer S a*) ;
+    SExpType_corresponds_to_data_ExprSxp :
+      type e_ = ExprSxp ->
+      exists header array,
+        e_ = SExpRec_VectorPointer (make_Vector_SExpRec header
+               (make_VecSxp_struct (ArrayList.length array) array))
+        (*/\ forall a,
+          Mem a (ArrayList.to_list array) ->
+          may_have_types S ([(*TODO*)]) a /\ safe_pointer S a*) ;
+    (** The following four types have not been implemented. **)
+    SExpType_corresponds_to_data_BcodeSxp :
+      type e_ = BcodeSxp -> True ;
+    SExpType_corresponds_to_data_ExtptrSxp :
+      type e_ = ExtptrSxp -> True ;
+    SExpType_corresponds_to_data_RawSxp :
+      type e_ = RawSxp -> True ;
+    SExpType_corresponds_to_data_S4Sxp :
+      type e_ = S4Sxp -> True ;
+    (** The following two types are only used in the garbagecollector,
+      which has not been formalised. **)
+    SExpType_not_NewSxp :
+      type e_ <> NewSxp ;
+    SExpType_not_FreeSxp :
+      type e_ <> FreeSxp ;
+    (** The following type is not possible in C in an object, as it
+      would need more bytes than actually present.  It is rewriten in
+      practise into CloSxp if someone tries to put it into an
+      object. **)
+    SExpType_not_FunSxp :
+      type e_ <> FunSxp
+  }.
+
 CoInductive safe_pointer S p : Prop := make_safe_pointer {
     pointer_bound : bound S p ;
     no_null_pointer_along_path_from : forall path p',
@@ -376,8 +385,13 @@ CoInductive safe_pointer S p : Prop := make_safe_pointer {
       safe_pointer S e ;
     safe_SExpRec_read : forall p_,
       read_SExp S p = Some p_ ->
-      safe_SExpRec S p_
+      safe_SExpRec_aux safe_pointer S p_
   }.
+
+Definition safe_SExpRec := safe_SExpRec_aux safe_pointer.
+
+Definition list_type_safe S := list_type_such_that (safe_pointer S) (safe_pointer S) S.
+Definition list_head_safe S := list_head_such_that (safe_pointer S) (safe_pointer S) S.
 
 Record safe_state S : Prop := make_safe_state {
     no_null_pointer_entry_point : forall e p,
@@ -479,11 +493,7 @@ Ltac decompose_safe_SExpRec_constructors H :=
     lets (H1&H2): (rm H);
     decompose_safe_SExpRec_constructors H1;
     decompose_safe_SExpRec_constructors H2
-  | forall _, _ => idtac
-  | may_have_types ?S ?l ?p => idtac
-  | list_head ?S ?l_car ?l_cdr ?l_tag ?p_ => idtac
-  | list_type ?S ?l_car ?l_cdr ?l_tag ?p => idtac
-  | _ = _ => idtac
+  | _ => idtac
   end.
 
 
@@ -572,12 +582,12 @@ Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
   conserve_old_binding S S'.
 Proof.
   introv A. constructors.
-  - (* conserve_old_binding_binding *)
+  - (** conserve_old_binding_binding **)
     introv (p_&E&_). exists p_. splits~. exists p_. splits~.
     eapply alloc_read_SExp_neq in A.
     + rewrite~ A.
     + introv D. substs. erewrite alloc_read_SExp_fresh in E; autos*. inverts* E.
-  - (* conserve_old_binding_entry_point *)
+  - (** conserve_old_binding_entry_point **)
     introv. rewrites* >> move_along_entry_point_alloc_SExp A.
 Qed.
 
@@ -635,23 +645,23 @@ Proof.
   - rewrite E in E1. inverts E1. substs. exists~ p2_.
 Qed.
 
-Lemma conserve_old_binding_list_type : forall S S' l_t l_car l_tag p,
+Lemma conserve_old_binding_list_type : forall Pcar Ptag S S' l_t l_car l_tag p,
   conserve_old_binding S S' ->
-  list_type S l_t l_car l_tag p ->
-  list_type S' l_t l_car l_tag p.
+  list_type_such_that Pcar Ptag S l_t l_car l_tag p ->
+  list_type_such_that Pcar Ptag S' l_t l_car l_tag p.
 Proof.
   introv C L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H A L T IH]
-    using list_type_ind'.
+    using list_type_ind.
   - apply list_type_nil. applys~ conserve_old_binding_may_have_types C.
   - apply list_type_cons. exists p_. splits~.
     + applys~ conserve_old_binding_read C.
     + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_list_head : forall S S' l_t l_car l_tag p_,
+Lemma conserve_old_binding_list_head : forall Pcar Ptag S S' l_t l_car l_tag p_,
   conserve_old_binding S S' ->
-  list_head S l_t l_car l_tag p_ ->
-  list_head S' l_t l_car l_tag p_.
+  list_head_such_that Pcar Ptag S l_t l_car l_tag p_ ->
+  list_head_such_that Pcar Ptag S' l_t l_car l_tag p_.
 Proof.
   introv C (h&car&cdr&tag&L). exists h car cdr tag. splits; try apply~ L.
   - applys* conserve_old_binding_may_have_types C.
@@ -665,12 +675,12 @@ Lemma conserve_old_binding_transitive : forall S1 S2 S3,
   conserve_old_binding S1 S3.
 Proof.
   introv C1 C2. constructors.
-  - (* conserve_old_binding_binding *)
+  - (** conserve_old_binding_binding **)
     introv (p_&E&_). exists p_. splits~.
     forwards~ E1: conserve_old_binding_read C1 (rm E).
     forwards~ E2: conserve_old_binding_read C2 (rm E1).
     exists p_. splits~.
-  - (* conserve_old_binding_entry_point *)
+  - (** conserve_old_binding_entry_point **)
     introv. rewrites >> conserve_old_binding_entry_point C1.
     rewrites~ >> conserve_old_binding_entry_point C2.
 Qed.
@@ -749,47 +759,83 @@ Proof.
     + inverts E.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
+(* TODO: Put a fully applied version of these lemmae after the Cofix lemma. Update the tactics *)
+Lemma conserve_old_binding_list_type_safe_aux : forall S S' l_t l_car l_tag p,
   conserve_old_binding S S' ->
-  safe_SExpRec S p_ ->
-  safe_SExpRec S' p_.
+  (forall p, safe_pointer S p -> safe_pointer S' p) ->
+  list_type_safe S l_t l_car l_tag p ->
+  list_type_safe S' l_t l_car l_tag p.
 Proof.
-  introv C E. constructors~;
-    first [
-        introv T;
-        apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors);
-        repeat match goal with |- exists _, _ => eexists end; try splits;
-        try (introv M; match goal with P : _ |- _ => forwards: P M end);
-        try applys_first (>> conserve_old_binding_may_have_types
-                             conserve_old_binding_list_type
-                             conserve_old_binding_list_head) C;
-        autos*
-      | idtac ].
+  introv C CSafe L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H A L T IH]
+    using list_type_ind.
+  - apply list_type_nil. applys~ conserve_old_binding_may_have_types C.
+  - apply list_type_cons. exists p_. splits~.
+    + applys~ conserve_old_binding_read C.
+    + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_safe_pointer : forall S S' p,
+Lemma conserve_old_binding_list_head_safe_aux : forall S S' l_t l_car l_tag p_,
+  conserve_old_binding S S' ->
+  (forall p, safe_pointer S p -> safe_pointer S' p) ->
+  list_head_safe S l_t l_car l_tag p_ ->
+  list_head_safe S' l_t l_car l_tag p_.
+Proof.
+  introv C CSafe (h&car&cdr&tag&E&T&Mcar&OKcar&L&Mtag&OKtag).
+  exists h car cdr tag. splits~.
+  - applys* conserve_old_binding_may_have_types C.
+  - applys* conserve_old_binding_list_type_safe_aux C.
+  - applys* conserve_old_binding_may_have_types C.
+Qed.
+
+CoFixpoint conserve_old_binding_safe_SExpRec : forall S S' p_,
+  conserve_old_binding S S' ->
+  safe_SExpRec S p_ ->
+  safe_SExpRec S' p_
+with conserve_old_binding_safe_pointer : forall S S' p,
   conserve_old_binding S S' ->
   safe_pointer S p ->
   safe_pointer S' p.
 Proof.
-  cofix IH. introv C OKS. constructors~.
-  - (* pointer_bound *)
-    applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
-  - (* no_null_pointer_along_path_from *)
-    introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
-    applys~ conserve_old_binding_move_along_path_from_inv C.
-  - (* safe_bindings_along_path_step *)
-    introv E D. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
-    + applys~ pointer_bound OKS.
-    + applys~ safe_pointer_along_path_step E'.
-  - (* safe_SExpRec_read *)
-    introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
-    + forwards E': conserve_old_binding_read C E.
-      rewrite E' in R. inverts~ R.
-      applys~ conserve_old_binding_safe_SExpRec C.
-      applys~ safe_SExpRec_read E.
-    + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
-Qed.
+  -- (** conserve_old_binding_safe_SExpRec **)
+     introv C E. constructors~;
+       first [
+           introv T;
+           apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors);
+           repeat match goal with |- exists _, _ => eexists end; try splits;
+           try (introv M; match goal with P : _ |- _ =>
+                            let P' := fresh P in forwards P': P M;
+                            repeat (let P'' := fresh P in
+                              lets (?&P''): (rm P'); rename P'' into P')
+                          end; try splits);
+           try applys_first (>> conserve_old_binding_may_have_types
+                                conserve_old_binding_list_type_safe_aux
+                                conserve_old_binding_list_head_safe_aux) C;
+           try eassumption (* Was [autos*] *)
+         | idtac ];
+  (* Problem here: we have to inline the definition of
+    [conserve_old_binding_list_type_safe_aux] or the cofixpoint
+    definition will not work. *)
+                   autos*. (* Temporary *)
+Show Proof.
+  -- (** conserve_old_binding_safe_pointer **)
+     cofix IH. introv C OKS. constructors~.
+     - (** pointer_bound **)
+       applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
+     - (** no_null_pointer_along_path_from **)
+       introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
+       applys~ conserve_old_binding_move_along_path_from_inv C.
+     - (** safe_bindings_along_path_step **)
+       introv E D. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
+       + applys~ pointer_bound OKS.
+       + applys~ safe_pointer_along_path_step E'.
+     - (** safe_SExpRec_read **)
+       introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
+       + forwards E': conserve_old_binding_read C E.
+         rewrite E' in R. inverts~ R.
+         applys~ conserve_old_binding_safe_SExpRec C.
+         applys~ safe_SExpRec_read E.
+       + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
+Admitted. (* TODO *)
 
 Lemma alloc_SExp_safe_state : forall S S' p p_,
   safe_state S ->
@@ -799,14 +845,14 @@ Lemma alloc_SExp_safe_state : forall S S' p p_,
   safe_state S'.
 Proof.
   introv OKS OKp A D. forwards C: alloc_SExp_conserve_old_binding A. constructors~.
-  - (* no_null_pointer_entry_point *)
+  - (** no_null_pointer_entry_point **)
     introv NE E1. forwards~ E2: conserve_old_binding_move_along_entry_point_inv C E1.
     applys~ no_null_pointer_entry_point E2.
-  - (* safe_entry_points *)
+  - (** safe_entry_points **)
     introv E1 D'. applys~ conserve_old_binding_safe_pointer C.
     forwards~ E2: conserve_old_binding_move_along_entry_point_inv C E1.
     applys~ safe_entry_points E2.
-  - (* only_one_nil *)
+  - (** only_one_nil **)
     introv (p1_&E1&T1) (p2_&E2&T2). rewrites >> alloc_read_SExp_neq A in E1.
     + introv ?. substs. rewrites >> alloc_read_SExp_eq A in E1. inverts E1.
       false D. apply~ BagInSingle_list.
@@ -828,17 +874,32 @@ Qed.
 
 Lemma safe_make_SExpRec_list : forall S attrib car cdr tag,
   safe_pointer S car ->
-  list_type S ([ListSxp]) all_storable_SExpTypes ([NilSxp; CharSxp]) cdr ->
+  list_type_safe S ([ListSxp]) all_storable_SExpTypes ([NilSxp; CharSxp]) cdr ->
   may_have_types S ([NilSxp; CharSxp]) tag ->
+  safe_pointer S tag ->
   safe_SExpRec S (make_SExpRec_list attrib car cdr tag).
 Proof.
-  introv OKcar OKcdr Ttag. constructors; introv T; tryfalse.
+  introv OKcar OKcdr Ttag OKtag. constructors; introv T; tryfalse.
   constructors. do 3 eexists. splits*.
   - simpl. Mem_solve.
   - applys~ safe_pointer_may_have_types_all_storable_SExpTypes OKcar.
 Qed.
 
 (* TODO: Lemmae about [safe_globals] (and their tactics). *)
+Lemma conserve_old_binding_safe_globals : forall S S' globals,
+  conserve_old_binding S S' ->
+  safe_globals S globals ->
+  safe_globals S' globals.
+Proof.
+  introv C OKglobals. constructors.
+  - (** globals_not_NULL **)
+    skip.
+  - (** globals_not_NULL_safe **)
+    skip.
+  - (** safe_R_NilValue **)
+    skip.
+Admitted.
+
 
 (** * General tactics **)
 
@@ -1512,7 +1573,7 @@ Ltac rewrite_read_SExp :=
     match goal with
     | E : read_SExp (state_memory S) e = _ |- _ => rewrite E
     | T : may_have_types S ?l e |- _ => bound_such_that_prop T
-    | L : list_type_step S ?l e |- _ => bound_such_that_prop L
+    | L : list_type_step_such_that _ _ S ?l e |- _ => bound_such_that_prop L
     | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
     | B : bound S e |- _ => bound_such_that_prop B
     end;
@@ -1709,7 +1770,6 @@ Proof.
 
   transition_conserve S S'.
   splits; try solve_premises_lemmae.
-
 
   (*TODO*)
 Admitted. (*
