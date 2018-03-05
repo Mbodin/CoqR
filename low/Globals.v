@@ -3,7 +3,7 @@
   that are initialised, then never changed. **)
 
 
-Require Export Rinternals InternalTypes Shared.
+Require Export Rinternals InternalTypes Common.
 
 
 (** Global variables that are initialised once, then treated as

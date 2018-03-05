@@ -3,7 +3,7 @@
 
 Set Implicit Arguments.
 Require Export String.
-Require Export RinternalsAux TLC.LibHeap Shared.
+Require Export RinternalsAux TLC.LibHeap Common.
 Require Import TLC.LibStream.
 
 (** * A Model for the C Memory **)

@@ -1,7 +1,7 @@
 (** This file formalises bit fields of a given size. **)
 
 Set Implicit Arguments.
-Require Export Shared.
+Require Export Common.
 Require Import TLC.LibNat TLC.LibLogic.
 
 

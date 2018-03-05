@@ -14,7 +14,74 @@ Notation " [ x ; .. ; y ] " := (cons x .. (cons y nil) ..) : list_scope.
 Set Implicit Arguments.
 
 
-(** * To be added in TLC when the library will be ready. **)
+(** * Useful tactics **)
+
+(** ** Apply a list of hypotheses **)
+
+Ltac apply_first_base L :=
+  let L := list_boxer_of L in
+  match L with
+  | boxer ?P :: ?L' =>
+    apply~ P || apply_first_base L'
+  end.
+
+Tactic Notation "apply_first" constr(E) :=
+  apply_first_base E.
+Tactic Notation "apply_first" constr(E0) constr(A1) :=
+  apply_first (>> E0 A1).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) :=
+  apply_first (>> E0 A1 A2).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) :=
+  apply_first (>> E0 A1 A2 A3).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) :=
+  apply_first (>> E0 A1 A2 A3 A4).
+Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) constr(A5) :=
+  apply_first (>> E0 A1 A2 A3 A4 A5).
+
+
+Ltac applys_first L A :=
+  let L := list_boxer_of L in
+  let A := list_boxer_of A in
+  match L with
+  | boxer ?P :: ?L' =>
+    applys_base (boxer P :: A) || applys_first L' A
+  end.
+
+
+(** ** Fresh identifiers **)
+
+(** The original [fresh] tactic doesn’t work if given hints that are
+  function applications. These tactics accept any hint.
+  Unfortunately, they don’t convert Coq strings into identifiers. **)
+
+Ltac fresh1 N :=
+  match goal with
+  | |- _ => let r := fresh N in r
+  | |- _ => let r := fresh in r
+  end.
+
+Ltac fresh2 N1 N2 :=
+  match goal with
+  | |- _ => let r := fresh N1 N2 in r
+  | |- _ => let r := fresh N1 in r
+  | |- _ => let r := fresh N2 in r
+  | |- _ => let r := fresh in r
+  end.
+
+Ltac fresh3 N1 N2 N3 :=
+  match goal with
+  | |- _ => let r := fresh N1 N2 N3 in r
+  | |- _ => let r := fresh N1 N2 in r
+  | |- _ => let r := fresh N1 N3 in r
+  | |- _ => let r := fresh N2 N3 in r
+  | |- _ => let r := fresh N1 in r
+  | |- _ => let r := fresh N2 in r
+  | |- _ => let r := fresh N3 in r
+  | |- _ => let r := fresh in r
+  end.
+
+
+(** * May be added in TLC **)
 
 (* The following lemmae should be added in TLC. I have a version of
   the commit in this computer, but the branch coq-8.6 of TLC is frozen
@@ -790,9 +857,7 @@ Ltac prove_comparable_simple_inductive :=
   prove_decidable_eq.
 
 Ltac prove_comparable_trivial_inductive :=
-  match goal with
-  | |- Comparable ?T =>
-    let f := fresh T "_compare" in
+  let aux T f :=
     refine (let f : (T -> T -> bool) :=
       ltac:(intros t1 t2; remember t1 as t1' eqn: E1; remember t2 as t2' eqn: E2; destruct t1, t2;
             let t1 := type of E1 in let t2 := type of E2 in clear E1 E2;
@@ -805,7 +870,14 @@ Ltac prove_comparable_trivial_inductive :=
             end) in _);
     let I := fresh "I" in
     constructors; intros t1 t2; applys Decidable_equiv (f t1 t2); [| apply bool_decidable ];
-    destruct t1, t2; simpl; iff I; (inversion I || reflexivity)
+    destruct t1, t2; simpl; iff I; (inversion I || reflexivity) in
+  match goal with
+  | |- Comparable ?T =>
+    let f := fresh T "_compare" in
+    aux T f
+  | |- Comparable ?T =>
+    let f := fresh "compare" in
+    aux T f
   end.
 
 (* The next two tactics are inspired from the message of Pierre Courtieu:
@@ -856,9 +928,7 @@ Ltac list_all_constructors :=
   end.
 
 Ltac prove_comparable_trivial_inductive_faster :=
-  match goal with
-  | |- Comparable ?T =>
-    let f := fresh T "_to_nat" in
+  let aux T f :=
     refine (let f : (T -> nat) := ltac:(
       match goal with
       | |- ?T -> _ =>
@@ -877,7 +947,14 @@ Ltac prove_comparable_trivial_inductive_faster :=
       end) in _);
     let I := fresh "I" in
     constructors; intros t1 t2; applys Decidable_equiv (f t1 = f t2); [| typeclass ];
-    iff I; [ destruct t1; abstract (destruct t2; solve [ inversion I | reflexivity ]) | rewrite~ I ]
+    iff I; [ destruct t1; abstract (destruct t2; solve [ inversion I | reflexivity ]) | rewrite~ I ] in
+  match goal with
+  | |- Comparable ?T =>
+    let f := fresh T "_to_nat" in
+    aux T f
+  | |- Comparable ?T =>
+    let f := fresh "to_nat" in
+    aux T f
   end.
 
 Global Instance unit_comparable : Comparable unit.
@@ -906,38 +983,6 @@ Ltac Forall_splits :=
 Ltac Forall2_splits :=
   repeat splits;
   repeat first [ apply Forall2_nil | apply Forall2_cons ].
-
-
-(** * Useful tactics **)
-
-Ltac apply_first_base L :=
-  let L := list_boxer_of L in
-  match L with
-  | boxer ?P :: ?L' =>
-    apply~ P || apply_first_base L'
-  end.
-
-Tactic Notation "apply_first" constr(E) :=
-  apply_first_base E.
-Tactic Notation "apply_first" constr(E0) constr(A1) :=
-  apply_first (>> E0 A1).
-Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) :=
-  apply_first (>> E0 A1 A2).
-Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) :=
-  apply_first (>> E0 A1 A2 A3).
-Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) :=
-  apply_first (>> E0 A1 A2 A3 A4).
-Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr(A4) constr(A5) :=
-  apply_first (>> E0 A1 A2 A3 A4 A5).
-
-
-Ltac applys_first L A :=
-  let L := list_boxer_of L in
-  let A := list_boxer_of A in
-  match L with
-  | boxer ?P :: ?L' =>
-    applys_base (boxer P :: A) || applys_first L' A
-  end.
 
 
 (** * Some extensions of LibBag. **)
@@ -1043,6 +1088,10 @@ Global Instance Comparable_BagIncl_Decidable : forall T `{Comparable T} (l1 l2 :
   Decidable (l1 \c l2).
 Proof. introv. simpl. typeclass. Qed.
 
+Lemma BagIncl_refl : forall T `{Comparable T} (l : list T),
+  l \c l.
+Proof. introv. simpl. rewrite Forall_iff_forall_mem. introv I. rewrite* Mem_mem. Qed.
+
 Lemma BagInIncl : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 ->
   l1 \c l2 ->
@@ -1106,6 +1155,19 @@ Qed.
 Lemma BagDisjoint_com : forall T `{Comparable T} (l1 l2 : list T),
   l1 \# l2 <-> l2 \# l1.
 Proof. introv. repeat rewrite BagDisjoint_in. rew_logic*. Qed.
+
+
+(** Tries to solve a goal of the form [l1 \c l2]. **)
+Ltac solve_incl :=
+  solve [
+      apply~ BagIncl_refl
+    | apply~ BagInclEmpty
+    | apply~ BagUnionIncl_left
+    | apply~ BagUnionIncl_right
+    | apply~ BagInterIncl_left
+    | apply~ BagInterIncl_right
+    | repeat (apply~ BagIncl_cons; [Mem_solve|]); apply~ BagInclEmpty
+    | apply* BagInIncl_make ].
 
 
 (** * Miscellaneous **)

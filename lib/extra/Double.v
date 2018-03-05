@@ -5,7 +5,7 @@
 (* LATER: Use file Fappli_IEEE_extra.v of Compcert/lib/? I need to set up a license for this
   (either GPL or something compatible with the INRIA non-commercial license). *)
 
-Require Import Shared TLC.LibInt.
+Require Import Common TLC.LibInt.
 Require Import Flocq.Appli.Fappli_IEEE Flocq.Appli.Fappli_IEEE_bits.
 
 

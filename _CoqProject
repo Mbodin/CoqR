@@ -5,7 +5,7 @@
 
 -R ./lib/extra Lib
 
-./lib/extra/Shared.v
+./lib/extra/Common.v
 ./lib/extra/Array.v
 ./lib/extra/NBits.v
 ./lib/extra/Double.v

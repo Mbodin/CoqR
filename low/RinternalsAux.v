@@ -2,7 +2,7 @@
   Auxiliary definitions for the data structures defined in Rinternals. **)
 
 Set Implicit Arguments.
-Require Export Rinternals Shared.
+Require Export Rinternals Common.
 
 
 (** The C language performs a lot of pointer deferentiation. As a

@@ -137,48 +137,55 @@ Proof. introv I. destruct r; tryfalse. reflexivity. Qed.
 (** ** Some useful tactics **)
 
 Ltac destruct_PrimSxp_struct p :=
-  let p_offset := fresh p "offset" in
+  let p' := fresh1 p in
+  let p_offset := fresh p' "offset" in
   destruct p as [p_offset].
 
 Ltac destruct_SymSxp_struct s :=
-  let s_pname := fresh s "pname" in
-  let s_value := fresh s "value" in
-  let s_internal := fresh s "internal" in
+  let s' := fresh1 s in
+  let s_pname := fresh s' "pname" in
+  let s_value := fresh s' "value" in
+  let s_internal := fresh s' "internal" in
   destruct s as [s_pname s_value s_internal].
 
 Ltac destruct_ListSxp_struct l :=
-  let l_carval := fresh l "carval" in
-  let l_cdrval := fresh l "cdrval" in
-  let l_tagval := fresh l "tagval" in
+  let l' := fresh1 l in
+  let l_carval := fresh l' "carval" in
+  let l_cdrval := fresh l' "cdrval" in
+  let l_tagval := fresh l' "tagval" in
   destruct l as [l_carval l_cdrval l_tagval].
 
 Ltac destruct_EnvSxp_struct e :=
-  let e_frame := fresh e "frame" in
-  let e_enclos := fresh e "enclos" in
+  let e' := fresh1 e in
+  let e_frame := fresh e' "frame" in
+  let e_enclos := fresh e' "enclos" in
   destruct e as [e_frame e_enclos].
 
 Ltac destruct_CloSxp_struct c :=
-  let c_formals := fresh c "formals" in
-  let c_body := fresh c "body" in
-  let c_env := fresh c "env" in
+  let c' := fresh1 c in
+  let c_formals := fresh c' "formals" in
+  let c_body := fresh c' "body" in
+  let c_env := fresh c' "env" in
   destruct c as [c_formals c_body c_env].
 
 Ltac destruct_PromSxp_struct p :=
-  let p_value := fresh p "value" in
-  let p_expr := fresh p "expr" in
-  let p_env := fresh p "env" in
+  let p' := fresh1 p in
+  let p_value := fresh p' "value" in
+  let p_expr := fresh p' "expr" in
+  let p_env := fresh p' "env" in
   destruct p as [p_value p_expr p_env].
 
 Ltac destruct_NonVector_SExpRec_aux deep e_ :=
-  let e_header := fresh e_ "header" in
-  let e_data := fresh e_ "data" in
+  let e_' := fresh1 e_ in
+  let e_header := fresh e_' "header" in
+  let e_data := fresh e_' "data" in
   destruct e_ as [e_header e_data];
-  let e_prim := fresh e_ "prim" in
-  let e_sym := fresh e_ "sym" in
-  let e_list := fresh e_ "list" in
-  let e_env := fresh e_ "env" in
-  let e_clo := fresh e_ "clo" in
-  let e_prom := fresh e_ "prom" in
+  let e_prim := fresh e_' "prim" in
+  let e_sym := fresh e_' "sym" in
+  let e_list := fresh e_' "list" in
+  let e_env := fresh e_' "env" in
+  let e_clo := fresh e_' "clo" in
+  let e_prom := fresh e_' "prom" in
   let inner t e_i :=
     match deep with
     | true => t e_i
@@ -196,12 +203,13 @@ Ltac destruct_NonVector_SExpRec_deep := destruct_NonVector_SExpRec_aux true.
 Ltac destruct_NonVector_SExpRec := destruct_NonVector_SExpRec_aux false.
 
 Ltac destruct_SExpRec_aux deep1 deep2 e_ :=
-  let e_nonVector := fresh e_ "nonVector" in
-  let e_vectorChar := fresh e_ "vectorChar" in
-  let e_vectorInteger := fresh e_ "vectorInteger" in
-  let e_vectorComplex := fresh e_ "vectorComplex" in
-  let e_vectorReal := fresh e_ "vectorReal" in
-  let e_vectorPointer := fresh e_ "vectorPointer" in
+  let e_' := fresh1 e_ in
+  let e_nonVector := fresh e_' "nonVector" in
+  let e_vectorChar := fresh e_' "vectorChar" in
+  let e_vectorInteger := fresh e_' "vectorInteger" in
+  let e_vectorComplex := fresh e_' "vectorComplex" in
+  let e_vectorReal := fresh e_' "vectorReal" in
+  let e_vectorPointer := fresh e_' "vectorPointer" in
   destruct e_ as [ e_nonVector | e_vectorChar | e_vectorInteger
                  | e_vectorComplex | e_vectorReal | e_vectorPointer];
   [ match deep1 with
@@ -1015,7 +1023,7 @@ Ltac make_runs_deeper r :=
   | runs (1 + ?n) ?globals => idtac
   | runs (S ?n) ?globals => rew n
   | runs ?n ?globals =>
-    let n' := fresh n in
+    let n' := fresh1 n in
     destruct n as [|n'];
     [ deal_with_bottom | rew n']
   end.
