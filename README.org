@@ -56,7 +56,7 @@ We can thus pin it in Opam.
 
 We can now install the required packages.
 #+BEGIN_SRC bash
-    opam install ocamlbuild menhir coq coq-flocq extlib
+    opam install ocamlbuild menhir coq coq-flocq coq-paco extlib
     eval `opam config env`
 #+END_SRC
 

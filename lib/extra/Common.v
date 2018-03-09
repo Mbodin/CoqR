@@ -889,7 +889,7 @@ Ltac hd_of_app t :=
   end.
 
 Ltac find_elem typ :=
-  constr:(ltac:(constructor):typ).
+  constr:(ltac:(constructors*):typ).
 
 Ltac find_rec typ :=
   let X := constr:(fun x : typ => ltac:(induction x; exact I) : True) in
