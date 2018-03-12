@@ -1298,7 +1298,7 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
       read%list expr_cdr_car, _, _ := expr_cdr using S in
       evalseq globals runs S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
     let%success rhsprom := mkRHSPROMISE globals S args_cdr_car rhs using S in
-    do%success (rhs, lhs, expr) := (rhs, lhs, expr)
+    do%success (lhs, expr) := (lhs, expr)
     while
         read%list _, expr_cdr, _ := expr using S in
         read%list expr_cdr_car, _, _ := expr_cdr using S in
@@ -1329,7 +1329,7 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
       run%success SET_PRVALUE S rhsprom rhs using S in
       run%success SET_PRCODE S rhsprom rhs using S in
       read%list _, lhs_cdr, _ := lhs using S in
-      result_success S (rhs, lhs_cdr, expr_cdr_car) using S, runs in
+      result_success S (lhs_cdr, expr_cdr_car) using S, runs in
     read%list expr_car, expr_cdr, _ := expr using S in
     let%success afun :=
       let%success expr_car_type := TYPEOF S expr_car using S in

@@ -191,6 +191,14 @@ f <- function (..., ab) ab ; f (1, 2, ab = 3, 4, 5) ; f (1, 2, a = 3, 4, 5)
 g <- function () 1 ; f <- function (g) g () ; f (2) ; f (function () 3)
 g <- function () 1 ; f <- function (g) { g <- 4 ; g () } ; f (2) ; f (function () 3) ; g <- 5 ; g ()
 g <- function () 1 ; f <- function (g) (g) () ; f (function () 3) ; f (2)
+1 ()
+TRUE ()
+FALSE ()
+NULL ()
+NA ()
+NaN ()
+"1" ()
+"" ()
 
 # Tests about explicit conversions.
 is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
@@ -501,6 +509,8 @@ f <- function () { x <<- x + 1 ; "f" } ; x <- 0 ; a <- 1 ; attr (a, "f") <- 2 ; 
 a <- 1 ; f <- function () { a <<- 2 ; "f" } ; attr (a, "f") <- 3 ; attr (attr (a, f ()), "g") <- 4 ; a ; attr (a, "f") ; attr (attr (a, "f"), "g")
 n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; "f" } ; attr (a, f ()) <- 3 ; n ; attr (attr (a, f ()), "g") <- 4 ; n ; attr (attr (attr (a, f ()), "g"), "h") <- 5 ; n ; a ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "h")
 n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; a } ; attr (f (), "f") <- 2 ; n ; attr (attr (f (), "f"), "g") <- 3 ; n ; attr (attr (attr (f (), "f"), "g"), "f") <- 4 ; n ; attr (f (), "f") ; n ; attr (attr (f (), "f"), "g") ; n ; attr (attr (attr (f (), "f"), "g"), "f") ; n ; a
+a <- 1 ; attr (a, c ("f", "g")) <- 1:2 ; attr (a, "f") ;  attr (a, "g") ; a ; attr (a, c ("f", "g"))
+a <- 1 ; attr (a, c ("f", "g")) <- 1:2 ; attr (attr (a, c ("f", "g")), "h") <- 3
 
 # Tests about special attributes.
 a <- 1:10 ; attr (a, "dim") <- 1
