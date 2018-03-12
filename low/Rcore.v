@@ -2315,12 +2315,12 @@ Definition SYMBOL_BINDING_VALUE S s :=
     getActiveValue S (sym_value s_sym)
   else result_success S (sym_value s_sym).
 
-Definition setActiveValue S (f v : SEXP) :=
+Definition setActiveValue S (vfun val : SEXP) :=
   add%stack "setActiveValue" in
-  let%success arg_tail := lcons S v R_NilValue using S in
+  let%success arg_tail := lcons S val R_NilValue using S in
   let%success arg := lcons S R_QuoteSymbol arg_tail using S in
   let%success expr_tail := lcons S arg R_NilValue using S in
-  let%success expr := lcons S f expr_tail using S in
+  let%success expr := lcons S vfun expr_tail using S in
   run%success runs_eval runs S expr R_GlobalEnv using S in
   result_skip S.
 
@@ -2329,8 +2329,8 @@ Definition SET_BINDING_VALUE S b val :=
   if%success BINDING_IS_LOCKED S b using S then
     result_error S "Can not change value of locked binding."
   else
-    read%list b_car, _, _ := b using S in
     if%success IS_ACTIVE_BINDING S b using S then
+      read%list b_car, _, _ := b using S in
       setActiveValue S b_car val
     else
       set%car b := val using S in
@@ -2358,31 +2358,23 @@ Definition IS_USER_DATABASE S rho :=
   let%success inh := inherits S rho "UserDefinedDatabase" using S in
   result_success S (obj rho_ && inh).
 
+Definition SET_SYMBOL_BINDING_VALUE S sym val :=
+  add%stack "SET_SYMBOL_BINDING_VALUE" in
+  if%success BINDING_IS_LOCKED S sym using S then
+    result_error S "Cannot change value of locked binding."
+  else if%success IS_ACTIVE_BINDING S sym using S then
+    read%sym _, sym_sym := sym using S in
+    setActiveValue S (sym_value sym_sym) val
+  else SET_SYMVALUE S sym val.
+
 Definition gsetVar S (symbol value rho : SEXP) : result unit :=
   add%stack "gsetVar" in
   if%success FRAME_IS_LOCKED S rho using S then
     read%sym symbol_, symbol_sym := symbol using S in
     ifb sym_value symbol_sym = R_UnboundValue then
-      result_error S "Can not add such a bidding to the base environment."
+      result_error S "Can not add such a binding to the base environment."
     else result_skip S in
-  if%success BINDING_IS_LOCKED S symbol using S then
-    result_error S "Can not change value of locked biding."
-  else
-    read%sym symbol_, symbol_sym := symbol using S in
-    if%success IS_ACTIVE_BINDING S symbol using S then
-      setActiveValue S (sym_value symbol_sym) value
-    else
-      let symbol_sym := {|
-          sym_pname := sym_pname symbol_sym ;
-          sym_value := value ;
-          sym_internal := sym_internal symbol_sym
-        |} in
-      let symbol_ := {|
-          NonVector_SExpRec_header := NonVector_SExpRec_header symbol_ ;
-          NonVector_SExpRec_data := symbol_sym
-        |} in
-      write%defined symbol := symbol_ using S in
-      result_skip S.
+  SET_SYMBOL_BINDING_VALUE S symbol value.
 
 Definition defineVar S (symbol value rho : SEXP) : result unit :=
   add%stack "defineVar" in
@@ -2413,15 +2405,6 @@ Definition defineVar S (symbol value rho : SEXP) : result unit :=
       run%success SET_FRAME S rho l using S in
       set%tag l := symbol using S in
       result_skip S.
-
-Definition SET_SYMBOL_BINDING_VALUE S sym val :=
-  add%stack "SET_SYMBOL_BINDING_VALUE" in
-  if%success BINDING_IS_LOCKED S sym using S then
-    result_error S "Cannot change value of locked binding."
-  else if%success IS_ACTIVE_BINDING S sym using S then
-    read%sym _, sym_sym := sym using S in
-    setActiveValue S (sym_value sym_sym) val
-  else SET_SYMVALUE S sym val.
 
 Definition setVarInFrame S (rho symbol value : SEXP) :=
   add%stack "setVarInFrame" in

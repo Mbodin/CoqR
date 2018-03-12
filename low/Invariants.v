@@ -822,54 +822,71 @@ Proof.
   - applys* conserve_old_binding_may_have_types C.
 Qed.
 
-CoFixpoint conserve_old_binding_safe_SExpRec : forall S S' p_,
+Lemma conserve_old_binding_safe_SExprRec_type_aux : forall S S' t p_,
   conserve_old_binding S S' ->
+  (forall p, safe_pointer S p -> safe_pointer S' p) ->
+  safe_SExpRec_type safe_pointer S t p_ ->
+  safe_SExpRec_type safe_pointer S' t p_.
+Proof.
+  introv C CSafe OK. inverts OK; constructors~;
+    try (introv M; match goal with P : _ |- _ =>
+                     let P' := fresh P in forwards P': P M;
+                     repeat (let P'' := fresh P in
+                       lets (?&P''): (rm P'); rename P'' into P')
+                   end; try splits);
+    try applys_first (>> conserve_old_binding_may_have_types
+                         conserve_old_binding_list_type_safe_aux
+                         conserve_old_binding_list_head_safe_aux) C; autos~.
+Qed.
+
+Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
+  conserve_old_binding S S' ->
+  (forall p, safe_pointer S p -> safe_pointer S' p) ->
   safe_SExpRec S p_ ->
-  safe_SExpRec S' p_
-with conserve_old_binding_safe_pointer : forall S S' p,
+  safe_SExpRec S' p_.
+Proof.
+  introv C Csafe E. constructors~;
+    first [
+        introv T;
+        apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors);
+        repeat match goal with |- exists _, _ => eexists end; try splits;
+        try (introv M; match goal with P : _ |- _ =>
+                         let P' := fresh P in forwards P': P M;
+                         repeat (let P'' := fresh P in
+                           lets (?&P''): (rm P'); rename P'' into P')
+                       end; try splits);
+        try applys_first (>> conserve_old_binding_may_have_types
+                             conserve_old_binding_list_type_safe_aux
+                             conserve_old_binding_list_head_safe_aux
+                             conserve_old_binding_safe_SExprRec_type_aux) C;
+        autos*
+      | idtac ].
+  applys* conserve_old_binding_safe_SExprRec_type_aux C.
+  applys~ SExpType_corresponds_to_datatype E.
+Qed.
+
+Lemma conserve_old_binding_safe_pointer : forall S S' p,
   conserve_old_binding S S' ->
   safe_pointer S p ->
   safe_pointer S' p.
 Proof.
-  -- (** conserve_old_binding_safe_SExpRec **)
-     introv C E. constructors~;
-       first [
-           introv T;
-           apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors);
-           repeat match goal with |- exists _, _ => eexists end; try splits;
-           try (introv M; match goal with P : _ |- _ =>
-                            let P' := fresh P in forwards P': P M;
-                            repeat (let P'' := fresh P in
-                              lets (?&P''): (rm P'); rename P'' into P')
-                          end; try splits);
-           try applys_first (>> conserve_old_binding_may_have_types
-                                conserve_old_binding_list_type_safe_aux
-                                conserve_old_binding_list_head_safe_aux) C;
-           try eassumption (* Was [autos*] *)
-         | idtac ];
-  (* Problem here: we have to inline the definition of
-    [conserve_old_binding_list_type_safe_aux] or the cofixpoint
-    definition will not work. *)
-                   autos*. (* Temporary *)
-Show Proof.
-  -- (** conserve_old_binding_safe_pointer **)
-     cofix IH. introv C OKS. constructors~.
-     - (** pointer_bound **)
-       applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
-     - (** no_null_pointer_along_path_from **)
-       introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
-       applys~ conserve_old_binding_move_along_path_from_inv C.
-     - (** safe_bindings_along_path_step **)
-       introv E D. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
-       + applys~ pointer_bound OKS.
-       + applys~ safe_pointer_along_path_step E'.
-     - (** safe_SExpRec_read **)
-       introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
-       + forwards E': conserve_old_binding_read C E.
-         rewrite E' in R. inverts~ R.
-         applys~ conserve_old_binding_safe_SExpRec C.
-         applys~ safe_SExpRec_read E.
-       + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
+  pcofix IH. introv C OKS. pfold. rewrite safe_pointer_rewrite in OKS. constructors~.
+  - (** pointer_bound **)
+    applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
+  - (** no_null_pointer_along_path_from **)
+    introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
+    applys~ conserve_old_binding_move_along_path_from_inv C.
+  - (** safe_bindings_along_path_step **)
+    introv E D. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
+    + applys~ pointer_bound OKS.
+    + applys~ safe_pointer_along_path_step E'.
+  - (** safe_SExpRec_read **)
+    introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
+    + forwards E': conserve_old_binding_read C E.
+      rewrite E' in R. inverts~ R.
+      applys~ conserve_old_binding_safe_SExpRec C.
+      applys~ safe_SExpRec_read E.
+    + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
 Admitted. (* TODO *)
 
 Lemma alloc_SExp_safe_state : forall S S' p p_,

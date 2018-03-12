@@ -1310,7 +1310,6 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
         ifb expr_car_type = SymSxp then
           getAssignFcnSymbol S expr_car
         else
-          let%success expr_car_type := TYPEOF S expr_car using S in
           read%list expr_car_car, expr_car_cdr, _ := expr_car using S in
           let%success expr_car_len := R_length globals runs S expr_car using S in
           read%list expr_car_cdr_car, expr_car_cdr_cdr, _ := expr_car_cdr using S in
@@ -1337,7 +1336,6 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
       ifb expr_car_type = SymSxp then
         getAssignFcnSymbol S expr_car
       else
-        let%success expr_car_type := TYPEOF S expr_car using S in
         read%list expr_car_car, expr_car_cdr, _ := expr_car using S in
         let%success expr_car_len := R_length globals runs S expr_car using S in
         read%list expr_car_cdr_car, expr_car_cdr_cdr, _ := expr_car_cdr using S in
@@ -1351,14 +1349,14 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
           result_success S afun
         else result_error S "Invalid function in complex assignment (after the loop)." using S in
     run%success SET_TEMPVARLOC_FROM_CAR S tmploc lhs using S in
-    let%success R_asymSymbol_op :=
-      ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
-        result_error S "Out of bound access to R_asymSymbol."
-      else
-        let%defined sym := nth_option (Z.to_nat op_val) (R_asymSymbol S) using S in
-        result_success S sym using S in
-    read%list _, lhs_cdr, _ := lhs using S in
     let%success expr :=
+      let%success R_asymSymbol_op :=
+        ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
+          result_error S "Out of bound access to R_asymSymbol."
+        else
+          let%defined sym := nth_option (Z.to_nat op_val) (R_asymSymbol S) using S in
+          result_success S sym using S in
+      read%list _, lhs_cdr, _ := lhs using S in
       read%list _, expr_cdr_cdr, _ := expr_cdr using S in
       assignCall globals runs S R_asymSymbol_op lhs_cdr afun R_TmpvalSymbol expr_cdr_cdr rhsprom using S in
     let%success expr := eval globals runs S expr rho using S in

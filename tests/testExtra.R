@@ -103,6 +103,12 @@ typeof <- function (x) .Internal (typeof (x)) ; typeof (typeof) ; typeof (typeof
 typeof <- function (x) .Internal (typeof (x)) ; typeof (.Internal)
 typeof <- function (x) .Internal (typeof (x)) ; runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
 typeof <- function (x) .Internal (typeof (x)) ; f <- function (...) typeof (...) ; f (1) ; f (list (1, 2)) ; f (NULL)
+typeof <- function (x) .Internal (typeof (x)) ; integer (0) ; typeof (integer (0))
+typeof <- function (x) .Internal (typeof (x)) ; numeric (0) ; typeof (numeric (0))
+typeof <- function (x) .Internal (typeof (x)) ; logical (0) ; typeof (logical (0))
+typeof <- function (x) .Internal (typeof (x)) ; character (0) ; typeof (character (0))
+typeof <- function (x) .Internal (typeof (x)) ; complex (0) ; typeof (complex (0))
+typeof <- function (x) .Internal (typeof (x)) ; raw (0) ; typeof (raw (0))
 
 # Tests about lazy evaluation and function application.
 (function (x, y = x) { x <- 1 ; y ; x <- 2 ; y }) (3)
@@ -264,6 +270,8 @@ NULL == list () ; NULL == c () ; list () == list () ; list () == c () ; list () 
 list (1) == c (1) ; list (1) == 1 ; list (1) == c (1L) ; list (1) == c (1i) ; list (1L) == c (1i) ; list (1) == list (1)
 NA == "NA" ; list (NA) == NA ; list (NA) == "NA" ; list ("NA") == "NA" ; list ("NA") == NA
 list (1, TRUE) == c ("1", "TRUE") ; list (TRUE, TRUE) == c ("true", "T") ; list (TRUE, TRUE) == c (1) ; list (TRUE, "") == c (1) ; list ("") == c (1) ; list (" ") == c (1) ; list (1, TRUE) == c (TRUE, "")
+(list (1, 2, 3)) [[2]] ; (1:3) [[2]] ; list (1) [[2]]
+list (a = 3, b = 5) $ a ; list (a = 3, b = 5) $ c ; list (ab = 3, b = 4) $ a ; list (ab = 3, abc = 4) $ a ; list (ab = 3, abc = 4) $ ab
 1 == 1i ; 1 == 1 + 0i
 -0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1" ; 1:" "
 -10:10 ; -(10:10) ; 1:""
@@ -292,6 +300,17 @@ NaN > NaN ; NaN < NaN ; NaN <= NaN ; NaN >= NaN ; NaN == NaN ; NaN != NaN
 1 > "" ; 1 < '' ; 1 <= "" ; 1 >= '' ; 1 == "" ; 1 != ""
 0 == 0i ; 0L == 0i ; 0 == 0L ; FALSE == TRUE - TRUE ; FALSE != TRUE - TRUE
 1:5 > 5:1 ; 1:5 < 5:1 ; 1:5 >= 5:1 ; 1:5 <= 5:1 ; 1:5 == 5:1 ; 1:5 != 5:1
+1 %% 2 ; 1 %% 1 ; 1 %% 0 ; 1 %% FALSE ; 1 %% TRUE
+0 %% 2 ; 0 %% 1 ; 0 %% 0 ; 0 %% FALSE ; 0 %% TRUE
+-1 %% 2 ; -1 %% 1 ; -1 %% 3 ; -1 %% 0 ; -1 %% FALSE ; -1 %% TRUE
+5.5 %% 4 ; -5.5 %% 4
+NA %% 1 ; NA %% 0 ; NaN %% 1 ; NaN %% 0 ; 1 %% NA ; 1 %% NaN ; 0 %% NA ; 0 %% NaN
+TRUE %% 2 ; TRUE %% 1 ; TRUE %% 0 ; TRUE %% FALSE ; TRUE %% TRUE
+FALSE %% 2 ; FALSE %% 1 ; FALSE %% 0 ; FALSE %% FALSE ; FALSE %% TRUE
+0i %% 3
+0i %% 0
+0i %% 3i
+7 %% 2:4 ; -10:10 %% 3 ; -10:10 %% NULL ; NULL %% 2 ; -10:10 %% 2:4 ; -10:10 %% 2:5
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y
@@ -314,6 +333,7 @@ NA <- 1
 "NA" <- 1 ; NA
 "TRUE" <- 1 ; "FALSE" <- 2 ; TRUE ; FALSE
 f <- function (x) x <- 1 ; x <- 2 ; f (3) ; x
+x <- 2 ; f <- function (x) x <- 1 ; x ; f (3) ; x
 f <- function (x) function (y) x <- 1 ; x <- 2 ; f (3) (4) ; x
 x <<- y <<- 2 ; x ; y
 x <<- 2 ->> y ; x ; y
@@ -402,6 +422,7 @@ a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f") ; a + 1 ; attr (a + 1, "f")
 a <- 1 ; attr (attr (a, "f"), "g") <- 4
 a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; attr (attr (attr (a, "f"), "g"), "h") <- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "h") ; a
 a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; attr (attr (attr (a, "f"), "g"), "f") <- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "f") ; a
+a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, "f"), "g") <- 3 ; b <- attr (attr (a, "f"), "g") ; attr (b, "f") <- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; b ; attr (b, "f") ; a
 f <- "g" ; a <- 1 ; b <- 2 ; attr (a, f) <- 2 ; attr (b, f) <- 3 ; attr (a + b, f) ; attr (a + b, "g") ; attr (a + b, "f")
 f <- "g" ; a <- 1 ; b <- 2 ; attr (a, f) <- 2 ; attr (b, f) <- 3 ; attr (a - b, f) ; attr (a * b, f) ; attr (a / b, f) ; attr (a < b, f) ; attr (a > b, f) ; attr (a <= b, f) ; attr (a >= b, f) ; attr (a == b, f) ; attr (a != b, f)
 a <- 1 ; b <- 2 ; attr (a, "x") <- 3 ; attr (b, "y") <- 4 ; attr (a + b, "x") ; attr (a + b, "y")
@@ -421,6 +442,30 @@ a <- 1 ; attr (a, "abc") <- 2 ; attr (a, "ab") <- 3 ; attr (a, "a")
 "attr<-" <- function (x, y, value) x <- value + 1 ; a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f")
 "attr=" <- function (x, y, value) x <- value + 1 ; a <- 1 ; attr (a, "f") <- 2 ; a ; attr (a, "f")
 attr (attr, "f") <- 1 ; attr ; attr (attr, "f")
+attr (1, "a") ; attr (1, "a") <<- 4
+a <<- 1 ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; a + 1 ; attr (a + 1, "f")
+a <<- 1 ; attr (attr (a, "f"), "g") <<- 4
+a <<- 1 ; attr (a, "f") <<- 2 ; attr (attr (a, "f"), "g") <<- 3 ; attr (attr (attr (a, "f"), "g"), "f") <<- 4 ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "f") ; a
+f <<- "g" ; a <<- 1 ; b <<- 2 ; attr (a, f) <<- 2 ; attr (b, f) <<- 3 ; attr (a + b, f) ; attr (a + b, "g") ; attr (a + b, "f")
+f <<- "g" ; a <<- 1 ; b <<- 2 ; attr (a, f) <<- 2 ; attr (b, f) <<- 3 ; attr (a - b, f) ; attr (a * b, f) ; attr (a / b, f) ; attr (a < b, f) ; attr (a > b, f) ; attr (a <= b, f) ; attr (a >= b, f) ; attr (a == b, f) ; attr (a != b, f)
+a <<- 1 ; b <<- 2 ; attr (a, "x") <<- 3 ; attr (b, "y") <<- 4 ; attr (a + b, "x") ; attr (a + b, "y")
+a <<- function (x) x ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- 1L ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- 2i ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- NaN ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- NA ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- "" ; attr (a, "f") <<- 2 ; a ; attr (a, "f") ; attr (a, "f") <<- function (x) x ; a ; attr (a, "f") ; attr (a, "f") <<- NULL ; a ; attr (a, "f") ; attr (a, "f") <<- NA ; a ; attr (a, "f")
+a <<- "" ; attr (a, "") <<- 2 ; a ; attr (a, "") ; attr (a, "") <<- function (x) x ; a ; attr (a, "") ; attr (a, "") <<- NULL ; a ; attr (a, "") ; attr (a, "") <<- NA ; a ; attr (a, "")
+a <<- NULL ; attr (a, "f") <<- 2
+a <<- -10:10 ; a ; a [3] <<- 9 ; a ; a [6:9] ; a > 0 ; a <<- 0 ; a [a <<- 0] <<- 8 ; a ; a [a < 1] <<- 7 ; a ; a [-2] ; a [-4:-7]
+a <<- -10:10 ; attr (a, "x") <<- 9 ; attr (a, "x") ; attr (a [1], "x") ; attr (a [-1], "x") ; attr (a [1], "y") <<- 8 ; a ; attr (a [1], "y") ; attr (a, "y") ; b <<- a [1] ; attr (b, "z") <<- 7 ; attr (b, "z") ; attr (a [1], "z")
+a <<- -10:10 ; a [c (TRUE, FALSE, TRUE)] ; a [80:90] ; a [-9:0] ; a [c ("x", "y")] ; a [NA] ; a [NaN] ; a [c (TRUE, FALSE, NA)] ; a ["TRUE"] ; a [0] ; a [a]
+a <<- 1 ; attr (a, "abc") <<- 2 ; attr (a, "a") ; attr (a, "a") <<- 3 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc") ; attr (a, "ab") <<- 4 ; attr (a, "a") ; attr (a, "ab") ; attr (a, "abc")
+a <<- 1 ; attr (a, "abc") <<- 2 ; attr (a, "ab") <<- 3 ; attr (a, "a")
+"attr<<-" <<- function (x, y, value) x <<- value + 1 ; a <<- 1 ; attr (a, "f") <<- 2 ; a ; attr (a, "f")
+"attr<-" <<- function (x, y, value) x <<- value + 1 ; a <<- 1 ; attr (a, "f") <<- 2 ; a ; attr (a, "f")
+"attr=" <<- function (x, y, value) x <<- value + 1 ; a <<- 1 ; attr (a, "f") <<- 2 ; a ; attr (a, "f")
+attr (attr, "f") <<- 1 ; attr ; attr (attr, "f")
 attr (1, "a") ; attr (1, "a") = 4
 a = 1 ; attr (a, "f") = 2 ; a ; attr (a, "f") ; a + 1 ; attr (a + 1, "f")
 a = 1 ; attr (attr (a, "f"), "g") = 4
@@ -454,6 +499,8 @@ a <- 1 ; attr (a, "f") <- 2 ; x <- "" ; attr (attr (a, x <- paste (x, "f", sep =
 a <- 1 ; attr (a, "f") <- 2 ; x <- "" ; attr (attr (a, x <- paste (x, "f")), "g") <- 3
 f <- function () { x <<- x + 1 ; "f" } ; x <- 0 ; a <- 1 ; attr (a, "f") <- 2 ; attr (attr (a, f ()), "g") <- 3 ; x ; a ; attr (a, "f") ; attr (attr (a, "f"), "g")
 a <- 1 ; f <- function () { a <<- 2 ; "f" } ; attr (a, "f") <- 3 ; attr (attr (a, f ()), "g") <- 4 ; a ; attr (a, "f") ; attr (attr (a, "f"), "g")
+n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; "f" } ; attr (a, f ()) <- 3 ; n ; attr (attr (a, f ()), "g") <- 4 ; n ; attr (attr (attr (a, f ()), "g"), "h") <- 5 ; n ; a ; attr (a, "f") ; attr (attr (a, "f"), "g") ; attr (attr (attr (a, "f"), "g"), "h")
+n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; a } ; attr (f (), "f") <- 2 ; n ; attr (attr (f (), "f"), "g") <- 3 ; n ; attr (attr (attr (f (), "f"), "g"), "f") <- 4 ; n ; attr (f (), "f") ; n ; attr (attr (f (), "f"), "g") ; n ; attr (attr (attr (f (), "f"), "g"), "f") ; n ; a
 
 # Tests about special attributes.
 a <- 1:10 ; attr (a, "dim") <- 1
