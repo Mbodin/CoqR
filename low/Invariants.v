@@ -328,30 +328,30 @@ Inductive safe_SExpRec_type (safe_pointer : _ -> _ -> Prop) S : SExpType -> SExp
   | SExpType_corresponds_to_data_CharSxp : forall header array,
       safe_SExpRec_type safe_pointer S CharSxp
         (SExpRec_VectorChar (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_LglSxp : forall header array,
       safe_SExpRec_type safe_pointer S LglSxp
         (SExpRec_VectorLogical (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_IntSxp : forall header array,
       safe_SExpRec_type safe_pointer S IntSxp
         (SExpRec_VectorInteger (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_RealSxp : forall header array,
       safe_SExpRec_type safe_pointer S RealSxp
         (SExpRec_VectorReal (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_CplxSxp : forall header array,
       safe_SExpRec_type safe_pointer S CplxSxp
         (SExpRec_VectorComplex (make_Vector_SExpRec header
-           (make_VecSxp_struct (ArrayList.length array) array)))
+           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_StrSxp : forall header array,
       (forall a,
         Mem a (ArrayList.to_list array) ->
         may_have_types S ([CharSxp]) a /\ safe_pointer S a) ->
       safe_SExpRec_type safe_pointer S StrSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_DotSxp : forall e_,
       list_head_such_that (safe_pointer S) (safe_pointer S) S
         ([ListSxp ; DotSxp]) all_storable_SExpTypes ([NilSxp]) e_  ->
@@ -364,14 +364,14 @@ Inductive safe_SExpRec_type (safe_pointer : _ -> _ -> Prop) S : SExpType -> SExp
           may_have_types S ([(*TODO*)]) a /\ safe_pointer S a) -> *)
       safe_SExpRec_type safe_pointer S VecSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_ExprSxp : forall header array,
       (* (forall a,
         Mem a (ArrayList.to_list array) ->
         may_have_types S ([(*TODO*)]) a /\ safe_pointer S a) -> *)
       safe_SExpRec_type safe_pointer S ExprSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
-          (make_VecSxp_struct (ArrayList.length array) array)))
+          (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   (** The following four types have not been implemented. **)
   | SExpType_corresponds_to_data_BcodeSxp : forall e_,
       safe_SExpRec_type safe_pointer S BcodeSxp e_

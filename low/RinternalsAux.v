@@ -318,19 +318,33 @@ Definition build_SExpRecHeader type scalar attrib : SExpRecHeader :=
 
 Definition get_VecSxp_length e_ :=
   match e_ with
-  | SExpRec_NonVector e_ =>
-    None
-  | SExpRec_VectorChar e_ =>
-    Some (VecSxp_length e_)
-  | SExpRec_VectorInteger e_ =>
-    Some (VecSxp_length e_)
-  | SExpRec_VectorComplex e_ =>
-    Some (VecSxp_length e_)
-  | SExpRec_VectorReal e_ =>
-    Some (VecSxp_length e_)
-  | SExpRec_VectorPointer e_ =>
-    Some (VecSxp_length e_)
+  | SExpRec_NonVector e_ => None
+  | SExpRec_VectorChar e_ => Some (VecSxp_length e_)
+  | SExpRec_VectorInteger e_ => Some (VecSxp_length e_)
+  | SExpRec_VectorComplex e_ => Some (VecSxp_length e_)
+  | SExpRec_VectorReal e_ => Some (VecSxp_length e_)
+  | SExpRec_VectorPointer e_ => Some (VecSxp_length e_)
   end.
+
+Definition update_Vector_SExpRec A (v : Vector_SExpRec A) (data : ArrayList.array A) := {|
+    Vector_SExpRec_header := v ;
+    Vector_SExpRec_vecsxp := {|
+        VecSxp_length := VecSxp_length v ;
+        VecSxp_truelength := VecSxp_truelength v ;
+        VecSxp_data := data
+      |}
+  |}.
+
+Definition VecSxp_with_truelength A (e_ : VecSxp_struct A) v := {|
+    VecSxp_length := VecSxp_length e_ ;
+    VecSxp_truelength := v ;
+    VecSxp_data := VecSxp_data e_
+  |}.
+
+Definition Vector_SExpRec_with_truelength A (e_ : Vector_SExpRec A) v := {|
+    Vector_SExpRec_header := Vector_SExpRec_header e_ ;
+    Vector_SExpRec_vecsxp := VecSxp_with_truelength e_ v
+  |}.
 
 
 (** Smart constructors for each R data type. **)
@@ -373,52 +387,60 @@ Definition make_SExpRec_prim attrib prim type :=
       (make_PrimSxp_struct prim)).
 
 Definition make_SExpRec_char attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorChar
     (make_Vector_SExpRec
       (build_SExpRecHeader CharSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_lgl attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorLogical
     (make_Vector_SExpRec
       (build_SExpRecHeader LglSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_int attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorInteger
     (make_Vector_SExpRec
       (build_SExpRecHeader IntSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_real attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorReal
     (make_Vector_SExpRec
       (build_SExpRecHeader RealSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_cplx attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorComplex
     (make_Vector_SExpRec
       (build_SExpRecHeader CplxSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_str attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader StrSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_vec attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader VecSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 Definition make_SExpRec_expr attrib array :=
+  let len := ArrayList.length array in
   SExpRec_VectorPointer
     (make_Vector_SExpRec
       (build_SExpRecHeader ExprSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct (ArrayList.length array) array)).
+      (make_VecSxp_struct len len array)).
 
 
 (** * Instances **)

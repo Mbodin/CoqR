@@ -154,7 +154,7 @@ Record NonVector_SExpRec := make_NonVector_SExpRec {
 (** vecsxp_struct **)
 Record VecSxp_struct (A : Type) := make_VecSxp_struct {
     VecSxp_length : nat ;
-    (* VecSxp_truelength : nat ; *)
+    VecSxp_truelength : nat ;
     VecSxp_data :> ArrayList.array A
   }.
 

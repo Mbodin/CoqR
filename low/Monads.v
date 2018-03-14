@@ -351,14 +351,6 @@ Notation "'read%cell' c ':=' v 'at' n 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition update_Vector_SExpRec A (v : Vector_SExpRec A) (data : ArrayList.array A) := {|
-    Vector_SExpRec_header := v ;
-    Vector_SExpRec_vecsxp := {|
-        VecSxp_length := VecSxp_length v ;
-        VecSxp_data := data
-      |}
-  |}.
-
 Definition update_Vector_SExpRec_cell A (v : Vector_SExpRec A) n c :=
   ifb n < ArrayList.length v then
     Some (update_Vector_SExpRec v (ArrayList.write v n c))

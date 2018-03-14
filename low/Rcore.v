@@ -354,6 +354,52 @@ Definition BCODE_EXPR S x :=
   read%list _, _, x_tag := x using S in
   result_success S x_tag.
 
+Definition STDVEC_LENGTH S x :=
+  add%stack "STDVEC_LENGTH" in
+  read%defined x_ := x using S in
+  match x_ with
+  | SExpRec_NonVector _ => result_impossible S "Not a vector."
+  | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)
+  | SExpRec_VectorPointer x_ => result_success S (VecSxp_length x_)
+  end.
+
+Definition STDVEC_TRUELENGTH S x :=
+  add%stack "STDVEC_LENGTH" in
+  read%defined x_ := x using S in
+  match x_ with
+  | SExpRec_NonVector _ => result_impossible S "Not a vector."
+  | SExpRec_VectorChar x_ => result_success S (VecSxp_truelength x_)
+  | SExpRec_VectorInteger x_ => result_success S (VecSxp_truelength x_)
+  | SExpRec_VectorComplex x_ => result_success S (VecSxp_truelength x_)
+  | SExpRec_VectorReal x_ => result_success S (VecSxp_truelength x_)
+  | SExpRec_VectorPointer x_ => result_success S (VecSxp_truelength x_)
+  end.
+
+Definition SET_STDVEC_TRUELENGTH S x v :=
+  add%stack "SET_STDVEC_TRUELENGTH" in
+  read%defined x_ := x using S in
+  let%success x_ :=
+    match x_ with
+    | SExpRec_NonVector _ => result_impossible S "Not a vector."
+    | SExpRec_VectorChar x_ => result_success S (SExpRec_VectorChar (Vector_SExpRec_with_truelength x_ v))
+    | SExpRec_VectorInteger x_ => result_success S (SExpRec_VectorInteger (Vector_SExpRec_with_truelength x_ v))
+    | SExpRec_VectorComplex x_ => result_success S (SExpRec_VectorComplex (Vector_SExpRec_with_truelength x_ v))
+    | SExpRec_VectorReal x_ => result_success S (SExpRec_VectorReal (Vector_SExpRec_with_truelength x_ v))
+    | SExpRec_VectorPointer x_ => result_success S (SExpRec_VectorPointer (Vector_SExpRec_with_truelength x_ v))
+    end using S in
+  write%defined x := x_ using S in
+  result_skip S.
+
+Definition SET_TRUELENGTH S x v :=
+  add%stack "SET_TRUELENGTH" in
+  if%success ALTREP S x using S then
+    result_error S "Can’t set ALTREP truelength."
+  else
+    SET_STDVEC_TRUELENGTH S x v.
+
 
 (** ** Defn.h **)
 
@@ -736,18 +782,6 @@ Definition isVectorList S s :=
 Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
   unimplemented_function "ALTREP_LENGTH".
 
-Definition STDVEC_LENGTH S x :=
-  add%stack "STDVEC_LENGTH" in
-  read%defined x_ := x using S in
-  match x_ with
-  | SExpRec_NonVector _ => result_impossible S "Not a vector."
-  | SExpRec_VectorChar x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorInteger x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorComplex x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorReal x_ => result_success S (VecSxp_length x_)
-  | SExpRec_VectorPointer x_ => result_success S (VecSxp_length x_)
-  end.
-
 Definition XLENGTH_EX S x :=
   add%stack "XLENGTH_EX" in
   read%defined x_ := x using S in
@@ -1067,6 +1101,19 @@ Definition RAW_ELT S x i :=
     read%Pointer x_i := x at i using S in
     result_success S x_i.
 
+(** The following function is actually from main/altrep.c. It has been
+  placed here to solve a circular file dependency. **)
+
+Definition ALTREP_TRUELENGTH S (x : SEXP) :=
+  add%stack "ALTREP_TRUELENGTH" in
+  result_success S 0.
+
+Definition XTRUELENGTH S x :=
+  add%stack "XTRUELENGTH" in
+  if%success ALTREP S x using S then
+    ALTREP_TRUELENGTH S x
+  else STDVEC_TRUELENGTH S x.
+
 
 (** ** duplicate.c **)
 
@@ -1184,7 +1231,8 @@ Definition COPY_TRUELENGTH S (vto vfrom : SEXP) :=
   add%stack "COPY_TRUELENGTH" in
   let%success vfrom_growable := IS_GROWABLE S vfrom using S in
   if negb vfrom_growable then
-    unimplemented_function "SET_TRUELENGTH"
+    let%success vfrom_len := XTRUELENGTH S vfrom using S in
+    SET_TRUELENGTH S vto vfrom_len
   else result_skip S.
 
 Definition duplicate1 S s deep :=
@@ -1254,6 +1302,8 @@ Definition duplicate1 S s deep :=
           read%VectorLogical s_ := s using S in
           write%VectorLogical t := s_ using S in
           result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | IntSxp =>
       let%success n := XLENGTH S s using S in
@@ -1267,6 +1317,8 @@ Definition duplicate1 S s deep :=
           read%VectorInteger s_ := s using S in
           write%VectorInteger t := s_ using S in
           result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | RealSxp =>
       let%success n := XLENGTH S s using S in
@@ -1280,6 +1332,8 @@ Definition duplicate1 S s deep :=
           read%VectorReal s_ := s using S in
           write%VectorReal t := s_ using S in
           result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | CplxSxp =>
       let%success n := XLENGTH S s using S in
@@ -1293,6 +1347,8 @@ Definition duplicate1 S s deep :=
           read%VectorComplex s_ := s using S in
           write%VectorComplex t := s_ using S in
           result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | RawSxp =>
       result_not_implemented "Raw case."
@@ -1308,6 +1364,8 @@ Definition duplicate1 S s deep :=
           read%VectorPointer s_ := s using S in
           write%VectorPointer t := s_ using S in
           result_skip S using S in
+      run%success DUPLICATE_ATTRIB S t s deep using S in
+      run%success COPY_TRUELENGTH S t s using S in
       result_rsuccess S t
     | PromSxp =>
       result_rreturn S s
