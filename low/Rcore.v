@@ -1424,6 +1424,19 @@ Definition isVector S s :=
     result_success S false
   end.
 
+Definition isMatrix S s :=
+  add%stack "isMatrix" in
+  if%success isVector S s using S then
+    let%success t := runs_getAttrib runs S s R_DimSymbol using S in
+    let%success t_type := TYPEOF S t using S in
+    ifb t_type = IntSxp then
+      let%success t_len := LENGTH S t using S in
+      ifb t_len = 2 then
+        result_success S true
+      else result_success S false
+    else result_success S false
+  else result_success S false.
+
 Definition R_cycle_detected S s child :=
   add%stack "R_cycle_detected" in
   let%success child_type := TYPEOF S child using S in

@@ -64,6 +64,25 @@ Definition Rf_check1arg S (arg call : SEXP) formal :=
      result_error S "Supplied argument name does not match expected name."
     else result_skip S.
 
+Definition ncols S s :=
+  add%stack "ncols" in
+    let%success s_vec := isVector S s using S in
+    let%success s_list := isList globals S s using S in
+    ifb s_vec \/ s_list then
+      let%success t := getAttrib globals runs S s R_DimSymbol using S in
+      ifb t = R_NilValue then
+        result_success S 1%Z
+      else
+        let%success t_len := LENGTH globals S t using S in
+        ifb t_len >= 2 then
+          read%Integer r := t at 1 using S in
+          result_success S r
+        else result_success S 1%Z
+    else if%success isFrame globals runs S s using S then
+      let%success r := R_length globals runs S s using S in
+      result_success S (r : int)
+    else result_error S "Object is not a matrix.".
+
 
 (** ** attrib.c **)
 
@@ -2642,7 +2661,25 @@ Definition VectorSubset S (x s call : SEXP) :=
     duplicate globals runs S x
   else
     let%success attrib := getAttrib globals runs S x R_DimSymbol using S in
-    unimplemented_function "isMatrix".
+    let%success s :=
+      let%success s_mat := isMatrix globals runs S s using S in
+      let%success x_arr := isArray globals runs S x using S in
+      ifb s_mat /\ x_arr then
+        let%success s_cols := ncols S s using S in
+        let%success attrib_len := R_length globals runs S attrib using S in
+        ifb s_cols = attrib_len then
+          let%success s :=
+            if%success isString S s using S then
+              unimplemented_function "strmat2intmat"
+            else result_success S s using S in
+          let%success s_int := isInteger globals runs S s using S in
+          let%success s_real := isReal S s using S in
+          ifb s_int \/ s_real then
+            unimplemented_function "mat2indsub"
+          else result_success S s
+        else result_success S s
+      else result_success S s using S in
+    unimplemented_function "makeSubscript".
 
 Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in

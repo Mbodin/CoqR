@@ -813,11 +813,12 @@ Proof.
     + inverts E.
 Qed.
 
-Lemma conserve_old_binding_list_type_safe_aux : forall (safe_pointer' : _ -> _ -> Prop) S S' l_t l_car l_tag p,
+Lemma conserve_old_binding_list_type_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
+    S S' l_t l_car l_tag p,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer' S p -> safe_pointer' S' p) ->
-  list_type_such_that (safe_pointer' S) (safe_pointer' S) S l_t l_car l_tag p ->
-  list_type_such_that (safe_pointer' S') (safe_pointer' S') S' l_t l_car l_tag p.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  list_type_such_that (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p ->
+  list_type_such_that (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p.
 Proof.
   introv C CSafe L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H A L T IH]
     using list_type_ind.
@@ -827,11 +828,12 @@ Proof.
     + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer' : _ -> _ -> Prop) S S' l_t l_car l_tag p_,
+Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
+    S S' l_t l_car l_tag p_,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer' S p -> safe_pointer' S' p) ->
-  list_head_such_that (safe_pointer' S) (safe_pointer' S) S l_t l_car l_tag p_ ->
-  list_head_such_that (safe_pointer' S') (safe_pointer' S') S' l_t l_car l_tag p_.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  list_head_such_that (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p_ ->
+  list_head_such_that (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p_.
 Proof.
   introv C CSafe (h&car&cdr&tag&E&T&Mcar&OKcar&L&Mtag&OKtag).
   exists h car cdr tag. splits~.
@@ -840,11 +842,11 @@ Proof.
   - applys* conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_safe_SExprRec_type_aux : forall (safe_pointer' : _ -> _ -> Prop) S S' t p_,
+Lemma conserve_old_binding_safe_SExprRec_type_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' t p_,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer' S p -> safe_pointer' S' p) ->
-  safe_SExpRec_type safe_pointer' S t p_ ->
-  safe_SExpRec_type safe_pointer' S' t p_.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  safe_SExpRec_type safe_pointer1 S t p_ ->
+  safe_SExpRec_type safe_pointer2 S' t p_.
 Proof.
   introv C CSafe OK. inverts OK; constructors~;
     try (introv M; match goal with P : _ |- _ =>
@@ -854,14 +856,14 @@ Proof.
                    end; try splits);
     try applys_first (>> conserve_old_binding_may_have_types
                          conserve_old_binding_list_type_safe_aux
-                         conserve_old_binding_list_head_safe_aux) C; autos~.
+                         conserve_old_binding_list_head_safe_aux) C; autos*.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer' : _ -> _ -> Prop) S S' p_,
+Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer' S p -> safe_pointer' S' p) ->
-  safe_SExpRec_gen safe_pointer' S p_ ->
-  safe_SExpRec_gen safe_pointer' S' p_.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  safe_SExpRec_gen safe_pointer1 S p_ ->
+  safe_SExpRec_gen safe_pointer2 S' p_.
 Proof.
   introv C Csafe E. constructors~;
     first [
@@ -903,13 +905,11 @@ Proof.
     introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
     + forwards E': conserve_old_binding_read C E.
       rewrite E' in R. inverts~ R.
-      applys~ conserve_old_binding_safe_SExpRec_aux C.
-      * skip. (* TODO *)
-      * applys~ safe_SExpRec_read E. rewrite <- safe_pointer_rewrite in OKS. unfolds in OKS.
-        applys paco2_unfold safe_pointer_gen_mon. punfold OKS. applys paco2_pfold OKS.
-        introv I. inverts I as I; [| inverts~ I ]. left. applys paco2_mon I. introv A. inverts A.
+      applys~ conserve_old_binding_safe_SExpRec_aux safe_pointer C.
+      * clear - C IH. introv OKp. right*.
+      * applys~ safe_SExpRec_read E.
     + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
-Admitted.
+Qed.
 
 Lemma conserve_old_binding_list_type_safe : forall S S' l_t l_car l_tag p,
   conserve_old_binding S S' ->
@@ -1002,12 +1002,12 @@ Lemma conserve_old_binding_safe_globals : forall S S' globals,
 Proof.
   introv C OKglobals. constructors.
   - (** globals_not_NULL **)
-    skip.
+    applys~ globals_not_NULL OKglobals.
   - (** globals_not_NULL_safe **)
-    skip.
+    introv D. applys~ conserve_old_binding_safe_pointer C. applys~ globals_not_NULL_safe D.
   - (** safe_R_NilValue **)
-    skip.
-Admitted.
+    applys~ conserve_old_binding_may_have_types C. applys~ safe_R_NilValue.
+Qed.
 
 
 (** * General tactics **)
