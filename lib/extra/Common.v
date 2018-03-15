@@ -20,7 +20,7 @@ Set Implicit Arguments.
 
 Ltac apply_first_base L :=
   let L := list_boxer_of L in
-  match L with
+  lazymatch L with
   | boxer ?P :: ?L' =>
     apply~ P || apply_first_base L'
   end.
@@ -42,7 +42,7 @@ Tactic Notation "apply_first" constr(E0) constr(A1) constr(A2) constr(A3) constr
 Ltac applys_first L A :=
   let L := list_boxer_of L in
   let A := list_boxer_of A in
-  match L with
+  lazymatch L with
   | boxer ?P :: ?L' =>
     applys_base (boxer P :: A) || applys_first L' A
   end.
@@ -812,7 +812,7 @@ Ltac prove_decidable_eq :=
       typeclass || (apply Comparable_Decidable; typeclass)
     (** A little trivial case **)
     | _ =>
-      match goal with
+      lazymatch goal with
       |- Decidable (?f1 = ?f2) =>
         abstract (
           let D := fresh "D" in asserts D: (tr f1 <> tr f2);
@@ -845,7 +845,7 @@ Ltac prove_decidable_eq :=
          task of the user to know what is the context. **)
       let TR := fresh "tr" in set (TR := tr)
     end in
-  match goal with
+  lazymatch goal with
   | |- Decidable (?x = _) =>
     let T := type of x in
     t (@id T)
@@ -883,7 +883,7 @@ Ltac prove_comparable_trivial_inductive :=
 (* The next two tactics are inspired from the message of Pierre Courtieu:
   [Coq-Club] using Ltac to retrieve the name of an induction principle from the type. *)
 Ltac hd_of_app t :=
-  match t with
+  lazymatch t with
   | (?f _) => hd_of_app f
   | _ => t
   end.
@@ -907,7 +907,7 @@ Ltac find_rect t typ :=
   hd.
 
 Ltac list_all_constructors :=
-  match goal with
+  lazymatch goal with
   | |- list ?T =>
     let rec aux t :=
       match t with
@@ -930,10 +930,10 @@ Ltac list_all_constructors :=
 Ltac prove_comparable_trivial_inductive_faster :=
   let aux T f :=
     refine (let f : (T -> nat) := ltac:(
-      match goal with
+      lazymatch goal with
       | |- ?T -> _ =>
         let rec aux i t b :=
-          match t with
+          lazymatch t with
           | ?C -> ?t =>
             let f := aux (S i) t b in
             constr:(f i)

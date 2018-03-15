@@ -187,7 +187,7 @@ Ltac destruct_NonVector_SExpRec_aux deep e_ :=
   let e_clo := fresh e_' "clo" in
   let e_prom := fresh e_' "prom" in
   let inner t e_i :=
-    match deep with
+    lazymatch deep with
     | true => t e_i
     | false => idtac
     end in
@@ -212,7 +212,7 @@ Ltac destruct_SExpRec_aux deep1 deep2 e_ :=
   let e_vectorPointer := fresh e_' "vectorPointer" in
   destruct e_ as [ e_nonVector | e_vectorChar | e_vectorInteger
                  | e_vectorComplex | e_vectorReal | e_vectorPointer];
-  [ match deep1 with
+  [ lazymatch deep1 with
     | true => destruct_NonVector_SExpRec_aux deep2 e_nonVector
     | false => idtac
     end | .. ].
@@ -828,7 +828,7 @@ Proof. introv. apply~ for_list_map. Qed.
 (** ** Tactics **)
 
 Ltac get_pass_lemma t :=
-  match get_head t with
+  lazymatch get_head t with
   | add_stack => add_stack_pass
   | if_success => if_success_pass
   | if_defined_msg => if_defined_msg_pass
@@ -857,7 +857,7 @@ Ltac get_pass_lemma t :=
   end.
 
 Ltac get_abort_lemma t :=
-  match get_head t with
+  lazymatch get_head t with
   | if_success => if_success_abort
   | if_defined_msg => if_defined_msg_abort
   | if_defined => if_defined_abort
@@ -881,7 +881,7 @@ Ltac get_abort_lemma t :=
   end.
 
 Ltac get_aborts_lemma t :=
-  match get_head t with
+  lazymatch get_head t with
   | add_stack => add_stack_aborts
   | if_success => if_success_aborts
   | if_defined_msg => if_defined_msg_aborts
@@ -905,7 +905,7 @@ Ltac get_aborts_lemma t :=
   end.
 
 Ltac get_simplify_lemma t :=
-  match get_head t with
+  lazymatch get_head t with
   | add_stack => constr:(>> add_stack_result add_stack_simplify)
   | while_loop => while_unfold
   | set_longjump => set_longjump_simplify
@@ -922,7 +922,7 @@ Ltac unfolds_get_impossible :=
 (** To speed up computations, we directly fail if a result is not
   already fully computed. **)
 Ltac result_computed r :=
-  match get_head r with
+  lazymatch get_head r with
   | result_success => idtac
   | result_longjump => idtac
   | result_error_stack => idtac
@@ -937,7 +937,7 @@ Ltac solve_premises :=
       reflexivity
     | discriminate
     | autos~
-    | match goal with
+    | lazymatch goal with
       | |- _ < _ => math
       | |- _ > _ => math
       | |- _ <= _ => math
@@ -957,7 +957,7 @@ Ltac unfold_monad_pass t :=
   let P := get_pass_lemma t in
   let L := list_boxer_of P in
   let rec try_all_lemmae L :=
-    match L with
+    lazymatch L with
     | boxer ?P :: ?L' =>
       first [
           rewrite P; try solve_premises
@@ -969,7 +969,7 @@ Ltac unfold_monad_simplify t :=
   let L := get_simplify_lemma t in
   let L := list_boxer_of L in
   let rec try_all_lemmae L :=
-    match L with
+    lazymatch L with
     | boxer ?S :: ?L' =>
       first [
           solve [ (apply* S || rewrite* S); solve_premises ]
@@ -1019,7 +1019,7 @@ Ltac make_runs_deeper r :=
     first [
         asserts_rewrite (S n = 1 + n)%nat in *; [ reflexivity |]
       | asserts_rewrite (S n = 1 + n) in *; [ reflexivity |] ] in
-  match r with
+  lazymatch r with
   | runs (1 + ?n) ?globals => idtac
   | runs (S ?n) ?globals => rew n
   | runs ?n ?globals =>
@@ -1239,7 +1239,7 @@ Ltac simplifyR :=
   repeat (unfold_monad; repeat let_simpl).
 
 Ltac cutR P :=
-  match goal with
+  lazymatch goal with
   | |- result_prop ?P_success ?P_error ?P_longjump (if_success ?r ?cont) =>
     let P' := fresh "P" in
     first [

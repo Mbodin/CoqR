@@ -101,6 +101,18 @@ Lemma may_have_types_read_SExp : forall S l p p_,
   type p_ \in l.
 Proof. introv (p_'&E&T) R. rewrite E in R. inverts~ R. Qed.
 
+Lemma read_SExp_may_have_types_read : forall (S : state) l p p_,
+  read_SExp S p = Some p_ ->
+  type p_ \in l ->
+  may_have_types S l p.
+Proof. introv E T. exists p_. splits~. Qed.
+
+Lemma read_SExp_may_have_types_read_exact : forall (S : state) t p p_,
+  read_SExp S p = Some p_ ->
+  type p_ = t ->
+  may_have_types S ([t]) p.
+Proof. introv E T. applys read_SExp_may_have_types_read E. substs. Mem_solve. Qed.
+
 
 (** ** List pointers **)
 
@@ -157,8 +169,8 @@ Fixpoint list_type_ind (Pcar Ptag : _ -> Prop) S
   applys~ list_type_ind f_nil f_cons.
 Defined.
 
-Lemma list_head_may_have_types : forall S l_t l_car l_tag p_,
-  list_head S l_t l_car l_tag p_ ->
+Lemma list_head_may_have_types : forall S Pcar Ptag l_t l_car l_tag p_,
+  list_head_such_that Pcar Ptag S l_t l_car l_tag p_ ->
   type p_ \in l_t.
 Proof. introv (h&car&cdr&tag&M&H&A&L&T). substs~. Qed.
 
@@ -485,47 +497,6 @@ Record conserve_old_binding S S' : Prop := make_conserve_old_binding {
   }.
 
 
-(** ** Simple Useful Tactics **)
-
-(* TODO: This section has to be updated *)
-
-Definition safe_SExpRec_constructors := @nil Boxer.
-
-Ltac get_right_safe_SExpRec_constructor cont :=
-  let rec aux l :=
-    lazymatch l with
-    | boxer ?C :: ?l' => cont C || aux l'
-    end in
-  let l := eval unfold safe_SExpRec_constructors in safe_SExpRec_constructors in
-  aux l.
-
-Ltac apply_safe_SExpRec_constructors_to_SEXP p_ find next :=
-  match goal with
-  | T : type (get_SxpInfo p_) = ?t |- _ =>
-    get_right_safe_SExpRec_constructor ltac:(fun C =>
-      let p_' := fresh1 p_ in
-      let P := fresh "P" p_ in
-      forwards P: C T; [ find | next P ])
-  end.
-
-Ltac decompose_safe_SExpRec_constructors H :=
-  match type of H with
-  | False => false~ H
-  | exists x, _ =>
-    let x := fresh x in
-    let H' := fresh H in
-    lets (x&H'): (rm H);
-    decompose_safe_SExpRec_constructors H'
-  | _ /\ _ =>
-    let H1 := fresh H in
-    let H2 := fresh H in
-    lets (H1&H2): (rm H);
-    decompose_safe_SExpRec_constructors H1;
-    decompose_safe_SExpRec_constructors H2
-  | _ => idtac
-  end.
-
-
 (** ** Lemmae **)
 
 Lemma safe_pointer_along_path_from_incl : forall (safe_pointer' : _ -> _ -> Prop) S p path e,
@@ -657,6 +628,13 @@ Proof.
   introv Safe M1 M2 R1 R2 T1 T2.
   applys~ only_one_nil Safe; eexists; splits*; apply~ BagInSingle_list.
 Qed.
+
+Lemma list_type_safe_safe : forall S l_t l_car l_tag l,
+  list_type_safe S l_t l_car l_tag l ->
+  safe_pointer S l.
+Proof.
+  introv L. inverts L.
+Admitted. (* TODO: we need more hypotheses. *)
 
 Lemma conserve_old_binding_read : forall S S' p p_,
   conserve_old_binding S S' ->
@@ -865,22 +843,7 @@ Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer
   safe_SExpRec_gen safe_pointer1 S p_ ->
   safe_SExpRec_gen safe_pointer2 S' p_.
 Proof.
-  introv C Csafe E. constructors~;
-    first [
-        introv T;
-        apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors);
-        repeat match goal with |- exists _, _ => eexists end; try splits;
-        try (introv M; match goal with P : _ |- _ =>
-                         let P' := fresh P in forwards P': P M;
-                         repeat (let P'' := fresh P in
-                           lets (?&P''): (rm P'); rename P'' into P')
-                       end; try splits);
-        try applys_first (>> conserve_old_binding_may_have_types
-                             conserve_old_binding_list_type_safe_aux
-                             conserve_old_binding_list_head_safe_aux
-                             conserve_old_binding_safe_SExprRec_type_aux) C;
-        autos*
-      | idtac ].
+  introv C Csafe E. constructors~.
   applys* conserve_old_binding_safe_SExprRec_type_aux C.
   applys~ SExpType_corresponds_to_datatype E.
 Qed.
@@ -994,7 +957,6 @@ Proof.
   - applys~ safe_pointer_may_have_types_all_storable_SExpTypes OKcar.
 Qed.
 
-(* TODO: Lemmae about [safe_globals] (and their tactics). *)
 Lemma conserve_old_binding_safe_globals : forall S S' globals,
   conserve_old_binding S S' ->
   safe_globals S globals ->
@@ -1016,8 +978,9 @@ Qed.
 
 (** *** Simplifying lists **)
 
+(** Checks whether [x] is syntactically in the list [l]. **)
 Ltac compute_is_in x l :=
-  match l with
+  lazymatch l with
   | nil => constr:(false)
   | x :: _ => constr:(true)
   | _ :: ?l =>
@@ -1026,7 +989,7 @@ Ltac compute_is_in x l :=
 
 (** This produces a list equal to [l1 \n l2] in Ltac. **)
 Ltac compute_list_inter l1 l2 :=
-  match l2 with
+  lazymatch l2 with
   | nil => l2
   | ?a :: ?l =>
     let isi := compute_is_in a l1 in
@@ -1069,7 +1032,7 @@ Ltac compute_list_union l1 l2 :=
       end
     end in
   let rec add_to_the_end l1 :=
-    match l1 with
+    lazymatch l1 with
     | nil =>
       let r := inl2butnotinl1 l2 in
       r
@@ -1087,7 +1050,7 @@ Ltac simpl_list_union :=
     repeat
       (rewrite filter_cons;
        let C := fresh "C" in
-       cases_if as C; fold_bool; rew_refl in C; try (false C; Mem_solve);
+       cases_if as C; fold_bool; rew_refl in C; try (false C; substs; Mem_solve);
        fequals; clear C) in
   repeat match goal with
   | |- context [ ?l1 \u ?l2 ] =>
@@ -1102,7 +1065,7 @@ Ltac simpl_list_union :=
 (** *** Simplifying the context **)
 
 Ltac syntactically_the_same x y :=
-  match x with
+  lazymatch x with
   | y => idtac
   end.
 
@@ -1120,7 +1083,18 @@ Ltac simplify_context :=
     let T3 := fresh2 T1 T2 in
     forwards T3: list_type_merge (rm T1) (rm T2);
     rename T3 into T1
-  end; simpl_list_inter.
+  end;
+  try fold (list_head_such_that (fun _ => True) (fun _ => True)) in *;
+  try fold list_head_such_that in *;
+  try fold list_head in *;
+  try fold list_type in *;
+  repeat match goal with
+  | |- context [ list_type_such_that (safe_pointer ?S) (safe_pointer ?S) ?S ] => fold (list_type_safe S)
+  | H : context [ list_type_such_that (safe_pointer ?S) (safe_pointer ?S) ?S ] |- _ => fold (list_type_safe S) in H
+  | |- context [ list_head_such_that (safe_pointer ?S) (safe_pointer ?S) ?S ] => fold (list_head_safe S)
+  | H : context [ list_head_such_that (safe_pointer ?S) (safe_pointer ?S) ?S ] |- _ => fold (list_head_safe S) in H
+  end;
+  simpl_list_inter.
 
 
 (** *** Automatic rewriting **)
@@ -1139,7 +1113,7 @@ Ltac selfrewrite :=
 (** *** Case analysis on lists **)
 
 Ltac explode_list T :=
-  match type of T with
+  lazymatch type of T with
   | ?x \in nil =>
     false; applys~ BagInEmpty_list T
   | ?x \in [?y] =>
@@ -1210,7 +1184,7 @@ Ltac prove_not_NULL :=
         | E : read_SExp _ NULL = Some _ |- _ =>
           rewrite read_SExp_NULL in E; inverts~ E
         end ] in
-  match goal with
+  lazymatch goal with
   | |- ?p <> NULL => aux p
   | |- ?p = NULL -> False => aux p
   | |- NULL <> ?p => apply noteq_sym; aux p
@@ -1222,11 +1196,101 @@ Ltac prove_not_NULL :=
 
 (** Generates a proof of [Nth n p l] if possible. **)
 Ltac prove_Nth p l :=
-  match l with
+  lazymatch l with
   | p :: ?l' => constr:(Nth_here l' p)
   | ?x :: ?l' =>
     let N := prove_Nth p l' in
     constr:(Nth_next x N)
+  end.
+
+(* TODO: We can infer things from [list_type_step_such_that]. *)
+Ltac get_may_have_types S p cont :=
+  lazymatch goal with
+  | M : may_have_types S _ p |- _ => cont M
+  | L : list_type S _ _ _ p |- _ =>
+    let E := fresh L in
+    let p' := fresh1 p in
+    let p_ := fresh p' "_" in
+    forwards (p_&E&_): list_type_may_have_types L;
+    simpl_list_union;
+    cont E
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    T : type (get_SxpInfo ?p_) = ?t |- _ =>
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read_exact E T;
+    cont M
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    L : list_head S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
+    let T := fresh "T" in
+    forwards T: list_head_may_have_types L;
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    L : list_head_such_that ?Pcar ?Ptag S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
+    let T := fresh "T" in
+    forwards T: list_head_may_have_types L;
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | |- _ =>
+    lazymatch p with
+    | read_globals ?globals R_NilValue =>
+      lazymatch goal with
+      | G : safe_globals S globals |- _ =>
+        let T := fresh "T" in
+        forwards T: safe_R_NilValue G; [idtac];
+        cont T
+      end
+    end
+  end.
+
+Ltac get_may_have_types_no_S p cont :=
+  lazymatch goal with
+  | M : may_have_types _ _ p |- _ => cont M
+  | L : list_type _ _ _ _ p |- _ =>
+    let E := fresh L in
+    let p' := fresh1 p in
+    let p_ := fresh p' "_" in
+    forwards (p_&E&_): list_type_may_have_types L;
+    simpl_list_union;
+    cont E
+  | E : read_SExp _ p = Some ?p_,
+    T : type (get_SxpInfo ?p_) = ?t |- _ =>
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read_exact E T;
+    cont M
+  | E : read_SExp _ p = Some ?p_,
+    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory ?S) p = Some ?p_,
+    L : list_head ?S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
+    let T := fresh "T" in
+    forwards T: list_head_may_have_types L;
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory ?S) p = Some ?p_,
+    L : list_head_such_that ?Pcar ?Ptag ?S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
+    let T := fresh "T" in
+    forwards T: list_head_may_have_types L;
+    let M := fresh "M" in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | |- _ =>
+    lazymatch p with
+    | read_globals ?globals R_NilValue =>
+      let T := fresh "T" in
+      forwards~ T: safe_R_NilValue; [idtac];
+      cont T
+    end
   end.
 
 Ltac prove_locations_different :=
@@ -1277,38 +1341,21 @@ Ltac prove_locations_different :=
       lets (p2_&E&_): B;
       apply~ noteq_sym;
       applys~ alloc_read_SExp_diff A (rm E)
-    | A : alloc_SExp ?S _ = (?S', p1),
-      B : may_have_types ?S _ p2 |- _ =>
-      let E := fresh B in
-      let p2' := fresh1 p2 in
-      let p2_ := fresh p2' "_" in
-      lets (p2_&E&_): B;
-      applys~ alloc_read_SExp_diff A (rm E)
-    | A : alloc_SExp ?S _ = (?S', p2),
-      B : may_have_types ?S _ p1 |- _ =>
-      let E := fresh B in
-      let p2' := fresh1 p2 in
-      let p2_ := fresh p2' "_" in
-      lets (p2_&E&_): B;
-      apply~ noteq_sym;
-      applys~ alloc_read_SExp_diff A (rm E)
-    | A : alloc_SExp ?S _ = (?S', p1),
-      B : list_type ?S _ _ _ p2 |- _ =>
-      let E := fresh B in
-      let p2' := fresh1 p2 in
-      let p2_ := fresh p2' "_" in
-      forwards (p2_&E&_): list_type_may_have_types B;
-      simpl_list_union;
-      applys~ alloc_read_SExp_diff A (rm E)
-    | A : alloc_SExp ?S _ = (?S', p2),
-      B : list_type ?S _ _ _ p1 |- _ =>
-      let E := fresh B in
-      let p2' := fresh1 p2 in
-      let p2_ := fresh p2' "_" in
-      forwards (p2_&E&_): list_type_may_have_types B;
-      simpl_list_union;
-      apply~ noteq_sym;
-      applys~ alloc_read_SExp_diff A (rm E)
+    | A : alloc_SExp ?S _ = (?S', p1) |- _ =>
+      get_may_have_types_no_S p2 ltac:(fun M =>
+        let E := fresh1 M in
+        let p2' := fresh1 p2 in
+        let p2_ := fresh p2' "_" in
+        lets (p2_&E&_): M;
+        applys~ alloc_read_SExp_diff A (rm E))
+    | A : alloc_SExp ?S _ = (?S', p2) |- _ =>
+      get_may_have_types_no_S p2 ltac:(fun M =>
+        let E := fresh1 M in
+        let p2' := fresh1 p2 in
+        let p2_ := fresh p2' "_" in
+        lets (p2_&E&_): M;
+        apply~ noteq_sym;
+        applys~ alloc_read_SExp_diff A (rm E))
     | _ => discriminate
     | R1 : read_SExp (state_memory ?S) p1 = _,
       R2 : read_SExp (state_memory ?S) p2 = _ |- _ =>
@@ -1374,7 +1421,7 @@ Ltac prepare_No_duplicates_hypothesis :=
     end in
   let must_be_new p :=
     let a := already_has p in
-    match a with
+    lazymatch a with
     | false => idtac
     end in
   repeat match goal with
@@ -1398,11 +1445,11 @@ Ltac prepare_No_duplicates_hypothesis :=
     add_in_No_duplicates p
   | _ =>
     let r :=
-      match goal with
+      lazymatch goal with
       | D : @No_duplicates SEXP _ |- _ => constr:(true)
       | _ => constr:(false)
       end in
-    match r with
+    lazymatch r with
     | false =>
       let D := fresh "D" in
       forwards D: (No_duplicates_nil SEXP)
@@ -1423,47 +1470,55 @@ Ltac prepare_proofs_that_locations_are_different :=
 
 Ltac solve_premises_lemmae :=
   autos~;
-  abstract match goal with
+  abstract lazymatch goal with
   | |- bound ?S ?p =>
     match goal with
-    | M : may_have_types S _ p |- _ => applys~ may_have_types_bound M; solve_premises
-    | E : read_SExp S p = Some _ |- _ => applys~ read_bound E; solve_premises
-    | OKp : safe_pointer S p |- _ => applys~ pointer_bound OKp; solve_premises
-    | |- _ => apply* bound_such_that_weaken; solve_premises
+    | E : read_SExp (state_memory S) p = Some _ |- _ =>
+      solve [ applys~ read_bound E; solve_premises ]
+    | OKp : safe_pointer S p |- _ =>
+      solve [ applys~ pointer_bound OKp; solve_premises ]
+    | |- _ =>
+      solve [
+          get_may_have_types S p ltac:(fun M =>
+            applys~ may_have_types_bound M; solve_premises)
+        | apply* bound_such_that_weaken; solve_premises ]
     end
   | |- bound_such_that ?S ?p =>
     apply* bound_such_that_weaken; solve_incl || solve_premises
   | |- may_have_types ?S ?l ?p =>
-    match p with
+    lazymatch p with
     | read_globals ?globals R_NilValue =>
       applys~ may_have_types_weaken safe_R_NilValue; solve_incl
     | _ =>
-      apply~ may_have_types_weaken;
-      [ match goal with
-        | L : list_type S _ _ _ p |- _ =>
-          applys~ list_type_may_have_types L;
-          simpl_list_union;
-          solve_premises
-        | |- _ => autos*
-        end
-      | solve_incl ]
+      solve [
+          get_may_have_types S p ltac:(fun M =>
+            applys~ may_have_types_weaken M;
+            solve_incl)
+        | apply~ may_have_types_weaken; [ autos* | solve_incl ] ]
     end
   | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
     match goal with
-    | M : may_have_types S ?l p |- _ =>
-      let rec allNil l :=
-        match l with
-        | nil => constr:(true)
-        | NilSxp :: ?l' => let r := allNil l' in r
-        | _ => constr:(false)
-        end in
-      let an := allNil l in
-      match an with
-      | true =>
-        apply~ list_type_nil; applys~ may_have_types_weaken M; solve_incl
-      end
     | L : list_type S _ _ _ p |- _ =>
-      applys~ list_type_weaken L; solve_incl
+      solve [ applys~ list_type_weaken L; solve_incl || (intros; solve_premises) ]
+    | |- _ =>
+      solve [
+          get_may_have_types S p ltac:(fun M =>
+            match type of M with
+            | may_have_types S ?l p =>
+              let rec allNil l :=
+                lazymatch l with
+                | nil => constr:(true)
+                | NilSxp :: ?l' => let r := allNil l' in r
+                | _ => constr:(false)
+                end in
+              let an := allNil l in
+              lazymatch an with
+              | true =>
+                apply~ list_type_nil; applys~ may_have_types_weaken M; solve_incl
+              end
+            end)
+        | apply list_type_cons; eexists; splits*;
+          do 4 eexists; splits*; simplify_context; solve_premises_lemmae ]
     end
   | |- _ <> _ => prove_locations_different
   | |- _ \c _ => substs; solve_incl
@@ -1511,17 +1566,13 @@ Ltac get_safe_pointer S p cont :=
     let p' := fresh1 p in
     let OKp := fresh "OK" p' in
     asserts OKp: (safe_pointer S p);
-    [ applys* globals_not_NULL_safe; prove_not_NULL | cont OKp ]
+    [ apply* globals_not_NULL_safe; [idtac]; prove_not_NULL | cont OKp ]
   | _ =>
     get_safe_state S ltac:(fun H =>
       let R := fresh "Safe" in
       forwards~ R: safe_entry_points H; [idtac];
       cont R)
   end.
-
-Ltac solve_most_safe_SExpRec_constructors :=
-  let T := fresh "T" in
-  introv T; solve [ substs; false~ ].
 
 Ltac get_safe_SExpRec S e_ cont :=
   let check_case check perform :=
@@ -1561,28 +1612,18 @@ Ltac get_safe_SExpRec S e_ cont :=
               (applys~ safe_make_SExpRec_list OKcar L T || applys safe_make_SExpRec_list OKcar);
               solve [ solve_premises_lemmae ]
             | cont R ] in
-          (* TODO: This should be replaced by a proper [get_may_have_types] *)
-          match goal with
-          | L : list_type S _ _ _ cdr,
-            T : may_have_types S _ tag |- _ => go L T
-          | Tcdr : may_have_types S _ cdr,
-            Ttag : may_have_types S _ tag |- _ => go Tcdr Ttag
-          | _ =>
-            match tag with
-            | read_globals ?globals R_NilValue =>
-              let T := fresh "T" in
-              forwards* T: safe_R_NilValue; [idtac];
-              match goal with
-              | L : list_type S _ _ _ cdr |- _ => go L T
-              end
-            end
-          end)
+          get_may_have_types S tag ltac:(fun Ttag =>
+            match goal with
+            | L : list_type S _ _ _ cdr |- _ => go L Ttag
+            | _ =>
+              get_may_have_types S cdr ltac:(fun Tcdr => go Tcdr Ttag)
+            end))
       | _ =>
         let e_' := fresh1 e_ in
         let R := fresh "OK" e_' in
         let T := fresh "T" in
         asserts R: (safe_SExpRec S e_);
-        [ constructors; try solve_most_safe_SExpRec_constructors; introv T;
+        [ constructors; introv T; try solve [ substs; false~ ];
           constructors; do 3 eexists; splits; [autos*|..]; solve_premises_lemmae
         | cont R ]
       end)
@@ -1620,50 +1661,86 @@ Ltac simplify_context_using_invariant :=
 
 (** *** Getting object shapes **)
 
+Ltac clear_useless_type_eq :=
+  repeat match goal with
+  | T1 : type (get_SxpInfo ?p_) = ?t,
+    T2 : type (get_SxpInfo ?p_) = ?t |- _ => clear T2
+  | T1 : type (get_SxpInfo ?p_) = ?t1,
+    T2 : type (get_SxpInfo ?p_) = ?t2 |- _ =>
+    solve [ rewrite T2 in T1; inverts T1 ]
+  | T1 : type (get_SxpInfo ?p_) = ?t,
+    T2 : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    rewrite T1 in T2;
+    let isi := compute_is_in t l in
+    lazymatch isi with
+    | true => clear T2
+    | false =>
+      try solve [ false; repeat inverts T2 ]
+    end
+  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
+  end.
+
+(** Generates an hypothesis of the form [type p_ = t] or [type p_ \in l]
+  in the goal when possible. **)
 Ltac put_type_in_context p_ :=
   match goal with
   | T : type (get_SxpInfo p_) = ?t |- _ => idtac
-  | T : type (get_SxpInfo p_) \in [?t] |- _ => explode_list T
   | T : type (get_SxpInfo p_) \in _ |- _ => idtac
-  | M : may_have_types ?S [?t] ?p,
-    R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
-    let T := fresh "T" in
-    forwards T: may_have_types_read_SExp M R;
-    put_type_in_context p_
-  | L : list_type ?S [NilSxp] ?l_cdr ?l_tag ?p,
-    R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
-    let M := fresh "T" in
-    forwards T: list_type_may_have_types L;
-    simpl_list_union;
-    put_type_in_context p_
-  | L : list_head ?S [?t] ?l_cdr ?l_tag p_ |- _ =>
-    let M := fresh "T" in
-    forwards T: list_head_may_have_types L;
-    simpl_list_union;
-    put_type_in_context p_
+  | R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
+    get_may_have_types S p ltac:(fun M =>
+      let T := fresh "T" in
+      forwards T: may_have_types_read_SExp M R;
+      put_type_in_context p_)
+  end; clear_useless_type_eq.
+
+(** Extracts relevant information for [p_] from an hypothesis
+  of the form [safe_SExpRec]. The [explode] arguments tells the
+  tactics whether exploding the type into all its possibilities
+  is wanted. **)
+Ltac force_unfold_shape explode S p_ :=
+  let aux OKp_ :=
+    put_type_in_context p_;
+    let aux t :=
+      lazymatch explode with
+      | true => inverts~ OKp_; t
+      | false =>
+         try solve [ inverts~ OKp_; t ];
+         (inverts~ OKp_; t; [idtac])
+      end in
+    lazymatch goal with
+    | T : type (get_SxpInfo p_) = ?t |- _ =>
+      aux ltac:(try solve [ inverts~ T ])
+    | T : type (get_SxpInfo p_) \in _ |- _ =>
+      aux ltac:(try solve [ false; repeat inverts T ])
+    end in
+  lazymatch goal with
+  | OKp_ : safe_SExpRec_type _ _ (type (get_SxpInfo p_)) p_ |- _ => aux OKp_
+  | OKp_ : safe_SExpRec_gen _ _ p_ |- _ =>
+    let OKp_' := fresh OKp_ in
+    forwards~ OKp_: SExpType_corresponds_to_datatype OKp_;
+    aux OKp_
+  | OKp_ : safe_SExpRec _ p_ |- _ =>
+    let OKp_' := fresh OKp_ in
+    forwards~ OKp_: SExpType_corresponds_to_datatype OKp_;
+    aux OKp_
   end.
 
-(** Extracts relevant information for [p_]. **)
-Ltac force_unfold_shape S p_ :=
-  put_type_in_context p_;
-  get_safe_SExpRec S p_ ltac:(fun E =>
-    apply_safe_SExpRec_constructors_to_SEXP p_ ltac:(apply~ E) ltac:(decompose_safe_SExpRec_constructors)).
 
-Ltac unfold_shape S p_ :=
-  match goal with
+Ltac unfold_shape explode S p_ :=
+  lazymatch goal with
   | H : p_ = SExpRec_NonVector _ |- _ => idtac
   | H : p_ = SExpRec_VectorChar _ |- _ => idtac
   | H : p_ = SExpRec_VectorInteger _ |- _ => idtac
   | H : p_ = SExpRec_VectorComplex _ |- _ => idtac
   | H : p_ = SExpRec_VectorReal _ |- _ => idtac
   | H : p_ = SExpRec_VectorPointer _ |- _ => idtac
-  | _ => force_unfold_shape S p_
+  | _ => force_unfold_shape explode S p_
   end.
 
-Ltac unfold_shape_pointer S p :=
+Ltac unfold_shape_pointer explode S p :=
   match goal with
   | R : read_SExp (state_memory S) p = Some ?p_ |- _ =>
-    unfold_shape S p_
+    unfold_shape explode S p_
   end.
 
 
@@ -1679,19 +1756,19 @@ Ltac rewrite_read_SExp :=
       let Pe_ := fresh T e_ in
       lets (e_&Ee_&Pe_): (rm T);
       try rewrite Ee_ in * in
-    match goal with
+    lazymatch goal with
     | E : read_SExp (state_memory S) e = _ |- _ => rewrite E
-    | T : may_have_types S ?l e |- _ => bound_such_that_prop T
-    | L : list_type_step_such_that _ _ S ?l e |- _ => bound_such_that_prop L
     | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
     | B : bound S e |- _ => bound_such_that_prop B
+    | _ =>
+      get_may_have_types S e ltac:(bound_such_that_prop)
     end;
-    try unfold_shape_pointer S e
+    try unfold_shape_pointer false S e
   end; clear_trivial.
 
 (** Tries to prove a new equality of the form [write_SExp S p p_]. **)
 Ltac define_write_SExp S p p_ :=
-  match goal with
+  lazymatch goal with
   | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
   | _ =>
     let S' := fresh1 S in
@@ -1720,30 +1797,24 @@ Ltac prove_types_different :=
     let rec rewrite_type t :=
       match t with
       | _ =>
-        match goal with
+        lazymatch goal with
         | E : t = _ |- _ => rewrite E
         | E : t \in _ |- _ => explode_list E; rewrite E
         end
       | type (get_SxpInfo ?p_) =>
         match goal with
-        | E : read_SExp (state_memory ?S) ?p = Some p_,
-          T : may_have_types ?S ?l ?p |- _ =>
-          let L := fresh "L" in
-          forwards~ L: may_have_types_read_SExp T E;
-          explode_list L; rewrite L
-        | E : read_SExp (state_memory ?S) ?p = Some p_,
-          L : list_type ?S _ _ _ ?p |- _ =>
-          let T := fresh "T" in
-          forwards~ T: list_type_may_have_types (rm L);
-          simpl_list_union;
-          rewrite_type t
+        | E : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
+          get_may_have_types S p ltac:(fun T =>
+            let L := fresh "L" in
+            forwards L: may_have_types_read_SExp T E;
+            explode_list L; rewrite L)
         end
       end in
     solve [
         try rewrite_type t1; try rewrite_type t2; (discriminate || substs~; discriminate)
       | let E := fresh "E" in
         introv E; substs; false~ ] in
-  match goal with
+  lazymatch goal with
   | |- ?t1 <> ?t2 => aux t1 t2
   | |- ?t1 = ?t2 -> False => aux t1 t2
   end.
@@ -1754,7 +1825,7 @@ Ltac prove_types_different :=
 Ltac transition_conserve S S' :=
   prepare_proofs_that_locations_are_different;
   let find_conserve cont :=
-    match goal with
+    lazymatch goal with
     | C : conserve_old_binding S S' |- _ => cont C
     | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
       let C := fresh "C" in
@@ -1762,7 +1833,7 @@ Ltac transition_conserve S S' :=
       cont C
     end in
   let update_safe_props_from_alloc A S S' p_ :=
-    repeat match goal with
+    lazymatch goal with
     | OKS : safe_state S |- _ =>
       get_safe_SExpRec S p_ ltac:(fun OKp_ =>
         let S'' := fresh1 S' in
@@ -1770,6 +1841,7 @@ Ltac transition_conserve S S' :=
         let OKp_' := fresh1 OKp_ in
         forwards~ OKS': alloc_SExp_safe_state (rm OKS) OKp_ A;
         try prove_types_different ;
+        [idtac];
         forwards~ OKp_': conserve_old_binding_safe_SExpRec (rm OKp_);
         try applys~ alloc_SExp_conserve_old_binding A;
         [idtac])
@@ -1777,37 +1849,45 @@ Ltac transition_conserve S S' :=
   find_conserve ltac:(fun C =>
     first [
         syntactically_the_same S S'
-      | repeat match goal with
+      | repeat lazymatch goal with
         | A : alloc_SExp ?S0 ?p_ = (S, ?p) |- _ =>
-          update_safe_props_from_alloc A S0 S p_;
+          try update_safe_props_from_alloc A S0 S p_;
           let E := fresh "E" in
-          forwards~ E: alloc_read_SExp_eq (rm A)
+          forwards E: alloc_read_SExp_eq (rm A)
         | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
           let E' := fresh E in
-          forwards~ E': conserve_old_binding_read C (rm E);
+          forwards E': conserve_old_binding_read C (rm E);
           rename E' into E
         | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
-          update_safe_props_from_alloc A S S' p_;
+          try update_safe_props_from_alloc A S S' p_;
           let E := fresh "E" in
-          forwards~ E: alloc_read_SExp_eq (rm A)
+          forwards E: alloc_read_SExp_eq (rm A)
         | B : bound S ?p |- _ =>
           let B' := fresh B in
-          forwards~ B': conserve_old_binding_bound C (rm B);
+          forwards B': conserve_old_binding_bound C (rm B);
           rename B' into B
         | E : may_have_types S ?l ?p |- _ =>
           let E' := fresh E in
-          forwards~ E': conserve_old_binding_may_have_types C (rm E);
+          forwards E': conserve_old_binding_may_have_types C (rm E);
           rename E' into E
         | E : list_type S ?l_t ?l_car ?l_tag ?p |- _ =>
           let E' := fresh E in
-          forwards~ E': conserve_old_binding_list_type C (rm E);
+          forwards E': conserve_old_binding_list_type C (rm E);
           rename E' into E
-        end ]).
+        | OKp : safe_pointer S ?p |- _ =>
+          let OKp' := fresh OKp in
+          forwards OKp': conserve_old_binding_safe_pointer C (rm OKp);
+          rename OKp' into OKp
+        | G : safe_globals S ?globals |- _ =>
+          let G' := fresh G in
+          forwards G': conserve_old_binding_safe_globals C (rm G);
+          rename G' into G
+        end; simplify_context ]).
 
 Ltac transition_write_SExp S S' :=
   prepare_proofs_that_locations_are_different;
   let find_write cont :=
-    match goal with
+    lazymatch goal with
     | W : write_SExp S ?p ?p_ = Some S' |- _ => cont W
     | E : Some S' = write_SExp S ?p ?p_ |- _ =>
       let W := fresh E in
@@ -1819,7 +1899,7 @@ Ltac transition_write_SExp S S' :=
     forwards~ R: read_write_SExp_eq W;
     repeat match goal with
     | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
-      match type of R with
+      lazymatch type of R with
       | read_SExp (state_memory S') p = _ => clear E
       | _ =>
         let E' := fresh E in
@@ -1856,26 +1936,32 @@ Ltac transition_write_SExp S S' :=
       For this, we probably need a stronger logics, like separation logic.
       Although we might still be able to prove it in the case of alloc_SExp
       (which is the most common). TODO *)
-    end).
+    end; simplify_context).
 
 
 (** * Correctness lemmae of some R functions **)
 
 (** ** [CONS] **)
 
-Lemma CONS_safe : forall globals S S' l_t l_car l_tag car cdr l,
+Lemma CONS_safe : forall globals S S' l_car l_tag car cdr l,
   safe_state S ->
   safe_globals S globals ->
   safe_pointer S car ->
-  list_type S ([ListSxp]) l_car l_tag cdr ->
+  list_type_safe S ([ListSxp]) l_car l_tag cdr ->
   may_have_types S l_car car ->
   l_car \c all_storable_SExpTypes ->
   l_tag \c [NilSxp; CharSxp] ->
   CONS globals S car cdr = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
-  /\ list_type S' l_t l_car ([NilSxp] \u l_tag) l.
+  /\ list_type_safe S' ([ListSxp]) l_car ([NilSxp] \u l_tag) l.
 Proof.
   introv OKS OKG OKcar Lcdr Tcar Icar Itag E. unfolds in E.
+
+  asserts: (safe_SExpRec S (make_SExpRec_list (read_globals globals R_NilValue) car cdr (read_globals globals R_NilValue))).
+  { constructors. constructors. simplify_context.
+    do 4 eexists. splits*; simplify_context; try solve_premises_lemmae.
+    - applys~ list_type_weaken Lcdr; try solve_premises_lemmae.
+    - get_safe_pointer S (read_globals globals R_NilValue) ltac:(fun OK => apply OK). (* TODO: There should be a stronger [solve_premises_lemmae] tactic for these kinds of goals. *) }
 
   transition_conserve S S'.
   splits; try solve_premises_lemmae.
@@ -1892,10 +1978,10 @@ Lemma allocList_aux_safe : forall globals S S' n l l0,
   safe_state S ->
   safe_globals S globals ->
   safe_pointer S l0 ->
-  list_type S ([ListSxp]) ([NilSxp]) ([NilSxp]) l0 ->
+  list_type_safe S ([ListSxp]) ([NilSxp]) ([NilSxp]) l0 ->
   allocList_aux globals S n l0 = (S', l) ->
   safe_state S' /\ safe_pointer S' l
-  /\ list_type S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
+  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
 Proof.
   introv OKS OKG OKl0 L E. gen S S' l. induction n; introv OKS OKG OKl0 L E.
   - inverts E. splits~.
@@ -1915,7 +2001,7 @@ Lemma allocList_safe : forall globals S S' n l,
   safe_globals S globals ->
   allocList globals S n = (S', l) ->
   safe_state S' /\ safe_pointer S' l
-  /\ list_type S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
+  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
 Proof.
   introv OKS OKG E. unfolds in E. applys~ allocList_aux_safe E.
   - applys~ globals_not_NULL_safe OKG. applys~ globals_not_NULL OKG.
@@ -1940,12 +2026,12 @@ Proof. introv T. unfolds TYPEOF. rewrite_read_SExp. simplifyR. Qed.
 (** * Specific tactics **)
 
 Ltac get_result_lemma t :=
-  match get_head t with
+  lazymatch get_head t with
   | TYPEOF => constr:(>> TYPEOF_pass TYPEOF_result)
   end.
 
 Ltac solve_premises_smart :=
-  match goal with
+  lazymatch goal with
   | |- safe_state ?S =>
     get_safe_state S ltac:(fun OKS => apply~ OKS)
   | |- safe_pointer ?S ?p =>
@@ -1960,7 +2046,7 @@ Ltac apply_result_lemma t :=
   let R := get_result_lemma t in
   let L := list_boxer_of R in
   let rec try_all_lemmae L :=
-    match L with
+    lazymatch L with
     | boxer ?R :: ?L' =>
       first [
           rewrite R

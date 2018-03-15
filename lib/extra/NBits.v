@@ -35,7 +35,7 @@ Ltac nbits_ok :=
     end
   end;
   abstract
-    match goal with
+    lazymatch goal with
     | [ |- (_ < _)%nat ] =>
       (* The [math] tactic does not work with the [^] operator.
         We thus first eliminate it. *)
