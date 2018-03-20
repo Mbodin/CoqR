@@ -13,8 +13,8 @@ It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
     We beleive that anyone can check the code similarity after a short training period.
   - the formalisation is runnable, and can be run against test suites.
     We tested it against [[https://www.r-project.org/][GNU R]] in random tests
-    (see the `gen/` folder), custom tests (see the `tests/` folder),
-    as well as other test suites for R (see the `compare/CoqR-Tester/RTests/` folder).
+    (see the =gen/= folder), custom tests (see the =tests/= folder),
+    as well as other test suites for R (see the =compare/CoqR-Tester/RTests/= folder).
 
 The goal of this project is to provide a strong basis for anyone wanting to
 certify in Coq a higher-level formalisation of R, as well as code analyses, etc.

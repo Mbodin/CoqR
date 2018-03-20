@@ -288,29 +288,20 @@ Inductive null_pointer_exceptions_entry_point : entry_point -> Prop :=
     null_pointer_exceptions_entry_point (Econtext cp Scontext_returnValue)
   .
 
-Inductive null_pointer_exceptions_suffix_gen : list path_step -> Prop :=
+Inductive null_pointer_exceptions_suffix : path_step -> Prop :=
   | null_pointer_symbol_value :
-    null_pointer_exceptions_suffix_gen ([SNonVectorSym Ssym_value])
+    null_pointer_exceptions_suffix (SNonVectorSym Ssym_value)
   (* FIXME: BindData_ans_ptr *)
   (* FIXME: BindData_ans_names *)
-  .
-
-Inductive null_pointer_exceptions_suffix : list path_step -> Prop :=
-  | null_pointer_exceptions_suffix_exact : forall l,
-    null_pointer_exceptions_suffix_gen l ->
-    null_pointer_exceptions_suffix l
-  | null_pointer_exceptions_suffix_cons : forall s l,
-    null_pointer_exceptions_suffix l ->
-    null_pointer_exceptions_suffix (s :: l)
   .
 
 Inductive null_pointer_exceptions_path : path -> Prop :=
   | null_pointer_exceptions_path_entry_point : forall e,
     null_pointer_exceptions_entry_point e ->
     null_pointer_exceptions_path (Pentry e)
-  | null_pointer_exceptions_path_suffix : forall l p,
-    null_pointer_exceptions_suffix l ->
-    suffix p l ->
+  | null_pointer_exceptions_path_suffix : forall s p,
+    null_pointer_exceptions_suffix s ->
+    Path.last p s ->
     null_pointer_exceptions_path p
   .
 
@@ -429,10 +420,10 @@ Record safe_SExpRec_gen safe_pointer S (e_ : SExpRec) : Prop := make_safe_SExpRe
 
 Record safe_pointer_gen (safe_pointer : _ -> _ -> Prop) S p : Prop := make_safe_pointer {
     pointer_bound : bound S p ;
-    no_null_pointer_along_path_from : forall path p',
-      ~ null_pointer_exceptions_suffix path ->
-      move_along_path_from path S p = Some p' ->
-      p' <> NULL ; (* FIXME: We could “stepify” this requirement if the null pointer exceptions only consider the last step of the path. TODO: Is it feasable? *)
+    no_null_pointer_along_path_step : forall s p',
+      ~ null_pointer_exceptions_suffix s ->
+      move_along_path_step s S p = Some p' ->
+      p' <> NULL ;
     safe_pointer_along_path_step : forall s e,
       move_along_path_step s S p = Some e ->
       e <> NULL ->
@@ -521,17 +512,6 @@ Record conserve_old_binding S S' : Prop := make_conserve_old_binding {
 
 (** ** Lemmae **)
 
-Lemma null_pointer_exceptions_suffix_append : forall l,
-  null_pointer_exceptions_suffix l ->
-  exists l1 l2,
-    l = l1 ++ l2 /\ null_pointer_exceptions_suffix_gen l2.
-Proof.
-  introv E. induction E.
-  - exists (@nil path_step) l. splits~.
-  - lets (l1&l2&P&E'): (rm IHE). exists (s :: l1) l2. splits~.
-    rewrite P. rew_list~.
-Qed.
-
 Lemma safe_pointer_along_path_from_incl : forall (safe_pointer' : _ -> _ -> Prop) S p path e,
   (forall S p, safe_pointer' S p -> safe_pointer_gen safe_pointer' S p) ->
   safe_pointer' S p ->
@@ -556,6 +536,32 @@ Lemma safe_pointer_along_path_from : forall S p path e,
 Proof.
   introv. applys~ safe_pointer_along_path_from_incl.
   clear. introv OKp. rewrite~ <- safe_pointer_rewrite.
+Qed.
+
+Lemma safe_pointer_not_NULL : forall S p,
+  safe_pointer S p ->
+  p <> NULL.
+Proof.
+  introv OKp E. rewrite safe_pointer_rewrite in OKp.
+  forwards (p_&B&?): pointer_bound OKp. substs. rewrite read_SExp_NULL in B. inverts~ B.
+Qed.
+
+Lemma no_null_pointer_along_path_from : forall S p p' path,
+  safe_pointer S p ->
+  (forall s,
+    s \in path ->
+    ~ null_pointer_exceptions_suffix s) ->
+  move_along_path_from path S p = Some p' ->
+  p' <> NULL.
+Proof.
+  introv OKp NE E. gen p. induction path; introv OKp E.
+  - rewrite move_along_path_from_nil in E. inverts E. applys~ safe_pointer_not_NULL OKp.
+  - forwards (p2&E1&E2): move_along_path_from_cons_inv (rm E).
+    rewrite safe_pointer_rewrite in OKp. forwards~ D: no_null_pointer_along_path_step OKp E1.
+    + introv NE'. false NE NE'. Mem_solve.
+    + applys~ IHpath E2.
+      * introv I. applys NE. right~.
+      * applys~ safe_pointer_along_path_step OKp E1 D.
 Qed.
 
 Lemma safe_SExpRec_along_path_from : forall S p path e e_,
@@ -596,9 +602,9 @@ Proof.
   - simpl in E. destruct move_along_path eqn: E'.
     + forwards~ OKe: safe_pointer_along_path E'.
       * introv ?. substs. simpl in E. rewrite move_along_path_step_NULL in E. inverts~ E.
-      * rewrite safe_pointer_rewrite in OKe. applys~ no_null_pointer_along_path_from OKe.
+      * rewrite safe_pointer_rewrite in OKe. applys~ no_null_pointer_along_path_step OKe p.
         -- introv NE'. apply NE. applys~ null_pointer_exceptions_path_suffix NE'.
-           apply suffix_cons. apply suffix_nil.
+           unfolds. applys_eq suffix_cons 1; [apply suffix_nil|reflexivity].
         -- substs. apply E.
     + inverts E.
 Qed.
@@ -895,10 +901,9 @@ Proof.
   pcofix IH. introv C OKS. pfold. rewrite safe_pointer_rewrite in OKS. constructors~.
   - (** pointer_bound **)
     applys conserve_old_binding_bound C. applys~ pointer_bound OKS.
-  - (** no_null_pointer_along_path_from **)
-    introv NPE E. applys~ no_null_pointer_along_path_from OKS NPE.
-    applys~ conserve_old_binding_move_along_path_from_inv_incl C OKS.
-    repeat rewrite~ <- safe_pointer_rewrite.
+  - (** no_null_pointer_along_path_step **)
+    introv NPE E. applys~ no_null_pointer_along_path_step OKS NPE.
+    applys~ conserve_old_binding_move_along_path_step_inv C OKS.
   - (** safe_pointer_along_path_step **)
     introv E D. right. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
     + applys~ pointer_bound OKS.
@@ -1012,16 +1017,10 @@ Proof.
   - rewrite safe_pointer_rewrite. constructors.
     + (** pointer_bound **)
       applys~ read_bound E.
-    + (** no_null_pointer_along_path_from **)
-      introv N Em. destruct path as [|step path].
-      * substs. rewrite move_along_path_from_nil in Em. inverts Em.
-        introv E'. substs. rewrite read_SExp_NULL in *. false*.
-      * forwards (p2&E1&E2): move_along_path_from_cons_inv (rm Em).
-        unfolds in E1. rewrite E in E1. rewrite M in E1. simpl in E1.
-        applys no_null_pointer_along_path_from safe_pointer E2.
-        -- rewrite <- safe_pointer_rewrite. destruct step as [|?|[| |]|?|?|?|?]; inverts~ E1.
-           applys~ safe_attrib HH.
-        -- introv A'. apply N. repeat (apply A' || apply null_pointer_exceptions_suffix_cons).
+    + (** no_null_pointer_along_path_step **)
+      introv N Em. unfolds in Em. rewrite E in Em. rewrite M in Em. simpl in Em.
+      destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; applys* safe_pointer_not_NULL.
+      applys~ safe_attrib HH.
     + (** safe_pointer_along_path_step **)
       introv Em D. unfolds in Em. rewrite E in Em. rewrite M in Em. simpl in Em.
       destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em.
@@ -1157,6 +1156,12 @@ Ltac syntactically_the_same x y :=
   | y => idtac
   end.
 
+Ltac syntactically_different x y :=
+  lazymatch x with
+  | y => fail
+  | _ => idtac
+  end.
+
 Ltac simplify_context_base :=
   repeat match goal with
   | T : may_have_types ?S nil ?p |- _ =>
@@ -1200,6 +1205,25 @@ Ltac simplify_context_base :=
 Ltac self_rewrite :=
   repeat match goal with
   | H : _ = _ |- _ => rewrite~ H
+  end.
+
+Ltac self_rewrite_in P :=
+  repeat match goal with
+  | H : _ = _ |- _ =>
+    syntactically_different H P;
+    rewrite~ H in P
+  end.
+
+Ltac self_rewrite_about x :=
+  repeat match goal with
+  | H : context [ x ] |- _ => rewrite~ H
+  end.
+
+Ltac self_rewrite_about_in x P :=
+  repeat match goal with
+  | H : context [ x ] |- _ =>
+    syntactically_different H P;
+    rewrite~ H in P
   end.
 
 
@@ -1264,10 +1288,16 @@ Proof. autos*. Qed.
 Ltac prove_not_NULL :=
   let aux p :=
     first [
-        apply* no_null_pointer_along_path; let A := fresh "A" in introv A; inverts~ A
-      | apply* globals_not_NULL; let A := fresh "A" in introv A; inverts~ A
-      | apply* no_null_pointer_entry_point; let A := fresh "A" in introv A; inverts~ A
-      | apply* no_null_pointer_along_path_from; let A := fresh "A" in introv A; inverts~ A
+        apply* no_null_pointer_along_path_step;
+        let A := fresh "A" in introv A; inverts~ A
+      | apply* no_null_pointer_along_path;
+        let A := fresh "A" in introv A; inverts~ A
+      | apply* globals_not_NULL;
+        let A := fresh "A" in introv A; inverts~ A
+      | apply* no_null_pointer_entry_point;
+        let A := fresh "A" in introv A; inverts~ A
+      | apply* no_null_pointer_along_path_from;
+        let I := fresh "I" in let A := fresh "A" in introv I A; inverts A; inverts~ I
       | let E := fresh "E" in introv E; substs;
         match goal with
         | E : move_along_path_step _ _ NULL = Some _ |- _ =>
@@ -1947,7 +1977,7 @@ Ltac prove_no_null_pointer_exceptions :=
   | |- ~ null_pointer_exceptions_suffix ?path =>
     match goal with
     | N : ~ null_pointer_exceptions_suffix ?l |- _ =>
-      introv A; apply N; repeat (apply A || apply null_pointer_exceptions_suffix_cons)
+      apply N || (introv A; apply N; inverts~ A; constructors~)
     | E : move_along_path_from path ?S ?p_ = _ |- _ =>
       introv A; inverts~ A;
       unfold_shape_pointer_explode S p_;
@@ -2008,7 +2038,11 @@ Ltac solve_premises_smart :=
     get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
   | |- safe_header safe_pointer ?S ?h =>
     constructors; solve_premises_smart
-  | |- _ <> _ => prove_locations_different || prove_types_different
+  | |- _ <> _ =>
+    first [
+        prove_locations_different
+      | prove_types_different
+      | apply~ safe_pointer_not_NULL; solve_premises_smart ]
   | _ => prove_no_null_pointer_exceptions || solve_premises_lemmae
   end.
 
@@ -2196,15 +2230,10 @@ Proof.
   rewrite safe_pointer_rewrite. constructors.
   - (** pointer_bound **)
     applys* read_bound.
-  - (** no_null_pointer_along_path_from **)
-    introv N Em. destruct path as [|step path].
-    + substs. rewrite move_along_path_from_nil in Em. inverts Em.
-      introv A. substs. rewrite read_SExp_NULL in *. false*.
-    + forwards (p2&E1&E2): move_along_path_from_cons_inv (rm Em).
-      unfolds in E1. rewrite E0 in E1. simpl in E1.
-      applys no_null_pointer_along_path_from safe_pointer E2; try solve_premises_smart.
-      destruct step as [|?|[| |]|?|?|?|?]; inverts E1; try solve_premises_smart.
-      rewrite~ <- safe_pointer_rewrite. applys~ list_type_safe_ListSxp OKG Lcdr.
+  - (** no_null_pointer_along_path_step **)
+    introv N Em. unfolds in Em. self_rewrite_in Em. simpl in Em.
+    destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; try solve_premises_smart.
+    applys safe_pointer_not_NULL. applys~ list_type_safe_ListSxp OKG Lcdr.
   - (** safe_pointer_along_path_step **)
     introv Em NN. unfolds in Em. rewrite E0 in Em. simpl in Em.
     destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em.

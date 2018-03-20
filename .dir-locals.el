@@ -1,6 +1,5 @@
 ((coq-mode . ((coq-load-path . (
-        ("." "Main")
-        ("low" "Low")
+        ("src" "Main")
         ("structured" "Structured")
         ("high" "High")
         ("lib/extra" "Lib")

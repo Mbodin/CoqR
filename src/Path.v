@@ -19,6 +19,10 @@ Inductive step_sym :=
   | Ssym_internal
   .
 
+Global Instance step_sym_Comparable : Comparable step_sym.
+  prove_comparable_trivial_inductive_faster.
+Defined.
+
 Definition move_along_step_sym s :=
   match s with
   | Ssym_pname => sym_pname
@@ -31,6 +35,10 @@ Inductive step_list :=
   | Slist_cdrval
   | Slist_tagval
   .
+
+Global Instance step_list_Comparable : Comparable step_list.
+  prove_comparable_trivial_inductive_faster.
+Defined.
 
 Definition move_along_step_list s :=
   match s with
@@ -45,6 +53,10 @@ Inductive step_env :=
   (** | Senv_hashtab **)
   .
 
+Global Instance step_env_Comparable : Comparable step_env.
+  prove_comparable_trivial_inductive_faster.
+Defined.
+
 Definition move_along_step_env s :=
   match s with
   | Senv_frame => env_frame
@@ -56,6 +68,10 @@ Inductive step_clo :=
   | Sclo_body
   | Sclo_env
   .
+
+Global Instance step_clo_Comparable : Comparable step_clo.
+  prove_comparable_trivial_inductive_faster.
+Defined.
 
 Definition move_along_step_clo s :=
   match s with
@@ -69,6 +85,10 @@ Inductive step_prom :=
   | Sprom_expr
   | Sprom_env
   .
+
+Global Instance step_prom_Comparable : Comparable step_prom.
+  prove_comparable_trivial_inductive_faster.
+Defined.
 
 Definition move_along_step_prom s :=
   match s with
@@ -91,6 +111,10 @@ Coercion SNonVectorList : step_list >-> path_step.
 Coercion SNonVectorEnv : step_env >-> path_step.
 Coercion SNonVectorClo : step_clo >-> path_step.
 Coercion SNonVectorProm : step_prom >-> path_step.
+
+Global Instance path_step_Comparable : Comparable path_step.
+  prove_comparable_simple_inductive.
+Defined.
 
 Definition move_along_path_step s (S : state) e :=
   LibOption.apply_on (read_SExp S e) (fun e_ =>
@@ -174,6 +198,10 @@ Inductive context_step :=
   | Scontext_jumptarget
   .
 
+Global Instance context_step_Comparable : Comparable context_step.
+  prove_comparable_trivial_inductive_faster.
+Defined.
+
 Definition move_along_context_step s c :=
   match s with
   | Scontext_nextcontext => context_nextcontext c
@@ -184,6 +212,10 @@ Inductive entry_context :=
   | Pstate_context
   | PExit_context
   .
+
+Global Instance entry_context_Comparable : Comparable entry_context.
+  prove_comparable_trivial_inductive_faster.
+Defined.
 
 Definition move_along_entry_context e S :=
   match e with
@@ -217,6 +249,10 @@ Inductive context_field :=
   | Scontext_conexit
   | Scontext_returnValue
   .
+
+Global Instance context_field_Comparable : Comparable context_field.
+  prove_comparable_trivial_inductive_faster.
+Defined.
 
 Definition move_along_context_field f :=
   match f with
@@ -276,6 +312,9 @@ Inductive suffix : path -> list path_step -> Prop :=
     suffix p l ->
     suffix (Pstep p s) (l & s)
   .
+
+Definition last p s :=
+  suffix p [s].
 
 End Parametrised.
 
