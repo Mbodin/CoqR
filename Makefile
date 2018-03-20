@@ -1,14 +1,14 @@
 
 OCAMLFILES= \
-	low/runR.ml \
-	low/print.ml \
-	low/hooks.ml \
-	low/lexer.mll \
-	low/parser.mly \
-	low/parserUtils.ml \
-	low/debug.ml \
-	low/debugType.ml \
-	low/funlist.mli
+	src/runR.ml \
+	src/print.ml \
+	src/hooks.ml \
+	src/lexer.mll \
+	src/parser.mly \
+	src/parserUtils.ml \
+	src/debug.ml \
+	src/debugType.ml \
+	src/funlist.mli
 
 AT=
 
@@ -46,43 +46,43 @@ tlc:
 clean_tlc:
 	${AT}cd lib/tlc ; make clean ; cd ../..
 
-all_interp: low/runR.native low/runR.d.byte low/initial.state
+all_interp: src/runR.native src/runR.d.byte src/initial.state
 
-run: low/runR.native low/initial.state
-	${AT}low/runR.native -initial-state low/initial.state
+run: src/runR.native src/initial.state
+	${AT}src/runR.native -initial-state src/initial.state
 
 # To launch the program faster through the “make run” command.
-low/initial.state: low/runR.native
+src/initial.state: src/runR.native
 	${AT}# Note: the following command may take some time to execute.
-	${AT}low/runR.native -non-interactive -final-state low/initial.state > /dev/null
+	${AT}src/runR.native -non-interactive -final-state src/initial.state > /dev/null
 
 clean_interp:
-	${AT}rm low/runR.native || true
-	${AT}rm low/runR.d.byte || true
-	${AT}rm -Rf low/_build || true
-	${AT}rm -f low.ml{,i} || true
-	${AT}rm -f low/low.ml{,i} || true
-	${AT}rm -f low/funlist.ml || true
-	${AT}# If there if a file low/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
+	${AT}rm src/runR.native || true
+	${AT}rm src/runR.d.byte || true
+	${AT}rm -Rf src/_build || true
+	${AT}rm -f extract.ml{,i} || true
+	${AT}rm -f src/extract.ml{,i} || true
+	${AT}rm -f src/funlist.ml || true
+	${AT}# If there if a file src/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
 
-low/funlist.ml: low/low.mli low/gen-funlist.pl
-	${AT}low/gen-funlist.pl
+src/funlist.ml: src/extract.mli src/gen-funlist.pl
+	${AT}src/gen-funlist.pl
 
-low/Extraction.vo: Makefile.coq
+src/Extraction.vo: Makefile.coq
 	${AT}+make -f Makefile.coq $@
 
-low/low.ml: low/Extraction.vo
-	${AT}mv low.ml low/low.ml || true
+src/extract.ml: src/Extraction.vo
+	${AT}mv extract.ml src/extract.ml || true
 
-low/low.mli: low/Extraction.vo
-	${AT}mv low.mli low/low.mli || true
+src/extract.mli: src/Extraction.vo
+	${AT}mv extract.mli src/extract.mli || true
 
-low/runR.native: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
-	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
+src/runR.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
+	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
 
 # Debug mode
-low/runR.d.byte: low/low.ml low/low.mli ${OCAMLFILES} low/funlist.ml
-	${AT}cd low ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
+src/runR.d.byte: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
+	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
 
 random: gen/gen.native
 	${AT}mkdir gen/tests || true

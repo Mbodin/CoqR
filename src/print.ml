@@ -1,7 +1,7 @@
 (** Print
-  Contains various functions for printing values from Low. **)
+  Contains various functions for printing values from Extract. **)
 
-open Low
+open Extract
 
 (* This looks like a bug: this function should have been extracted. *)
 let make_Rcomplex r i = { rcomplex_r = r; rcomplex_i = i }

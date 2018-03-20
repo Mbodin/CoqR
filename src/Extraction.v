@@ -163,7 +163,7 @@ Extract Constant ArrayList.empty =>
 
 Extract Constant nat_comparable => "(=)".
 
-Extraction "low.ml"
+Extraction "extract.ml"
   Parsing mkNA R_NaN mkString all_GlobalVariables
   setup_Rmainloop empty_state eval_global.
 

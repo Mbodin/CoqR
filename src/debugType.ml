@@ -1,6 +1,6 @@
 (** Debug Type **)
 
-open Low
+open Extract
 
 type funtype =
   | Result_unit of (globals -> runs_type -> state -> unit result)

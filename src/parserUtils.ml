@@ -1,7 +1,7 @@
 (** ParserUtils
   Types and useful functions to be used in the parser. **)
 
-open Low
+open Extract
 
 type 'a monad_type = globals -> runs_type -> state -> 'a
 

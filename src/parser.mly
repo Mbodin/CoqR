@@ -2,7 +2,7 @@
     (** This file translates the Bison parser (main/gram.y) of R in Menhir’s syntax. **)
 
     open ParserUtils
-    open Low.Parsing
+    open Extract.Parsing
 %}
 
 (** * Token Declaration **)

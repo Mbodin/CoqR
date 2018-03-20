@@ -210,7 +210,7 @@ let find_opt f l =
   try Some (List.find f l) with
   | Not_found -> None
 
-type type_s_globals = Low.state * Low.globals
+type type_s_globals = Extract.state * Extract.globals
 
 let expert_mode = ref false
 
@@ -228,13 +228,13 @@ let _ =
   let initialising_function =
     if !initial_state = "" then (
       if !verbose then print_endline "Initialising…" ;
-      Low.setup_Rmainloop !max_steps Low.empty_state
+      Extract.setup_Rmainloop !max_steps Extract.empty_state
     ) else (
       if !verbose then print_endline ("Reading state from " ^ !initial_state ^ "…") ;
       let inchannel = open_in_bin !initial_state in
       let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
-      Low.Result_success (s, globals)) in
-  Print.print_defined !verbose !print_stack initialising_function Low.empty_state (fun s globals ->
+      Extract.Result_success (s, globals)) in
+  Print.print_defined !verbose !print_stack initialising_function Extract.empty_state (fun s globals ->
     if !show_state_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
     match globals with
@@ -251,10 +251,10 @@ let _ =
           let f =
             if !only_parsing then f
             else ParserUtils.bind f (fun g r s p ->
-              Low.eval_global g r s p) in
+              Extract.eval_global g r s p) in
           Print.print_and_continue !verbose !print_stack
             (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
-            globals (f globals (Low.runs !max_steps globals) s) s (fun n globals s p ->
+            globals (f globals (Extract.runs !max_steps globals) s) s (fun n globals s p ->
               if !print_unlike_R then
                 Print.print_pointer !readable_pointers s globals p ^
                 if !fetch_result then (
@@ -335,7 +335,7 @@ let _ =
               check_change_state seen_state_change cmd ;
               Debug.parse_arg_fun !verbose !print_stack
                 (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
-                !readable_pointers !fetch_result s globals (Low.runs !max_steps globals)
+                !readable_pointers !fetch_result s globals (Extract.runs !max_steps globals)
                 (fun l f ->
                   parse_args true true (fun s ->
                     let s = cont s in

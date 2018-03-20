@@ -1,7 +1,7 @@
 {
     (** This file mainly translates the functions [token] and [yylex] from File gram.y. **)
 
-    open Low
+    open Extract
     open ParserUtils
     open Parser
 

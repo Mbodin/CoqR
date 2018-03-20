@@ -2,7 +2,7 @@
   Contains debuging functions. **)
 
 open Print
-open Low
+open Extract
 open DebugType
 open Funlist
 

@@ -5,11 +5,11 @@ use warnings ;
 my $true = 1 ;
 my $false = 0 ;
 
-my $coqFile = "low/funlist.v" ;
+my $coqFile = "src/funlist.v" ;
 
-my $mlFile = "low/funlist.ml" ;
+my $mlFile = "src/funlist.ml" ;
 
-my $extractedFile = "low/low.mli" ;
+my $extractedFile = "src/extract.mli" ;
 
 my $generateCoq = $false ;
 
@@ -35,7 +35,7 @@ unlink $mlFile if -f $mlFile ;
 open (my $mlStream, '>', $mlFile) or die "Could not create file $mlFile for some reason." ;
 print $mlStream "(* This file has been automatically generated. *)\n" ;
 print $mlStream "(* This file is meant to be rewritten at each compilation: save your changes elsewhere if you really want to edit it. *)\n" ;
-print $mlStream "open Low\n" ;
+print $mlStream "open Extract\n" ;
 print $mlStream "open DebugType\n" ;
 print $mlStream "let funlist =\n" ;
 
@@ -75,8 +75,8 @@ if ($fileExist and not $generateCoq) {
 
 print "Executing Coq file…\n" ;
 
-open (PIPE, "cat low/funlist.v |"
-    . "coqtop -R ./lib/tlc/src TLC -R ./lib/extra Lib -R ./low Low -noglob -quiet |")
+open (PIPE, "cat src/funlist.v |"
+    . "coqtop -R ./lib/tlc/src TLC -R ./lib/extra Lib -R ./src Main -noglob -quiet |")
     or die "Can’t execute Coq for some reason." ;
 
 print "Translating output to $mlFile…\n" ;
