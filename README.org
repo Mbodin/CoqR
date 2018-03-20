@@ -1,7 +1,7 @@
 A Coq formalisation of the R programming language
 
 
-# Overview of the Project
+* Overview of the Project
 
 This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
@@ -18,14 +18,27 @@ It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
 
 The goal of this project is to provide a strong basis for anyone wanting to
 certify in Coq a higher-level formalisation of R, as well as code analyses, etc.
+Due to its double certification (both code similarity and testing),
+this project provides a high amount of trust to any proofs built on it.
+This trust comes with the cost of complexity: R’s semantics is complex,
+and this project aims at formalising this complexity.
+This is why linking this project to higher-level specifications would be a huge addition.
+
+Some parts of the original R source code have not been formalised.
+The main example is the garbage collector, which is not supposed to
+change the semantics of R programs.
+Furthermore, this formalisation only formalises the C part of the source code of R.
+Indeed, in GNU R, some R libraries are supposed to be run before user code.
+These libraries creates a large number of functions and variables
+(such as =typeof=, =T=, etc.), which are thus not implemented in this formalisation.
 
 More information can be found in the [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=fr#babilkongresoj_fr]][following paper]]:
     A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018
 
-The files of interest are currently mainly `src/Rinternals.v`, `src/Rcore.v`, and `src/Rfeatures.v`.
+The files of interest are currently mainly =src/Rinternals.v=, =src/Rcore.v=, and =src/Rfeatures.v=.
 
 
-# Building the Project
+* Building the Project
 
 You need to install Coq and OCaml as well as some libraries.
 The simplest way to do this is using Opam.
@@ -43,7 +56,7 @@ and [[https://git-scm.com/][here for Git]].
     opam init # This is not needed if you have already installed and initialised Opam before.
 #+END_SRC
 
-It is advised to add the following line into your .bashrc file.
+It is advised to add the following line into your =.bashrc= file.
 #+BEGIN_SRC bash
     eval `opam config env`
 #+END_SRC
@@ -109,47 +122,47 @@ A faster-to-load version is available with the following invocation.
 #+END_SRC
 
 
-# Files Description
+* Files Description
 
-## src
+** =src=
 
 This folder contains is a low-level formalisation of R.
 It is the closest possible to the R reference interpreter (written in C).
 
-### Rinternals.v
+*** =Rinternals.v=
 
 This file describes the data structures of R as they are in its C code.
 
-### RinternalsAux.v
+*** =RinternalsAux.v=
 
 Auxiliary definitions and properties about the data structures defined in
-Rinternals.v.
+=Rinternals.v=.
 
 This file may take some time to compile.
 
-### State.v
+*** =State.v=
 
 This file provides a model for the C memory.
 
-### InternalTypes.v
+*** =InternalTypes.v=
 
 This file describes various internal data types used in the source of R.
 
-### Globals.v
+*** =Globals.v=
 
 This file lists all global variables used in the C source code of R,
 that are initialised, then never changed.
 
 This file may take some time to compile.
 
-### Monads.v
+*** =Monads.v=
 
 This file provides monads to manipulate R objects easily.
 
 In some ways, this file provides notations enabling to write
 imperative code in Coq with respect to memory.
 
-### Loops.v
+*** =Loops.v=
 
 This file provides looping monads to easily manipulate R objects.
 It also defines the structure used in the interpreter to deal with
@@ -158,69 +171,69 @@ infinite execution.
 In some ways, this file provides notations enabling to write
 imperative loops in Coq.
 
-### Rcore.v
+*** =Rcore.v=
 
 A Coq formalisation of the evaluation functions of R from its C code.
 Note that only relevant definitions are translated here. Some are just
 reinterpreted in Coq without following the original algorithm of the
 C source. See report for more details.
 
-### Rinit.v
+*** =Rinit.v=
 
 Initialises global variables.
 
-### Rfeatures.v
+*** =Rfeatures.v=
 
 A Coq formalisation of additionnal functions of R from its C code.
 This file also contains the final interpreter.
 
-### Rparsing.v
+*** =Rparsing.v=
 
 This file formalises functions for parsing R expressions.
 
-### MonadTactics.
+*** =MonadTactics.v=
 
-Provides tactics to easily manipulate the monads defined in Monads.v and Loops.v.
+Provides tactics to easily manipulate the monads defined in =Monads.v= and =Loops.v=.
 
-### Path.
+*** =Path.v=
 
 Provides abstractions to reason about the heap.
 
-### Invariants.v
+*** =Invariants.v=
 
-States some invariants of R’s heap, as well as tactics to manipulate it.
+States some invariants of R’s heap, as well as lemmae and tactics to manipulate it.
 
-### InvariantProofs.v
+*** =InvariantProofs.v=
 
-Proofs of some invariants respected by the functions defined in Rcore.v,
-Rinit.v, and Rfeatures.v.
+Proofs of some invariants respected by the functions defined in =Rcore.v=,
+=Rinit.v=, and =Rfeatures.v=.
 
-### Relation.v
+*** =Relation.v=
 
 Links the low-level formalisation to the C source code of R.
 
-### RelationCorrect.v
+*** =RelationCorrect.v=
 
 Proof that the relation defined in Module Relation holds along the
 execution of the functions of Rcore.
 
-### Extraction.v
+*** =Extraction.v=
 
 Extract R interpreter into OCaml.
 
-### extract.ml, extract.mli
+*** =extract.ml=, =extract.mli=
 
-These files are extracted by Extraction.
+These files are extracted by =Extraction.v=.
 
-### print.ml
+*** =print.ml=
 
 Contains various OCaml function to print Coq objects.
 
-### hooks.ml
+*** =hooks.ml=
 
 Contains some impure functions used by the Coq extracted code (mainly input and output).
 
-### runR.ml, runR.native
+*** =runR.ml=, =runR.native=
 
 Main interpreter file. It calls the various functions defined in extract.ml.
 
@@ -230,7 +243,27 @@ The following command provides some help about it.
 #+END_SRC
 
 
-# License
+** =gen=
+
+This folder is a random test generator.
+It builds random tests from the =gram= file, which could in theory be
+used for other languages than just R.
+
+The tests generated by this program are however of very relative interest,
+most of them just throwing an error.
+It was useful during the development to test non-frequent programs.
+
+
+** =tests=
+
+The file =testExtra.R= has been build by hand during the development.
+It consists of more than 500 unit tests, checking for very specific features of R,
+subjectively considered difficult.
+Instances of these tests include implicit type conversions or some specific
+rules for variable look-ahead.
+
+
+* License
 
 I have not chosen a licence yet, but GPL is highly probable.
 

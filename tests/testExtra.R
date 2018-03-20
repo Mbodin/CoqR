@@ -320,6 +320,9 @@ FALSE %% 2 ; FALSE %% 1 ; FALSE %% 0 ; FALSE %% FALSE ; FALSE %% TRUE
 0i %% 0
 0i %% 3i
 7 %% 2:4 ; -10:10 %% 3 ; -10:10 %% NULL ; NULL %% 2 ; -10:10 %% 2:4 ; -10:10 %% 2:5
+0 + 0i ; 0 - 0i ; -0 - 0i ; -0 + 0i
+1 / 0 ; 1 / -0 ; 1 / 0i ; 1 / -0i ; 1 / 0 * 1i ; 1 / 0 * i
+Inf + Inf ; Inf - Inf ; -Inf + Inf ; -Inf - Inf ; 1 / 0 + Inf ; 1 / 0 - Inf ; 1 / -0 + Inf ; 1 / -0 - Inf ; 1 / 0 + 1 / -0 ; 1 / 0 + 1 / 0
 
 # Tests about assignments.
 x <- y <- 2 ; x ; y
