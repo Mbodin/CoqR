@@ -10,7 +10,7 @@ It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
     (in this case, the source of [[https://www.r-project.org/][GNU R]]).
     The formalisation has been written in a monadic form,
     which enables a line-to-line correspondance with the original source.
-    We beleive that anyone can check the code similarity after a short training period.
+    We believe that anyone can check the code similarity after a short training period.
   - the formalisation is runnable, and can be run against test suites.
     We tested it against [[https://www.r-project.org/][GNU R]] in random tests
     (see the =gen/= folder), custom tests (see the =tests/= folder),
@@ -32,8 +32,8 @@ Indeed, in GNU R, some R libraries are supposed to be run before user code.
 These libraries creates a large number of functions and variables
 (such as =typeof=, =T=, etc.), which are thus not implemented in this formalisation.
 
-More information can be found in the [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=fr#babilkongresoj_fr]][following paper]]:
-    A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018
+More information can be found in the [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
+    A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018.
 
 The files of interest are currently mainly =src/Rinternals.v=, =src/Rcore.v=, and =src/Rfeatures.v=.
 

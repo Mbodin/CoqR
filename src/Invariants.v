@@ -308,19 +308,12 @@ Inductive null_pointer_exceptions_path : path -> Prop :=
 Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExpType -> SExpRec -> Prop :=
   | SExpType_corresponds_to_data_NilSxp : forall header car cdr tag,
       may_have_types S ([NilSxp]) car ->
-      safe_pointer S car ->
       may_have_types S ([NilSxp]) cdr ->
-      safe_pointer S cdr ->
       may_have_types S ([NilSxp]) tag ->
-      safe_pointer S tag ->
       safe_SExpRec_type safe_header safe_pointer S NilSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   | SExpType_corresponds_to_data_SymSxp : forall header pname value internal,
       may_have_types S ([CharSxp]) pname ->
-      safe_pointer S pname ->
-      (* may_have_types S ([(*TODO*)]) value -> *)
-      safe_pointer S value ->
-      (* may_have_types S ([(*TODO*) internal]) -> *)
-      safe_pointer S internal ->
+      may_have_types S ([NilSxp ; BuiltinSxp ; SpecialSxp]) internal ->
       safe_SExpRec_type safe_header safe_pointer S SymSxp (make_NonVector_SExpRec header (make_SymSxp_struct pname value internal))
   | SExpType_corresponds_to_data_ListSxp : forall e_,
       list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
@@ -328,16 +321,14 @@ Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExp
       safe_SExpRec_type safe_header safe_pointer S ListSxp e_
   | SExpType_corresponds_to_data_CloSxp : forall header formals body env,
       list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-        ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) formals ->
-      (* may_have_types S ([(*TODO*)]) body -> *)
+        ([ListSxp]) ([SymSxp]) ([NilSxp ; CharSxp]) formals ->
+      may_have_types S all_storable_SExpTypes body ->
       may_have_types S ([EnvSxp]) env ->
-      safe_pointer S env ->
       safe_SExpRec_type safe_header safe_pointer S CloSxp (make_NonVector_SExpRec header (make_CloSxp_struct formals body env))
   | SExpType_corresponds_to_data_EnvSxp : forall header frame enclos,
       list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-        ([ListSxp]) all_storable_SExpTypes(*TODO*) ([NilSxp ; CharSxp]) frame ->
+        ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) frame ->
       may_have_types S ([EnvSxp]) enclos ->
-      safe_pointer S enclos ->
       safe_SExpRec_type safe_header safe_pointer S EnvSxp (make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos))
   | SExpType_corresponds_to_data_SpecialSxp : forall header offset,
       safe_SExpRec_type safe_header safe_pointer S SpecialSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
@@ -366,7 +357,7 @@ Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExp
   | SExpType_corresponds_to_data_StrSxp : forall header array,
       (forall a,
         Mem a (ArrayList.to_list array) ->
-        may_have_types S ([CharSxp]) a /\ safe_pointer S a) ->
+        may_have_types S ([CharSxp]) a) ->
       safe_SExpRec_type safe_header safe_pointer S StrSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
@@ -377,16 +368,16 @@ Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExp
   (** The type [AnySxp] does not appear as the type of a C object,
     Thus no constructor is associated to this type. **)
   | SExpType_corresponds_to_data_VecSxp : forall header array,
-        (* (forall a,
-          Mem a (ArrayList.to_list array) ->
-          may_have_types S ([(*TODO*)]) a /\ safe_pointer S a) -> *)
+      (forall a,
+        Mem a (ArrayList.to_list array) ->
+        may_have_types S ([LglSxp ; IntSxp ; RealSxp ; CplxSxp ; StrSxp ; RawSxp]) a) ->
       safe_SExpRec_type safe_header safe_pointer S VecSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_ExprSxp : forall header array,
-      (* (forall a,
+      (forall a,
         Mem a (ArrayList.to_list array) ->
-        may_have_types S ([(*TODO*)]) a /\ safe_pointer S a) -> *)
+        may_have_types S all_storable_SExpTypes a) ->
       safe_SExpRec_type safe_header safe_pointer S ExprSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
@@ -1181,6 +1172,7 @@ Ltac simplify_context_base :=
   try fold list_head_such_that in *;
   try fold list_head in *;
   try fold list_type in *;
+  try unfolds all_storable_SExpTypes;
   repeat match goal with
   | |- context [ list_type_such_that (safe_header safe_pointer ?S) (safe_pointer ?S) (safe_pointer ?S) ?S ] =>
     fold (list_type_safe S)
