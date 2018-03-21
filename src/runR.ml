@@ -1,6 +1,24 @@
 (** RunR
   Main file. It runs the interactive Coq R interpreter. **)
 
+let license =
+  "  Copyright © 2018 Martin Bodin, Tomás Diaz
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA"
+
+
 (** * References to Options **)
 
 let interactive = ref true
@@ -124,6 +142,7 @@ let make_options expert prefix default =
   let doc_strict str =
     if expert then str else "" in
   [ (** These options do not fit the model of [boolean_switches]: either because they are not booleans, or because they don’t come with an inverse command. **)
+    (prefix ^ "show-license", Arg.Unit (fun _ -> print_endline license), "Show license information.") ;
     (prefix ^ "no-temporary", Arg.Set no_temporary, doc_strict "Do not show basic element with a temporary named field.") ;
     (prefix ^ "steps", Arg.Set_int max_steps, doc_strict "Set the maximum number of steps of the interpreter.") ;
     (prefix ^ "only-parsing", Arg.Set only_parsing, doc_strict ("Synonym of " ^ prefix ^ "disable-evaluation.")) ;

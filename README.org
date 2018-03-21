@@ -272,5 +272,7 @@ rules for variable look-ahead.
 
 * License
 
-I have not chosen a licence yet, but GPL is highly probable.
+The files in the =src/= folder are under the GPL license version 2
+(the same than R’s license, as well as most programs about R).
+See the file =COPYING= for more informations.
 
