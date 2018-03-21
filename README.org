@@ -32,6 +32,13 @@ Indeed, in GNU R, some R libraries are supposed to be run before user code.
 These libraries creates a large number of functions and variables
 (such as =typeof=, =T=, etc.), which are thus not implemented in this formalisation.
 
+R is a project moving fast.
+We believe that the approach of sticking as close as possible to R’s source code
+enables to update our formalisation in the same time than R.
+But this means that if you are using this repository several years in the future,
+there might be differences that were not present at the writing time.
+Most of the project is based on the versions 3.4.2, 3.4.3, and 3.4.4 of R.
+
 More information can be found in the [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
     A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018.
 

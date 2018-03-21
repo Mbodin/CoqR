@@ -317,7 +317,7 @@ Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExp
       safe_SExpRec_type safe_header safe_pointer S SymSxp (make_NonVector_SExpRec header (make_SymSxp_struct pname value internal))
   | SExpType_corresponds_to_data_ListSxp : forall e_,
       list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-         ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) e_ ->
+         ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) e_ -> (* FIXME: This looks too strong. *)
       safe_SExpRec_type safe_header safe_pointer S ListSxp e_
   | SExpType_corresponds_to_data_CloSxp : forall header formals body env,
       list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
@@ -1964,22 +1964,31 @@ Ltac define_write_SExp S p p_ :=
 (** ** Dealing with pointer exceptions **)
 
 Ltac prove_no_null_pointer_exceptions :=
-  let A := fresh "A" in
-  abstract lazymatch goal with
-  | |- ~ null_pointer_exceptions_suffix ?path =>
+  lazymatch goal with
+  | |- ~ _ =>
+    let A := fresh "A" in
+    introv A; inverts~ A; prove_no_null_pointer_exceptions
+  | |- False =>
+    repeat match goal with
+    | A : null_pointer_exceptions_path ?p |- _ =>
+      inverts A
+    end;
     match goal with
-    | N : ~ null_pointer_exceptions_suffix ?l |- _ =>
-      apply N || (introv A; apply N; inverts~ A; constructors~)
-    | E : move_along_path_from path ?S ?p_ = _ |- _ =>
-      introv A; inverts~ A;
-      unfold_shape_pointer_explode S p_;
-      solve [ inverts E; false~ ]
-    | |- _ =>
-      introv A; inverts~ A
+    | A : null_pointer_exceptions_entry_point ?e |- _ =>
+      solve [ inverts~ A ]
+    | A : null_pointer_exceptions_suffix ?path |- _ =>
+      solve [
+        inverts~ A;
+        match goal with
+        | N : ~ null_pointer_exceptions_suffix ?l |- _ =>
+          apply N; constructors~
+        | E : move_along_path_from path ?S ?p_ = _ |- _ =>
+          unfold_shape_pointer_explode S p_;
+          solve [ inverts E; false~ ]
+        end ]
+    | A : null_pointer_exceptions_globals ?g |- _ =>
+      inverts~ A
     end
-  | |- ~ null_pointer_exceptions_globals ?g =>
-    introv A; inverts~ A
-  (* TODO: The other cases. *)
   end.
 
 

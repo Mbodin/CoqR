@@ -551,6 +551,9 @@ n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; "f" } ; attr (a, f ()) <- 3 ;
 n <- 0 ; a <- 1 ; f <- function () { n <<- n + 1 ; a } ; attr (f (), "f") <- 2 ; n ; attr (attr (f (), "f"), "g") <- 3 ; n ; attr (attr (attr (f (), "f"), "g"), "f") <- 4 ; n ; attr (f (), "f") ; n ; attr (attr (f (), "f"), "g") ; n ; attr (attr (attr (f (), "f"), "g"), "f") ; n ; a
 a <- 1 ; attr (a, c ("f", "g")) <- 1:2 ; attr (a, "f") ;  attr (a, "g") ; a ; attr (a, c ("f", "g"))
 a <- 1 ; attr (a, c ("f", "g")) <- 1:2 ; attr (attr (a, c ("f", "g")), "h") <- 3
+l <- list (a = 5) ; l$a ; l[["a"]] ; l["a"] ; l[a]
+l <- list (ab = 5) ; l$a ; l[["a"]] ; l[["ac"]] ; l["a"] ; l["ac"] ; l[a]
+l <- list (ab = 5, abc = 3) ; l$a ; l$ab ; l$abc ; l[["a"]] ; l[["ab"]] ; l[["abc"]] ; l["a"] ; l["ab"] ; l["abc"] ; l[a]
 
 # Tests about special attributes.
 a <- 1:10 ; attr (a, "dim") <- 1
