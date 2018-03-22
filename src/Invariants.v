@@ -176,8 +176,8 @@ Lemma list_head_may_have_types : forall S Pheader Pcar Ptag l_t l_car l_tag p_,
   type p_ \in l_t.
 Proof. introv (h&car&cdr&tag&M&H&HH&A&HA&L&T&HT). substs~. Qed.
 
-Lemma list_type_may_have_types : forall S l_t l_car l_tag p,
-  list_type S l_t l_car l_tag p ->
+Lemma list_type_may_have_types : forall Pheader Pcar Ptag S l_t l_car l_tag p,
+  list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag p ->
   may_have_types S (l_t \u [NilSxp]) p.
 Proof.
   introv I. destruct~ I as [? ? ? ? I|? ? ? ? (p_&E&h&car&cdr&tag&M&H&HH&A&AH&L&T&HT)].
@@ -305,91 +305,102 @@ Inductive null_pointer_exceptions_path : path -> Prop :=
     null_pointer_exceptions_path p
   .
 
-Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExpType -> SExpRec -> Prop :=
+Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
   | SExpType_corresponds_to_data_NilSxp : forall header car cdr tag,
       may_have_types S ([NilSxp]) car ->
       may_have_types S ([NilSxp]) cdr ->
       may_have_types S ([NilSxp]) tag ->
-      safe_SExpRec_type safe_header safe_pointer S NilSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
+      safe_SExpRec_type S NilSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   | SExpType_corresponds_to_data_SymSxp : forall header pname value internal,
       may_have_types S ([CharSxp]) pname ->
       may_have_types S ([NilSxp ; BuiltinSxp ; SpecialSxp]) internal ->
-      safe_SExpRec_type safe_header safe_pointer S SymSxp (make_NonVector_SExpRec header (make_SymSxp_struct pname value internal))
-  | SExpType_corresponds_to_data_ListSxp : forall e_,
-      list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-         ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) e_ -> (* FIXME: This looks too strong. *)
-      safe_SExpRec_type safe_header safe_pointer S ListSxp e_
+      safe_SExpRec_type S SymSxp (make_NonVector_SExpRec header (make_SymSxp_struct pname value internal))
+  | SExpType_corresponds_to_data_ListSxp : forall header car cdr tag,
+      (* FIXME: As-is, there is no hypothesis stating that the list is finite. Do we want it? *)
+      may_have_types S all_storable_SExpTypes car ->
+      may_have_types S ([NilSxp ; ListSxp]) cdr ->
+      may_have_types S ([NilSxp ; CharSxp]) tag ->
+      safe_SExpRec_type S ListSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   | SExpType_corresponds_to_data_CloSxp : forall header formals body env,
-      list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-        ([ListSxp]) ([SymSxp]) ([NilSxp ; CharSxp]) formals ->
-      may_have_types S all_storable_SExpTypes body ->
+      list_type S ([ListSxp]) ([SymSxp]) ([NilSxp ; CharSxp]) formals ->
+      may_have_types S ([NilSxp ; SymSxp ; ListSxp ; EnvSxp ; PromSxp ; LangSxp ; CharSxp ; LglSxp ; IntSxp ; RealSxp ; CplxSxp ; StrSxp ; VecSxp ; BcodeSxp ; ExtptrSxp ; WeakrefSxp ; RawSxp ; S4Sxp ]) body ->
       may_have_types S ([EnvSxp]) env ->
-      safe_SExpRec_type safe_header safe_pointer S CloSxp (make_NonVector_SExpRec header (make_CloSxp_struct formals body env))
+      safe_SExpRec_type S CloSxp (make_NonVector_SExpRec header (make_CloSxp_struct formals body env))
   | SExpType_corresponds_to_data_EnvSxp : forall header frame enclos,
-      list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-        ([ListSxp]) all_storable_SExpTypes ([NilSxp ; CharSxp]) frame ->
+      may_have_types S ([ListSxp]) frame ->
       may_have_types S ([EnvSxp]) enclos ->
-      safe_SExpRec_type safe_header safe_pointer S EnvSxp (make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos))
+      safe_SExpRec_type S EnvSxp (make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos))
+  | SExpType_corresponds_to_data_PromSxp : forall header value expr env,
+      may_have_types S all_storable_SExpTypes value ->
+      may_have_types S all_storable_SExpTypes expr ->
+      may_have_types S ([EnvSxp]) env ->
+      safe_SExpRec_type S PromSxp (make_NonVector_SExpRec header (make_PromSxp_struct value expr env))
+  | SExpType_corresponds_to_data_LangSxp : forall header car cdr tag,
+      may_have_types S all_storable_SExpTypes car ->
+      may_have_types S ([NilSxp ; ListSxp]) cdr ->
+      may_have_types S ([NilSxp ; CharSxp]) tag ->
+      safe_SExpRec_type S LangSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   | SExpType_corresponds_to_data_SpecialSxp : forall header offset,
-      safe_SExpRec_type safe_header safe_pointer S SpecialSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
+      safe_SExpRec_type S SpecialSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
   | SExpType_corresponds_to_data_BuiltinSxp : forall header offset,
-      safe_SExpRec_type safe_header safe_pointer S BuiltinSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
+      safe_SExpRec_type S BuiltinSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
   | SExpType_corresponds_to_data_CharSxp : forall header array,
-      safe_SExpRec_type safe_header safe_pointer S CharSxp
+      safe_SExpRec_type S CharSxp
         (SExpRec_VectorChar (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_LglSxp : forall header array,
-      safe_SExpRec_type safe_header safe_pointer S LglSxp
+      safe_SExpRec_type S LglSxp
         (SExpRec_VectorLogical (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_IntSxp : forall header array,
-      safe_SExpRec_type safe_header safe_pointer S IntSxp
+      safe_SExpRec_type S IntSxp
         (SExpRec_VectorInteger (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_RealSxp : forall header array,
-      safe_SExpRec_type safe_header safe_pointer S RealSxp
+      safe_SExpRec_type S RealSxp
         (SExpRec_VectorReal (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_CplxSxp : forall header array,
-      safe_SExpRec_type safe_header safe_pointer S CplxSxp
+      safe_SExpRec_type S CplxSxp
         (SExpRec_VectorComplex (make_Vector_SExpRec header
            (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_StrSxp : forall header array,
       (forall a,
         Mem a (ArrayList.to_list array) ->
         may_have_types S ([CharSxp]) a) ->
-      safe_SExpRec_type safe_header safe_pointer S StrSxp
+      safe_SExpRec_type S StrSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
-  | SExpType_corresponds_to_data_DotSxp : forall e_,
-      list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S
-        ([ListSxp ; DotSxp]) all_storable_SExpTypes ([NilSxp]) e_  ->
-      safe_SExpRec_type safe_header safe_pointer S DotSxp e_
+  | SExpType_corresponds_to_data_DotSxp : forall header car cdr tag,
+      may_have_types S all_storable_SExpTypes car ->
+      may_have_types S ([NilSxp ; ListSxp ; DotSxp]) cdr ->
+      may_have_types S ([NilSxp ; CharSxp]) tag ->
+      safe_SExpRec_type S DotSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   (** The type [AnySxp] does not appear as the type of a C object,
     Thus no constructor is associated to this type. **)
   | SExpType_corresponds_to_data_VecSxp : forall header array,
       (forall a,
         Mem a (ArrayList.to_list array) ->
         may_have_types S ([LglSxp ; IntSxp ; RealSxp ; CplxSxp ; StrSxp ; RawSxp]) a) ->
-      safe_SExpRec_type safe_header safe_pointer S VecSxp
+      safe_SExpRec_type S VecSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   | SExpType_corresponds_to_data_ExprSxp : forall header array,
       (forall a,
         Mem a (ArrayList.to_list array) ->
         may_have_types S all_storable_SExpTypes a) ->
-      safe_SExpRec_type safe_header safe_pointer S ExprSxp
+      safe_SExpRec_type S ExprSxp
         (SExpRec_VectorPointer (make_Vector_SExpRec header
           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)))
   (** The following four types have not been implemented. **)
   | SExpType_corresponds_to_data_BcodeSxp : forall e_,
-      safe_SExpRec_type safe_header safe_pointer S BcodeSxp e_
+      safe_SExpRec_type S BcodeSxp e_
   | SExpType_corresponds_to_data_ExtptrSxp : forall e_,
-      safe_SExpRec_type safe_header safe_pointer S ExtptrSxp e_
+      safe_SExpRec_type S ExtptrSxp e_
   | SExpType_corresponds_to_data_RawSxp : forall e_,
-      safe_SExpRec_type safe_header safe_pointer S RawSxp e_
+      safe_SExpRec_type S RawSxp e_
   | SExpType_corresponds_to_data_S4Sxp : forall e_,
-      safe_SExpRec_type safe_header safe_pointer S S4Sxp e_
+      safe_SExpRec_type S S4Sxp e_
   (** The two types [NewSxp] and [FreeSxp] are only used in the
     garbage collector, which has not been formalised.  They thus never
     appear in our memory, and no constructor is associated to
@@ -400,13 +411,9 @@ Inductive safe_SExpRec_type safe_header (safe_pointer : _ -> _ -> Prop) S : SExp
     an object. Again, no constructor is associated to this type. **)
   .
 
-Record safe_header (safe_pointer : state -> _ -> Prop) S (h : SExpRecHeader) : Prop := make_safe_header {
-    safe_attrib : safe_pointer S (attrib h)
-  }.
-
-Record safe_SExpRec_gen safe_pointer S (e_ : SExpRec) : Prop := make_safe_SExpRec {
+Record safe_SExpRec S (e_ : SExpRec) : Prop := make_safe_SExpRec {
     SExpType_corresponds_to_datatype :
-      safe_SExpRec_type (safe_header safe_pointer) safe_pointer S (type e_) e_
+      safe_SExpRec_type S (type e_) e_
   }.
 
 Record safe_pointer_gen (safe_pointer : _ -> _ -> Prop) S p : Prop := make_safe_pointer {
@@ -421,9 +428,8 @@ Record safe_pointer_gen (safe_pointer : _ -> _ -> Prop) S p : Prop := make_safe_
       safe_pointer S e ;
     safe_SExpRec_read : forall p_,
       read_SExp S p = Some p_ ->
-      safe_SExpRec_gen safe_pointer S p_
+      safe_SExpRec S p_
   }.
-
 Definition safe_pointer S p := paco2 safe_pointer_gen bot2 S p.
 Hint Unfold safe_pointer.
 
@@ -431,17 +437,6 @@ Lemma safe_pointer_gen_mon : monotone2 safe_pointer_gen.
 Proof.
   pmonauto.
   repeat intro. destruct IN as [B OKf OKs R]. constructors*.
-  introv E. forwards [IH]: R E. constructors.
-  inverts IH; constructors~;
-    try match goal with
-    | H : list_head_such_that _ _ _ _ _ _ _ _ |- list_head_such_that _ _ _ _ _ _ _ _ =>
-      applys~ list_head_such_that_weaken H;
-      (apply BagIncl_refl || let M := fresh "M" in introv M; destruct M; constructors~)
-    | H : list_type_such_that _ _ _ _ _ _ _ _ |- list_type_such_that _ _ _ _ _ _ _ _ =>
-      applys~ list_type_weaken H;
-      (apply BagIncl_refl || let M := fresh "M" in introv M; destruct M; constructors~)
-    | H : _ |- _ => let M := fresh "M" in introv M; forwards* [? ?]: H M
-    end.
 Qed.
 Hint Resolve safe_pointer_gen_mon : paco.
 
@@ -456,10 +451,14 @@ Proof.
     + left~.
 Qed.
 
-Definition safe_SExpRec := safe_SExpRec_gen safe_pointer.
+Record safe_header_gen (safe_pointer : state -> _ -> Prop) S (h : SExpRecHeader) : Prop := make_safe_header {
+    safe_attrib : safe_pointer S (attrib h)
+  }.
 
-Definition list_type_safe S := list_type_such_that (safe_header safe_pointer S) (safe_pointer S) (safe_pointer S) S.
-Definition list_head_safe S := list_head_such_that (safe_header safe_pointer S) (safe_pointer S) (safe_pointer S) S.
+Definition safe_header := safe_header_gen safe_pointer.
+
+Definition list_type_safe S := list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S.
+Definition list_head_safe S := list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S.
 
 Record safe_state S : Prop := make_safe_state {
     no_null_pointer_entry_point : forall e p,
@@ -829,8 +828,8 @@ Lemma conserve_old_binding_list_type_safe_aux : forall (safe_pointer1 safe_point
     S S' l_t l_car l_tag p,
   conserve_old_binding S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
-  list_type_such_that (safe_header safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p ->
-  list_type_such_that (safe_header safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p.
+  list_type_such_that (safe_header_gen safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p ->
+  list_type_such_that (safe_header_gen safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p.
 Proof.
   introv C CSafe L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H HH A L T IH]
     using list_type_ind.
@@ -845,8 +844,8 @@ Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer1 safe_point
     S S' l_t l_car l_tag p_,
   conserve_old_binding S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
-  list_head_such_that (safe_header safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p_ ->
-  list_head_such_that (safe_header safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p_.
+  list_head_such_that (safe_header_gen safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p_ ->
+  list_head_such_that (safe_header_gen safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p_.
 Proof.
   introv C CSafe (h&car&cdr&tag&E&T&HH&Mcar&OKcar&L&Mtag&OKtag).
   exists h car cdr tag. splits~.
@@ -856,31 +855,28 @@ Proof.
   - applys* conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_safe_SExprRec_type_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' t p_,
+Lemma conserve_old_binding_safe_SExprRec_type : forall S S' t p_,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
-  safe_SExpRec_type (safe_header safe_pointer1) safe_pointer1 S t p_ ->
-  safe_SExpRec_type (safe_header safe_pointer2) safe_pointer2 S' t p_.
+  safe_SExpRec_type S t p_ ->
+  safe_SExpRec_type S' t p_.
 Proof.
-  introv C CSafe OK. inverts OK; constructors~;
+  introv C OK. inverts OK; constructors~;
     try (introv M; match goal with P : _ |- _ =>
                      let P' := fresh P in forwards P': P M;
                      repeat (let P'' := fresh P in
                        lets (?&P''): (rm P'); rename P'' into P')
                    end; try splits);
     try applys_first (>> conserve_old_binding_may_have_types
-                         conserve_old_binding_list_type_safe_aux
-                         conserve_old_binding_list_head_safe_aux) C; autos*.
+                         conserve_old_binding_list_type) C; autos*.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
+Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
   conserve_old_binding S S' ->
-  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
-  safe_SExpRec_gen safe_pointer1 S p_ ->
-  safe_SExpRec_gen safe_pointer2 S' p_.
+  safe_SExpRec S p_ ->
+  safe_SExpRec S' p_.
 Proof.
-  introv C Csafe E. constructors~.
-  applys* conserve_old_binding_safe_SExprRec_type_aux C.
+  introv C E. constructors~.
+  applys* conserve_old_binding_safe_SExprRec_type C.
   applys~ SExpType_corresponds_to_datatype E.
 Qed.
 
@@ -903,9 +899,7 @@ Proof.
     introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
     + forwards E': conserve_old_binding_read C E.
       rewrite E' in R. inverts~ R.
-      applys~ conserve_old_binding_safe_SExpRec_aux safe_pointer C.
-      * clear - C IH. introv OKp. right*.
-      * applys~ safe_SExpRec_read E.
+      applys~ conserve_old_binding_safe_SExpRec C. applys~ safe_SExpRec_read OKS E.
     + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
 Qed.
 
@@ -924,24 +918,6 @@ Lemma conserve_old_binding_list_head_safe : forall S S' l_t l_car l_tag p_,
   list_head_safe S' l_t l_car l_tag p_.
 Proof.
   introv C L. applys~ conserve_old_binding_list_head_safe_aux C L.
-  introv. applys~ conserve_old_binding_safe_pointer.
-Qed.
-
-Lemma conserve_old_binding_safe_SExprRec_type : forall S S' t p_,
-  conserve_old_binding S S' ->
-  safe_SExpRec_type (safe_header safe_pointer) safe_pointer S t p_ ->
-  safe_SExpRec_type (safe_header safe_pointer) safe_pointer S' t p_.
-Proof.
-  introv C OK. applys~ conserve_old_binding_safe_SExprRec_type_aux C OK.
-  introv. applys~ conserve_old_binding_safe_pointer.
-Qed.
-
-Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
-  conserve_old_binding S S' ->
-  safe_SExpRec S p_ ->
-  safe_SExpRec S' p_.
-Proof.
-  introv C OK. applys~ conserve_old_binding_safe_SExpRec_aux C OK.
   introv. applys~ conserve_old_binding_safe_pointer.
 Qed.
 
@@ -979,22 +955,7 @@ Proof.
   apply SExpType_corresponds_to_datatype in OKp_. inverts OKp_; Mem_solve.
 Qed.
 
-Lemma safe_make_SExpRec_list : forall S attrib car cdr tag,
-  safe_pointer S attrib ->
-  safe_pointer S car ->
-  list_type_safe S ([ListSxp]) all_storable_SExpTypes ([NilSxp; CharSxp]) cdr ->
-  may_have_types S ([NilSxp; CharSxp]) tag ->
-  safe_pointer S tag ->
-  safe_SExpRec S (make_SExpRec_list attrib car cdr tag).
-Proof.
-  introv OKattrib OKcar OKcdr Ttag OKtag. constructors.
-  simpl. constructors. do 4 eexists. splits*.
-  - simpl. Mem_solve.
-  - constructors~.
-  - applys~ safe_pointer_may_have_types_all_storable_SExpTypes OKcar.
-Qed.
-
-Lemma list_type_safe_ListSxp : forall globals S l_car l_tag l,
+Lemma list_type_safe_safe_pointer : forall S globals l_car l_tag l,
   safe_state S ->
   safe_globals S globals ->
   l_car \c all_storable_SExpTypes ->
@@ -1002,29 +963,25 @@ Lemma list_type_safe_ListSxp : forall globals S l_car l_tag l,
   list_type_safe S ([ListSxp]) l_car l_tag l ->
   safe_pointer S l.
 Proof.
-  introv OKS OKg Icar Itag L. remember [ListSxp] as l_t.
-  induction L as [? ? ? ? L|? ? ? ? p_ h car cdr tag E M H HH A HA L T HT IH] using list_type_ind.
-  - applys~ may_have_types_NilSxp_safe_pointer OKg L.
-  - rewrite safe_pointer_rewrite. constructors.
+  introv OKS OKg Icar Itag L. remember ([ListSxp]) as l_t.
+  induction L as [? ? ? ? L|? ? ? ? L h car cdr tag E E' T OKh Tcar OKcar L' Ttag OKtag] using list_type_ind.
+  - applys~ may_have_types_NilSxp_safe_pointer OKg.
+  - substs. rewrite safe_pointer_rewrite. constructors.
     + (** pointer_bound **)
       applys~ read_bound E.
     + (** no_null_pointer_along_path_step **)
-      introv N Em. unfolds in Em. rewrite E in Em. rewrite M in Em. simpl in Em.
+      introv N Em. unfolds in Em. rewrite E in Em. simpl in Em.
       destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; applys* safe_pointer_not_NULL.
-      applys~ safe_attrib HH.
+      applys~ safe_attrib OKh.
     + (** safe_pointer_along_path_step **)
-      introv Em D. unfolds in Em. rewrite E in Em. rewrite M in Em. simpl in Em.
+      introv Em D. unfolds in Em. rewrite E in Em. simpl in Em.
       destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em.
-      applys~ safe_attrib HH.
+      applys~ safe_attrib OKh.
     + (** safe_SExpRec_read **)
-      rewrite E. introv I. symmetry in I. inverts I.
-      subst l_t. eapply BagInSingle_list in H. constructors~.
-      rewrite H. constructors~.
-      do 4 eexists. splits*.
-      * rewrite H. Mem_solve.
-      * applys~ may_have_types_weaken A.
-      * applys~ list_type_weaken L. solve_incl.
-      * applys~ may_have_types_weaken T.
+      rewrite E. introv I. inverts I. eapply BagInSingle_list in T. constructors~.
+      rewrite T. constructors~; try solve [ applys* may_have_types_weaken ].
+      apply list_type_may_have_types in L'.
+      applys may_have_types_weaken L'. solve_incl.
 Qed.
 
 Lemma conserve_old_binding_safe_globals : forall S S' globals,
@@ -1140,6 +1097,41 @@ Ltac simpl_list_union :=
   end.
 
 
+(** *** Recognising a fully computed [SExpType] **)
+
+Ltac SExpType_fully_computed t :=
+  lazymatch t with
+  | NilSxp => constr:(true)
+  | SymSxp => constr:(true)
+  | ListSxp => constr:(true)
+  | CloSxp => constr:(true)
+  | EnvSxp => constr:(true)
+  | PromSxp => constr:(true)
+  | LangSxp => constr:(true)
+  | SpecialSxp => constr:(true)
+  | BuiltinSxp => constr:(true)
+  | CharSxp => constr:(true)
+  | LglSxp => constr:(true)
+  | IntSxp => constr:(true)
+  | RealSxp => constr:(true)
+  | CplxSxp => constr:(true)
+  | StrSxp => constr:(true)
+  | DotSxp => constr:(true)
+  | AnySxp => constr:(true)
+  | VecSxp => constr:(true)
+  | ExprSxp => constr:(true)
+  | BcodeSxp => constr:(true)
+  | ExtptrSxp => constr:(true)
+  | WeakrefSxp => constr:(true)
+  | RawSxp => constr:(true)
+  | S4Sxp => constr:(true)
+  | NewSxp => constr:(true)
+  | FreeSxp => constr:(true)
+  | FunSxp => constr:(true)
+  | _ => constr:(false)
+  end.
+
+
 (** *** Simplifying the context **)
 
 Ltac syntactically_the_same x y :=
@@ -1218,6 +1210,18 @@ Ltac self_rewrite_about_in x P :=
     rewrite~ H in P
   end.
 
+Tactic Notation "self_rewrite" :=
+  self_rewrite.
+
+Tactic Notation "self_rewrite" "in" hyp(P) :=
+  self_rewrite_in P.
+
+Tactic Notation "self_rewrite" "about" constr(x) :=
+  self_rewrite_about x.
+
+Tactic Notation "self_rewrite" "about" constr(x) "in" hyp(P) :=
+  self_rewrite_about_in x P.
+
 
 (** *** Case analysis on lists **)
 
@@ -1270,6 +1274,473 @@ Ltac clear_trivial :=
   end.
 
 
+(** ** Getting some properties **)
+
+(** *** [safe_globals] **)
+
+Ltac get_safe_globals S globals cont :=
+  match goal with
+  | H : safe_globals S globals |- _ => cont H
+  end.
+
+(** *** [list_type] **)
+
+Ltac get_list_type S p cont :=
+  lazymatch goal with
+  | L : list_type S _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ S _ _ _ p |- _ => cont L
+  | L : list_type_safe S _ _ _ p |- _ => cont L
+  end.
+
+Ltac get_list_type_no_S p cont :=
+  lazymatch goal with
+  | L : list_type _ _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ _ _ _ _ p |- _ => cont L
+  | L : list_type_safe _ _ _ _ p |- _ => cont L
+  end.
+
+Ltac get_list_head S p_ cont :=
+  lazymatch goal with
+  | L : list_head S _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ S _ _ _ p_ |- _ => cont L
+  | L : list_head_safe S _ _ _ p_ |- _ => cont L
+  end.
+
+Ltac get_list_head_no_S p_ cont :=
+  lazymatch goal with
+  | L : list_head _ _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ _ _ _ _ p_ |- _ => cont L
+  | L : list_head_safe _ _ _ _ p_ |- _ => cont L
+  end.
+
+
+(** *** [may_have_types] **)
+
+Ltac get_may_have_types S p cont :=
+  match goal with
+  | M : may_have_types S _ p |- _ => cont M
+  | _ =>
+    get_list_type S p ltac:(fun L =>
+      let p' := fresh1 p in
+      let M := fresh "M" p' in
+      forwards M: list_type_may_have_types L;
+      simpl_list_union;
+      cont M)
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    T : type (get_SxpInfo ?p_) = ?t |- _ =>
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    forwards M: read_SExp_may_have_types_read_exact E T;
+    cont M
+  | E : read_SExp (state_memory S) p = Some ?p_,
+    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory S) p = Some ?p_ |- _ =>
+    get_list_head S p_ ltac:(fun L =>
+      let p' := fresh1 p in
+      let T := fresh "T" p' in
+      forwards T: list_head_may_have_types L;
+      let M := fresh "M" p' in
+      forwards M: read_SExp_may_have_types_read E T;
+      cont M)
+  | E : read_SExp (state_memory S) p = Some ?p_ |- _ =>
+    let t := fresh "t" in
+    evar (t : SExpType);
+    let T := fresh "E" t in
+    asserts T: (type p_ = t);
+    [ substs; simpl; unfolds t; reflexivity
+    | unfolds t; clear t;
+      match type of T with
+      | _ = ?t =>
+        let tf := SExpType_fully_computed t in
+        match tf with
+        | true =>
+          let p' := fresh1 p in
+          let M := fresh "M" p' in
+          forwards M: read_SExp_may_have_types_read_exact E T;
+          cont M
+        end
+      end ]
+  | |- _ =>
+    lazymatch p with
+    | read_globals ?globals R_NilValue =>
+      get_safe_globals S globals ltac:(fun OKg =>
+        let T := fresh "Tnil" in
+        forwards T: R_NilValue_may_have_types OKg; [idtac];
+        cont T)
+    end
+  end.
+
+Ltac get_may_have_types_no_S p cont :=
+  match goal with
+  | M : may_have_types _ _ p |- _ => cont M
+  | _ =>
+    get_list_type_no_S p ltac:(fun L =>
+      let p' := fresh1 p in
+      let M := fresh "M" p' in
+      forwards M: list_type_may_have_types L;
+      simpl_list_union;
+      cont M)
+  | E : read_SExp _ p = Some ?p_,
+    T : type (get_SxpInfo ?p_) = ?t |- _ =>
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    forwards M: read_SExp_may_have_types_read_exact E T;
+    cont M
+  | E : read_SExp _ p = Some ?p_,
+    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    forwards M: read_SExp_may_have_types_read E T;
+    cont M
+  | E : read_SExp (state_memory ?S) p = Some ?p_ |- _ =>
+    get_list_head S p_ ltac:(fun L =>
+      let p' := fresh1 p in
+      let T := fresh "T" p' in
+      forwards T: list_head_may_have_types L;
+      let M := fresh "M" p' in
+      forwards M: read_SExp_may_have_types_read E T;
+      cont M)
+  | |- _ =>
+    lazymatch p with
+    | read_globals ?globals R_NilValue =>
+      let T := fresh "Tnil" in
+      forwards~ T: R_NilValue_may_have_types; [idtac];
+      cont T
+    end
+  end.
+
+
+(** *** [safe_state] **)
+
+Ltac get_safe_state S cont :=
+  match goal with
+  | H : safe_state S |- _ => cont H
+  | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S r, P_success S r -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    forwards* R: (rm I) H; [idtac];
+    cont R
+  | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S, P_error S -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    forwards* R: (rm I) H; [idtac];
+    cont R
+  | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
+    let I := fresh "Impl" in
+    asserts I: (forall S n c, P_longjump S n c -> safe_state S);
+    [solve [autos*]|];
+    let R := fresh "Safe" in
+    forwards* R: (rm I) H; [idtac];
+    cont R
+  end.
+
+
+(** *** [safe_pointer] **)
+
+Ltac prove_no_null_pointer_exceptions_globals A :=
+  solve [ inverts~ A ].
+
+Ltac prove_no_null_pointer_exceptions_entry_point A :=
+  solve [ inverts~ A ].
+
+Ltac get_safe_pointer S p cont :=
+  match goal with
+  | H : safe_pointer S p |- _ => cont H
+  | H : safe_pointer_gen safe_pointer S p |- _ =>
+    rewrite <- safe_pointer_rewrite in H; cont H
+  | M : move_along_entry_point _ S = Some p |- _ =>
+    get_safe_state S ltac:(fun OKS =>
+      let R := fresh "Safe" in
+      forwards~ R: safe_entry_points OKS M;
+      try solve [
+            applys~ no_null_pointer_entry_point OKS M;
+            let A := fresh "A" in
+            introv A;
+            prove_no_null_pointer_exceptions_entry_point A ];
+      [idtac];
+      cont R)
+  | _ =>
+    let p' := fresh1 p in
+    let OKp := fresh "OK" p' in
+    match p with
+    | read_globals ?globals ?g =>
+      get_safe_globals S globals ltac:(fun OKg =>
+        asserts OKp: (safe_pointer S p);
+        [ applys~ globals_not_NULL_safe OKg;
+          applys~ globals_not_NULL OKg;
+          let A := fresh "A" in
+          introv A;
+          prove_no_null_pointer_exceptions_globals A
+        | cont OKp ])
+    | attrib _ =>
+      asserts OKp: (safe_pointer S p);
+      [ solve [ apply~ safe_attrib ]
+      | cont OKp ]
+    end
+  | _ =>
+    get_may_have_types S p ltac:(fun M =>
+      match type of M with
+      | may_have_types S ([NilSxp]) p =>
+        let p' := fresh1 p in
+        let OKp := fresh "OK" p' in
+        asserts OKp: (safe_pointer S p);
+        [ get_safe_state S ltac:(fun OKS =>
+            applys* may_have_types_NilSxp_safe_pointer OKS M)
+        | cont OKp ]
+      end)
+  | L : list_type_safe S ([ListSxp]) ?l_car ?l_tag p |- _ =>
+    let p' := fresh1 p in
+    let OKp := fresh "OK" p' in
+    asserts OKp: (safe_pointer S p);
+    [ get_safe_state S ltac:(fun OKS =>
+        applys* list_type_safe_safe_pointer OKS L;
+        solve_incl)
+    | cont OKp ]
+  | H : safe_pointer_gen _ S p |- _ =>
+    (** This is a last-resort case as the seed predicate might not be the expected one. **)
+    cont H
+  end.
+
+Ltac get_safe_pointer_no_S p cont :=
+  match goal with
+  | S : state |- _ =>
+    get_safe_pointer S p cont
+  end.
+
+
+(** *** [safe_SExpRec] **)
+
+Ltac get_safe_SExpRec S e_ cont :=
+  match goal with
+  | H : safe_SExpRec S e_ |- _ => cont H
+  | P : read_SExp (state_memory S) ?e = Some e_ |- _ =>
+    get_safe_pointer S e ltac:(fun H =>
+      let e_' := fresh1 e_ in
+      let R := fresh "OK" e_' in
+      (forwards~ R: safe_SExpRec_read H P
+       || (rewrite safe_pointer_rewrite in H; forwards~ R: safe_SExpRec_read H P)); [idtac];
+      cont R)
+  | _ =>
+    let e_' := fresh1 e_ in
+    let R := fresh "OK" e_' in
+    asserts R: (safe_SExpRec S e_);
+    [ substs; simpl; do 2 constructors~;
+      lazymatch goal with
+      | |- may_have_types ?S ?l ?p =>
+        get_may_have_types S p ltac:(fun M =>
+          applys~ may_have_types_weaken M; solve_incl)
+      | |- list_type S _ _ _ ?p =>
+        get_list_type S p ltac:(fun L =>
+          applys~ list_type_weaken L; (solve_incl || (repeat rewrite safe_pointer_rewrite; autos*)))
+      | |- forall a, Mem a _ -> may_have_types S ?l a =>
+        let M := fresh "M" in
+        substs; simpl; introv M; repeat inverts M as M;
+        lazymatch goal with
+        | |- may_have_types ?S ?l ?a =>
+          get_may_have_types S a ltac:(fun M =>
+            applys~ may_have_types_weaken M; solve_incl)
+        end
+      end
+    | cont R ]
+  end.
+
+
+(** ** Unfolding tactics **)
+
+(** *** Getting object shapes **)
+
+Ltac clear_useless_type_eq :=
+  repeat match goal with
+  | T1 : type (get_SxpInfo ?p_) = ?t,
+    T2 : type (get_SxpInfo ?p_) = ?t |- _ => clear T2
+  | T1 : type (get_SxpInfo ?p_) = ?t1,
+    T2 : type (get_SxpInfo ?p_) = ?t2 |- _ =>
+    solve [ rewrite T2 in T1; inverts T1 ]
+  | T1 : type (get_SxpInfo ?p_) = ?t,
+    T2 : type (get_SxpInfo ?p_) \in ?l |- _ =>
+    rewrite T1 in T2;
+    let isi := compute_is_in t l in
+    lazymatch isi with
+    | true => clear T2
+    | false =>
+      try solve [ false; repeat inverts T2 ]
+    end
+  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
+  end.
+
+(** Generates an hypothesis of the form [type p_ = t] or [type p_ \in l]
+  in the goal when possible. **)
+Ltac put_type_in_context p_ :=
+  match goal with
+  | T : type (get_SxpInfo p_) = ?t |- _ => idtac
+  | T : type (get_SxpInfo p_) \in _ |- _ => idtac
+  | R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
+    get_may_have_types S p ltac:(fun M =>
+      let T := fresh "T" in
+      forwards T: may_have_types_read_SExp M R;
+      put_type_in_context p_)
+  end; clear_useless_type_eq.
+
+(** Extracts relevant information for [p_] from an hypothesis
+  of the form [safe_SExpRec]. The [explode] arguments tells the
+  tactics whether exploding the type into all its possibilities
+  is wanted. **)
+Ltac force_unfold_shape explode S p_ :=
+  let invert_type OKp_ :=
+    put_type_in_context p_;
+    let aux t :=
+      lazymatch explode with
+      | true => inverts~ OKp_; t
+      | false =>
+         try solve [ inverts~ OKp_; t ];
+         ((inverts~ OKp_; t; [idtac]) || solve [ inverts~ OKp_; t ])
+      end in
+    lazymatch goal with
+    | T : type (get_SxpInfo p_) = ?t |- _ =>
+      aux ltac:(try solve [ inverts~ T ])
+    | T : type (get_SxpInfo p_) \in _ |- _ =>
+      aux ltac:(try solve [ false; repeat inverts T ])
+    end in
+  lazymatch goal with
+  | OKp_ : safe_SExpRec_type _ S (type (get_SxpInfo p_)) p_ |- _ => invert_type OKp_
+  | _ =>
+    get_safe_SExpRec S p_ ltac:(fun OKp_ =>
+      let OKp_' := fresh1 OKp_ in
+      forwards~ OKp_': SExpType_corresponds_to_datatype OKp_;
+      invert_type OKp_')
+  end.
+
+
+Ltac unfold_shape explode S p_ :=
+  lazymatch goal with
+  | H : p_ = SExpRec_NonVector _ |- _ => idtac
+  | H : p_ = SExpRec_VectorChar _ |- _ => idtac
+  | H : p_ = SExpRec_VectorInteger _ |- _ => idtac
+  | H : p_ = SExpRec_VectorComplex _ |- _ => idtac
+  | H : p_ = SExpRec_VectorReal _ |- _ => idtac
+  | H : p_ = SExpRec_VectorPointer _ |- _ => idtac
+  | _ => force_unfold_shape explode S p_
+  end.
+
+Ltac unfold_may_hide_read_SExp :=
+  repeat match goal with
+  | E : move_along_path_from ?l _ _ = _ |- _ =>
+    let OKl := is_fully_computed l in
+    match OKl with
+    | true => unfold move_along_path_from in E; rew_list in E; simpl in E
+    end
+  | E : move_along_path_step _ _ _ = _ |- _ =>
+    unfold move_along_path_step in E
+  end.
+
+Ltac unfold_shape_pointer explode S p :=
+  match goal with
+  | R : read_SExp (state_memory S) p = Some ?p_ |- _ =>
+    unfold_shape explode S p_
+  | |- _ =>
+    let p' := fresh1 p in
+    let p_ := fresh p' "_" in
+    let R := fresh "E" in
+    unfold_may_hide_read_SExp;
+    destruct (read_SExp (state_memory S) p) as [p_|] eqn: R;
+    tryfalse~;
+    [idtac];
+    unfold_shape explode S p_
+  end.
+
+Ltac unfold_shape_pointer_explode := unfold_shape_pointer true.
+Ltac unfold_shape_pointer_one := unfold_shape_pointer false.
+
+
+(** *** Dealing with [read_SExp] **)
+
+Ltac rewrite_read_SExp :=
+  match goal with
+  | |- context [ read_SExp (state_memory ?S) ?e ] =>
+    let bound_such_that_prop T :=
+      let e' := fresh1 e in
+      let e_ := fresh e' "_" in
+      let Ee_ := fresh "E" e_ in
+      let Pe_ := fresh T e_ in
+      lets (e_&Ee_&Pe_): (rm T);
+      try rewrite Ee_ in * in
+    lazymatch goal with
+    | E : read_SExp (state_memory S) e = _ |- _ => rewrite E
+    | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
+    | B : bound S e |- _ => bound_such_that_prop B
+    | _ =>
+      get_may_have_types S e ltac:(bound_such_that_prop)
+    end;
+    try unfold_shape_pointer false S e
+  end; clear_trivial.
+
+(** Tries to prove a new equality of the form [write_SExp S p p_]. **)
+Ltac define_write_SExp S p p_ :=
+  lazymatch goal with
+  | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
+  | _ =>
+    let S' := fresh1 S in
+    let ES' := fresh "E" S' in
+    destruct (write_SExp S p p_) as [S'|] eqn:ES';
+    [ solve [
+          false;
+          match goal with
+          | A : alloc_SExp _ _ = (S, p) |- _ =>
+            applys~ alloc_write_SExp_not_None A ES'
+          | E : read_SExp (state_memory S) p = Some _ |- _ =>
+            let R := fresh "R" in
+            rewrites >> write_read_SExp_None (rm ES') in E;
+            inverts~ E
+          end
+        | autos~; simpl; autos* ]
+    | try rewrite ES'; try assumption ]
+  end.
+
+
+(** ** Dealing with pointer exceptions **)
+
+Ltac prove_no_null_pointer_exceptions :=
+  lazymatch goal with
+  | |- ~ _ =>
+    let A := fresh "A" in
+    introv A; inverts~ A; prove_no_null_pointer_exceptions
+  | |- forall_ s \in ?path, ~ _ =>
+    let I := fresh "I" in
+    introv I;
+    repeat inverts I as I;
+    prove_no_null_pointer_exceptions
+  | |- False =>
+    repeat match goal with
+    | A : null_pointer_exceptions_path ?p |- _ =>
+      inverts A
+    end;
+    match goal with
+    | A : null_pointer_exceptions_entry_point ?e |- _ =>
+      prove_no_null_pointer_exceptions_entry_point A
+    | A : null_pointer_exceptions_suffix ?path |- _ =>
+      solve [
+        inverts~ A;
+        match goal with
+        | N : ~ null_pointer_exceptions_suffix ?l |- _ =>
+          apply N; constructors~
+        | E : move_along_path_from path ?S ?p_ = _ |- _ =>
+          unfold_shape_pointer_explode S p_;
+          solve [ inverts E; false~ ]
+        end ]
+    | A : null_pointer_exceptions_globals ?g |- _ =>
+      prove_no_null_pointer_exceptions_globals A
+    end
+  end.
+
+
 (** ** Some tactics about locations **)
 
 (** *** Proving that locations are not [NULL] **)
@@ -1279,26 +1750,44 @@ Proof. autos*. Qed.
 
 Ltac prove_not_NULL :=
   let aux p :=
-    first [
-        apply* no_null_pointer_along_path_step;
-        let A := fresh "A" in introv A; inverts~ A
-      | apply* no_null_pointer_along_path;
-        let A := fresh "A" in introv A; inverts~ A
-      | apply* globals_not_NULL;
-        let A := fresh "A" in introv A; inverts~ A
-      | apply* no_null_pointer_entry_point;
-        let A := fresh "A" in introv A; inverts~ A
-      | apply* no_null_pointer_along_path_from;
-        let I := fresh "I" in let A := fresh "A" in introv I A; inverts A; inverts~ I
-      | let E := fresh "E" in introv E; substs;
-        match goal with
-        | E : move_along_path_step _ _ NULL = Some _ |- _ =>
-          rewrite move_along_path_step_NULL in E; inverts~ E
-        | E : move_along_path_from _ _ NULL = Some _ |- _ =>
-          rewrite move_along_path_from_NULL in E; [discriminate|inverts~ E]
-        | E : read_SExp _ NULL = Some _ |- _ =>
-          rewrite read_SExp_NULL in E; inverts~ E
-        end ] in
+    match goal with
+    | M : move_along_path_step _ ?S ?p0 = Some p |- _ =>
+      get_safe_pointer S p0 ltac:(fun OKp0 =>
+        let OKp0' := fresh1 OKp0 in
+        lets OKp0': OKp0;
+        rewrite safe_pointer_rewrite in OKp0';
+        applys~ no_null_pointer_along_path_step OKp0' M;
+        clear OKp0';
+        prove_no_null_pointer_exceptions)
+    | M : move_along_path _ ?S = Some p |- _ =>
+      get_safe_state S ltac:(fun OKS =>
+        applys~ no_null_pointer_along_path OKS M;
+        prove_no_null_pointer_exceptions)
+    | M : move_along_entry_point _ ?S = Some p |- _ =>
+      get_safe_state S ltac:(fun OKS =>
+        applys~ no_null_pointer_entry_point OKS M;
+        prove_no_null_pointer_exceptions)
+    | M : move_along_path_from _ ?S ?p0 = Some p |- _ =>
+      get_safe_pointer S p0 ltac:(fun OKp0 =>
+        applys~ no_null_pointer_along_path_from OKp0 M;
+        prove_no_null_pointer_exceptions)
+    | _ =>
+      solve [
+          apply* globals_not_NULL; prove_no_null_pointer_exceptions
+        | get_safe_pointer_no_S p ltac:(fun OKp =>
+            applys~ safe_pointer_not_NULL OKp)
+        | let E := fresh "E" in introv E; substs;
+          match goal with
+          | E : move_along_path_step _ _ NULL = Some _ |- _ =>
+            rewrite move_along_path_step_NULL in E; inverts~ E
+          | E : move_along_path_from _ _ NULL = Some _ |- _ =>
+            rewrite move_along_path_from_NULL in E;
+            [ substs~; discriminate
+            | inverts~ E ]
+          | E : read_SExp _ NULL = Some _ |- _ =>
+            rewrite read_SExp_NULL in E; inverts~ E
+          end ]
+    end in
   lazymatch goal with
   | |- ?p <> NULL => aux p
   | |- ?p = NULL -> False => aux p
@@ -1316,95 +1805,6 @@ Ltac prove_Nth p l :=
   | ?x :: ?l' =>
     let N := prove_Nth p l' in
     constr:(Nth_next x N)
-  end.
-
-Ltac get_may_have_types S p cont :=
-  lazymatch goal with
-  | M : may_have_types S _ p |- _ => cont M
-  | L : list_type S _ _ _ p |- _ =>
-    let E := fresh L in
-    let p' := fresh1 p in
-    let p_ := fresh p' "_" in
-    forwards (p_&E&_): list_type_may_have_types L;
-    simpl_list_union;
-    cont E
-  | E : read_SExp (state_memory S) p = Some ?p_,
-    T : type (get_SxpInfo ?p_) = ?t |- _ =>
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read_exact E T;
-    cont M
-  | E : read_SExp (state_memory S) p = Some ?p_,
-    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | E : read_SExp (state_memory S) p = Some ?p_,
-    L : list_head S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
-    let T := fresh "T" in
-    forwards T: list_head_may_have_types L;
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | E : read_SExp (state_memory S) p = Some ?p_,
-    L : list_head_such_that ?Pcar ?Ptag S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
-    let T := fresh "T" in
-    forwards T: list_head_may_have_types L;
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | |- _ =>
-    lazymatch p with
-    | read_globals ?globals R_NilValue =>
-      lazymatch goal with
-      | G : safe_globals S globals |- _ =>
-        let T := fresh "T" in
-        forwards T: R_NilValue_may_have_types G; [idtac];
-        cont T
-      end
-    end
-  end.
-
-Ltac get_may_have_types_no_S p cont :=
-  lazymatch goal with
-  | M : may_have_types _ _ p |- _ => cont M
-  | L : list_type _ _ _ _ p |- _ =>
-    let E := fresh L in
-    let p' := fresh1 p in
-    let p_ := fresh p' "_" in
-    forwards (p_&E&_): list_type_may_have_types L;
-    simpl_list_union;
-    cont E
-  | E : read_SExp _ p = Some ?p_,
-    T : type (get_SxpInfo ?p_) = ?t |- _ =>
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read_exact E T;
-    cont M
-  | E : read_SExp _ p = Some ?p_,
-    T : type (get_SxpInfo ?p_) \in ?l |- _ =>
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | E : read_SExp (state_memory ?S) p = Some ?p_,
-    L : list_head ?S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
-    let T := fresh "T" in
-    forwards T: list_head_may_have_types L;
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | E : read_SExp (state_memory ?S) p = Some ?p_,
-    L : list_head_such_that ?Pcar ?Ptag ?S ?l_car ?l_cdr ?l_tag ?p_ |- _ =>
-    let T := fresh "T" in
-    forwards T: list_head_may_have_types L;
-    let M := fresh "M" in
-    forwards M: read_SExp_may_have_types_read E T;
-    cont M
-  | |- _ =>
-    lazymatch p with
-    | read_globals ?globals R_NilValue =>
-      let T := fresh "T" in
-      forwards~ T: R_NilValue_may_have_types; [idtac];
-      cont T
-    end
   end.
 
 Ltac prove_locations_different :=
@@ -1554,6 +1954,12 @@ Ltac prepare_No_duplicates_hypothesis :=
   | L : list_type _ _ _ _ ?p |- _ =>
     must_be_new p;
     add_in_No_duplicates p
+  | L : list_type_such_that _ _ _ _ _ _ _ ?p |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
+  | L : list_type_safe _ _ _ _ ?p |- _ =>
+    must_be_new p;
+    add_in_No_duplicates p
   | A : alloc_SExp _ _ = (_, ?p) |- _ =>
     must_be_new p;
     add_in_No_duplicates p
@@ -1586,61 +1992,53 @@ Ltac solve_premises_lemmae :=
   autos~;
   let deal_with_list_type S p :=
     let try_hypothesis L :=
-      solve [ applys~ list_type_weaken L; solve_incl || (intros; solve_premises) ] in
-    match goal with
-    | L : list_type S _ _ _ p |- _ =>
-      try_hypothesis L
-    | L : list_type_such_that _ _ _ S _ _ _ p |- _ =>
-      try_hypothesis L
-    | L : list_type_safe S _ _ _ p |- _ =>
-      try_hypothesis L
-    | |- _ =>
-      solve [
-          get_may_have_types S p ltac:(fun M =>
-            match type of M with
-            | may_have_types S ?l p =>
-              let rec allNil l :=
-                lazymatch l with
-                | nil => constr:(true)
-                | NilSxp :: ?l' => let r := allNil l' in r
-                | _ => constr:(false)
-                end in
-              let an := allNil l in
-              lazymatch an with
-              | true =>
-                apply~ list_type_nil; applys~ may_have_types_weaken M; solve_incl
-              end
-            end)
-        | apply list_type_cons; eexists; splits*;
-          do 4 eexists; splits*; simplify_context_base;
-          (solve_premises_lemmae || constructors; solve_premises_lemmae) ]
-    end in
+      solve [ applys~ list_type_weaken L; try intros; solve_incl ] in
+    get_list_type S p ltac:(fun L => try_hypothesis L)
+    || solve [
+           get_may_have_types S p ltac:(fun M =>
+             match type of M with
+             | may_have_types S ?l p =>
+               let rec allNil l :=
+                 lazymatch l with
+                 | nil => constr:(true)
+                 | NilSxp :: ?l' => let r := allNil l' in r
+                 | _ => constr:(false)
+                 end in
+               let an := allNil l in
+               lazymatch an with
+               | true =>
+                 apply~ list_type_nil; applys~ may_have_types_weaken M; solve_incl
+               end
+             end)
+         | apply list_type_cons; eexists; splits*;
+           do 4 eexists; splits*; simplify_context_base;
+           (solve_premises_lemmae || (constructors; solve_premises_lemmae)) ] in
   abstract lazymatch goal with
   | |- bound ?S ?p =>
     match goal with
     | E : read_SExp (state_memory S) p = Some _ |- _ =>
       solve [ applys~ read_bound E; solve_premises ]
-    | OKp : safe_pointer S p |- _ =>
-      solve [ applys~ pointer_bound OKp; solve_premises ]
     | |- _ =>
       solve [
           get_may_have_types S p ltac:(fun M =>
             applys~ may_have_types_bound M; solve_premises)
+        | get_safe_pointer S p ltac:(fun OKp =>
+            applys~ pointer_bound OKp; solve_premises)
         | apply* bound_such_that_weaken; solve_premises ]
     end
-  | |- bound_such_that ?S ?p =>
-    apply* bound_such_that_weaken; solve_incl || solve_premises
-  | |- may_have_types ?S ?l ?p =>
-    lazymatch p with
-    | read_globals ?globals R_NilValue =>
-      applys~ may_have_types_weaken R_NilValue_may_have_types; solve_incl
-    | _ =>
-      solve [
-          get_may_have_types S p ltac:(fun M =>
-            applys~ may_have_types_weaken M;
-            solve_incl)
-        | apply~ may_have_types_weaken; [ autos* | solve_incl ] ]
+  | |- bound_such_that ?S _ ?p =>
+    match goal with
+    | B : bound_such_that S _ p |- _ =>
+      applys~ bound_such_that_weaken B; (solve_incl || solve_premises)
+    | B : bound S p |- _ =>
+      applys~ bound_such_that_weaken B; (solve_incl || solve_premises)
+    | E : read_SExp (state_memory S) p = Some ?p_ |- _ =>
+      exists p_; splits~; (solve_incl || solve_premises)
     end
+  | |- may_have_types ?S ?l ?p =>
+    get_may_have_types S p ltac:(fun M =>
+      applys~ may_have_types_weaken M;
+      solve_incl)
   | |- list_type ?S ?l_t ?l_car ?l_tag ?p =>
     deal_with_list_type S p
   | |- list_type_such_that ?Pheader ?Pcar ?Ptag ?S ?l_t ?l_car ?l_tag ?p =>
@@ -1657,131 +2055,6 @@ Ltac solve_premises_lemmae :=
 
 
 (** ** Tactics taking advantage of the invariants **)
-
-(** *** Getting the invariant **)
-
-Ltac get_safe_state S cont :=
-  match goal with
-  | H : safe_state S |- _ => cont H
-  | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S r, P_success S r -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
-  | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S, P_error S -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
-  | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S n c, P_longjump S n c -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
-  end.
-
-Ltac get_safe_globals S globals cont :=
-  match goal with
-  | H : safe_globals S globals |- _ => cont H
-  end.
-
-Ltac get_safe_pointer S p cont :=
-  match goal with
-  | H : safe_pointer S p |- _ => cont H
-  | _ =>
-    let p' := fresh1 p in
-    let OKp := fresh "OK" p' in
-    asserts OKp: (safe_pointer S p);
-    [ apply* globals_not_NULL_safe; [idtac]; prove_not_NULL | cont OKp ]
-  | _ =>
-    get_safe_state S ltac:(fun H =>
-      let R := fresh "Safe" in
-      forwards~ R: safe_entry_points H; [idtac];
-      cont R)
-  | _ =>
-    get_may_have_types S p ltac:(fun M =>
-      match type of M with
-      | may_have_types S ([NilSxp]) p =>
-        let p' := fresh1 p in
-        let OKp := fresh "OK" p' in
-        asserts OKp: (safe_pointer S p);
-        [ applys* may_have_types_NilSxp_safe_pointer M | cont OKp ]
-      end)
-  end.
-
-Ltac get_safe_SExpRec S e_ cont :=
-  let check_case check perform :=
-    match goal with
-    | _ => check e_; perform e_ cont
-    | E : e_ = ?expr |- _ =>
-      check expr; perform expr ltac:(fun R =>
-        let e_' := fresh1 e_ in
-        let R' := fresh "OK" e_' in
-        asserts R': (safe_SExpRec S e_);
-        [rewrite E; apply~ R|cont R'])
-    | E : ?expr = e_ |- _ =>
-      check expr; perform expr ltac:(fun R =>
-        let e_' := fresh1 e_ in
-        let R' := fresh "OK" e_' in
-        asserts R': (safe_SExpRec S e_);
-        [rewrite <- E; apply~ R|cont R'])
-    end in
-  match goal with
-  | H : safe_SExpRec S e_ |- _ => cont H
-  | H : safe_SExpRec_gen _ S e_ |- _ => cont H
-  | P : read_SExp (state_memory S) ?e = Some e_ |- _ =>
-    get_safe_pointer S e ltac:(fun H =>
-      let e_' := fresh1 e_ in
-      let R := fresh "OK" e_' in
-      (forwards~ R: safe_SExpRec_read H P
-       || rewrite safe_pointer_rewrite in H; forwards~ R: safe_SExpRec_read H P); [idtac];
-      cont R)
-  | _ =>
-    check_case ltac:(fun e_ => match e_ with make_SExpRec_list _ _ _ _ => idtac end) ltac:(fun e_ cont =>
-      match e_ with
-      | make_SExpRec_list ?attrib ?car ?cdr ?tag =>
-        get_safe_pointer S car ltac:(fun OKcar =>
-          get_may_have_types S tag ltac:(fun Ttag =>
-            get_safe_pointer S tag ltac:(fun OKtag =>
-              let go L :=
-                let e_' := fresh1 e_ in
-                let R := fresh "OK" e_' in
-                asserts R: (safe_SExpRec S e_);
-                [ substs;
-                  first [
-                      applys~ safe_make_SExpRec_list OKcar L Ttag OKtag
-                    | applys~ safe_make_SExpRec_list OKcar OKtag;
-                      first [
-                          applys~ list_type_weaken L
-                        | applys~ may_have_types_weaken Ttag
-                        | idtac ] ];
-                  solve [ solve_premises_lemmae ]
-                | cont R ] in
-                match goal with
-                | L : list_type S _ _ _ cdr |- _ => go L
-                | L : list_type_safe S _ _ _ cdr |- _ => go L
-                | L : list_type_such_that _ _ _ S _ _ _ cdr |- _ => go L
-                | _ =>
-                  get_may_have_types S cdr ltac:(fun Tcdr => go Tcdr)
-                end)))
-      | _ =>
-        let e_' := fresh1 e_ in
-        let R := fresh "OK" e_' in
-        let T := fresh "T" in
-        asserts R: (safe_SExpRec S e_);
-        [ constructors; introv T; try solve [ substs; false~ ];
-          constructors; do 3 eexists; splits; [autos*|..]; solve_premises_lemmae
-        | cont R ]
-      end)
-  (* TODO: The other cases of the other types. *)
-  end.
-
 
 (** *** Simplifying the context **)
 
@@ -1809,189 +2082,6 @@ Ltac simplify_context :=
   end.
 
 
-(** ** Unfolding tactics **)
-
-(** *** Getting object shapes **)
-
-Ltac clear_useless_type_eq :=
-  repeat match goal with
-  | T1 : type (get_SxpInfo ?p_) = ?t,
-    T2 : type (get_SxpInfo ?p_) = ?t |- _ => clear T2
-  | T1 : type (get_SxpInfo ?p_) = ?t1,
-    T2 : type (get_SxpInfo ?p_) = ?t2 |- _ =>
-    solve [ rewrite T2 in T1; inverts T1 ]
-  | T1 : type (get_SxpInfo ?p_) = ?t,
-    T2 : type (get_SxpInfo ?p_) \in ?l |- _ =>
-    rewrite T1 in T2;
-    let isi := compute_is_in t l in
-    lazymatch isi with
-    | true => clear T2
-    | false =>
-      try solve [ false; repeat inverts T2 ]
-    end
-  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
-  end.
-
-(** Generates an hypothesis of the form [type p_ = t] or [type p_ \in l]
-  in the goal when possible. **)
-Ltac put_type_in_context p_ :=
-  match goal with
-  | T : type (get_SxpInfo p_) = ?t |- _ => idtac
-  | T : type (get_SxpInfo p_) \in _ |- _ => idtac
-  | R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
-    get_may_have_types S p ltac:(fun M =>
-      let T := fresh "T" in
-      forwards T: may_have_types_read_SExp M R;
-      put_type_in_context p_)
-  end; clear_useless_type_eq.
-
-(** Extracts relevant information for [p_] from an hypothesis
-  of the form [safe_SExpRec]. The [explode] arguments tells the
-  tactics whether exploding the type into all its possibilities
-  is wanted. **)
-Ltac force_unfold_shape explode S p_ :=
-  let invert_type OKp_ :=
-    put_type_in_context p_;
-    let aux t :=
-      lazymatch explode with
-      | true => inverts~ OKp_; t
-      | false =>
-         try solve [ inverts~ OKp_; t ];
-         (inverts~ OKp_; t; [idtac]) || solve [ inverts~ OKp_; t ]
-      end in
-    lazymatch goal with
-    | T : type (get_SxpInfo p_) = ?t |- _ =>
-      aux ltac:(try solve [ inverts~ T ])
-    | T : type (get_SxpInfo p_) \in _ |- _ =>
-      aux ltac:(try solve [ false; repeat inverts T ])
-    end in
-  lazymatch goal with
-  | OKp_ : safe_SExpRec_type _ S (type (get_SxpInfo p_)) p_ |- _ => invert_type OKp_
-  | _ =>
-    get_safe_SExpRec S p_ ltac:(fun OKp_ =>
-      let OKp_' := fresh1 OKp_ in
-      forwards~ OKp_': SExpType_corresponds_to_datatype OKp_;
-      invert_type OKp_')
-  end.
-
-
-Ltac unfold_shape explode S p_ :=
-  lazymatch goal with
-  | H : p_ = SExpRec_NonVector _ |- _ => idtac
-  | H : p_ = SExpRec_VectorChar _ |- _ => idtac
-  | H : p_ = SExpRec_VectorInteger _ |- _ => idtac
-  | H : p_ = SExpRec_VectorComplex _ |- _ => idtac
-  | H : p_ = SExpRec_VectorReal _ |- _ => idtac
-  | H : p_ = SExpRec_VectorPointer _ |- _ => idtac
-  | _ => force_unfold_shape explode S p_
-  end.
-
-Ltac unfold_may_hide_read_SExp :=
-  repeat match goal with
-  | E : move_along_path_from ?l _ _ = _ |- _ =>
-    let OKl := is_fully_computed l in
-    match OKl with
-    | true => unfold move_along_path_from in E; rew_list in E; simpl in E
-    end
-  | E : move_along_path_step _ _ _ = _ |- _ =>
-    unfold move_along_path_step in E
-  end.
-
-Ltac unfold_shape_pointer explode S p :=
-  match goal with
-  | R : read_SExp (state_memory S) p = Some ?p_ |- _ =>
-    unfold_shape explode S p_
-  | |- _ =>
-    let p' := fresh1 p in
-    let p_ := fresh p' "_" in
-    let R := fresh "E" in
-    unfold_may_hide_read_SExp;
-    destruct (read_SExp (state_memory S) p) as [p_|] eqn: R;
-    tryfalse~;
-    [idtac];
-    unfold_shape explode S p_
-  end.
-
-Ltac unfold_shape_pointer_explode := unfold_shape_pointer true.
-Ltac unfold_shape_pointer_one := unfold_shape_pointer false.
-
-
-(** *** Dealing with [read_SExp] **)
-
-Ltac rewrite_read_SExp :=
-  match goal with
-  | |- context [ read_SExp (state_memory ?S) ?e ] =>
-    let bound_such_that_prop T :=
-      let e' := fresh1 e in
-      let e_ := fresh e' "_" in
-      let Ee_ := fresh "E" e_ in
-      let Pe_ := fresh T e_ in
-      lets (e_&Ee_&Pe_): (rm T);
-      try rewrite Ee_ in * in
-    lazymatch goal with
-    | E : read_SExp (state_memory S) e = _ |- _ => rewrite E
-    | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
-    | B : bound S e |- _ => bound_such_that_prop B
-    | _ =>
-      get_may_have_types S e ltac:(bound_such_that_prop)
-    end;
-    try unfold_shape_pointer false S e
-  end; clear_trivial.
-
-(** Tries to prove a new equality of the form [write_SExp S p p_]. **)
-Ltac define_write_SExp S p p_ :=
-  lazymatch goal with
-  | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
-  | _ =>
-    let S' := fresh1 S in
-    let ES' := fresh "E" S' in
-    destruct (write_SExp S p p_) as [S'|] eqn:ES';
-    [ solve [
-          false;
-          match goal with
-          | A : alloc_SExp _ _ = (S, p) |- _ =>
-            applys~ alloc_write_SExp_not_None A ES'
-          | E : read_SExp (state_memory S) p = Some _ |- _ =>
-            let R := fresh "R" in
-            rewrites >> write_read_SExp_None (rm ES') in E;
-            inverts~ E
-          end
-        | autos~; simpl; autos* ]
-    | try rewrite ES'; try assumption ]
-  end.
-
-
-(** ** Dealing with pointer exceptions **)
-
-Ltac prove_no_null_pointer_exceptions :=
-  lazymatch goal with
-  | |- ~ _ =>
-    let A := fresh "A" in
-    introv A; inverts~ A; prove_no_null_pointer_exceptions
-  | |- False =>
-    repeat match goal with
-    | A : null_pointer_exceptions_path ?p |- _ =>
-      inverts A
-    end;
-    match goal with
-    | A : null_pointer_exceptions_entry_point ?e |- _ =>
-      solve [ inverts~ A ]
-    | A : null_pointer_exceptions_suffix ?path |- _ =>
-      solve [
-        inverts~ A;
-        match goal with
-        | N : ~ null_pointer_exceptions_suffix ?l |- _ =>
-          apply N; constructors~
-        | E : move_along_path_from path ?S ?p_ = _ |- _ =>
-          unfold_shape_pointer_explode S p_;
-          solve [ inverts E; false~ ]
-        end ]
-    | A : null_pointer_exceptions_globals ?g |- _ =>
-      inverts~ A
-    end
-  end.
-
-
 (** ** Proving expression types different **)
 
 Ltac prove_types_different :=
@@ -2014,7 +2104,7 @@ Ltac prove_types_different :=
         end
       end in
     solve [
-        try rewrite_type t1; try rewrite_type t2; (discriminate || substs~; discriminate)
+        try rewrite_type t1; try rewrite_type t2; (discriminate || (substs~; discriminate))
       | let E := fresh "E" in
         introv E; substs; false~ ] in
   lazymatch goal with
@@ -2037,13 +2127,11 @@ Ltac solve_premises_smart :=
     get_safe_pointer S e ltac:(fun OKe => rewrite <- safe_pointer_rewrite; apply OKe)
   | |- safe_SExpRec ?S ?e_ =>
     get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
-  | |- safe_header safe_pointer ?S ?h =>
-    constructors; solve_premises_smart
-  | |- _ <> _ =>
-    first [
-        prove_locations_different
-      | prove_types_different
-      | apply~ safe_pointer_not_NULL; solve_premises_smart ]
+  | |- safe_header_gen _ ?S ?h =>
+    constructors; simpl; solve_premises_smart
+  | |- safe_header ?S ?h =>
+    constructors; simpl; solve_premises_smart
+  | |- _ <> _ => prove_locations_different || prove_types_different
   | _ => prove_no_null_pointer_exceptions || solve_premises_lemmae
   end.
 
@@ -2088,14 +2176,14 @@ Ltac transition_conserve S S' :=
           try update_safe_props_from_alloc A S0 S p_;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
-        | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
-          let E' := fresh E in
-          forwards E': conserve_old_binding_read C (rm E);
-          rename E' into E
         | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
           try update_safe_props_from_alloc A S S' p_;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
+        | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
+          let E' := fresh E in
+          forwards E': conserve_old_binding_read C (rm E);
+          rename E' into E
         | B : bound S ?p |- _ =>
           let B' := fresh B in
           forwards B': conserve_old_binding_bound C (rm B);
@@ -2228,21 +2316,18 @@ Proof.
   introv OKS OKG OKcar Lcdr Tcar Icar Itag E. unfolds in E.
   transition_conserve S S'.
   splits; try solve_premises_smart.
-  rewrite safe_pointer_rewrite. constructors.
-  - (** pointer_bound **)
-    applys* read_bound.
-  - (** no_null_pointer_along_path_step **)
-    introv N Em. unfolds in Em. self_rewrite_in Em. simpl in Em.
-    destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; try solve_premises_smart.
-    applys safe_pointer_not_NULL. applys~ list_type_safe_ListSxp OKG Lcdr.
-  - (** safe_pointer_along_path_step **)
-    introv Em NN. unfolds in Em. rewrite E0 in Em. simpl in Em.
-    destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em.
-    applys~ list_type_safe_ListSxp OKG Lcdr.
-  - (** safe_SExpRec_read **)
-    self_rewrite. introv E2. inverts E2. constructors.
-    simpl. constructors. simplify_context.
-    do 4 eexists. splits*; try solve_premises_smart.
+  - rewrite safe_pointer_rewrite. constructors.
+    + (** pointer_bound **)
+      applys* read_bound.
+    + (** no_null_pointer_along_path_step **)
+      introv N Em. unfolds in Em. self_rewrite in Em. simpl in Em.
+      destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; solve_premises_smart.
+    + (** safe_pointer_along_path_step **)
+      introv Em NN. unfolds in Em. rewrite E0 in Em. simpl in Em.
+      destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; solve_premises_smart.
+    + (** safe_SExpRec_read **)
+      self_rewrite. introv E2. inverts E2. solve_premises_smart.
+  - applys list_type_cons. eexists. splits*. do 4 eexists. splits*; solve_premises_smart.
 Qed.
 
 

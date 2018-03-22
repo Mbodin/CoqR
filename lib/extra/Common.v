@@ -1135,6 +1135,21 @@ Lemma BagInterIncl_right : forall T `{Comparable T} (l1 l2 : list T),
   l1 \n l2 \c l2.
 Proof. introv. apply BagInIncl_make. introv I. rewrite* BagInter_list in I. Qed.
 
+Lemma BagUnionIncl_combine : forall T `{Comparable T} (l1 l2 l3 : list T),
+  l1 \c l3 ->
+  l2 \c l3 ->
+  l1 \u l2 \c l3.
+Proof.
+  introv I1 I2. apply BagInIncl_make. introv Iu. apply BagUnion_list in Iu.
+  inverts Iu as I; applys~ BagInIncl I.
+Qed.
+
+Lemma BagInterIncl_combine : forall T `{Comparable T} (l1 l2 l3 : list T),
+  l1 \c l2 ->
+  l1 \c l3 ->
+  l1 \c l2 \n l3.
+Proof. introv I1 I2. apply BagInIncl_make. introv I. apply BagInter_list. splits~; applys~ BagInIncl I. Qed.
+
 Global Instance Comparable_BagDisjoint_list : forall T,
     Comparable T ->
     BagDisjoint (list T) :=
@@ -1159,6 +1174,9 @@ Proof. introv. repeat rewrite BagDisjoint_in. rew_logic*. Qed.
 
 (** Tries to solve a goal of the form [l1 \c l2]. **)
 Ltac solve_incl :=
+  repeat first [
+      apply~ BagUnionIncl_combine
+    | apply~ BagInterIncl_combine ];
   solve [
       apply~ BagIncl_refl
     | apply~ BagInclEmpty
@@ -1167,6 +1185,7 @@ Ltac solve_incl :=
     | apply~ BagInterIncl_left
     | apply~ BagInterIncl_right
     | repeat (apply~ BagIncl_cons; [Mem_solve|]); apply~ BagInclEmpty
+    | autos~
     | apply* BagInIncl_make ].
 
 
