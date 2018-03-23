@@ -1,6 +1,22 @@
 (** Invariants.
   States some invariants of R’s heap, as well as tactics to manipulate it. **)
 
+(* Copyright © 2018 Martin Bodin
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
+
 Set Implicit Arguments.
 Require Import TLC.LibBag Paco.paco.
 Require Export Path MonadTactics.
@@ -764,6 +780,17 @@ Proof.
     + inverts~ M.
 Qed.
 
+Lemma conserve_old_binding_move_along_path : forall S S' p e,
+  conserve_old_binding S S' ->
+  move_along_path p S = Some e ->
+  move_along_path p S' = Some e.
+Proof.
+  introv C E. forwards (en&pa&pe&E1&E2&E3): move_along_path_decompose E.
+  rewrites >> conserve_old_binding_entry_point C in E2.
+  forwards~ E3': conserve_old_binding_move_along_path_from C E3.
+  forwards E': make_move_along_path E2 E3'. rewrite~ <- E1 in E'.
+Qed.
+
 Lemma conserve_old_binding_move_along_path_step_inv : forall S S' s e e',
   conserve_old_binding S S' ->
   bound S e ->
@@ -1223,6 +1250,36 @@ Tactic Notation "self_rewrite" "about" constr(x) "in" hyp(P) :=
   self_rewrite_about_in x P.
 
 
+(** *** Prevent infinite recursion **)
+
+(** The prevent useless inifite loops in tactics, we mark their
+  arguments are already seen using the following definition. **)
+Definition already_seen A (a : A) := True.
+
+(** The following tactic marks its argument as already seen in the
+  context. It fails if already present. **)
+Ltac mark_as_seen a :=
+  lazymatch goal with
+  | A : already_seen a |- _ => fail
+  | _ =>
+    let a' := fresh1 a in
+    let A := fresh "AS" a' in
+    asserts A: (already_seen a); [ constructors* |]
+  end.
+
+(** Remove the mark for a given argument. **)
+Ltac remove_already_seen a :=
+  try lazymatch goal with
+  | A : already_seen a |- _ => clear A
+  end.
+
+(** Remove all marks. **)
+Ltac remove_all_already_seen :=
+  repeat lazymatch goal with
+  | A : already_seen _ |- _ => clear A
+  end.
+
+
 (** *** Case analysis on lists **)
 
 Ltac explode_list T :=
@@ -1266,11 +1323,62 @@ Ltac explode_list T :=
 (** *** Clearing trivial hypotheses **)
 
 Ltac clear_trivial :=
-  repeat match goal with
+  repeat lazymatch goal with
   | T : True |- _ => clear T
   | E : ?x = ?x |- _ => clear E
   | H1 : ?P, H2 : ?P |- _ => clear H2
   | I : ?x \in [?y] |- _ => explode_list I
+  end.
+
+
+(** *** Miscellaneous **)
+
+(** [look_for_equality] takes a pointer [p], a tactic [recognize] returning
+  either [true] or [false], and a continuation.  The continuation is assured
+  to be called with a [p'] such that [recognize p'] and the equality [p = p']. **)
+Ltac look_for_equality p recognize cont :=
+  let r := recognize p in
+  lazymatch r with
+  | true => cont p (eq_refl p)
+  | _ =>
+    match goal with
+    | E : p = ?p' |- _ =>
+      let r := recognize p' in
+      match r with
+      | true => cont p' E
+      end
+    | E : ?p' = p |- _ =>
+      let r := recognize p' in
+      match r with
+      | true => cont p' (eq_sym E)
+      end
+    | _ =>
+      let p_e := eval simpl in p in
+      let r := recognize p_e in
+      match r with
+      | true =>
+        let p' := fresh1 p in
+        let E := fresh "E" p' in
+        asserts E: (p = p_e); [ reflexivity | cont p_e E ]
+      end
+    end
+  end.
+
+(** Similar than [look_for_equality], but instead of providing a tactic,
+  we provide a term against which to match. **)
+Ltac look_for_equality_term p term cont :=
+  lazymatch p with
+  | term => cont (eq_refl p)
+  | _ =>
+    match goal with
+    | E : p = term |- _ => cont E
+    | E : term = p |- _ => cont (eq_sym E)
+    | _ =>
+      (** We check whether by chance, [term] and [p] are convertible. **)
+      let p' := fresh1 p in
+      let E := fresh "E" p' in
+      asserts E: (p = term); [ reflexivity | cont E ]
+    end
   end.
 
 
@@ -1443,7 +1551,7 @@ Ltac get_safe_state S cont :=
   end.
 
 
-(** *** [safe_pointer] **)
+(** *** Basic tactics to disprove some simple null pointer exceptions **)
 
 Ltac prove_no_null_pointer_exceptions_globals A :=
   solve [ inverts~ A ].
@@ -1451,7 +1559,19 @@ Ltac prove_no_null_pointer_exceptions_globals A :=
 Ltac prove_no_null_pointer_exceptions_entry_point A :=
   solve [ inverts~ A ].
 
-Ltac get_safe_pointer S p cont :=
+Ltac prove_no_null_pointer_exceptions_path_simple A :=
+  solve [ inverts A as A; inverts~ A ].
+
+Ltac prove_no_null_pointer_exceptions_path_suffix_simple A :=
+  solve [ inverts A; substs; false* ].
+
+
+(** *** A basic tactic to prove [safe_pointer] **)
+
+(** This tactic tries to prove [safe_pointer], without attempting anything
+  that may loop if not handled properly. **)
+
+Ltac get_safe_pointer_base S p cont :=
   match goal with
   | H : safe_pointer S p |- _ => cont H
   | H : safe_pointer_gen safe_pointer S p |- _ =>
@@ -1504,15 +1624,7 @@ Ltac get_safe_pointer S p cont :=
         applys* list_type_safe_safe_pointer OKS L;
         solve_incl)
     | cont OKp ]
-  | H : safe_pointer_gen _ S p |- _ =>
-    (** This is a last-resort case as the seed predicate might not be the expected one. **)
-    cont H
-  end.
-
-Ltac get_safe_pointer_no_S p cont :=
-  match goal with
-  | S : state |- _ =>
-    get_safe_pointer S p cont
+  | H : safe_pointer_gen _ S p |- _ => cont H
   end.
 
 
@@ -1522,17 +1634,20 @@ Ltac get_safe_SExpRec S e_ cont :=
   match goal with
   | H : safe_SExpRec S e_ |- _ => cont H
   | P : read_SExp (state_memory S) ?e = Some e_ |- _ =>
-    get_safe_pointer S e ltac:(fun H =>
+    get_safe_pointer_base S e ltac:(fun H =>
       let e_' := fresh1 e_ in
       let R := fresh "OK" e_' in
       (forwards~ R: safe_SExpRec_read H P
-       || (rewrite safe_pointer_rewrite in H; forwards~ R: safe_SExpRec_read H P)); [idtac];
+       || (let H' := fresh1 H in
+           lets H': H;
+           rewrite safe_pointer_rewrite in H';
+           forwards~ R: safe_SExpRec_read H' P)); [idtac];
       cont R)
   | _ =>
     let e_' := fresh1 e_ in
     let R := fresh "OK" e_' in
     asserts R: (safe_SExpRec S e_);
-    [ substs; simpl; do 2 constructors~;
+    [ substs; simpl; constructors~; simpl; constructors~;
       lazymatch goal with
       | |- may_have_types ?S ?l ?p =>
         get_may_have_types S p ltac:(fun M =>
@@ -1550,6 +1665,154 @@ Ltac get_safe_SExpRec S e_ cont :=
         end
       end
     | cont R ]
+  end.
+
+
+(** *** [move_along_path_step] **)
+
+(** The continuation expects a pointer [p0] and an equality
+  of the form [move_along_path_step step S p0 = Some p]. **)
+Ltac get_move_along_path_step S p cont :=
+  match goal with
+  | M : move_along_path_step _ S ?p0 = Some p |- _ => cont p0 M
+  | R : read_SExp (state_memory S) ?p0 = Some ?p0_ |- _ =>
+    let look_for_projection step term L :=
+      look_for_equality_term p term ltac:(fun E =>
+        let p' := fresh1 p in
+        let E' := fresh "M" p' in
+        asserts E': (move_along_path_step step S p0 = Some p);
+        [ unfold move_along_path_step;
+          rewrite R;
+          repeat rewrite_first L;
+          simpl; try simpl in E;
+          rewrite E;
+          repeat rewrite_first L;
+          reflexivity
+        | cont p0 E' ]) in
+    let should_be_some term cont :=
+      look_for_equality term ltac:(fun o =>
+        lazymatch o with
+        | Some _ => constr:(true)
+        | _ => constr:(false)
+        end) cont in
+    first [
+        look_for_projection Sattrib (attrib (get_SExpRecHeader p0_)) nil
+      | should_be_some (get_NonVector p0_) ltac:(fun p0_' Ep0_ =>
+          first [
+              should_be_some (get_symSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_sym =>
+                first [
+                    look_for_projection (SNonVectorSym Ssym_pname) (sym_pname p0_sym) >> Ep0_ Ep0_sym
+                  | look_for_projection (SNonVectorSym Ssym_value) (sym_value p0_sym) >> Ep0_ Ep0_sym
+                  | look_for_projection (SNonVectorSym Ssym_internal) (sym_internal p0_sym) >> Ep0_ Ep0_sym
+                  ])
+            | should_be_some (get_listSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_list =>
+                first [
+                    look_for_projection (SNonVectorSym Slist_carval) (list_carval p0_sym) >> Ep0_ Ep0_list
+                  | look_for_projection (SNonVectorSym Slist_cdrval) (list_cdrval p0_sym) >> Ep0_ Ep0_list
+                  | look_for_projection (SNonVectorSym Slist_tagval) (list_tagval p0_sym) >> Ep0_ Ep0_list
+                  ])
+            | should_be_some (get_envSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_env =>
+                first [
+                    look_for_projection (SNonVectorSym Senv_frame) (env_frame p0_sym) >> Ep0_ Ep0_env
+                  | look_for_projection (SNonVectorSym Senv_enclos) (env_enclos p0_sym) >> Ep0_ Ep0_env
+                  ])
+            | should_be_some (get_cloSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_clo =>
+                first [
+                    look_for_projection (SNonVectorSym Sclo_formals) (clo_formals p0_sym) >> Ep0_ Ep0_clo
+                  | look_for_projection (SNonVectorSym Sclo_body) (clo_body p0_sym) >> Ep0_ Ep0_clo
+                  | look_for_projection (SNonVectorSym Sclo_env) (clo_env p0_sym) >> Ep0_ Ep0_clo
+                  ])
+            | should_be_some (get_promSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_prom =>
+                first [
+                    look_for_projection (SNonVectorSym Sprom_value) (prom_value p0_sym) >> Ep0_ Ep0_prom
+                  | look_for_projection (SNonVectorSym Sprom_expr) (prom_expr p0_sym) >> Ep0_ Ep0_prom
+                  | look_for_projection (SNonVectorSym Sprom_env) (prom_env p0_sym) >> Ep0_ Ep0_prom
+                  ])
+            ])
+      | should_be_some (get_VectorPointer p0_) ltac:(fun p0_' Ep0_ =>
+          let v0 := eval simpl in (ArrayList.to_list (VecSxp_data (Vector_SExpRec_vecsxp p0_'))) in
+          let rec t n l :=
+            match l with
+            | ?p' :: ?l' =>
+              (look_for_projection (SVectorPointer n) p' >> Ep0_ nth_option_zero nth_option_cons)
+              || t (1 + n) l'
+            end in
+          t 0 v0)
+      ]
+  end.
+
+
+(** *** [move_along_path] **)
+
+(** The continuation expects an equality of the form
+  [move_along_path path S = Some p]. **)
+Ltac get_move_along_path S p cont :=
+  lazymatch goal with
+  | M : move_along_path _ S = Some p |- _ => cont M
+  | MP : move_along_path_from _ S ?e = Some p,
+    ME : move_along_entry_point _ S = Some ?e |- _ =>
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    forwards M: make_move_along_path ME MP;
+    cont M
+  end.
+
+
+(** *** [safe_pointer] **)
+
+Ltac get_safe_pointer S p cont :=
+  match goal with
+  | _ => get_safe_pointer_base S p cont
+  | _ =>
+    get_safe_state S ltac:(fun OKS =>
+      get_move_along_path S p ltac:(fun M =>
+        let p' := fresh1 p in
+        let OKp := fresh "OK" p' in
+        forwards~ OKp: safe_pointer_along_path OKS M;
+        try (applys~ no_null_pointer_along_path OKS M;
+             let A := fresh "A" in
+             introv A;
+             prove_no_null_pointer_exceptions_path_simple A);
+        [idtac];
+        cont OKp))
+  | _ =>
+    get_move_along_path_step S p ltac:(fun p0 M =>
+      mark_as_seen p0;
+      get_safe_pointer S p0 ltac:(fun OKp0 =>
+        let next OKp0 :=
+          let p' := fresh1 p in
+          let OKp := fresh "OK" p' in
+          forwards~ OKp: safe_pointer_along_path_step OKp0 M;
+          try (applys~ no_null_pointer_along_path_step OKp0 M;
+               let A := fresh "A" in
+               introv A;
+               prove_no_null_pointer_exceptions_path_suffix_simple A);
+          [idtac];
+          remove_already_seen p0;
+          cont OKp in
+        next OKp0
+        || (let OKp0' := fresh1 OKp0 in
+            lets OKp0': OKp0;
+            rewrite safe_pointer_rewrite in OKp0';
+            next OKp0')))
+  | OKp0 : safe_pointer S ?p0,
+    M : move_along_path_from _ S ?p0 = Some p |- _ =>
+    let p' := fresh1 p in
+    let OKp := fresh "OK" p' in
+    forwards~ OKp: safe_pointer_along_path_from OKp0 M;
+    try (applys~ no_null_pointer_along_path_from OKp0 M;
+         let I := fresh "I" in
+         let A := fresh "A" in
+         introv I A; repeat inverts I as I;
+         prove_no_null_pointer_exceptions_path_suffix_simple A);
+    [idtac];
+    cont OKp
+  end.
+
+Ltac get_safe_pointer_no_S p cont :=
+  match goal with
+  | S : state |- _ =>
+    get_safe_pointer S p cont
   end.
 
 

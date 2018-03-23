@@ -322,6 +322,62 @@ Definition path_from_list (el : entry_point * list path_step) :=
   let (e, l) := el in
   fold_left (fun s p => Pstep p s) (Pentry e) l.
 
+Lemma make_move_along_path : forall S pa e p_e p,
+  move_along_entry_point e S = Some p_e ->
+  move_along_path_from pa S p_e = Some p ->
+  move_along_path (path_from_list (e, pa)) S = Some p.
+Proof.
+  introv E1 E2. gen p. induction pa using list_ind_last; introv E2.
+  - rewrite move_along_path_from_nil in E2. inverts E2. apply E1.
+  - unfolds move_along_path_from. simpls. rew_list in *.
+    destruct fold_left; tryfalse~. simpls. erewrite* IHpa.
+Qed.
+
+Lemma path_from_list_inv : forall pa,
+  exists e l, pa = path_from_list (e, l).
+Proof.
+  introv. induction pa.
+  - eexists. exists (@nil path_step). reflexivity.
+  - lets (e&l&E): (rm IHpa). rewrite E. exists e. eexists.
+    unfolds. rewrite* fold_left_last.
+Qed.
+
+Lemma path_from_list_inj : forall e1 e2 path1 path2,
+  path_from_list (e1, path1) = path_from_list (e2, path2) ->
+  e1 = e2 /\ path1 = path2.
+Proof.
+  introv E. gen path2. induction path1 using list_ind_last; induction path2 using list_ind_last;
+    introv E; simpls; rew_list in E; inverts E as E; autos~.
+  forwards (?&?): IHpath1 E. substs~.
+Qed.
+
+Lemma move_along_path_decompose_aux : forall S e l p,
+  move_along_path (path_from_list (e, l)) S = Some p ->
+  exists p_e,
+    move_along_entry_point e S = Some p_e /\
+    move_along_path_from l S p_e = Some p.
+Proof.
+  introv E. unfolds path_from_list.
+  gen p. induction l using list_ind_last; introv E.
+  - exists p. splits*.
+  - rew_list in E. simpl in E.
+    destruct move_along_path eqn: E'; simpl in E; tryfalse.
+    forwards~ (p_e&E1&E2): IHl. exists p_e. splits~.
+    unfolds. rew_list. unfolds in E2. rewrite E2. simpl. apply E.
+Qed.
+
+Lemma move_along_path_decompose : forall S pa p,
+  move_along_path pa S = Some p ->
+  exists e path' p_e,
+    pa = path_from_list (e, path') /\
+    move_along_entry_point e S = Some p_e /\
+    move_along_path_from path' S p_e = Some p.
+Proof.
+  introv E. forwards (e&l&E'): path_from_list_inv pa.
+  rewrite E' in E. forwards (p_e&E1&E2): move_along_path_decompose_aux E.
+  do 3 eexists. splits*.
+Qed.
+
 Inductive suffix : path -> list path_step -> Prop :=
   | suffix_nil : forall p, suffix p nil
   | suffix_cons : forall p s l,

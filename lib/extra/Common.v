@@ -48,6 +48,16 @@ Ltac applys_first L A :=
   end.
 
 
+(** ** Rewrite a list of equalities **)
+
+Ltac rewrite_first L :=
+  let L := list_boxer_of L in
+  lazymatch L with
+  | boxer ?P :: ?L' =>
+    rewrite~ P || rewrite_first L'
+  end.
+
+
 (** ** Fresh identifiers **)
 
 (** The original [fresh] tactic doesn’t work if given hints that are
@@ -503,6 +513,14 @@ Proof.
    simpl. destruct i as [|i'], j as [|j']; try reflexivity; tryfalse.
     simpl. apply~ IHl. math.
 Qed.
+
+Lemma nth_option_zero : forall A l (a : A),
+  nth_option 0 (a :: l) = Some a.
+Proof. reflexivity. Qed.
+
+Lemma nth_option_cons : forall A l n (a : A),
+  nth_option (S n) (a :: l) = nth_option n l.
+Proof. reflexivity. Qed.
 
 Lemma update_out : forall A l i (v : A),
   i >= length l ->
