@@ -24,9 +24,13 @@ Require Export Path MonadTactics.
 Open Scope list_scope. (* FIXME: How to disable some notations of LibBag? *)
 
 
-(** * Predicates to speak about the memory **)
+(** * Predicates about the memory **)
 
-(** ** A pointer is valid **)
+(** ** Valid pointers **)
+
+(** A pointer is valid if it is bound to an object.
+  The predicate [bound_such_that] allows us to state some
+  properties of the pointed object. **)
 
 Definition bound_such_that (S : state) P p :=
   exists p_, read_SExp S p = Some p_ /\ P p_.
@@ -51,6 +55,10 @@ Qed.
 
 
 (** ** Typed pointers **)
+
+(** The predicate [may_have_types S l p] states that
+  the pointer [p] may only be associated with an object
+  whose type is in the list [l] in the heap [S]. **)
 
 Definition may_have_types S l :=
   bound_such_that S (fun p_ => type p_ \in l).
@@ -132,6 +140,10 @@ Proof. introv E T. applys read_SExp_may_have_types_read E. substs. Mem_solve. Qe
 
 (** ** List pointers **)
 
+(** Along the structures that frequently appear in R’s source code,
+  lists are one of the most used.
+  We this provide special predicates to manipulate them. **)
+
 Definition list_type_head_such_that P Pheader Pcar Ptag S l_t l_car l_tag (p_ : SExpRec) :=
   exists header car cdr tag,
     p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
@@ -154,6 +166,18 @@ Inductive list_type_such_that Pheader Pcar Ptag (S : state) : list SExpType -> l
 
 Definition list_head_such_that Pheader Pcar Ptag :=
   list_type_head_such_that (list_type_such_that Pheader Pcar Ptag) Pheader Pcar Ptag.
+
+(** The predicate [list_type S l_t l_car l_tag p] states that in the heap [S],
+  the pointer [p] points to a list.
+  Furthermore, each element of this list has its type in [l_t], with the expection
+  of the last element, which is of type [NilSxp] (and is unique in R’s memory).
+  The ypical value for [l_t] is [[ListSxp]], but R sometimes manipulates lists
+  whose types are either [LangSxp] and [ListSxp] (typically the first element is
+  [LangSxp] and the next ones are [ListSxp]).
+  Furthermore, the “car” elements of the list [p] must be of type in [l_car],
+  and the “tag” elements of type in [l_tag].
+  The predicate [list_head S l_t l_car l_tag p_] applies to an object [p_]
+  instead of a pointer [p], but states a very similar statement. **)
 
 Definition list_type := list_type_such_that (fun _ => True) (fun _ => True) (fun _ => True).
 Definition list_head := list_head_such_that (fun _ => True) (fun _ => True) (fun _ => True).
@@ -277,9 +301,17 @@ Proof.
 Qed.
 
 
-(** * Invariants about the state. **)
+(** * Invariants about the state **)
 
-(** ** Invariants **)
+(** ** NULL pointer exceptions **)
+
+(** R very rarely uses C’s NULL pointer. It instead uses a single object
+  of type [NilSxp].
+  But there are exceptions to this. The following predicates lists where
+  such NULL pointer can appear.  Such NULL pointer are of course invalid
+  and can not be read.
+  It is however possible that these exceptions still store a non-NULL
+  pointer.  In such cases, the pointer has to be valid. **)
 
 Inductive null_pointer_exceptions_entry_point : entry_point -> Prop :=
   | null_pointer_exceptions_context_promargs :
@@ -320,6 +352,16 @@ Inductive null_pointer_exceptions_path : path -> Prop :=
     Path.last p s ->
     null_pointer_exceptions_path p
   .
+
+Inductive null_pointer_exceptions_globals : GlobalVariable -> Prop := .
+
+
+(** ** Invariants **)
+
+(** The invariants defined in this file are about types.
+  We here states for each R’s type how its field should be typed.
+  For instance, the “cdr” field of a list is either of type
+  [ListSxp] or [NilSxp]. **)
 
 Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
   | SExpType_corresponds_to_data_NilSxp : forall header car cdr tag,
@@ -427,10 +469,26 @@ Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
     an object. Again, no constructor is associated to this type. **)
   .
 
-Record safe_SExpRec S (e_ : SExpRec) : Prop := make_safe_SExpRec {
-    SExpType_corresponds_to_datatype :
-      safe_SExpRec_type S (type e_) e_
+(** Header are considered safe if their [attrib] field is safe.
+  It must also be a finite list. **)
+Record safe_header_gen (safe_pointer : state -> _ -> Prop) S (h : SExpRecHeader) : Prop := make_safe_header {
+    safe_attrib : safe_pointer S (attrib h) ;
+    attrib_list : list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) (attrib h)
   }.
+
+(** An object is considered safe if its fields are of the expected type. **)
+Record safe_SExpRec_gen (safe_pointer : state -> _ -> Prop) S (e_ : SExpRec) : Prop := make_safe_SExpRec {
+    SExpType_corresponds_to_datatype : safe_SExpRec_type S (type e_) e_ ;
+    SExpRec_header : safe_header_gen safe_pointer S e_
+  }.
+
+(** We can now define [safe_pointer], which stands for several properties:
+  subpointers should be valid, and subobjects should be safe.
+  This property is circular: for instance, the [NilSxp] object points to
+  itself through its “cdr”.  We could have used Coq’s coinduction, but we
+  choose to use Paco’s instead.
+  Note that the [move_along_path_step] applies for any subpointers,
+  including the one stored in the attribute, or the elements of arrays. **)
 
 Record safe_pointer_gen (safe_pointer : _ -> _ -> Prop) S p : Prop := make_safe_pointer {
     pointer_bound : bound S p ;
@@ -444,15 +502,16 @@ Record safe_pointer_gen (safe_pointer : _ -> _ -> Prop) S p : Prop := make_safe_
       safe_pointer S e ;
     safe_SExpRec_read : forall p_,
       read_SExp S p = Some p_ ->
-      safe_SExpRec S p_
+      safe_SExpRec_gen safe_pointer S p_
   }.
 Definition safe_pointer S p := paco2 safe_pointer_gen bot2 S p.
 Hint Unfold safe_pointer.
 
 Lemma safe_pointer_gen_mon : monotone2 safe_pointer_gen.
 Proof.
-  pmonauto.
+  pmonauto. (* This is very frustating: I have found no documentation on when this tactic may fail… *)
   repeat intro. destruct IN as [B OKf OKs R]. constructors*.
+  introv E. forwards (T&OKh): R E. constructors*. inverts OKh. constructors*.
 Qed.
 Hint Resolve safe_pointer_gen_mon : paco.
 
@@ -467,15 +526,14 @@ Proof.
     + left~.
 Qed.
 
-Record safe_header_gen (safe_pointer : state -> _ -> Prop) S (h : SExpRecHeader) : Prop := make_safe_header {
-    safe_attrib : safe_pointer S (attrib h)
-  }.
-
+Definition safe_SExpRec := safe_SExpRec_gen safe_pointer.
 Definition safe_header := safe_header_gen safe_pointer.
 
 Definition list_type_safe S := list_type_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S.
 Definition list_head_safe S := list_head_such_that (safe_header S) (safe_pointer S) (safe_pointer S) S.
 
+(** A state is safe if all the pointers reachable from any entry point are safe.
+  We also require that only one object of type [NilSxp] can be declared. **)
 Record safe_state S : Prop := make_safe_state {
     no_null_pointer_entry_point : forall e p,
       ~ null_pointer_exceptions_entry_point e ->
@@ -491,8 +549,8 @@ Record safe_state S : Prop := make_safe_state {
       p1 = p2
   }.
 
-Inductive null_pointer_exceptions_globals : GlobalVariable -> Prop := .
-
+(** Global variables must be safe.
+  We also state the expected type of some pointers (and in particular [R_NilValue]). **)
 Record safe_globals S globals : Prop := make_safe_globals {
     globals_not_NULL : forall g,
       ~ null_pointer_exceptions_globals g ->
@@ -506,6 +564,12 @@ Record safe_globals S globals : Prop := make_safe_globals {
 
 (** ** Transitions between states **)
 
+(** It is frequent that two states are nearly identical, differing only
+  in values not reachable from entry points.
+  This for instance occur after memory allocations.
+  We can also use this predicate to garbage collect a heap.
+  The tactic [transition_conserve] uses such a statement to update as much
+  properties as can be from the old state to the new one. **)
 Record conserve_old_binding S S' : Prop := make_conserve_old_binding {
     conserve_old_binding_binding : forall p,
       bound S p ->
@@ -864,7 +928,7 @@ Proof.
   - apply list_type_cons. exists p_. splits~.
     + applys~ conserve_old_binding_read C.
     + exists h car cdr tag. splits~; try applys~ conserve_old_binding_may_have_types C.
-      inverts HH. constructors*.
+      inverts HH. constructors*. apply* conserve_old_binding_list_type.
 Qed.
 
 Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
@@ -876,7 +940,7 @@ Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer1 safe_point
 Proof.
   introv C CSafe (h&car&cdr&tag&E&T&HH&Mcar&OKcar&L&Mtag&OKtag).
   exists h car cdr tag. splits~.
-  - inverts HH. constructors*.
+  - inverts HH. constructors*. apply* conserve_old_binding_list_type.
   - applys* conserve_old_binding_may_have_types C.
   - applys* conserve_old_binding_list_type_safe_aux C.
   - applys* conserve_old_binding_may_have_types C.
@@ -897,14 +961,18 @@ Proof.
                          conserve_old_binding_list_type) C; autos*.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
+Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
   conserve_old_binding S S' ->
-  safe_SExpRec S p_ ->
-  safe_SExpRec S' p_.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  safe_SExpRec_gen safe_pointer1 S p_ ->
+  safe_SExpRec_gen safe_pointer2 S' p_.
 Proof.
-  introv C E. constructors~.
-  applys* conserve_old_binding_safe_SExprRec_type C.
-  applys~ SExpType_corresponds_to_datatype E.
+  introv C CSafe E. constructors~.
+  - applys* conserve_old_binding_safe_SExprRec_type C.
+    applys~ SExpType_corresponds_to_datatype E.
+  - constructors~.
+    + applys~ CSafe E.
+    + applys~ conserve_old_binding_list_type C E.
 Qed.
 
 Lemma conserve_old_binding_safe_pointer : forall S S' p,
@@ -926,8 +994,19 @@ Proof.
     introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
     + forwards E': conserve_old_binding_read C E.
       rewrite E' in R. inverts~ R.
-      applys~ conserve_old_binding_safe_SExpRec C. applys~ safe_SExpRec_read OKS E.
+      applys~ conserve_old_binding_safe_SExpRec_aux C.
+      * introv OKp. right. applys~ IH C OKp.
+      * applys~ safe_SExpRec_read OKS E.
     + false. forwards~ (?&E'): bound_read (pointer_bound OKS). rewrite E' in E. inverts E.
+Qed.
+
+Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
+  conserve_old_binding S S' ->
+  safe_SExpRec S p_ ->
+  safe_SExpRec S' p_.
+Proof.
+  introv C OK. applys~ conserve_old_binding_safe_SExpRec_aux C OK.
+  introv. applys~ conserve_old_binding_safe_pointer.
 Qed.
 
 Lemma conserve_old_binding_list_type_safe : forall S S' l_t l_car l_tag p,
@@ -1600,9 +1679,10 @@ Ltac get_safe_pointer_base S p cont :=
           introv A;
           prove_no_null_pointer_exceptions_globals A
         | cont OKp ])
-    | attrib _ =>
+    | attrib ?p' =>
       asserts OKp: (safe_pointer S p);
-      [ solve [ apply~ safe_attrib ]
+      [ get_safe_pointer_base S p' ltac:(fun OKp' =>
+          applys~ safe_attrib OKp')
       | cont OKp ]
     end
   | _ =>
@@ -1628,11 +1708,36 @@ Ltac get_safe_pointer_base S p cont :=
   end.
 
 
+(** *** [safe_header] **)
+
+Ltac get_safe_header S h cont :=
+  match goal with
+  | OKh : safe_header S h |- _ => cont OKh
+  | _ =>
+    let h' := fresh1 h in
+    let OK := fresh "OK" h' in
+    let ah := eval simpl in (attrib h) in
+    asserts OK: (safe_header S h);
+    [ constructors;
+      [ (** safe_attrib **)
+        get_safe_pointer_base S ah ltac:(fun OKh => apply OKh)
+      | (** attrib_list **)
+        (get_list_type S ah ltac:(fun L =>
+          applys~ list_type_weaken L; try intros; solve_incl))
+        || (get_may_have_types S ah ltac:(fun M =>
+              apply~ list_type_nil; applys~ may_have_types_weaken M; solve_incl))
+      ]
+    | cont OK ]
+  | OKh : safe_header_gen _ S h |- _ => cont OKh
+  end.
+
+
 (** *** [safe_SExpRec] **)
 
 Ltac get_safe_SExpRec S e_ cont :=
   match goal with
   | H : safe_SExpRec S e_ |- _ => cont H
+  | H : safe_SExpRec_gen safe_pointer S e_ |- _ => cont H
   | P : read_SExp (state_memory S) ?e = Some e_ |- _ =>
     get_safe_pointer_base S e ltac:(fun H =>
       let e_' := fresh1 e_ in
@@ -1647,24 +1752,29 @@ Ltac get_safe_SExpRec S e_ cont :=
     let e_' := fresh1 e_ in
     let R := fresh "OK" e_' in
     asserts R: (safe_SExpRec S e_);
-    [ substs; simpl; constructors~; simpl; constructors~;
-      lazymatch goal with
-      | |- may_have_types ?S ?l ?p =>
-        get_may_have_types S p ltac:(fun M =>
-          applys~ may_have_types_weaken M; solve_incl)
-      | |- list_type S _ _ _ ?p =>
-        get_list_type S p ltac:(fun L =>
-          applys~ list_type_weaken L; (solve_incl || (repeat rewrite safe_pointer_rewrite; autos*)))
-      | |- forall a, Mem a _ -> may_have_types S ?l a =>
-        let M := fresh "M" in
-        substs; simpl; introv M; repeat inverts M as M;
+    [ substs; simpl; constructors~;
+      [ (** SExpType_corresponds_to_datatype **)
+        simpl; constructors~;
         lazymatch goal with
-        | |- may_have_types ?S ?l ?a =>
-          get_may_have_types S a ltac:(fun M =>
+        | |- may_have_types ?S ?l ?p =>
+          get_may_have_types S p ltac:(fun M =>
             applys~ may_have_types_weaken M; solve_incl)
+        | |- list_type S _ _ _ ?p =>
+          get_list_type S p ltac:(fun L =>
+            applys~ list_type_weaken L; (solve_incl || (repeat rewrite safe_pointer_rewrite; autos*)))
+        | |- forall a, Mem a _ -> may_have_types S ?l a =>
+          let M := fresh "M" in
+          substs; simpl; introv M; repeat inverts M as M;
+          lazymatch goal with
+          | |- may_have_types ?S ?l ?a =>
+            get_may_have_types S a ltac:(fun M =>
+              applys~ may_have_types_weaken M; solve_incl)
+          end
         end
-      end
+      | (** SExpRec_header **)
+        get_safe_header S (get_SExpRecHeader e_) ltac:(fun OKh => apply OKh) ]
     | cont R ]
+  | H : safe_SExpRec_gen _ S e_ |- _ => cont H
   end.
 
 
@@ -2388,12 +2498,14 @@ Ltac solve_premises_smart :=
     get_safe_pointer S e ltac:(fun OKe => apply OKe)
   | |- safe_pointer_gen safe_pointer ?S ?e =>
     get_safe_pointer S e ltac:(fun OKe => rewrite <- safe_pointer_rewrite; apply OKe)
+  | |- safe_SExpRec_gen _ ?S ?e_ =>
+    get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
   | |- safe_SExpRec ?S ?e_ =>
     get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
   | |- safe_header_gen _ ?S ?h =>
-    constructors; simpl; solve_premises_smart
+    get_safe_header S h ltac:(fun OKh => apply OKh)
   | |- safe_header ?S ?h =>
-    constructors; simpl; solve_premises_smart
+    get_safe_header S h ltac:(fun OKh => apply OKh)
   | |- _ <> _ => prove_locations_different || prove_types_different
   | _ => prove_no_null_pointer_exceptions || solve_premises_lemmae
   end.
