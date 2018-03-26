@@ -2605,6 +2605,27 @@ Definition do_math1 S (call op args env : SEXP) : result SEXP :=
 (** The function names of this section corresponds to the function names
   in the file main/subset.c. **)
 
+Definition pstrmatch S (target input : SEXP) slen :=
+  add%stack "pstrmatch" in
+  ifb target = R_NilValue then
+    result_success S NO_MATCH
+  else
+    let%success target_type := TYPEOF S target using S in
+    let%success st :=
+      match target_type with
+      | SymSxp =>
+        let%success target_name := PRINTNAME S target using S in
+        CHAR S target_name
+      | StrSxp =>
+        translateChar S target
+      | _ => result_error S "Invalid type."
+      end using S in
+    let%success si := translateChar S input using S in
+    let%defined si_0 := String.get 0 si using S in
+    ifb si_0 <> "000"%char /\ substring 0 slen st = substring 0 slen si then
+      result_success S (ifb String.length st = slen then EXACT_MATCH else PARTIAL_MATCH)
+    else result_success S NO_MATCH.
+
 Definition R_DispatchOrEvalSP S call op generic args rho :=
   add%stack "R_DispatchOrEvalSP" in
   read%list args_car, args_cdr, _ := args using S in

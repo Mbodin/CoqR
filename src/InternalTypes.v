@@ -77,7 +77,7 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
   fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
 
 
-(** * FUNTAB **)
+(** * [FUNTAB] **)
 
 (** This section defines the FUNTAB structure, which is used to store
   primitive and internal functions, as well as some constructs to
@@ -104,7 +104,7 @@ Instance funtab_eval_arg_Inhab : Inhab funtab_eval_arg.
   apply prove_Inhab. constructors; typeclass.
 Qed.
 
-(** PPkind **)
+(** [PPkind] **)
 Inductive PPkind :=
   | PP_INVALID
   | PP_ASSIGN
@@ -137,7 +137,7 @@ Instance PPkind_Inhab : Inhab PPkind.
   apply prove_Inhab. constructors~.
 Qed.
 
-(** PPprec **)
+(** [PPprec] **)
 Inductive PPprec :=
   | PREC_FN
   | PREC_EQ
@@ -167,7 +167,7 @@ Instance PPprecd_Inhab : Inhab PPprec.
   apply prove_Inhab. constructors~.
 Qed.
 
-(** PPinfo **)
+(** [PPinfo] **)
 Record PPinfo := make_PPinfo {
     PPinfo_kind : PPkind ;
     PPinfo_precedence : PPprec ;
@@ -178,7 +178,7 @@ Instance PPinfo_Inhab : Inhab PPinfo.
   apply prove_Inhab. constructors; typeclass.
 Qed.
 
-(** FUNTAB **)
+(** [FUNTAB] **)
 Record funtab_cell := make_funtab_cell {
     fun_name : string ;
     fun_cfun : function_code ;
@@ -195,7 +195,7 @@ Qed.
 Definition funtab := option (ArrayList.array funtab_cell).
 
 
-(** * Type2Table **)
+(** * [Type2Table] **)
 
 (** These definitions can be found in the file main/util.c. **)
 
@@ -211,7 +211,7 @@ Instance Type2Table_type_Inhab : Inhab Type2Table_type.
 Qed.
 
 
-(** * BindData **)
+(** * [BindData] **)
 
 (** These definitions can be found in the file main/bind.c. **)
 
@@ -262,4 +262,15 @@ Definition BindData_with_ans_nnames d n := {|
     BindData_ans_names := BindData_ans_names d ;
     BindData_ans_nnames := n
   |}.
+
+
+(** * [pmatch] **)
+
+(** These definitions can be found in the file main/subset.c. **)
+
+Inductive pmatch :=
+  | NO_MATCH
+  | EXACT_MATCH
+  | PARTIAL_MATCH
+  .
 

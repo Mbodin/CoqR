@@ -1251,9 +1251,18 @@ Ltac unfold_monad :=
   | _ => unfold_definitions
   end.
 
+(** The [simplifyR] tactic consider the main monadic binder in the goal and apply
+  the associated lemmae to easily advance through R computations. **)
 Ltac simplifyR :=
   repeat (unfold_monad; repeat let_simpl).
 
+(** The [cutR] tactic takes a predicate as argument. It is meant to be used
+  when the main monadic binder is a sequence (such as [let%success] or
+  [run%success]). It then divides the goal into two subgoals:
+  - we first have to prove that the first element of the sequence ends
+    in a state satisfying [P].
+  - then, from a state satisfying [P], we have to continue the proof for
+    the second element of the sequence. **)
 Ltac cutR P :=
   lazymatch goal with
   | |- result_prop ?P_success ?P_error ?P_longjump (if_success ?r ?cont) =>
