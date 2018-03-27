@@ -26,12 +26,15 @@ Require Export Monads Loops Rfeatures.
 
 (** ** Aborting results **)
 
+(** States that the given result aborts and break the normal flow of execution. **)
 Definition aborting_result A (r : result A) :=
   match r with
   | result_success _ _ => false
   | _ => true
   end.
 
+(** States that a result is not considered to be possible. Typically, this result
+  breaks the assumed invariants. **)
 Definition impossible_result A (r : result A) :=
   match r with
   | result_impossible_stack _ _ _ => true
@@ -46,6 +49,13 @@ Proof. introv I. destruct r; (reflexivity || false~ I). Qed.
 
 (** ** Generic result property **)
 
+(** This generic definition enables to state what properties should be expected from
+  a result in its three main modes:
+  - if the result is a normal result;
+  - if the result is an error;
+  - if the result is a long jump (rarer).
+  The other two are [result_impossible], which is not expected to happen, and [bottom],
+  for which we can not say anything interesting. **)
 Definition result_prop A P_success P_error P_longjump (r : result A) :=
   match r with
   | result_success S0 r => P_success S0 r
@@ -70,6 +80,8 @@ Proof. introv I1 I2 I3. destruct r; simpl; autos~. Qed.
 
 (** ** Updating the type of a result **)
 
+(** Aborting results do not carry any real value as normal results do.
+  As such, we can convert them to any other type. **)
 Definition convert_type_monad A B (r : result A) :
     aborting_result r ->
     result B.
@@ -152,6 +164,8 @@ Proof. introv I. destruct r; tryfalse. reflexivity. Qed.
 
 (** ** Some useful tactics **)
 
+(** The following tactics destruct various structures from Rinternals to their components. **)
+
 Ltac destruct_PrimSxp_struct p :=
   let p' := fresh1 p in
   let p_offset := fresh p' "offset" in
@@ -191,6 +205,9 @@ Ltac destruct_PromSxp_struct p :=
   let p_env := fresh p' "env" in
   destruct p as [p_value p_expr p_env].
 
+(** We can destruct non-vectors by simply wanting their inner structure,
+  or we can want to destruct this inner structure again (deep mode). **)
+
 Ltac destruct_NonVector_SExpRec_aux deep e_ :=
   let e_' := fresh1 e_ in
   let e_header := fresh e_' "header" in
@@ -218,6 +235,10 @@ Ltac destruct_NonVector_SExpRec_aux deep e_ :=
 Ltac destruct_NonVector_SExpRec_deep := destruct_NonVector_SExpRec_aux true.
 Ltac destruct_NonVector_SExpRec := destruct_NonVector_SExpRec_aux false.
 
+(** Similarily, to destruct a [SExpRec], we can either destruct one step,
+  or also destruct the non-vector case (deep mode), or also destructing
+  the non-vector case deeply (full deep mode). **)
+
 Ltac destruct_SExpRec_aux deep1 deep2 e_ :=
   let e_' := fresh1 e_ in
   let e_nonVector := fresh e_' "nonVector" in
@@ -244,6 +265,8 @@ Ltac destruct_SExpRec := destruct_SExpRec_aux false false.
 
 (** *** Function definitions **)
 
+(** These lemmae describe the [add%stack] monadic binder. **)
+
 Lemma add_stack_pass : forall A fname S (a : A),
   add%stack fname in (result_success S a) = result_success S a.
 Proof. reflexivity. Qed.
@@ -265,6 +288,8 @@ Proof. introv E. destruct~ r. Qed.
 
 
 (** *** [let]-monads **)
+
+(** These lemmae describe the [let%success] and [let%defined] monadic binders. **)
 
 Lemma if_success_pass : forall A B S a (cont : state -> A -> result B),
   let%success a := result_success S a using S in cont S a
@@ -316,6 +341,8 @@ Proof. introv. applys~ impossible_result_aborting_result if_defined_abort. Qed.
 
 
 (** *** Basic Language Elements **)
+
+(** These lemmae describe the [let%*] monadic binders, where [*] is a structure from Rinternals. **)
 
 Lemma if_is_prim_pass : forall A S header offset (cont : _ -> _ -> result A),
   let%prim a_, a_prim :=
@@ -439,6 +466,8 @@ Proof. introv D. applys~ impossible_result_aborting_result if_is_prom_abort. Qed
 
 
 (** ** Vectors **)
+
+(** These lemmae describe the [read%cell] and [let%Vector*] monadic binders. **)
 
 Lemma read_cell_Vector_SExpRec_pass : forall A B `{Inhab A} S
     (v : Vector_SExpRec A) i (cont : _ -> result B),
@@ -571,6 +600,9 @@ Proof. introv D. applys~ impossible_result_aborting_result let_VectorPointer_abo
 
 (** *** Loops **)
 
+(** These lemmae describe the looping constructs,
+  as well as the [let%return] and [let%exit] monadic binders. **)
+
 Lemma while_unfold : forall A S (a : A) expr stat runs,
   while_loop runs S a expr stat
   = if%success expr S a using S then
@@ -697,6 +729,8 @@ Proof. introv. reflexivity. Qed.
 
 (** *** Long Jumps **)
 
+(** These lemmae describe the [set%longjump] monadic binder. **)
+
 Lemma set_longjump_simplify : forall A runs S mask cjmpbuf f (a : A),
   f S mask = result_success S a ->
   set_longjump runs S mask cjmpbuf f = result_success S a.
@@ -720,6 +754,8 @@ Qed.
 
 
 (** *** Finite Loops **)
+
+(** These lemmae describe the [do%let] and [do%success] loops. **)
 
 Lemma for_list_nil : forall A B S (a : A) body,
   do%let a := a for i in%list nil : list B do body S a i using S
@@ -843,6 +879,8 @@ Proof. introv. apply~ for_list_map. Qed.
 
 (** ** Tactics **)
 
+(** The next four tactics takes a term and returns a list of lemmae that may apply on this term. **)
+
 Ltac get_pass_lemma t :=
   lazymatch get_head t with
   | add_stack => add_stack_pass
@@ -936,7 +974,8 @@ Ltac unfolds_get_impossible :=
   try unfolds get_impossible_stack_message.
 
 (** To speed up computations, we directly fail if a result is not
-  already fully computed. **)
+  already fully computed, as lemmae won’t apply.
+  This tactic checks this. **)
 Ltac result_computed r :=
   lazymatch get_head r with
   | result_success => idtac
@@ -947,6 +986,7 @@ Ltac result_computed r :=
   | result_bottom => idtac
   end.
 
+(** This tactic solves frequent patterns. **)
 Ltac solve_premises :=
   intros;
   solve [
@@ -969,6 +1009,8 @@ Ltac solve_premises :=
       | |- context [ ArrayList.length ] => math
       end ].
 
+(** This tactic tries all the lemmae given by [get_pass_lemma].
+  These lemmae are rewriting lemmae. **)
 Ltac unfold_monad_pass t :=
   let P := get_pass_lemma t in
   let L := list_boxer_of P in
@@ -981,6 +1023,8 @@ Ltac unfold_monad_pass t :=
     end in
   try_all_lemmae L.
 
+(** This tactic tries all the lemmae given by [get_simplify_lemma].
+  These lemmae can be either rewriting lemmae or lemmae to be applied. **)
 Ltac unfold_monad_simplify t :=
   let L := get_simplify_lemma t in
   let L := list_boxer_of L in
@@ -994,6 +1038,11 @@ Ltac unfold_monad_simplify t :=
     end in
   try_all_lemmae L.
 
+(** This tactic tries all the lemmae given by [get_pass_lemma],
+  or if they all fail, the lemmae given by [get_abort_lemma]:
+  it thus both manages passing and failing situations.
+  The lemmae given by [get_abort_lemma] usually require as a
+  premise to apply the lemmae given by [get_aborts_lemma]. **)
 Ltac unfold_monad_with_subresult t r :=
   first [
       result_computed r;
@@ -1014,6 +1063,13 @@ Ltac unfold_monad_with_subresult t r :=
               | rewrite A with H ] ] ]
     | unfold_monad_simplify t ].
 
+(** When no result is provided, there is no quick way to know
+  whether the lemma application will fail or not.
+  Furthermore, it will not be possible to assert the right
+  premise for the lemmae.
+  This tactic is thus less efficient and powerful than the
+  previous one, but can nevertheless help when there is no
+  obvious result to be passed to it. **)
 Ltac unfold_monad_without_subresult t :=
   first [
       unfold_monad_pass t
@@ -1025,25 +1081,38 @@ Ltac unfold_monad_without_subresult t :=
           unfolds_get_impossible ]
     | unfold_monad_simplify t ].
 
+(** As all monadic binders propagate [result_bottom], the
+  [reflexivity] tactic can deal with most cases involving
+  [result_bottom]. **)
 Ltac deal_with_bottom :=
   first [
       reflexivity
     | autos* ].
 
+(** When the computation is blocked because of an expression
+  of the form [runs n globals], we need to rewrite [n] into
+  [1 + n'] to continue the computation.
+  This tactic tries to do that. **)
 Ltac make_runs_deeper r :=
   let rew n :=
     first [
         asserts_rewrite (S n = 1 + n)%nat in *; [ reflexivity |]
       | asserts_rewrite (S n = 1 + n) in *; [ reflexivity |] ] in
+  let rew' n :=
+    first [
+        asserts_rewrite (n + 1 = 1 + n)%nat in *; [ math |]
+      | asserts_rewrite (n + 1 = 1 + n) in *; [ math |] ] in
   lazymatch r with
   | runs (1 + ?n) ?globals => idtac
   | runs (S ?n) ?globals => rew n
+  | runs (?n + 1) ?globals => rew' n
   | runs ?n ?globals =>
     let n' := fresh1 n in
     destruct n as [|n'];
     [ deal_with_bottom | rew n']
   end.
 
+(** Calls [make_runs_deeper] on the right pattern. **)
 Ltac unfold_runs :=
   match goal with
   | |- context [ runs_while_loop ?runs ?S ?a ?expr ?stat ] =>
@@ -1088,6 +1157,9 @@ Ltac unfold_runs :=
     make_runs_deeper runs
   end.
 
+(** There are more monadic binders defined in Monads.v than lemmae defined in this file.
+  However, most of these monadic binders are just trivial definitions made from basic
+  monadic binders.  This tactic unfolds these monadic binders to expose the basic ones. **)
 Ltac unfold_definitions :=
   match goal with
   | |- context [ result_skip ?S ] =>
@@ -1189,6 +1261,9 @@ Ltac unfold_definitions :=
   | _ => unfold_runs
   end.
 
+(** Calls the tactics [unfold_monad_with_subresult] and [unfold_monad_without_subresult]
+  depending on the context.  This tactic effectively rewrites most rewritable monadic
+  binders into a simpler form, thus avancing the proof. **)
 Ltac unfold_monad :=
   match goal with
   | |- context [ add_stack ?fname ?r ] =>
@@ -1252,7 +1327,11 @@ Ltac unfold_monad :=
   end.
 
 (** The [simplifyR] tactic consider the main monadic binder in the goal and apply
-  the associated lemmae to easily advance through R computations. **)
+  the associated lemmae to easily advance through R computations.
+  This process is repeated over and over, until the goal is either solved, or at
+  least simpler to reason with.
+  This tactic wraps up most of the tactics defined in this file: if you want to
+  remember only one tactic from this file, don’t miss this one! **)
 Ltac simplifyR :=
   repeat (unfold_monad; repeat let_simpl).
 

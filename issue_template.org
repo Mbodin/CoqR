@@ -1,0 +1,24 @@
+
+This template is meant to report a difference in behaviour between R and runR.native.
+See =CONTRIBUTING.org= for more informations.
+
+* R program that triggers the difference
+
+#+BEGIN_SRC R
+    # Fill here.
+#+END_SRC
+
+* runR.native Output
+
+#+BEGIN_SRC R
+    # Fill here.
+#+END_SRC
+
+* R Output
+
+#+BEGIN_SRC R
+    # Fill here.
+#+END_SRC
+
+* Additional information
+

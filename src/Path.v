@@ -21,13 +21,36 @@ Set Implicit Arguments.
 Require Export Rcore.
 
 
-Section Parametrised.
-
-Variable runs : runs_type.
-
 (** We do not want to reason about particular pointers.  Instead, we
   would like to remember the path taken to get this pointer.  This is
-  what this abstraction tries to catch. **)
+  what this abstraction tries to catch.  Each step corresponds to
+  either:
+  - following a pointer to a field of its structure (for instance,
+    [Ssym_value] corresponds to the step of moving through the field
+    [sym_value] of a symbol;
+  - following an element of the structure of a pointer (like the
+    [attrib] field represented by [Sattrib], or to access a pointer
+    stored in a pointer vector, represented by [SVectorPointer]).
+  We can also get pointers using global values. For instace:
+  - global variables;
+  - the pointers stored directly in the state (like [SymbolTable]),
+    or stored in the fields of a context stored in the state.
+  For each of these structures, we provide ways to computationnaly
+  move through these paths with the [move_along_*] functions.
+  Of course, there could be issues along the ways:
+  - a [NULL]-pointer might be encountered;
+  - the expected type of the object might not fit the type found
+    in the heap.  For instance if the path is
+    [SNonVectorSym Ssym_value], we expect the current pointer to be
+    a symbol.
+  - if the path step is of the form [SVectorPointer n], then the
+    corresponding vector in the heap has to be of size at least 1 + n.
+  In case such an issue appears, the [move_along_*] function returns
+  [None].  We provide lemmae to deal with such cases. **)
+
+(** * Steps **)
+
+(** ** Object fields **)
 
 Inductive step_sym :=
   | Ssym_pname
@@ -112,6 +135,8 @@ Definition move_along_step_prom s :=
   | Sprom_expr => prom_expr
   | Sprom_env => prom_env
   end.
+
+(** ** Other possible steps about objects **)
 
 Inductive path_step :=
   | Sattrib : path_step
@@ -209,6 +234,10 @@ Proof.
   simpl in E. eexists. splits*.
 Qed.
 
+(** * Contexts **)
+
+(** ** Steps **)
+
 Inductive context_step :=
   | Scontext_nextcontext
   | Scontext_jumptarget
@@ -223,6 +252,8 @@ Definition move_along_context_step s c :=
   | Scontext_nextcontext => context_nextcontext c
   | Scontext_jumptarget => context_jumptarget c
   end.
+
+(** ** Entry points **)
 
 Inductive entry_context :=
   | Pstate_context
@@ -239,6 +270,10 @@ Definition move_along_entry_context e S :=
   | PExit_context => R_ExitContext S
   end.
 
+(** ** Paths **)
+
+(** Paths are a combination of an entry point and a list of steps.
+  We define them as inductive to ease proofs. **)
 Inductive context_path :=
   | context_path_entry : entry_context -> context_path
   | context_path_step : context_path -> context_step -> context_path
@@ -255,6 +290,32 @@ Fixpoint move_along_context_path p S :=
 Lemma move_along_context_path_state_with_memory : forall S p m,
   move_along_context_path p (state_with_memory S m) = move_along_context_path p S.
 Proof. introv. induction~ p. simpl. rewrite~ IHp. Qed.
+
+Definition context_path_from_list (el : entry_context * list context_step) :=
+  let (e, l) := el in
+  fold_left (fun s p => context_path_step p s) (context_path_entry e) l.
+
+Lemma context_path_from_list_inv : forall pa,
+  exists e l, pa = context_path_from_list (e, l).
+Proof.
+  introv. induction pa.
+  - eexists. exists (@nil context_step). reflexivity.
+  - lets (e&l&E): (rm IHpa). rewrite E. exists e. eexists.
+    unfolds. rewrite* fold_left_last.
+Qed.
+
+Lemma context_path_from_list_inj : forall e1 e2 path1 path2,
+  context_path_from_list (e1, path1) = context_path_from_list (e2, path2) ->
+  e1 = e2 /\ path1 = path2.
+Proof.
+  introv E. gen path2. induction path1 using list_ind_last; induction path2 using list_ind_last;
+    introv E; simpls; rew_list in E; inverts E as E; autos~.
+  forwards (?&?): IHpath1 E. substs~.
+Qed.
+
+(** * Entry points **)
+
+(** ** From contexts **)
 
 Inductive context_field :=
   | Scontext_promargs
@@ -281,6 +342,8 @@ Definition move_along_context_field f :=
   | Scontext_returnValue => context_returnValue
   end.
 
+(** ** From the state **)
+
 Inductive entry_point :=
   | Econtext : context_path -> context_field -> entry_point
   | ESymbolTable : entry_point
@@ -306,6 +369,10 @@ Lemma move_along_entry_point_alloc_SExp : forall S S' e p p_,
   move_along_entry_point e S' = move_along_entry_point e S.
 Proof. introv E. inverts E. apply~ move_along_entry_point_state_with_memory. Qed.
 
+(** * Paths **)
+
+(** Paths are a combination of an entry point and a list of steps.
+  We define them as inductive to ease proofs. **)
 Inductive path :=
   | Pentry : entry_point -> path
   | Pstep : path -> path_step -> path
@@ -378,6 +445,9 @@ Proof.
   do 3 eexists. splits*.
 Qed.
 
+(** * Miscellaneous **)
+
+(** States that the path ends by the given list of steps. **)
 Inductive suffix : path -> list path_step -> Prop :=
   | suffix_nil : forall p, suffix p nil
   | suffix_cons : forall p s l,
@@ -385,8 +455,7 @@ Inductive suffix : path -> list path_step -> Prop :=
     suffix (Pstep p s) (l & s)
   .
 
+(** States that the path ends by the step. **)
 Definition last p s :=
   suffix p [s].
-
-End Parametrised.
 
