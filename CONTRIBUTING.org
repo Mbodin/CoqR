@@ -6,7 +6,7 @@ programs or R models using the Coq proof assistant.
 Any contribution going into this direction would thus be an interesting step.
 
 This project is open source, and you are very welcomed if you want to extend it in
-any ways.
+any way.
 Here follows a non-extensive list of possible directions for contributions.
 
 ** Reporting bugs
@@ -21,7 +21,7 @@ Here are some examples of such situations:
    Currently, our interpreter does not load these libraries.  This can lead to a lot of non-found
    functions or environments that should be locked but are not.  These are not bugs, but a missing
    feature (loading R’s libraries).
- - The runR.native interpreter accepts additional run-time comands prefixed by a =#=:
+ - The runR.native interpreter accepts additional run-time commands prefixed by a =#=:
    these are considered to be comments by R, but special commands by this tool.
  - We did not properly model R’s memory on purpose.
    In particular, there are no garbage collection, nor limitations on the size of vectors in our tool.
@@ -46,6 +46,7 @@ Here are some examples of such situations:
    Warnings have also not been formalised.  We either ignored them in the formalisation process, or
    replaced them by errors when this warning is planned to be replaced by an error in future versions
    of R.  We however leaved a comment in the corresponding place of the source code to signal it.
+This repository contains a template for filling issues of this particular kind.
 
 *** “Impossible” results
 
@@ -87,7 +88,7 @@ Here are some guidelines:
    to circular function dependencies).
  - The Coq definitions and the C definitions from R are closely related: each line
    of Coq corresponds to a particular line in C and vice versa, with relatively
-   small differences.  If you do not follow this correspondance, please leave a
+   small differences.  If you do not follow this correspondence, please leave a
    comment to explain your choice.
 
 *** New Proofs
@@ -108,7 +109,7 @@ interesting.
 This project is a shallow embedding of the C source code of R.
 Currently, there are two links between R and this project:
  - both are executable and their outputs have been compared on testsuites.
- - their source code follow a line-to-line correspondance.
+ - their source code follow a line-to-line correspondence.
 However, there may still be a human mistake between these two programs,
 and such a mistake can be damageable for any proof relying on this formalisation.
 
