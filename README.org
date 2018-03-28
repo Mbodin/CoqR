@@ -48,7 +48,7 @@ We now quickly describe the main files of interest:
  - =src/Rcore.v= contains translations of the main functions of R;
  - =src/Rfeatures.v= contains translations of additional functions of R (typically present
    in the default heap);
- - =src/InvariantProofs.v= proves some invariants of these functions.
+ - =src/InvariantProofs.v= proves some invariants about these functions.
 
 
 * Building the Project
@@ -199,6 +199,10 @@ Initialises global variables.
 
 A Coq formalisation of additionnal functions of R from its C code.
 This file also contains the final interpreter.
+
+*** =RfeaturesAux.v=
+
+Contains useful lemmae about =runs=.
 
 *** =Rparsing.v=
 

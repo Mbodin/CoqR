@@ -46,6 +46,18 @@ Lemma impossible_result_aborting_result : forall A (r : result A),
   aborting_result r.
 Proof. introv I. destruct r; (reflexivity || false~ I). Qed.
 
+(** States that the computation of a result ran out of fuel. **)
+Definition bottom_result A (r : result A) :=
+  match r with
+  | result_bottom _ => true
+  | _ => false
+  end.
+
+Lemma bottom_result_aborting_result : forall A (r : result A),
+  bottom_result r ->
+  aborting_result r.
+Proof. introv I. destruct r; (reflexivity || false~ I). Qed.
+
 
 (** ** Generic result property **)
 
@@ -1058,6 +1070,8 @@ Ltac unfold_monad_with_subresult t r :=
               asserts H: (aborting_result r);
               [ first [
                     reflexivity
+                  | solve [ applys* impossible_result_aborting_result ]
+                  | solve [ applys* bottom_result_aborting_result ]
                   | let AT := get_aborts_lemma t in
                     apply AT; try solve_premises ]
               | rewrite A with H ] ] ]
@@ -1087,7 +1101,9 @@ Ltac unfold_monad_without_subresult t :=
 Ltac deal_with_bottom :=
   first [
       reflexivity
-    | autos* ].
+    | repeat match goal with
+      | B : bottom_result ?r |- _ => destruct r; simpl in B; inverts B
+      end; autos* ].
 
 (** When the computation is blocked because of an expression
   of the form [runs n globals], we need to rewrite [n] into
@@ -1120,8 +1136,6 @@ Ltac unfold_runs :=
   | |- context [ runs_set_longjump ?runs ?S ?t ?n ?f ] =>
     make_runs_deeper runs
   | |- context [ runs_eval ?runs ?S ?e ?rho ] =>
-    make_runs_deeper runs
-  | |- context [ runs_inherits ?runs ?S ?e ?str ] =>
     make_runs_deeper runs
   | |- context [ runs_getAttrib ?runs ?S ?e ?a ] =>
     make_runs_deeper runs

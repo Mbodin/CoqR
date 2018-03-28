@@ -27,7 +27,6 @@ Record runs_type : Type := runs_type_intro {
     runs_while_loop : forall A, state -> A -> (state -> A -> result bool) -> (state -> A -> result A) -> result A ;
     runs_set_longjump : forall A, state -> context_type -> nat -> (state -> context_type -> result A) -> result A ;
     runs_eval : state -> SEXP -> SEXP -> result SEXP ;
-    runs_inherits : state -> SEXP -> string -> result bool ;
     runs_getAttrib : state -> SEXP -> SEXP -> result SEXP ;
     runs_setAttrib : state -> SEXP -> SEXP -> SEXP -> result SEXP ;
     runs_R_cycle_detected : state -> SEXP -> SEXP -> result bool ;

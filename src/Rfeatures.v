@@ -3457,7 +3457,6 @@ Fixpoint runs max_step globals : runs_type :=
       runs_while_loop := fun _ S _ _ _ => result_bottom S ;
       runs_set_longjump := fun _ S _ _ _ => result_bottom S ;
       runs_eval := fun S _ _ => result_bottom S ;
-      runs_inherits := fun S _ _ => result_bottom S ;
       runs_getAttrib := fun S _ _ => result_bottom S ;
       runs_setAttrib := fun S _ _ _ => result_bottom S ;
       runs_R_cycle_detected := fun S _ _ => result_bottom S ;
@@ -3488,7 +3487,6 @@ Fixpoint runs max_step globals : runs_type :=
       runs_while_loop := wrap_dep (fun _ => while_loop) ;
       runs_set_longjump := wrap_dep (fun _ => set_longjump) ;
       runs_eval := wrap eval ;
-      runs_inherits := wrap inherits ;
       runs_getAttrib := wrap getAttrib ;
       runs_setAttrib := wrap setAttrib ;
       runs_R_cycle_detected := wrap R_cycle_detected ;
