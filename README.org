@@ -43,12 +43,11 @@ More information can be found in the
 [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
     A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018.
 
-We now quickly describe the main files of interest:
+Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
  - =src/Rcore.v= contains translations of the main functions of R;
  - =src/Rfeatures.v= contains translations of additional functions of R (typically present
-   in the default heap);
- - =src/InvariantProofs.v= proves some invariants about these functions.
+   in the default heap).
 
 
 * Building the Project
@@ -203,6 +202,8 @@ This file also contains the final interpreter.
 *** =RfeaturesAux.v=
 
 Contains useful lemmae about =runs=.
+
+This file may take some time to compile.
 
 *** =Rparsing.v=
 

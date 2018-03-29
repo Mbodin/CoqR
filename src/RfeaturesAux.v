@@ -17,7 +17,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Export Rfeatures.
+Require Export MonadTactics Rfeatures.
 
 
 (** * Projections of [runs] **)
@@ -40,7 +40,7 @@ Ltac get_type_projection proj :=
 
 (** Defines the projection for the cases where the function behind
   the projection is a simple recursive loop. **)
-Ltac compute_simple_projection proj :=
+Ltac compute_simple_projection proj L :=
   let globals := fresh "globals" in
   let max_step := fresh "max_step" in
   let IHmax_step := fresh "IH" max_step in
@@ -48,35 +48,35 @@ Ltac compute_simple_projection proj :=
   induction max_step as [|max_step IHmax_step];
   [ let r := eval simpl in (proj (runs 0 globals)) in exact r
   | let r := eval simpl in (proj (runs (S max_step) globals)) in
-    let rec aux1 r :=
+    let r :=
       match r with
+      | context [ ?f globals (runs max_step globals) ] =>
+        let r := eval unfold f in r in
+        r
       | context [ ?f (runs max_step globals) ] =>
-        lazymatch f with
-        | proj => fail
-        | ?f' globals =>
-          let r := eval unfold f' in r in
-          let r := eval simpl in r in
-          aux1 r
-        | _ _ => fail
-        | _ =>
-          let r := eval unfold f in r in
-          let r := eval simpl in r in
-          aux1 r
-        end
-      | _ => r
+        let r := eval unfold f in r in
+        r
       end in
-    let r := aux1 r in
-    let rec aux2 r :=
+    let rec unfold_hints L r :=
+      match L with
+      | nil => r
+      | boxer ?f :: ?L' =>
+        let r := eval unfold f in r in
+        unfold_hints L' r
+      end in
+    let L := list_boxer_of L in
+    let r := unfold_hints L r in
+    let rec rewrite_internals r :=
       match r with
       | context C [ proj (runs max_step globals) ] =>
         let r := context C[IHmax_step] in
-        aux2 r
+        rewrite_internals r
       | context C [ proj globals (runs max_step globals) ] =>
         let r := context C[IHmax_step] in
-        aux2 r
+        rewrite_internals r
       | _ => r
       end in
-    let r := aux2 r in
+    let r := rewrite_internals r in
     exact r ].
 
 (** Solves the equality when the function behind the projection
@@ -92,7 +92,7 @@ Ltac solve_eq_simple_projection :=
 (** ** [runs_while_loop] **)
 
 Definition runs_proj_while_loop : ltac:(get_type_projection runs_while_loop).
-  compute_simple_projection runs_while_loop.
+  compute_simple_projection runs_while_loop >>.
 Defined.
 
 Lemma runs_proj_while_loop_eq : forall max_step globals,
@@ -102,7 +102,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_set_longjump] **)
 
 Definition runs_proj_set_longjump : ltac:(get_type_projection runs_set_longjump).
-  compute_simple_projection runs_set_longjump.
+  compute_simple_projection runs_set_longjump >>.
 Defined.
 
 Lemma runs_proj_set_longjump_eq : forall max_step globals,
@@ -112,7 +112,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_R_cycle_detected] **)
 
 Definition runs_proj_R_cycle_detected : ltac:(get_type_projection runs_R_cycle_detected).
-  compute_simple_projection runs_R_cycle_detected.
+  compute_simple_projection runs_R_cycle_detected >>.
 Defined.
 
 Lemma runs_proj_R_cycle_detected_eq : forall max_step globals,
@@ -121,24 +121,48 @@ Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_eval] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_eval : ltac:(get_type_projection runs_eval).
+  compute_simple_projection runs_eval >>.
+Defined.
+
+Lemma runs_proj_eval_eq : forall max_step globals,
+  runs_eval (runs max_step globals) = runs_proj_eval max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_getAttrib] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_getAttrib : ltac:(get_type_projection runs_getAttrib).
+  compute_simple_projection runs_getAttrib >> getAttrib0.
+Defined.
+
+Lemma runs_proj_getAttrib_eq : forall max_step globals,
+  runs_getAttrib (runs max_step globals) = runs_proj_getAttrib max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_setAttrib] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_setAttrib : ltac:(get_type_projection runs_setAttrib).
+  compute_simple_projection runs_setAttrib >>.
+Defined.
+
+Lemma runs_proj_setAttrib_eq : forall max_step globals,
+  runs_setAttrib (runs max_step globals) = runs_proj_setAttrib max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_duplicate1] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_duplicate1 : ltac:(get_type_projection runs_duplicate1).
+  compute_simple_projection runs_duplicate1 >>.
+Defined.
+
+Lemma runs_proj_duplicate1_eq : forall max_step globals,
+  runs_duplicate1 (runs max_step globals) = runs_proj_duplicate1 max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_stripAttrib] **)
 
 Definition runs_proj_stripAttrib : ltac:(get_type_projection runs_stripAttrib).
-  compute_simple_projection runs_stripAttrib.
+  compute_simple_projection runs_stripAttrib >>.
 Defined.
 
 Lemma runs_proj_stripAttrib_eq : forall max_step globals,
@@ -147,20 +171,40 @@ Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_evalseq] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_evalseq : ltac:(get_type_projection runs_evalseq).
+  compute_simple_projection runs_evalseq >>.
+Defined.
+
+Lemma runs_proj_evalseq_eq : forall max_step globals,
+  runs_evalseq (runs max_step globals) = runs_proj_evalseq max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_R_isMissing] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_R_isMissing : ltac:(get_type_projection runs_R_isMissing).
+  compute_simple_projection runs_R_isMissing >>.
+Defined.
+
+(*
+Lemma runs_proj_R_isMissing_eq : forall max_step globals,
+  runs_R_isMissing (runs max_step globals) = runs_proj_R_isMissing max_step globals.
+Proof. solve_eq_simple_projection. (* FIXME: Stack overflow *) Qed.
+ *)
 
 (** ** [runs_AnswerType] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_AnswerType : ltac:(get_type_projection runs_AnswerType).
+  compute_simple_projection runs_AnswerType >>.
+Defined.
+
+Lemma runs_proj_AnswerType_eq : forall max_step globals,
+  runs_AnswerType (runs max_step globals) = runs_proj_AnswerType max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_ListAnswer] **)
 
 Definition runs_proj_ListAnswer : ltac:(get_type_projection runs_ListAnswer).
-  compute_simple_projection runs_ListAnswer.
+  compute_simple_projection runs_ListAnswer >>.
 Defined.
 
 Lemma runs_proj_ListAnswer_eq : forall max_step globals,
@@ -169,12 +213,18 @@ Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_StringAnswer] **)
 
-(** Unfortunately, this cases uses other functions, making it difficult to produce such a definition. **)
+Definition runs_proj_StringAnswer : ltac:(get_type_projection runs_StringAnswer).
+  compute_simple_projection runs_StringAnswer >>.
+Defined.
+
+Lemma runs_proj_StringAnswer_eq : forall max_step globals,
+  runs_StringAnswer (runs max_step globals) = runs_proj_StringAnswer max_step globals.
+Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_LogicalAnswer] **)
 
 Definition runs_proj_LogicalAnswer : ltac:(get_type_projection runs_LogicalAnswer).
-  compute_simple_projection runs_LogicalAnswer.
+  compute_simple_projection runs_LogicalAnswer >>.
 Defined.
 
 Lemma runs_proj_LogicalAnswer_eq : forall max_step globals,
@@ -184,7 +234,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_IntegerAnswer] **)
 
 Definition runs_proj_IntegerAnswer : ltac:(get_type_projection runs_IntegerAnswer).
-  compute_simple_projection runs_IntegerAnswer.
+  compute_simple_projection runs_IntegerAnswer >>.
 Defined.
 
 Lemma runs_proj_IntegerAnswer_eq : forall max_step globals,
@@ -194,7 +244,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_RealAnswer] **)
 
 Definition runs_proj_RealAnswer : ltac:(get_type_projection runs_RealAnswer).
-  compute_simple_projection runs_RealAnswer.
+  compute_simple_projection runs_RealAnswer >>.
 Defined.
 
 Lemma runs_proj_RealAnswer_eq : forall max_step globals,
@@ -204,7 +254,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_ComplexAnswer] **)
 
 Definition runs_proj_ComplexAnswer : ltac:(get_type_projection runs_ComplexAnswer).
-  compute_simple_projection runs_ComplexAnswer.
+  compute_simple_projection runs_ComplexAnswer >>.
 Defined.
 
 Lemma runs_proj_ComplexAnswer_eq : forall max_step globals,
@@ -214,7 +264,7 @@ Proof. solve_eq_simple_projection. Qed.
 (** ** [runs_RawAnswer] **)
 
 Definition runs_proj_RawAnswer : ltac:(get_type_projection runs_RawAnswer).
-  compute_simple_projection runs_RawAnswer.
+  compute_simple_projection runs_RawAnswer >>.
 Defined.
 
 Lemma runs_proj_RawAnswer_eq : forall max_step globals,
@@ -223,11 +273,86 @@ Proof. solve_eq_simple_projection. Qed.
 
 (** ** [runs_R_FunTab] **)
 
-Definition runs_proj_R_FunTab : ltac:(get_type_projection runs_R_FunTab).
-  compute_simple_projection runs_R_FunTab.
-Defined.
+(** Not yet applicable **)
 
-Lemma runs_proj_R_FunTab_eq : forall max_step globals,
-  runs_R_FunTab (runs max_step globals) = runs_proj_R_FunTab max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+
+(** * [runs] is constant with enough fuel **)
+
+(** If runs returns a result, then adding fuel does not change it. **)
+
+(** ** [runs_while_loop] **)
+
+Lemma runs_while_loop_fuel_conserve : forall A globals n n' S (a : A) expr body,
+    n <= n' ->
+    ~ bottom_result (runs_while_loop (runs n globals) S a expr body) ->
+    runs_while_loop (runs n' globals) S a expr body = runs_while_loop (runs n globals) S a expr body.
+Proof.
+  introv I B. repeat rewrite runs_proj_while_loop_eq in *. gen n' S a expr body. induction n; introv I B.
+  - false~ B.
+  - destruct n'; try solve [ math ]. simpls.
+    destruct expr; simpls~; tryfalse~. cases_if~.
+    destruct body; simpls~; tryfalse~. rewrite~ IHn. math.
+Qed.
+
+(** ** [runs_set_longjump] **)
+
+Lemma runs_set_longjump_fuel_conserve : forall A globals n n' S c m cont,
+    n <= n' ->
+    ~ bottom_result (runs_set_longjump (runs n globals) S c m cont : result A) ->
+    runs_set_longjump (runs n' globals) S c m cont = runs_set_longjump (runs n globals) S c m cont.
+Proof.
+  introv I B. repeat rewrite runs_proj_set_longjump_eq in *. gen n' S c m cont. induction n; introv I B.
+  - false~ B.
+  - destruct n'; try solve [ math ]. simpls.
+    destruct cont; simpls~; tryfalse~. cases_if~. rewrite~ IHn. math.
+Qed.
+
+(** ** [runs_R_cycle_detected] **)
+
+Lemma runs_R_cycle_detected_fuel_conserve : forall globals n n' S s child,
+    n <= n' ->
+    ~ bottom_result (runs_R_cycle_detected (runs n globals) S s child) ->
+    runs_R_cycle_detected (runs n' globals) S s child = runs_R_cycle_detected (runs n globals) S s child.
+Proof.
+  introv I B. repeat rewrite runs_proj_R_cycle_detected_eq in *. gen n' S s child. induction n; introv I B.
+  - false~ B.
+  - destruct n'; try solve [ math ]. simpls.
+    destruct TYPEOF; simpls~; tryfalse~. cases_if~.
+    destruct read_SExp; simpls~; tryfalse~. cases_if~.
+    + rewrite~ IHn.
+Admitted. (** FIXME: This must be automable… **)
+
+(** ** [runs_eval] **)
+
+(** ** [runs_getAttrib] **)
+
+(** ** [runs_setAttrib] **)
+
+(** ** [runs_duplicate1] **)
+
+(** ** [runs_stripAttrib] **)
+
+(** ** [runs_evalseq] **)
+
+(** ** [runs_R_isMissing] **)
+
+(** ** [runs_AnswerType] **)
+
+(** ** [runs_ListAnswer] **)
+
+(** ** [runs_StringAnswer] **)
+
+(** ** [runs_LogicalAnswer] **)
+
+(** ** [runs_IntegerAnswer] **)
+
+(** ** [runs_RealAnswer] **)
+
+(** ** [runs_ComplexAnswer] **)
+
+(** ** [runs_RawAnswer] **)
+
+(** ** [runs_R_FunTab] **)
+
+(** Not yet applicable **)
 
