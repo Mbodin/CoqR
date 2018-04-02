@@ -1,7 +1,7 @@
 (** Rfeatures.
   A Coq formalisation of additionnal functions of R from its C code. **)
 
-(* Copyright © 2018 Martin Bodin
+(* Copyright © 2018 Martin Bodin, Tomás Díaz
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -2940,6 +2940,89 @@ Definition do_subset S (call op args rho : SEXP) : result SEXP :=
     result_success S ans
   else do_subset_dflt S call op ans rho.
 
+Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
+  add%stack "R_subset3_dflt" in
+    let%success input_translate := translateChar S input using S in
+    let slen := String.length input_translate in
+    let%success x_s4 := IS_S4_OBJECT S x using S in
+    let%success x_type := TYPEOF S x using S in
+    let%success x :=
+       ifb x_s4 /\ x_type = S4Sxp then
+         let%success x := result_not_implemented "R_getS4DataSlot" : result SEXP using S in
+         ifb x = R_NilValue then result_error S "$ operator not defined for this S4 class."
+         else result_success S x
+       else result_success S x
+    using S in
+if%success isPairList S x using S then
+    fold%return (xmatch, havematch) := (R_NilValue : SEXP, 0) along x as y, _, y_list do
+        let y_tag := list_tagval y_list in
+        let y_car := list_carval y_list in
+        
+            let%success pstr := pstrmatch S y_tag input slen using S in
+                match pstr with
+                | EXACT_MATCH => let y := y_car in
+                                let%success x_named := NAMED S x using S in
+                                run%success RAISE_NAMED S y x_named using S in
+                                    result_rreturn S y
+                | PARTIAL_MATCH => result_rsuccess S (y, 1 + havematch)
+                | NO_MATCH => result_rsuccess S (xmatch, havematch)
+end
+using S, runs, globals in
+ifb havematch = 1 then
+(* A warning has been formalised out here. *)
+read%list xmatch_car, _, _ := xmatch using S in
+let y := xmatch_car in
+let%success x_named := NAMED S x using S in
+run%success RAISE_NAMED S y x_named using S in
+result_success S y
+else
+  result_success S (R_NilValue : SEXP)
+                 else result_not_implemented "from VectorList".
+
+(* We choose not to formalise the last argument [syminp] in the following function. *)
+Definition fixSubset3Args S (call args env : SEXP) :=
+  add%stack "fixSubset3args" in
+    let%success input := allocVector globals S StrSxp 1 using S in
+    read%list _, args_cdr, _ := args using S in
+read%list args_cdr_car, _, _ := args_cdr using S in
+let nlist := args_cdr_car in
+let%success nlist_type := TYPEOF S nlist using S in
+let%success nlist := ifb nlist_type = PromSxp then eval globals runs S nlist env
+else result_success S nlist using S in
+run%success if%success isSymbol S nlist using S then
+              let%success nlist_name := PRINTNAME S nlist using S in
+              SET_STRING_ELT S input 0 nlist_name
+            else if%success isString S nlist using S then
+                   let%success nlist0 := STRING_ELT S nlist 0 using S in
+                   SET_STRING_ELT S input 0 nlist0
+                 else result_error S "invalid subscript"
+                                   using S in
+let%success args := shallow_duplicate globals runs S args using S in
+read%list _, args_cdr, _ := args using S in
+set%car args_cdr := input using S in
+result_success S args.
+
+
+Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_subset3" in
+  run%success Rf_checkArityCall S op args call using S in
+let%success args := fixSubset3Args S call args env using S in
+let%success (disp, ans) := R_DispatchOrEvalSP S call op "$" args env using S in
+if disp then
+  run%success
+     let%success ans_named := NAMED S ans using S in
+     ifb ans_named <> named_temporary then
+    map%pointer ans with set_named_plural using S in
+       result_skip S
+    else result_skip S using S in
+       result_success S ans
+else
+  read%list ans_car, _, _ := ans using S in
+read%list _, args_cdr, _ := args using S in
+read%list args_cdr_car, _, _ := args_cdr using S in
+let%success args_cdr_car_0 := STRING_ELT S args_cdr_car 0 using S in
+let%success ans := R_subset3_dflt S ans_car  args_cdr_car_0 call using S in
+result_success S ans.
 
 (** ** relop.c **)
 
@@ -3547,7 +3630,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "[" do_subset (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "[[" (dummy_function "do_subset2") (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
-              rdecl "$" (dummy_function "do_subset3") (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
+              rdecl "$" do_subset3 (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "@" (dummy_function "do_AT") (0)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "[<-" (dummy_function "do_subassign") (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "[[<-" (dummy_function "do_subassign2") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
@@ -4347,4 +4430,3 @@ Fixpoint runs max_step globals : runs_type :=
         end
     |}
   end.
-
