@@ -1109,6 +1109,55 @@ Proof.
     applys~ conserve_old_binding_may_have_types C. applys~ R_NilValue_may_have_types.
 Qed.
 
+Lemma may_have_types_same_memory : forall S1 S2 l p,
+  state_memory S1 = state_memory S2 ->
+  may_have_types S1 l p ->
+  may_have_types S2 l p.
+Proof. introv E (p_&E'&B). exists p_. rewrite~ <- E. Qed.
+
+Lemma list_type_same_memory : forall S1 S2 l_t l_car l_tag p,
+  state_memory S1 = state_memory S2 ->
+  list_type S1 l_t l_car l_tag p ->
+  list_type S2 l_t l_car l_tag p.
+Proof.
+  introv E L. induction L using list_type_ind.
+  - applys list_type_nil. applys~ may_have_types_same_memory E.
+  - applys list_type_cons. rewrite E in *. eexists. splits*. do 4 eexists.
+    splits*; applys~ may_have_types_same_memory E.
+Qed.
+
+Lemma safe_pointer_same_memory : forall S1 S2 p,
+  state_memory S1 = state_memory S2 ->
+  safe_pointer S1 p ->
+  safe_pointer S2 p.
+Proof.
+  pcofix R. introv E OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
+  - (** pointer_bound **)
+    forwards (p_&Ep_&?): pointer_bound OKp. exists p_. rewrite~ E in Ep_.
+  - (** no_null_pointer_along_path_step **)
+    introv NE Ep'. applys no_null_pointer_along_path_step OKp NE.
+    rewrite move_along_path_step_same_memory with (S2 := S2); autos~.
+  - (** safe_pointer_along_path_step **)
+    introv Ee D. rewrite <- move_along_path_step_same_memory with (S1 := S1) in Ee; autos~.
+    forwards OKe: safe_pointer_along_path_step OKp Ee D.
+    right. applys~ R OKe.
+  - (** safe_SExpRec_read **)
+    introv Ep. rewrite <- E in Ep. constructors.
+    + (** SExpType_corresponds_to_datatype **)
+      forwards* OKp_: SExpType_corresponds_to_datatype OKp.
+      inversion OKp_; constructors; try solve [ applys~ may_have_types_same_memory E ].
+      * applys~ list_type_same_memory E.
+      * introv M. applys* may_have_types_same_memory E.
+      * introv M. applys* may_have_types_same_memory E.
+      * introv M. applys* may_have_types_same_memory E.
+    + (** SExpRec_header **)
+      constructors.
+      * (** safe_attrib **)
+        forwards*: safe_attrib OKp.
+      * (** attrib_list **)
+        forwards* L: attrib_list OKp. applys~ list_type_same_memory L.
+Qed.
+
 
 (** * General tactics **)
 

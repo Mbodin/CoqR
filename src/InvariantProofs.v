@@ -21,13 +21,34 @@
 Require Import Rcore RfeaturesAux Rinit.
 Require Export Invariants.
 
+
+(** * Lemmae about Rcore.v **)
+
+(** * Lemmae about Rfeatures.v **)
+
 (** * Lemmae about Rinit.v **)
 
-(* TODO *)
+Lemma InitConnections_safe : forall S,
+  safe_state S ->
+  safe_state (InitConnections S).
+Proof.
+  introv OKS. unfold InitConnections.
+  destruct S. unfolds update_R_Connections. unfolds update_R_OutputCon. simpl. constructors.
+  - (** no_null_pointer_entry_point **)
+    introv NE E. applys~ no_null_pointer_entry_point OKS NE.
+    destruct~ e. rewrite <- E. simpl. fequals. applys~ move_along_context_path_same_contexts.
+  - (** safe_entry_points **)
+    introv E NN. forwards OKp: safe_entry_points OKS e NN.
+    + destruct~ e. simpls. erewrite move_along_context_path_same_contexts; [ apply E | .. ]; reflexivity.
+    + applys~ safe_pointer_same_memory OKp.
+  - (** only_one_nil **)
+    introv M1 M2. applys only_one_nil OKS; apply* may_have_types_same_memory.
+Qed.
+
 
 (* I think that it would be easy to use tactics to check that [setup_Rmainloop]
   is indeed of the form [result_success S globals] or something like that. *)
 
-(** It would be nice to prove that the read-eval-print-loop can not
-  return a [result_impossible]. **)
+(* It would be nice to prove that the read-eval-print-loop can not
+  return a [result_impossible]. *)
 

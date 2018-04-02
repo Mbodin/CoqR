@@ -30,7 +30,7 @@ Here are some examples of such situations:
  - For efficiency reasons—runR.native being already quite slow—, we uses OCaml’s integers and floats
    when possible.  These data structures are of different size than the typical size chosen by C compilers.
    In consequence, there are situations where our tool returns a result with a different precision than R.
-   This can have some consequences as it can trigger checks for the production of =NA=s in some parts of R.
+   This can have some consequences as it can trigger checks for the production of =NA= in some parts of R.
    Note however that this family of difference of behaviours depends on the size of integers and floats
    used by the C source code of R.  In C, most of these are unspecified: if the difference appears between
    different compilations of the same source code of R by different compilers, we do not consider that not

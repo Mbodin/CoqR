@@ -133,6 +133,11 @@ A faster-to-load version is available with the following invocation.
     make run
 #+END_SRC
 
+The first =make= command also created a =html/= folder,
+with a more readable version of the files and their documentations
+(taste may vary).
+See for instance the table of contents in =html/toc.html=.
+
 
 * Files Description
 
