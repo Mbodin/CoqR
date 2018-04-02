@@ -6,15 +6,15 @@ A Coq formalisation of the R programming language
 This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
 It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
-  - the code is as close as possible from a reference specification
-    (in this case, the source of [[https://www.r-project.org/][GNU R]]).
-    The formalisation has been written in a monadic form,
-    which enables a line-to-line correspondance with the original source.
-    We believe that anyone can check the code similarity after a short training period.
-  - the formalisation is runnable, and can be run against test suites.
-    We tested it against [[https://www.r-project.org/][GNU R]] in random tests
-    (see the =gen/= folder), custom tests (see the =tests/= folder),
-    as well as other test suites for R (see the =compare/CoqR-Tester/RTests/= folder).
+ - the code is as close as possible from a reference specification
+   (in this case, the source of [[https://www.r-project.org/][GNU R]]).
+   The formalisation has been written in a monadic form,
+   which enables a line-to-line correspondance with the original source.
+   We believe that anyone can check the code similarity after a short training period.
+ - the formalisation is runnable, and can be run against test suites.
+   We tested it against [[https://www.r-project.org/][GNU R]] in random tests
+   (see the =gen/= folder), custom tests (see the =tests/= folder),
+   as well as other test suites for R (see the =compare/CoqR-Tester/RTests/= folder).
 
 The goal of this project is to provide a strong basis for anyone wanting to
 certify in Coq a higher-level formalisation of R, as well as code analyses, etc.
@@ -39,10 +39,15 @@ But this means that if you are using this repository several years in the future
 there might be differences that were not present at the writing time.
 Most of the project is based on the versions 3.4.2, 3.4.3, and 3.4.4 of R.
 
-More information can be found in the [[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
+More information can be found in the
+[[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
     A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018.
 
-The files of interest are currently mainly =src/Rinternals.v=, =src/Rcore.v=, and =src/Rfeatures.v=.
+Here follows a quick description of the main files of interest:
+ - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
+ - =src/Rcore.v= contains translations of the main functions of R;
+ - =src/Rfeatures.v= contains translations of additional functions of R (typically present
+   in the default heap).
 
 
 * Building the Project
@@ -194,6 +199,12 @@ Initialises global variables.
 A Coq formalisation of additionnal functions of R from its C code.
 This file also contains the final interpreter.
 
+*** =RfeaturesAux.v=
+
+Contains useful lemmae about =runs=.
+
+This file may take some time to compile.
+
 *** =Rparsing.v=
 
 This file formalises functions for parsing R expressions.
@@ -276,4 +287,7 @@ The files in the =src/= folder are under the GPL license version 2.
 See the file =COPYING= for more informations.
 As this license is the same than R’s license, as well as most programs about R,
 it seemed the best to help development.
+If you want to contribute to this project, consider the file reading
+=CODE_OF_CONDUCT.org=.  Some suggestions for future directions can be found in
+the file =CONTRIBUTING.org=.
 

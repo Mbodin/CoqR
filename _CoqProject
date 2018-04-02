@@ -26,6 +26,7 @@
 ./src/Rparsing.v
 ./src/Extraction.v
 
+./src/RfeaturesAux.v
 ./src/MonadTactics.v
 ./src/Path.v
 ./src/Invariants.v

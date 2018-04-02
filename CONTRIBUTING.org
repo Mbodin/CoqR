@@ -1,0 +1,140 @@
+* How to contribute
+
+First of all, thank you for reading this and considering contributing to this project.
+We believe that this project can be useful to strongly ensure properties about R
+programs or R models using the Coq proof assistant.
+Any contribution going into this direction would thus be an interesting step.
+
+This project is open source, and you are very welcomed if you want to extend it in
+any way.
+Here follows a non-extensive list of possible directions for contributions.
+
+** Reporting bugs
+
+*** Difference of behaviours
+
+This project aims to mimic R’s behaviour.
+As such, we consider that any difference in behaviour between this tool and R consists in a bug.
+However, here some of these differences may actually have a particular status.
+Here are some examples of such situations:
+ - R consists of C code, but also R libraries that are loaded before any user code is run.
+   Currently, our interpreter does not load these libraries.  This can lead to a lot of non-found
+   functions or environments that should be locked but are not.  These are not bugs, but a missing
+   feature (loading R’s libraries).
+ - The runR.native interpreter accepts additional run-time commands prefixed by a =#=:
+   these are considered to be comments by R, but special commands by this tool.
+ - We did not properly model R’s memory on purpose.
+   In particular, there are no garbage collection, nor limitations on the size of vectors in our tool.
+   It is thus probable that there are situations where our tool runs out of memory whilst R is fine.
+   It is also possible that our tool accept to allocate a vector whilst R doesn’t.
+ - For efficiency reasons—runR.native being already quite slow—, we uses OCaml’s integers and floats
+   when possible.  These data structures are of different size than the typical size chosen by C compilers.
+   In consequence, there are situations where our tool returns a result with a different precision than R.
+   This can have some consequences as it can trigger checks for the production of =NA=s in some parts of R.
+   Note however that this family of difference of behaviours depends on the size of integers and floats
+   used by the C source code of R.  In C, most of these are unspecified: if the difference appears between
+   different compilations of the same source code of R by different compilers, we do not consider that not
+   fulfilling this behaviour is a bug (what reference compiler should we even choose as reference for this?).
+ - The OCaml front-end can print objects in a different way than R.  We tried to avoid these situations in
+   common R programs, but we know it happens in some tests.  We do not consider these differences as bugs.
+   If you want to correct the front-end for such a situation, you are very welcomed.
+ - Not implemented features are not bugs, but only missing features.
+ - Error messages are not meant to mimic R’s: we consider that errors do not need to convey the exact
+   same message than R.
+ - We took some liberties about some features.  For instance, we did not model hash in environments:
+   environments are thus always considered to be without hash in this formalisation.
+   Warnings have also not been formalised.  We either ignored them in the formalisation process, or
+   replaced them by errors when this warning is planned to be replaced by an error in future versions
+   of R.  We however leaved a comment in the corresponding place of the source code to signal it.
+This repository contains a template for filling issues of this particular kind.
+
+*** “Impossible” results
+
+Whenever the original source code of R uses some assumptions
+(for instance that a particular pointer is non-NULL),
+we translated it in Coq with a runtime check.
+If this check failed, we return the special result =result_impossible=.
+Such result should never happen, and any such result is considered as being a bug.
+However, it is possible to alter the environment using special commands that may
+break invariants.
+For instance, the following result is not a bug, but a misuse of the =#execute= command.
+#+BEGIN_SRC R
+> #execute eval NULL NULL
+Impossible! Please report. Undefined result. (Execution stack: eval, TYPEOF, if_defined (read%defined))
+An error lead to an undefined result.
+#+END_SRC
+
+
+** Extend the project
+
+*** New features
+
+R possesses a lot of features, and we could not formalise them all.
+In particular, most of the functions defined in the last array of =src/Rfeatures.v=
+are not implemented.
+Other notions are also not implemented in =src/Rcore.v=, such as the =ALTREP=
+representation.  In the case of =ALTREP=, it is currently in fast development in
+R source code, and is thus not ready for formalisation.
+However, we will welcome any implementation of any of these features.
+Here are some guidelines:
+ - =src/Rfeatures.v= is reserved for features defined in the array at the end of
+   the document, as well as the functions closely related to them.
+   On the other hand =src/Rcore.v= is reserved for C functions needed by a large
+   number of functions from the source code of R, typically all those needed to
+   actually reach the place where the end of the file =src/Rfeatures.v= is executed.
+   Inside each of these two files, function definitions are grouped by the C file
+   from which it was originally defined.  If you chose not to respect the current
+   order, please leave a comment to explain your choice (a typical reason is due
+   to circular function dependencies).
+ - The Coq definitions and the C definitions from R are closely related: each line
+   of Coq corresponds to a particular line in C and vice versa, with relatively
+   small differences.  If you do not follow this correspondence, please leave a
+   comment to explain your choice.
+
+*** New Proofs
+
+There are currently comparatively very few proofs in this repository.
+Due to its high level of precision, it is indeed very difficult to prove
+complex properties about R functions.
+We tried to provide useful tactics to this end, but these could probably be
+made much better (for instance by porting them to LTac2 or MTac).
+Any contribution using these tactics or enhancing them would be very
+interesting.
+
+
+** Link this project to other projects
+
+*** Link to C formalisations
+
+This project is a shallow embedding of the C source code of R.
+Currently, there are two links between R and this project:
+ - both are executable and their outputs have been compared on testsuites.
+ - their source code follow a line-to-line correspondence.
+However, there may still be a human mistake between these two programs,
+and such a mistake can be damageable for any proof relying on this formalisation.
+
+An interesting direction would thus be to formally prove that these formalisation
+closely follows the behaviour of the original C source code using a formalisation
+of the C language, such as CompCert or Formaline.
+There will be challenges in such a directions:
+ - There are differences between the two, typically garbage collection.
+   These differences usually do not change the final behaviour of the program
+   (see the beginning of this file), but can make the proof more complex.
+ - R source code is moving fast.  This pauses the questions of making robust
+   proofs in Coq.
+ - Both programs are large objects, making the proof very large as well.
+
+
+*** Link to R formalisations
+
+As said above, using this formalisation to certify the behaviour of a given
+program is quite complex due to the size of this formalisation.
+Because of this, we think that it would actually not be worth doing so,
+but instead trying to provide an easier-to-use formalisation of a sublanguage
+of R, and then to relate it to this formalisation.
+There already exist such formalisations of sublanguages of R, or of interesting
+higher-level properties about R: an interesting endeavour would to formally
+link such formalisations to this project through a Coq proof.
+This would transfer all the trust that this formalisation provide to the
+higher-level formalisation, making possible the proof of real-world R programs.
+

@@ -68,6 +68,11 @@ Lemma may_have_types_bound : forall S p l,
   bound S p.
 Proof. introv. apply* bound_such_that_weaken. Qed.
 
+Lemma bound_may_have_types : forall S p,
+  bound S p ->
+  may_have_types S all_SExpTypes p.
+Proof. introv B. applys~ bound_such_that_weaken B. introv _. destruct type; Mem_solve. Qed.
+
 Lemma may_have_types_nil : forall S p,
   ~ may_have_types S nil p.
 Proof. introv (p_&E&M). applys~ BagInEmpty_list M. Qed.
@@ -1183,7 +1188,9 @@ Ltac compute_list_union l1 l2 :=
     end in
   add_to_the_end l1.
 
-(** The following tactic computes any occurence of [l1 \u l2] in the goal. **)
+(** The following tactic fully compute any occurence of [l1 \u l2],
+  with both [l1] and [l2] already fully computed, in the goal and
+  the context. **)
 Ltac simpl_list_union :=
   let solve_eq :=
     clear; simpl;
@@ -1240,17 +1247,26 @@ Ltac SExpType_fully_computed t :=
 
 (** *** Simplifying the context **)
 
+(** Fails if [x] and [y] are not syntactically the same. **)
 Ltac syntactically_the_same x y :=
   lazymatch x with
   | y => idtac
   end.
 
+(** Fails if [x] and [y] are syntactically the same. **)
 Ltac syntactically_different x y :=
   lazymatch x with
   | y => fail
   | _ => idtac
   end.
 
+(** Simplifies the contact. In particular:
+  - it merges different instances of [may_have_types] and [list_type] abo9ut the same pointer
+    into the same predicate;
+  - it folds some definitions that may have been unfolded by other tactics;
+  - it unfolds some definitions that are more useful unfolded;
+  - it simplifies lists such as [l1 \u l2] and [l1 \n l2], fully computing them.
+  Note that a more powerful version [simplify_context] of this tactic is defined in a section below. **)
 Ltac simplify_context_base :=
   repeat match goal with
   | T : may_have_types ?S nil ?p |- _ =>
@@ -1265,12 +1281,27 @@ Ltac simplify_context_base :=
     let T3 := fresh2 T1 T2 in
     forwards T3: list_type_merge (rm T1) (rm T2);
     rename T3 into T1
+  | T1 : list_type_such_that ?Pheader ?Pcar ?Ptag ?S ?l1_t ?l1_car ?l1_tag ?p,
+    T2 : list_type_such_that ?Pheader ?Pcar ?Ptag ?S ?l2_t ?l2_car ?l2_tag ?p |- _ =>
+    let T3 := fresh2 T1 T2 in
+    forwards T3: list_type_merge (rm T1) (rm T2);
+    rename T3 into T1
+  | E : ?p1 = ?p2 |- _ =>
+    lazymatch p1 with
+    | _ _ => fail
+    | _ =>
+      lazymatch p2 with
+      | _ _ => fail
+      | _ => inverts E
+      end
+    end
   end;
   try fold (list_head_such_that (fun _ => True) (fun _ => True)) in *;
   try fold list_head_such_that in *;
   try fold list_head in *;
   try fold list_type in *;
   try unfolds all_storable_SExpTypes;
+  try unfolds all_SExpTypes;
   repeat match goal with
   | |- context [ list_type_such_that (safe_header safe_pointer ?S) (safe_pointer ?S) (safe_pointer ?S) ?S ] =>
     fold (list_type_safe S)
@@ -1289,14 +1320,16 @@ Ltac simplify_context_base :=
 
 (** As this file defines a lot of tactics defining new names, it is
   best to avoid explicitely having to use these new hypotheses by
-  their names.  The following tactic tries to automatically rewrites
-  what it can. **)
+  their names.  The following tactics try to automatically rewrite
+  what they can. **)
 
+(** Apply any rewriting it can. **)
 Ltac self_rewrite :=
   repeat match goal with
   | H : _ = _ |- _ => rewrite~ H
   end.
 
+(** Apply any rewriting to a given hypothesis it can. **)
 Ltac self_rewrite_in P :=
   repeat match goal with
   | H : _ = _ |- _ =>
@@ -1304,11 +1337,13 @@ Ltac self_rewrite_in P :=
     rewrite~ H in P
   end.
 
+(** Only rewrite using hypothesis referencing a given [x]. **)
 Ltac self_rewrite_about x :=
   repeat match goal with
   | H : context [ x ] |- _ => rewrite~ H
   end.
 
+(** Same than above, but in a given hypothesis. **)
 Ltac self_rewrite_about_in x P :=
   repeat match goal with
   | H : context [ x ] |- _ =>
@@ -1361,46 +1396,64 @@ Ltac remove_all_already_seen :=
 
 (** *** Case analysis on lists **)
 
+(** Given an hypothesis [T] stating that an element is present in a list,
+  it explodes the goal in as many subgoal as needed, each of them only
+  considering only one element of the list.
+  For instance [x \in [a ; b]] is replaced by two goals, one with [x = a]
+  and the other with [x = b].
+  It supports various ways to state that an element is in a list. **)
 Ltac explode_list T :=
   lazymatch type of T with
   | ?x \in nil =>
-    false; applys~ BagInEmpty_list T
+    false~ BagInEmpty_list T
   | ?x \in [?y] =>
     let T' := fresh1 T in
-    asserts T': (x = y); [eapply BagInSingle_list; apply T|];
+    asserts T': (x = y); [ eapply BagInSingle_list; apply T |];
     clear T; rename T' into T
   | ?x \in (?y :: ?l) =>
     apply BagIn_cons in T;
     let T' := fresh1 T in
-    lets [T'|T']: (rm T); rename T' into T;
-    [|explode_list T]
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
   | may_have_types ?S nil ?x =>
-    false; applys~ may_have_types_nil T
+    false~ may_have_types_nil T
   | may_have_types ?S (?t :: ?l) ?x =>
     apply may_have_types_cons in T;
     let T' := fresh1 T in
-    lets [T'|T']: (rm T); rename T' into T;
-    [|explode_list T]
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
   | Mem ?x nil =>
     rewrite Mem_nil_eq in T; false~ T
   | Mem ?x (?y :: ?l) =>
     rewrite Mem_cons_eq in T;
     let T' := fresh1 T in
-    lets [T'|T']: (rm T); rename T' into T;
-    [|explode_list T]
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
   | mem ?x nil =>
     rewrite mem_nil in T; false~ T
   | mem ?x (?y :: ?l) =>
     rewrite mem_cons in T;
     rew_refl in T;
     let T' := fresh1 T in
-    lets [T'|T']: (rm T); rename T' into T;
-    [|explode_list T]
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
+  | In ?x nil =>
+    false~ in_nil T
+  | In ?x (?y :: ?l) =>
+    let T' := fresh1 T in
+    lets [T'|T']: in_inv (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
   end.
 
 
 (** *** Clearing trivial hypotheses **)
 
+(** This tactic removes useless hypotheses. **)
 Ltac clear_trivial :=
   repeat lazymatch goal with
   | T : True |- _ => clear T
@@ -1463,6 +1516,10 @@ Ltac look_for_equality_term p term cont :=
 
 (** ** Getting some properties **)
 
+(** Each of the following [get_property arguments continuation] tactic will try to build
+  a property of the form [property arguments], then call the continuation with it.
+  These tactics will try not to rebuilt it if already built. **)
+
 (** *** [safe_globals] **)
 
 Ltac get_safe_globals S globals cont :=
@@ -1472,36 +1529,44 @@ Ltac get_safe_globals S globals cont :=
 
 (** *** [list_type] **)
 
+(** There are several variants of [list_type] defined in this file.
+  These tactics will look for one of them. **)
+
 Ltac get_list_type S p cont :=
-  lazymatch goal with
-  | L : list_type S _ _ _ p |- _ => cont L
-  | L : list_type_such_that _ _ _ S _ _ _ p |- _ => cont L
+  match goal with
   | L : list_type_safe S _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ S _ _ _ p |- _ => cont L
+  | L : list_type S _ _ _ p |- _ => cont L
   end.
 
 Ltac get_list_type_no_S p cont :=
-  lazymatch goal with
-  | L : list_type _ _ _ _ p |- _ => cont L
-  | L : list_type_such_that _ _ _ _ _ _ _ p |- _ => cont L
+  match goal with
   | L : list_type_safe _ _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ _ _ _ _ p |- _ => cont L
+  | L : list_type _ _ _ _ p |- _ => cont L
   end.
 
 Ltac get_list_head S p_ cont :=
-  lazymatch goal with
-  | L : list_head S _ _ _ p_ |- _ => cont L
-  | L : list_head_such_that _ _ _ S _ _ _ p_ |- _ => cont L
+  match goal with
   | L : list_head_safe S _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ S _ _ _ p_ |- _ => cont L
+  | L : list_head S _ _ _ p_ |- _ => cont L
   end.
 
 Ltac get_list_head_no_S p_ cont :=
-  lazymatch goal with
-  | L : list_head _ _ _ _ p_ |- _ => cont L
-  | L : list_head_such_that _ _ _ _ _ _ _ p_ |- _ => cont L
+  match goal with
   | L : list_head_safe _ _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ _ _ _ _ p_ |- _ => cont L
+  | L : list_head _ _ _ _ p_ |- _ => cont L
   end.
 
 
 (** *** [may_have_types] **)
+
+(** These tactics will try to build a property of the form [may_have_types S l p]
+  for a given [p].
+  The list [l] will either already have been computed by a previously called tactic,
+  or will be inferred from what the goal can offer. **)
 
 Ltac get_may_have_types S p cont :=
   match goal with
@@ -1559,6 +1624,19 @@ Ltac get_may_have_types S p cont :=
         forwards T: R_NilValue_may_have_types OKg; [idtac];
         cont T)
     end
+  | _ =>
+    (** This case uses [bound_may_have_types], which produces an imprecise result.
+      It thus important for it to always be the last resort case. **)
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    lazymatch goal with
+    | B : bound S p |- _ =>
+      forwards M: bound_may_have_types (rm B);
+      cont M
+    | B : bound_such_that S _ p |- _ =>
+      forwards M: bound_may_have_types (rm B);
+      [ applys~ bound_such_that_weaken B | cont M ]
+    end
   end.
 
 Ltac get_may_have_types_no_S p cont :=
@@ -1598,6 +1676,19 @@ Ltac get_may_have_types_no_S p cont :=
       forwards~ T: R_NilValue_may_have_types; [idtac];
       cont T
     end
+  | _ =>
+    (** This case uses [bound_may_have_types], which produces an imprecise result.
+      It thus important for it to always be the last resort case. **)
+    let p' := fresh1 p in
+    let M := fresh "M" p' in
+    lazymatch goal with
+    | B : bound _ p |- _ =>
+      forwards M: bound_may_have_types (rm B);
+      cont M
+    | B : bound_such_that _ _ p |- _ =>
+      forwards M: bound_may_have_types (rm B);
+      [ applys~ bound_such_that_weaken B | cont M ]
+    end
   end.
 
 
@@ -1632,6 +1723,9 @@ Ltac get_safe_state S cont :=
 
 (** *** Basic tactics to disprove some simple null pointer exceptions **)
 
+(** Note that a more general tactic [prove_no_null_pointer_exceptions]
+  is defined in a section below. **)
+
 Ltac prove_no_null_pointer_exceptions_globals A :=
   solve [ inverts~ A ].
 
@@ -1648,7 +1742,9 @@ Ltac prove_no_null_pointer_exceptions_path_suffix_simple A :=
 (** *** A basic tactic to prove [safe_pointer] **)
 
 (** This tactic tries to prove [safe_pointer], without attempting anything
-  that may loop if not handled properly. **)
+  that may loop if not handled properly.
+  Note that a more general tactic [get_safe_pointer] is defined in a section
+  below. **)
 
 Ltac get_safe_pointer_base S p cont :=
   match goal with
@@ -1870,6 +1966,13 @@ Ltac get_move_along_path S p cont :=
 
 (** *** [safe_pointer] **)
 
+(** In addition to [get_safe_pointer_base], this tactic tries to look for
+  other pointers whose pointed object possesses fields that point to the
+  current object: thanks to the fact that pointer safety also applies to
+  the pointed pointers, we can get the safety of the new pointer using
+  such a link.
+  This tactic avoids looping. **)
+
 Ltac get_safe_pointer S p cont :=
   match goal with
   | _ => get_safe_pointer_base S p cont
@@ -1930,8 +2033,11 @@ Ltac get_safe_pointer_no_S p cont :=
 
 (** *** Getting object shapes **)
 
+(** Removes useless hypotheses of the form [type p_ = _] or [type p_ \in _].
+  This tactic may solve the goal if some of these hypotheses are inconsistant. **)
 Ltac clear_useless_type_eq :=
   repeat match goal with
+  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
   | T1 : type (get_SxpInfo ?p_) = ?t,
     T2 : type (get_SxpInfo ?p_) = ?t |- _ => clear T2
   | T1 : type (get_SxpInfo ?p_) = ?t1,
@@ -1944,9 +2050,8 @@ Ltac clear_useless_type_eq :=
     lazymatch isi with
     | true => clear T2
     | false =>
-      try solve [ false; repeat inverts T2 ]
+      try solve [ false; repeat inverts T2 as T2 ]
     end
-  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
   end.
 
 (** Generates an hypothesis of the form [type p_ = t] or [type p_ \in l]
@@ -1991,7 +2096,9 @@ Ltac force_unfold_shape explode S p_ :=
       invert_type OKp_')
   end.
 
-
+(** [unfold_shape true S p_] generates an equality of the form [p_ = SExpRec_* _],
+  generating as many subgoal as being needed. [unfold_shape false S p_] generates
+  such an equality only if it only generates one subgoal or less. **)
 Ltac unfold_shape explode S p_ :=
   lazymatch goal with
   | H : p_ = SExpRec_NonVector _ |- _ => idtac
@@ -2003,6 +2110,7 @@ Ltac unfold_shape explode S p_ :=
   | _ => force_unfold_shape explode S p_
   end.
 
+(** This tactic tries to make [read_SExp] expressions appear in the context. **)
 Ltac unfold_may_hide_read_SExp :=
   repeat match goal with
   | E : move_along_path_from ?l _ _ = _ |- _ =>
@@ -2014,6 +2122,8 @@ Ltac unfold_may_hide_read_SExp :=
     unfold move_along_path_step in E
   end.
 
+(** This tactic is very similar to [unfold_shape], but it takes a pointer [p]
+  instead of an object [p_]. **)
 Ltac unfold_shape_pointer explode S p :=
   match goal with
   | R : read_SExp (state_memory S) p = Some ?p_ |- _ =>
@@ -2035,8 +2145,10 @@ Ltac unfold_shape_pointer_one := unfold_shape_pointer false.
 
 (** *** Dealing with [read_SExp] **)
 
+(** This tactic tries to rewrite [read_SExp] expressions into an object using the context.
+  It can be called after [unfold_may_hide_read_SExp] to potentially rewrite more expressions. **)
 Ltac rewrite_read_SExp :=
-  match goal with
+  repeat match goal with
   | |- context [ read_SExp (state_memory ?S) ?e ] =>
     let bound_such_that_prop T :=
       let e' := fresh1 e in
@@ -2050,12 +2162,14 @@ Ltac rewrite_read_SExp :=
     | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
     | B : bound S e |- _ => bound_such_that_prop B
     | _ =>
-      get_may_have_types S e ltac:(bound_such_that_prop)
+      (get_may_have_types S e ltac:(bound_such_that_prop))
+      || rewrite read_SExp_NULL
     end;
     try unfold_shape_pointer false S e
   end; clear_trivial.
 
-(** Tries to prove a new equality of the form [write_SExp S p p_]. **)
+(** Tries to rewrite the expression [write_SExp S p p_] into something of the form
+  [Some ?S'] everywhere in the context. **)
 Ltac define_write_SExp S p p_ :=
   lazymatch goal with
   | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
@@ -2073,13 +2187,14 @@ Ltac define_write_SExp S p p_ :=
             rewrites >> write_read_SExp_None (rm ES') in E;
             inverts~ E
           end
-        | autos~; simpl; autos* ]
-    | try rewrite ES'; try assumption ]
+        | autos~; simpls* ]
+    | try rewrite ES' in *; try assumption ]
   end.
 
 
 (** ** Dealing with pointer exceptions **)
 
+(** Deals with goals of the form [~ no_null_pointer_exceptions_*]. **)
 Ltac prove_no_null_pointer_exceptions :=
   lazymatch goal with
   | |- ~ _ =>
@@ -2121,6 +2236,7 @@ Ltac prove_no_null_pointer_exceptions :=
 Lemma noteq_sym : forall A (x y : A), x <> y -> y <> x.
 Proof. autos*. Qed.
 
+(** Deals with goals of the form [p <> NULL]. **)
 Ltac prove_not_NULL :=
   let aux p :=
     match goal with
@@ -2180,6 +2296,7 @@ Ltac prove_Nth p l :=
     constr:(Nth_next x N)
   end.
 
+(** Deals with goals of the form [p1 <> p2], with [p1] and [p2] two [SEXP] pointers. **)
 Ltac prove_locations_different :=
   let aux p1 p2 :=
     match goal with
@@ -2261,15 +2378,17 @@ Ltac prove_locations_different :=
   end.
 
 
-(** We carry an hypothesis of the form [No_duplicates [p1; …; pn]]
-  aiming to differentiate as many pointers [SEXP] as possible. **)
+(** In order to differentiate as many pointers [SEXP] as possible,
+  the following tactics generate hypotheses of the form
+  [No_duplicates [p1; …; pn]]. **)
 
-Ltac add_in_No_duplicates p :=
-  (** First step: we add it in any hypothesis we can. **)
-  repeat match goal with
-  | D : No_duplicates ?l |- _ =>
+(** Given an hypothesis [D] of the form [No_duplicates l], this tactic
+  tries to replace it by an hypothesis of the form [No_duplicates (p :: l). **)
+Ltac add_in_No_duplicates_hypothesis D p :=
+  lazymatch type of D with
+  | No_duplicates ?l =>
     let already_in := compute_is_in p l in
-    match already_in with
+    lazymatch already_in with
     | false =>
       let D' := fresh D in
       forwards D': No_duplicates_cons p D;
@@ -2281,21 +2400,37 @@ Ltac add_in_No_duplicates p :=
           prove_locations_different)
       | clear D; rename D' into D ]
     end
+  end.
+
+(** This tactic tries to add [p] in as many [No_duplicates l] hypotheses as possible. **)
+Ltac add_in_No_duplicates p :=
+  (** First step: we add it in any hypothesis we can. **)
+  repeat match goal with
+  | D : No_duplicates _ |- _ =>
+    add_in_No_duplicates_hypothesis D p
   end;
-  (** Second step: we check that at least one hypothesis **)
+  (** Second step: we check that at least one hypothesis contains the pointer. **)
   match goal with
   | D : No_duplicates ?l |- _ =>
-    match l with
-    | context [p] =>
+    let already_in := compute_is_in p l in
+    lazymatch already_in with
+    | true =>
       (** There is at least one hypothesis about this location. **)
       idtac
     end
   | _ =>
-    (** There are no hypothesis about this location. **)
+    (** There are no hypothesis about this location: we create a new one, and tries to
+      add as many locations as possible to it. **)
     let D := fresh "D" in
-    forwards D: (No_duplicates_single p)
+    forwards D: (No_duplicates_single p);
+    repeat match goal with
+    | p' : SEXP |- _ =>
+      add_in_No_duplicates D p'
+    end
   end.
 
+(** This tactic tries to add hyptheses of the form [No_duplicates l] for all interesting
+  pointers in the context. **)
 Ltac prepare_No_duplicates_hypothesis :=
   let already_has p :=
     match goal with
@@ -2353,7 +2488,7 @@ Ltac prepare_No_duplicates_hypothesis :=
   updated to the new state. **)
 Ltac prepare_proofs_that_locations_are_different :=
   prepare_No_duplicates_hypothesis;
-  repeat progress match goal with
+  repeat match goal with
   | A : alloc_SExp ?S ?p_ = (?S', ?p) |- _ =>
     add_in_No_duplicates p
   end.
@@ -2361,6 +2496,9 @@ Ltac prepare_proofs_that_locations_are_different :=
 
 (** ** Applying the right lemma **)
 
+(** This tactic wraps up most of the tactic defined above in a single tactic.
+  Note that a more powerful version [solve_premises_smart] of this tactic is
+  defined in a section below. **)
 Ltac solve_premises_lemmae :=
   autos~;
   let deal_with_list_type S p :=
@@ -2431,8 +2569,22 @@ Ltac solve_premises_lemmae :=
 
 (** *** Simplifying the context **)
 
+(** Simplifies the context. In addition to [simplify_context_base], it also uses invariants
+  such as [safe_state S] to merge [NilSxp]-typed pointers. **)
 Ltac simplify_context :=
   repeat match goal with
+  | OKg : safe_globals ?S ?globals,
+    T : may_have_types ?S ([NilSxp]) ?p |- _ =>
+    lazymatch p with
+    | read_globals _ R_NilValue => fail
+    | _ =>
+      get_safe_state S ltac:(fun Safe =>
+        let Tnil := fresh "Tnil" in
+        forwards~ Tnil: R_NilValue_may_have_types OKg;
+        let E := fresh "E" in
+        forwards~ E: only_one_nil Safe T (rm Tnil);
+        try rewrite E in *; clear_trivial)
+    end
   | T1 : may_have_types ?S ([NilSxp]) ?p1,
     T2 : may_have_types ?S ([NilSxp]) ?p2 |- _ =>
     get_safe_state S ltac:(fun Safe =>
@@ -2451,12 +2603,35 @@ Ltac simplify_context :=
       asserts E_: (p1_ = p2_); [rewrite R1 in R2; inverts~ R2|];
       try rewrite E_ in *;
       clear_trivial)
+  | T1 : may_have_types ?S ([NilSxp]) ?p1,
+    R2 : read_SExp (state_memory ?S) ?p2 = Some ?p2_,
+    T2 : type (get_SxpInfo ?p2_) = NilSxp |- _ =>
+    get_safe_state S ltac:(fun Safe =>
+      let E := fresh "E" in
+      forwards~ E: only_one_nil Safe (rm T1);
+      try solve [ exists p2_; splits*; Mem_solve ];
+      try rewrite <- E in *; clear_trivial)
+  | OKg : safe_globals ?S ?globals,
+    R : read_SExp (state_memory ?S) ?p = Some ?p_,
+    T : type (get_SxpInfo ?p_) = NilSxp |- _ =>
+    lazymatch p with
+    | read_globals _ R_NilValue => fail
+    | _ =>
+      get_safe_state S ltac:(fun Safe =>
+        let Tnil := fresh "Tnil" in
+        forwards~ Tnil: R_NilValue_may_have_types OKg;
+        let E := fresh "E" in
+        forwards~ E: only_one_nil Safe (rm Tnil);
+        try solve [ exists p_; splits*; Mem_solve ];
+        try rewrite E in *; clear_trivial)
+    end
   | _ => simplify_context_base
   end.
 
 
 (** ** Proving expression types different **)
 
+(** Tries to solve a goal of the form [t1 <> t2] where [t1] and [t2] are of type [SExpType]. **)
 Ltac prove_types_different :=
   simplify_context;
   let aux t1 t2 :=
@@ -2488,6 +2663,10 @@ Ltac prove_types_different :=
 
 (** ** Solving frequent patterns. **)
 
+(** This tactic wraps up most of the tactic defined in this file in a single tactic:
+  if you are looking for important tactic in this file, you should not miss this one.
+  It should do a decent job in most of the cases.
+  It either solves the goal, or fail. **)
 Ltac solve_premises_smart :=
   lazymatch goal with
   | |- safe_state ?S =>
@@ -2740,6 +2919,10 @@ Qed.
 
 
 (** * Specific tactics **)
+
+(** The tactics defined below applies the specific lemmae proven in the previous section
+  to prove the [computeR] tactic, similar to [simplifyR] but making use invariants, and
+  propagating them. **)
 
 Ltac get_result_lemma t :=
   lazymatch get_head t with

@@ -18,9 +18,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Import Rcore Rfeatures Rinit.
+Require Import Rcore RfeaturesAux Rinit.
 Require Export Invariants.
 
+(** * Lemmae about Rinit.v **)
 
 (* TODO *)
 
@@ -29,6 +30,4 @@ Require Export Invariants.
 
 (** It would be nice to prove that the read-eval-print-loop can not
   return a [result_impossible]. **)
-
-(** If runs returns a result, then adding fuel does not change it. **)
 
