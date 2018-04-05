@@ -15,7 +15,7 @@ pipeline {
     }
     stage('test') {
         steps {
-            sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} ${env.PROVER_OUT}"
+            sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} ${env.PROVER_OUT}/R-3.4.2_${env.GIT_COMMIT} --debug"
         }
     }
   }
