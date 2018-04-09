@@ -11,11 +11,11 @@ pipeline {
         sh 'make tlc'
         sh 'make'
       }
-        
+
     }
     stage('test') {
         steps {
-            sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} ${env.PROVER_OUT}/R-3.4.2_${env.GIT_COMMIT} --debug"
+            sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} --server -a 'R 3.4.2 Tests'"
         }
     }
   }
