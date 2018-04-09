@@ -603,6 +603,10 @@ runif ()
 typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
 
+# Tests about subset.
+l <- list(a=1); l$a
+l <- list(); l$a
+
 # Miscellaneous.
 levels
 mode
