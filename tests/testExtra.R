@@ -614,6 +614,15 @@ runif ()
 typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
 
+# Tests about subset.
+l <- list (a = 1) ; l$a
+l <- list (1, a = 2, 3) ; l$a
+l <- list (ab = 1, b = 2) ; l$ab ; l$a
+l <- list (ab = 1, abc = 2) ; l$ab ; l$abc ; l$a
+l <- list () ; l$a
+l <- 2 ; l$a
+l <- "a" ; l$a
+
 # Tests about some library functions.
 length ("") ; length ("a") ; length ("\\")
 nchar ("") ; nchar ("a") ; nchar ("\\")
