@@ -309,48 +309,85 @@ Qed.
 
 (** ** [runs_R_cycle_detected] **)
 
-Lemma runs_R_cycle_detected_fuel_conserve : forall globals n n' S s child,
-    n <= n' ->
-    ~ bottom_result (runs_R_cycle_detected (runs n globals) S s child) ->
-    runs_R_cycle_detected (runs n' globals) S s child = runs_R_cycle_detected (runs n globals) S s child.
-Proof.
-  introv I B. repeat rewrite runs_proj_R_cycle_detected_eq in *. gen n' S s child. induction n; introv I B.
-  - false~ B.
-  - destruct n'; try solve [ math ]. simpls.
-    destruct TYPEOF; simpls~; tryfalse~. cases_if~.
-    destruct read_SExp; simpls~; tryfalse~. cases_if~.
-    + rewrite~ IHn.
-Admitted. (** FIXME: This must be automable… **)
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_eval] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_getAttrib] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_setAttrib] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_duplicate1] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_stripAttrib] **)
 
+Lemma runs_stripAttrib_fuel_conserve : forall globals n n' S tag lst,
+    n <= n' ->
+    ~ bottom_result (runs_stripAttrib (runs n globals) S tag lst) ->
+    runs_stripAttrib (runs n' globals) S tag lst = runs_stripAttrib (runs n globals) S tag lst.
+Proof.
+  introv I B. repeat rewrite runs_proj_stripAttrib_eq in *. gen n' S tag lst. induction n; introv I B.
+  - false~ B.
+  - destruct n'; try solve [ math ]. simpls. cases_if~.
+    simplifyR. destruct read_SExp; simpls~; tryfalse~.
+    unfolds if_is_list. destruct get_NonVector; simpls~. destruct get_listSxp; simpls~. cases_if~.
+    + rewrite~ IHn.
+      * math.
+      * destruct~ runs_proj_stripAttrib.
+    + rewrite~ IHn.
+      * math.
+      * destruct~ runs_proj_stripAttrib.
+Qed.
+
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_evalseq] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_R_isMissing] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_AnswerType] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_ListAnswer] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_StringAnswer] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_LogicalAnswer] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_IntegerAnswer] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_RealAnswer] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_ComplexAnswer] **)
 
+(** This is quite a heavy proof for now. **)
+
 (** ** [runs_RawAnswer] **)
+
+(** This is quite a heavy proof for now. **)
 
 (** ** [runs_R_FunTab] **)
 

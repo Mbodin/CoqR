@@ -4738,7 +4738,10 @@ Definition eval S (e rho : SEXP) :=
             else
               findVar S e rho using S in
           ifb tmp = R_UnboundValue then
-            result_error S "Object not found."
+            let%success e_name := PRINTNAME S e using S in
+            (** Originally, it was [EncodeChar] instead of [CHAR]. **)
+            let%success e_str := CHAR S e_name using S in
+            result_error S ("Object not found “" ++ e_str ++ "”.")
           else
             let%success ddval := DDVAL S e using S in
             ifb tmp = R_MissingArg /\ ~ ddval then

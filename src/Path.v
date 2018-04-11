@@ -183,6 +183,11 @@ Lemma move_along_path_step_NULL : forall s S,
   move_along_path_step s S NULL = None.
 Proof. introv. unfolds. rewrite~ read_SExp_NULL. Qed.
 
+Lemma move_along_path_step_same_memory : forall s S1 S2 e,
+  state_memory S1 = state_memory S2 ->
+  move_along_path_step s S1 e = move_along_path_step s S2 e.
+Proof. introv E. destruct S1, S2. simpl in E. substs~. Qed.
+
 Definition move_along_path_from p (S : state) e :=
   fold_left (fun s => LibOption.apply (move_along_path_step s S)) (Some e) p.
 
@@ -234,6 +239,12 @@ Proof.
   simpl in E. eexists. splits*.
 Qed.
 
+Lemma move_along_path_from_same_memory : forall p S1 S2 e,
+  state_memory S1 = state_memory S2 ->
+  move_along_path_from p S1 e = move_along_path_from p S2 e.
+Proof. introv E. destruct S1, S2. simpl in E. substs~. Qed.
+
+
 (** * Contexts **)
 
 (** ** Steps **)
@@ -253,6 +264,7 @@ Definition move_along_context_step s c :=
   | Scontext_jumptarget => context_jumptarget c
   end.
 
+
 (** ** Entry points **)
 
 Inductive entry_context :=
@@ -269,6 +281,13 @@ Definition move_along_entry_context e S :=
   | Pstate_context => Some (state_context S)
   | PExit_context => R_ExitContext S
   end.
+
+Lemma move_along_entry_context_same_contexts : forall S1 S2 e,
+  state_context S1 = state_context S2 ->
+  R_ExitContext S1 = R_ExitContext S2 ->
+  move_along_entry_context e S1 = move_along_entry_context e S2.
+Proof. introv E1 E2. destruct S1, S2. simpls. substs~. Qed.
+
 
 (** ** Paths **)
 
@@ -291,6 +310,12 @@ Lemma move_along_context_path_state_with_memory : forall S p m,
   move_along_context_path p (state_with_memory S m) = move_along_context_path p S.
 Proof. introv. induction~ p. simpl. rewrite~ IHp. Qed.
 
+Lemma move_along_context_path_same_contexts : forall S1 S2 p,
+  state_context S1 = state_context S2 ->
+  R_ExitContext S1 = R_ExitContext S2 ->
+  move_along_context_path p S1 = move_along_context_path p S2.
+Proof. introv E1 E2. destruct S1, S2. simpls. substs. induction~ p. simpls. rewrite~ IHp. Qed.
+
 Definition context_path_from_list (el : entry_context * list context_step) :=
   let (e, l) := el in
   fold_left (fun s p => context_path_step p s) (context_path_entry e) l.
@@ -312,6 +337,7 @@ Proof.
     introv E; simpls; rew_list in E; inverts E as E; autos~.
   forwards (?&?): IHpath1 E. substs~.
 Qed.
+
 
 (** * Entry points **)
 
@@ -342,6 +368,7 @@ Definition move_along_context_field f :=
   | Scontext_returnValue => context_returnValue
   end.
 
+
 (** ** From the state **)
 
 Inductive entry_point :=
@@ -368,6 +395,7 @@ Lemma move_along_entry_point_alloc_SExp : forall S S' e p p_,
   alloc_SExp S p_ = (S', p) ->
   move_along_entry_point e S' = move_along_entry_point e S.
 Proof. introv E. inverts E. apply~ move_along_entry_point_state_with_memory. Qed.
+
 
 (** * Paths **)
 

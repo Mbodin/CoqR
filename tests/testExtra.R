@@ -398,6 +398,17 @@ f <- function (x) { g <- function (y) x <<- 1 ; g () ; x } ; x <- 2 ; f (x) ; x
 f <- function () { g <- function (y) x <- 1 ; g () ; x } ; x <- 2 ; f () ; x
 f <- function () { g <- function (y) x = 1 ; g () ; x } ; x <- 2 ; f () ; x
 f <- function () { g <- function (y) x <<- 1 ; g () ; x } ; x <- 2 ; f () ; x
+``
+a <- 1 ; `a` ; `a` <- 2 ; a ; `a` ; ` ` <- 3 ; ` ` ; `\`` <- 4 ; `\`` ; `'` <- 5 ; `'` ; `\'` ; `"` <- 6 ; `"` ; `\"`
+1 -> a ; `a` ; 2 -> `a` ; a ; `a` ; 3 -> ` ` ; ` ` ; 4 -> `\`` ; `\`` ; 5 -> `'` ; `'` ; `\'` ; 6 -> `"` ; `"` ; `\"`
+`` <- 1
+2 -> ``
+a = 1 ; `a` ; `a` = 2 ; a ; `a` ; ` ` = 3 ; ` ` ; `\`` = 4 ; `\`` ; `'` = 5 ; `'` ; `\'` ; `"` = 6 ; `"` ; `\"`
+`` = 1
+a <<- 1 ; `a` ; `a` <<- 2 ; a ; `a` ; ` ` <<- 3 ; ` ` ; `\`` <<- 4 ; `\`` ; `'` <<- 5 ; `'` ; `\'` ; `"` <<- 6 ; `"` ; `\"`
+`` <<- 1
+1 ->> a ; `a` ; 2 ->> `a` ; a ; `a` ; 3 ->> ` ` ; ` ` ; 4 ->> `\`` ; `\`` ; 5 ->> `'` ; `'` ; `\'` ; 6 ->> `"` ; `"` ; `\"`
+2 ->> ``
 
 # Tests about the modification of primitive operators.
 "if" <- function (x, y, z) x + y + z ; if (1) 2 else 3
@@ -604,8 +615,19 @@ typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
 length (runif (42))
 
 # Tests about subset.
-l <- list(a=1); l$a
-l <- list(); l$a
+l <- list (a = 1) ; l$a
+l <- list (1, a = 2, 3) ; l$a
+l <- list (ab = 1, b = 2) ; l$ab ; l$a
+l <- list (ab = 1, abc = 2) ; l$ab ; l$abc ; l$a
+l <- list () ; l$a
+l <- 2 ; l$a
+l <- "a" ; l$a
+
+# Tests about some library functions.
+length ("") ; length ("a") ; length ("\\")
+nchar ("") ; nchar ("a") ; nchar ("\\")
+length (c ("", "a", "\\")) ; nchar (c ("", "a", "\\"))
+length (NA) ; nchar (NA)
 
 # Miscellaneous.
 levels
@@ -613,6 +635,8 @@ mode
 a$b
 a::b
 a:::b
+a
+`a`
 
 # These are tests to test the tester and the parser.
 "function" ; 'function' ; 1 # function
