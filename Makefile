@@ -72,10 +72,10 @@ src/Extraction.vo: Makefile.coq
 	${AT}+make -f Makefile.coq $@
 
 src/extract.ml: src/Extraction.vo
-	${AT}mv extract.ml src/extract.ml || true
+	${AT}mv extract.ml src/extract.ml 2> /dev/null || true
 
 src/extract.mli: src/Extraction.vo
-	${AT}mv extract.mli src/extract.mli || true
+	${AT}mv extract.mli src/extract.mli 2> /dev/null || true
 
 src/runR.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
 	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..

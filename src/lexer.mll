@@ -44,9 +44,9 @@ let reg_imaginary = (reg_numeric as value) 'i'
 
 (** ** Strings **)
 
+let string_enclosing = ['\'' '"' '`']
 let escapable_char = ['\'' '"' 'n' 'r' 't' 'b' 'a' 'f' 'v' '\\' '\n' '`']
 let normal_character = [^ '\\' '\'' '"' '`' '\x00'] (* This is improvable. *)
-
 
 (** ** Language Features **)
 
@@ -114,9 +114,7 @@ rule lex = parse
   | "..."               { eatLines := false ; SYMBOL (install_and_save "...") }
 
   (** ** Strings **)
-  | '\''                            { string_singlequote [] lexbuf }
-  | '"'                             { string_doublequote [] lexbuf }
-  | '`'                             { string_backquote [] lexbuf }
+  | string_enclosing as c           { string c [] lexbuf }
 
   (** ** Special Values **)
   | reg_special_operator as name    { eatLines := true ; SPECIAL (install_and_save name) }
@@ -189,63 +187,30 @@ and new_line_if_case = parse
   | "else"                  { eatLines := true ; ifpop () ; ELSE }
   | ""                      { ifpop () ; NEW_LINE "" }
 
-(* This can probably be factorised. *)
-and string_singlequote rev = parse
+and string enclos rev = parse
 
-  | normal_character as c           { string_singlequote (c :: rev) lexbuf }
+  | normal_character as c           { string enclos (c :: rev) lexbuf }
   | "\\x" (hexadecimal_digit as h1) (hexadecimal_digit as h2)
-                                    { string_singlequote (unescaped_R_x2 h1 h2 :: rev) lexbuf }
-  | "\\x" (hexadecimal_digit as h)  { string_singlequote (unescaped_R_x1 h :: rev) lexbuf }
+                                    { string enclos (unescaped_R_x2 h1 h2 :: rev) lexbuf }
+  | "\\x" (hexadecimal_digit as h)  { string enclos (unescaped_R_x1 h :: rev) lexbuf }
   | '\\' (octal_digit as o1) (octal_digit as o2) (octal_digit as o3)
-                                    { string_singlequote (unescaped_R_o3 o1 o2 o3 :: rev) lexbuf }
+                                    { string enclos (unescaped_R_o3 o1 o2 o3 :: rev) lexbuf }
   | '\\' (octal_digit as o1) (octal_digit as o2)
-                                    { string_singlequote (unescaped_R_o2 o1 o2 :: rev) lexbuf }
+                                    { string enclos (unescaped_R_o2 o1 o2 :: rev) lexbuf }
   | '\\' (escapable_char as c)      { match unescaped_char c with
-                                      | Some c -> string_singlequote (c :: rev) lexbuf
+                                      | Some c -> string enclos (c :: rev) lexbuf
                                       | None -> assert false }
-  (** We ignore multibyte locales for now. **)
+  (** We ignore multibyte locales for now (N.B., only for [enclos <> '`'). **)
+
+  | string_enclosing as c           { if c = enclos then (
+                                        eatLines := false ;
+                                        if enclos = '`' then
+                                          SYMBOL (fun g r s -> install g r s (List.rev rev))
+                                        else
+                                          STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (List.rev rev))))
+                                      ) else string enclos (c :: rev) lexbuf }
 
   | '\\' _                          { raise (SyntaxError ("Unrecognised escape in character string: " ^ Lexing.lexeme lexbuf)) }
-
-  | ('"' | '`') as c                { string_singlequote (c :: rev) lexbuf }
-  | '\''                            { eatLines := false ; STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (List.rev rev)))) }
-
-and string_doublequote rev = parse
-
-  | normal_character as c           { string_doublequote (c :: rev) lexbuf }
-  | "\\x" (hexadecimal_digit as h1) (hexadecimal_digit as h2)
-                                    { string_doublequote (unescaped_R_x2 h1 h2 :: rev) lexbuf }
-  | "\\x" (hexadecimal_digit as h)  { string_doublequote (unescaped_R_x1 h :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2) (octal_digit as o3)
-                                    { string_doublequote (unescaped_R_o3 o1 o2 o3 :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2)
-                                    { string_doublequote (unescaped_R_o2 o1 o2 :: rev) lexbuf }
-  | '\\' (escapable_char as c)      { match unescaped_char c with
-                                      | Some c -> string_doublequote (c :: rev) lexbuf
-                                      | None -> assert false }
-  (** We ignore multibyte locales for now. **)
-
-  | '\\' _                          { raise (SyntaxError ("Unrecognised escape in character string: " ^ Lexing.lexeme lexbuf)) }
-
-  | ('\'' | '`') as c               { string_doublequote (c :: rev) lexbuf }
-  | '"'                             { eatLines := false ; STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (List.rev rev)))) }
-
-and string_backquote rev = parse
-
-  | normal_character as c           { string_backquote (c :: rev) lexbuf }
-  | "\\x" (hexadecimal_digit as h1) (hexadecimal_digit as h2)
-                                    { string_backquote (unescaped_R_x2 h1 h2 :: rev) lexbuf }
-  | "\\x" (hexadecimal_digit as h)  { string_backquote (unescaped_R_x1 h :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2) (octal_digit as o3)
-                                    { string_backquote (unescaped_R_o3 o1 o2 o3 :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2)
-                                    { string_backquote (unescaped_R_o2 o1 o2 :: rev) lexbuf }
-  | '\\' (escapable_char as c)      { match unescaped_char c with
-                                      | Some c -> string_backquote (c :: rev) lexbuf
-                                      | None -> assert false }
-
-  | '\\' _                          { raise (SyntaxError ("Unrecognised escape in symbol string: " ^ Lexing.lexeme lexbuf)) }
-
-  | ('\'' | '"') as c               { string_backquote (c :: rev) lexbuf }
-  | '`'                             { eatLines := false ; STR_CONST (fun g r s -> install g r s (List.rev rev)) }
+  | eof                             { raise (SyntaxError "Incomplete string") }
+  | _                               { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
 
