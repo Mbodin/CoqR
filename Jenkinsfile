@@ -1,9 +1,5 @@
 pipeline {
   agent any
-  environment {
-      COQ_INTERP = "${env.WORKSPACE}"
-      RSCRIPT = "R"
-  }
   stages {
     stage('build') {
       steps {
@@ -11,12 +7,23 @@ pipeline {
         sh 'make tlc'
         sh 'make'
       }
+    }
 
+    stage('Test R') {
+      steps {
+        sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} --server -t 'R 3.4.2 Tests'"
+      }
     }
-    stage('test') {
-        steps {
-            sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.RTESTS} --server -a 'R 3.4.2 Tests'"
-        }
+    stage('Test fastR') {
+      steps {
+        sh ". ${env.PYTHON_ENV}/activate && ${env.WORKSPACE}/compare/run_all.py ${env.TESTS_FOLDER}/fastr --server -t 'fastR Tests'"
+      }
     }
+
+
+  }
+  environment {
+    COQ_INTERP = "${env.WORKSPACE}"
+    RSCRIPT = 'R'
   }
 }

@@ -154,18 +154,18 @@ rule lex = parse
   | ":"         { eatLines := true ; COLON (install_and_save ":") }
 
   (** ** Parentheses **)
-  | '('     { contextp := Contextp_Par :: !contextp ; LPAR (install_and_save "(") }
-  | ')'     { wifpop () ; contextp_pop () ; eatLines := false ; RPAR }
-  | '{'     { contextp := Contextp_Bra :: !contextp ; eatLines := true ; LBRACE (install_and_save "{") }
-  | '}'     { wifpop () ; contextp_pop () ; RBRACE }
+  | "("     { contextp := Contextp_Par :: !contextp ; LPAR (install_and_save "(") }
+  | ")"     { wifpop () ; contextp_pop () ; eatLines := false ; RPAR }
+  | "{"     { contextp := Contextp_Bra :: !contextp ; eatLines := true ; LBRACE (install_and_save "{") }
+  | "}"     { wifpop () ; contextp_pop () ; RBRACE }
   | "[["    { contextp := Contextp_SqBra :: Contextp_SqBra :: !contextp ; LBB (install_and_save "[[") }
-  | '['     { contextp := Contextp_SqBra :: !contextp ; LSQBRACKET (install_and_save "[") }
-  | ']'     { wifpop () ; contextp_pop () ; eatLines := false ; RSQBRACKET }
+  | "["     { contextp := Contextp_SqBra :: !contextp ; LSQBRACKET (install_and_save "[") }
+  | "]"     { wifpop () ; contextp_pop () ; eatLines := false ; RSQBRACKET }
 
   (** ** Miscellaneous **)
   | reg_identifier as str           { eatLines := false ; SYMBOL (install_and_save str) }
-  | ';'                             { ifpop () ; SEMICOLON }
-  | ','                             { ifpop () ; COMMA }
+  | ";"                             { ifpop () ; SEMICOLON }
+  | ","                             { ifpop () ; COMMA }
   | ('#' [^ '\n']* as cmd)? '\n'    { if !eatLines
                                          || contextp_hd () = Contextp_Par
                                          || contextp_hd () = Contextp_SqBra
@@ -193,11 +193,11 @@ and string enclos rev = parse
   | "\\x" (hexadecimal_digit as h1) (hexadecimal_digit as h2)
                                     { string enclos (unescaped_R_x2 h1 h2 :: rev) lexbuf }
   | "\\x" (hexadecimal_digit as h)  { string enclos (unescaped_R_x1 h :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2) (octal_digit as o3)
+  | "\\" (octal_digit as o1) (octal_digit as o2) (octal_digit as o3)
                                     { string enclos (unescaped_R_o3 o1 o2 o3 :: rev) lexbuf }
-  | '\\' (octal_digit as o1) (octal_digit as o2)
+  | "\\" (octal_digit as o1) (octal_digit as o2)
                                     { string enclos (unescaped_R_o2 o1 o2 :: rev) lexbuf }
-  | '\\' (escapable_char as c)      { match unescaped_char c with
+  | "\\" (escapable_char as c)      { match unescaped_char c with
                                       | Some c -> string enclos (c :: rev) lexbuf
                                       | None -> assert false }
   (** We ignore multibyte locales for now (N.B., only for [enclos <> '`'). **)

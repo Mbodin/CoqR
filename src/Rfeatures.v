@@ -2099,11 +2099,468 @@ Definition R_finite (x : double) :=
 
 Definition R_FINITE := R_finite.
 
-Definition real_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
-  unimplemented_function "real_binary".
+Definition R_allocOrReuseVector S s1 s2 type n :=
+  add%stack "R_allocOrReuseVector" in
+  let%success n1 := XLENGTH S s1 using S in
+  let%success n2 := XLENGTH S s2 using S in
+  let%success s1_type := TYPEOF S s1 using S in
+  let%success s1_nref := NO_REFERENCES S s1 using S in
+  ifb n = n2 then
+    let%success s2_type := TYPEOF S s2 using S in
+    let%success s2_nref := NO_REFERENCES S s2 using S in
+    let%success s2_attr := ATTRIB S s2 using S in
+    ifb s2_type = type /\ s2_nref then
+      run%success
+        ifb s2_attr <> R_NilValue then
+          run%success
+            setAttrib globals runs S s2 R_NamesSymbol R_NilValue using S in
+          result_skip S
+        else result_skip S using S in
+      result_success S s2
+    else
+      ifb n = n1 /\ s1_type = type /\ s1_nref /\ s2_attr = R_NilValue then
+        result_success S s1
+      else allocVector globals S type n
+  else ifb n = n1 /\ s1_type = type /\ s1_nref then
+    result_success S s1
+  else allocVector globals S type n.
 
-Definition integer_binary (S : state) (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
-  unimplemented_function "integer_binary".
+Definition R_integer_plus x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_INTEGER
+  else
+    ifb (y < 0 /\ x > R_INT_MAX - y)%Z \/ (y > 0 /\ x < R_INT_MIN - y)%Z then
+      (* A warning has been formalised out here. *)
+      NA_INTEGER
+    else (x + y)%Z.
+
+Definition R_integer_minus x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_INTEGER
+  else
+    ifb (y < 0 /\ x > R_INT_MAX + y)%Z \/ (y > 0 /\ x < R_INT_MIN + y)%Z then
+      (* A warning has been formalised out here. *)
+      NA_INTEGER
+    else (x - y)%Z.
+
+Definition R_integer_times x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_INTEGER
+  else
+    let z := (x * y)%Z in
+    ifb Double.mult (x : double) (y : double) = (z : double) /\ z <> NA_INTEGER then z
+    else
+      (* A warning has been formalised out here. *)
+      NA_INTEGER.
+
+Definition R_integer_divide x y :=
+  ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_REAL
+  else Double.div (x : double) (y : double).
+
+Definition integer_binary S (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
+  add%stack "integer_binary" in
+  let%success n1 := XLENGTH S s1 using S in
+  let%success n2 := XLENGTH S s2 using S in
+  let n :=
+    ifb n1 = 0 \/ n2 = 0 then 0
+    else ifb n1 > n2 then n1 else n2 in
+  let%success ans :=
+    ifb code = DIVOP \/ code = POWOP then
+      allocVector globals S RealSxp n
+    else R_allocOrReuseVector S s1 s2 IntSxp n using S in
+  ifb n = 0 then
+    result_success S ans
+  else
+    run%success
+      ifb code = PLUSOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          write%Integer pa at i := R_integer_plus x1 x2 using S in
+          result_skip S using S
+      else ifb code = MINUSOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          write%Integer pa at i := R_integer_minus x1 x2 using S in
+          result_skip S using S
+      else ifb code = TIMESOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          write%Integer pa at i := R_integer_times x1 x2 using S in
+          result_skip S using S
+      else ifb code = DIVOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          write%Real pa at i := R_integer_divide x1 x2 using S in
+          result_skip S using S
+      else ifb code = POWOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          ifb x1 = 1 \/ x2 = 0 then
+            write%Real pa at i := 1 using S in
+            result_skip S
+          else ifb x1 = NA_INTEGER \/ x2 = NA_INTEGER then
+            write%Real pa at i := NA_REAL using S in
+            result_skip S
+          else unimplemented_function "R_POW" using S
+      else ifb code = MODOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          ifb x1 = NA_INTEGER \/ x2 = NA_INTEGER \/ x2 = 0 then
+            write%Integer pa at i := NA_INTEGER using S in
+            result_skip S
+          else
+            ifb x1 >= 0 /\ x2 > 0 then
+              write%Integer pa at i := (x1 mod x2)%Z using S in
+              result_skip S
+            else unimplemented_function "myfmod" using S
+      else ifb code = IDIVOP then
+        let pa := ans in
+        let px1 := s1 in
+        let px2 := s2 in
+        do%let
+        for i from 0 to n - 1 do
+          let i1 := i mod n1 in
+          let i2 := i mod n2 in
+          read%Integer x1 := px1 at i1 using S in
+          read%Integer x2 := px2 at i2 using S in
+          ifb x1 = NA_INTEGER \/ x2 = NA_INTEGER \/ x2 = 0 then
+            write%Integer pa at i := NA_INTEGER using S in
+            result_skip S
+          else unimplemented_function "floor" using S
+      else result_skip S using S in
+    let%success s1_attr := ATTRIB S s1 using S in
+    let%success s2_attr := ATTRIB S s2 using S in
+    ifb s1_attr = R_NilValue /\ s2_attr = R_NilValue then
+      result_success S ans
+    else
+      run%success
+        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+          copyMostAttrib globals runs S s2 ans
+        else result_skip S using S in
+      run%success
+        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+          copyMostAttrib globals runs S s1 ans
+        else result_skip S using S in
+      result_success S ans.
+
+Definition real_binary S (code : int) s1 s2 : result SEXP :=
+  add%stack "real_binary" in
+  let%success n1 := XLENGTH S s1 using S in
+  let%success n2 := XLENGTH S s2 using S in
+  ifb n1 = 0 \/ n2 = 0 then
+    allocVector globals S RealSxp 0
+  else
+    let n := ifb n1 > n2 then n1 else n2 in
+    let%success ans := R_allocOrReuseVector S s1 s2 RealSxp n using S in
+    run%success
+      ifb code = PLUSOP then
+        let%success s1_type := TYPEOF S s1 using S in
+        let%success s2_type := TYPEOF S s2 using S in
+        ifb s1_type = RealSxp /\ s2_type = RealSxp then
+          let da := ans in
+          let dx := s1 in
+          let dy := s2 in
+          ifb n2 = 1 then
+            read%Real tmp := dy at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              write%Real da at i := Double.add dx_i tmp using S in
+              result_skip S using S
+          else ifb n1 = 1 then
+            read%Real tmp := dx at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.add tmp dy_i using S in
+              result_skip S using S
+          else ifb n1 = n2 then
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.add dx_i dy_i using S in
+              result_skip S using S
+          else
+            do%let
+            for i from 0 to n - 1 do
+              let i1 := i mod n1 in
+              let i2 := i mod n2 in
+              read%Real dx_i1 := dx at i1 using S in
+              read%Real dy_i2 := dy at i2 using S in
+              write%Real da at i := Double.add dx_i1 dy_i2 using S in
+              result_skip S using S
+        else ifb s1_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Integer px1_i1 := px1 at i1 using S in
+            read%Real px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.add (px1_i1 : double) px2_i2 using S in
+            result_skip S using S
+        else ifb s2_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Real px1_i1 := px1 at i1 using S in
+            read%Integer px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.add px1_i1 (px2_i2 : double) using S in
+            result_skip S using S
+        else result_skip S
+      else ifb code = MINUSOP then
+        let%success s1_type := TYPEOF S s1 using S in
+        let%success s2_type := TYPEOF S s2 using S in
+        ifb s1_type = RealSxp /\ s2_type = RealSxp then
+          let da := ans in
+          let dx := s1 in
+          let dy := s2 in
+          ifb n2 = 1 then
+            read%Real tmp := dy at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              write%Real da at i := Double.sub dx_i tmp using S in
+              result_skip S using S
+          else ifb n1 = 1 then
+            read%Real tmp := dx at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.sub tmp dy_i using S in
+              result_skip S using S
+          else ifb n1 = n2 then
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.sub dx_i dy_i using S in
+              result_skip S using S
+          else
+            do%let
+            for i from 0 to n - 1 do
+              let i1 := i mod n1 in
+              let i2 := i mod n2 in
+              read%Real dx_i1 := dx at i1 using S in
+              read%Real dy_i2 := dy at i2 using S in
+              write%Real da at i := Double.sub dx_i1 dy_i2 using S in
+              result_skip S using S
+        else ifb s1_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Integer px1_i1 := px1 at i1 using S in
+            read%Real px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.sub (px1_i1 : double) px2_i2 using S in
+            result_skip S using S
+        else ifb s2_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Real px1_i1 := px1 at i1 using S in
+            read%Integer px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.sub px1_i1 (px2_i2 : double) using S in
+            result_skip S using S
+        else result_skip S
+      else ifb code = TIMESOP then
+        let%success s1_type := TYPEOF S s1 using S in
+        let%success s2_type := TYPEOF S s2 using S in
+        ifb s1_type = RealSxp /\ s2_type = RealSxp then
+          let da := ans in
+          let dx := s1 in
+          let dy := s2 in
+          ifb n2 = 1 then
+            read%Real tmp := dy at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              write%Real da at i := Double.mult dx_i tmp using S in
+              result_skip S using S
+          else ifb n1 = 1 then
+            read%Real tmp := dx at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.mult tmp dy_i using S in
+              result_skip S using S
+          else ifb n1 = n2 then
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.mult dx_i dy_i using S in
+              result_skip S using S
+          else
+            do%let
+            for i from 0 to n - 1 do
+              let i1 := i mod n1 in
+              let i2 := i mod n2 in
+              read%Real dx_i1 := dx at i1 using S in
+              read%Real dy_i2 := dy at i2 using S in
+              write%Real da at i := Double.mult dx_i1 dy_i2 using S in
+              result_skip S using S
+        else ifb s1_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Integer px1_i1 := px1 at i1 using S in
+            read%Real px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.mult (px1_i1 : double) px2_i2 using S in
+            result_skip S using S
+        else ifb s2_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Real px1_i1 := px1 at i1 using S in
+            read%Integer px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.mult px1_i1 (px2_i2 : double) using S in
+            result_skip S using S
+        else result_skip S
+      else ifb code = DIVOP then
+        let%success s1_type := TYPEOF S s1 using S in
+        let%success s2_type := TYPEOF S s2 using S in
+        ifb s1_type = RealSxp /\ s2_type = RealSxp then
+          let da := ans in
+          let dx := s1 in
+          let dy := s2 in
+          ifb n2 = 1 then
+            read%Real tmp := dy at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              write%Real da at i := Double.div dx_i tmp using S in
+              result_skip S using S
+          else ifb n1 = 1 then
+            read%Real tmp := dx at 0 using S in
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.div tmp dy_i using S in
+              result_skip S using S
+          else ifb n1 = n2 then
+            do%let
+            for i from 0 to n - 1 do
+              read%Real dx_i := dx at i using S in
+              read%Real dy_i := dy at i using S in
+              write%Real da at i := Double.div dx_i dy_i using S in
+              result_skip S using S
+          else
+            do%let
+            for i from 0 to n - 1 do
+              let i1 := i mod n1 in
+              let i2 := i mod n2 in
+              read%Real dx_i1 := dx at i1 using S in
+              read%Real dy_i2 := dy at i2 using S in
+              write%Real da at i := Double.div dx_i1 dy_i2 using S in
+              result_skip S using S
+        else ifb s1_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Integer px1_i1 := px1 at i1 using S in
+            read%Real px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.div (px1_i1 : double) px2_i2 using S in
+            result_skip S using S
+        else ifb s2_type = IntSxp then
+          let da := ans in
+          let px1 := s1 in
+          let px2 := s2 in
+          do%let
+          for i from 0 to n - 1 do
+            let i1 := i mod n1 in
+            let i2 := i mod n2 in
+            read%Real px1_i1 := px1 at i1 using S in
+            read%Integer px2_i2 := px2 at i2 using S in
+            write%Real da at i := Double.div px1_i1 (px2_i2 : double) using S in
+            result_skip S using S
+        else result_skip S
+      else ifb code = POWOP then
+        unimplemented_function "R_POW"
+      else ifb code = MODOP then
+        result_not_implemented "myfmod"
+      else ifb code = IDIVOP then
+        result_not_implemented "myfloor"
+      else result_skip S using S in
+    let%success s1_attr := ATTRIB S s1 using S in
+    let%success s2_attr := ATTRIB S s2 using S in
+    ifb s1_attr = R_NilValue /\ s2_attr = R_NilValue then
+      result_success S ans
+    else
+      run%success
+        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+          copyMostAttrib globals runs S s2 ans
+        else result_skip S using S in
+      run%success
+        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+          copyMostAttrib globals runs S s1 ans
+        else result_skip S using S in
+      result_success S ans.
 
 Definition COERCE_IF_NEEDED S v tp :=
   add%stack "COERCE_IF_NEEDED" in
@@ -2368,44 +2825,6 @@ Definition R_unary S (call op s1 : SEXP) : result SEXP :=
   | _ => result_error S "Invalid argument to unary operator."
   end.
 
-Definition R_integer_plus S x y :=
-  add%stack "R_integer_plus" in
-  ifb x = NA_INTEGER \/ y = NA_INTEGER then
-    result_success S NA_INTEGER
-  else
-    ifb (y < 0 /\ x > R_INT_MAX - y)%Z \/ (y > 0 /\ x < R_INT_MIN - y)%Z then
-      (* A warning has been formalised out here. *)
-      result_success S NA_INTEGER
-    else result_success S (x + y)%Z.
-
-Definition R_integer_minus S x y :=
-  add%stack "R_integer_minus" in
-  ifb x = NA_INTEGER \/ y = NA_INTEGER then
-    result_success S NA_INTEGER
-  else
-    ifb (y < 0 /\ x > R_INT_MAX + y)%Z \/ (y > 0 /\ x < R_INT_MIN + y)%Z then
-      (* A warning has been formalised out here. *)
-      result_success S NA_INTEGER
-    else result_success S (x - y)%Z.
-
-Definition R_integer_times S x y :=
-  add%stack "R_integer_times" in
-  ifb x = NA_INTEGER \/ y = NA_INTEGER then
-    result_success S NA_INTEGER
-  else
-    let z := (x * y)%Z in
-    ifb Double.mult (x : double) (y : double) = (z : double) /\ z <> NA_INTEGER then
-      result_success S z
-    else
-      (* A warning has been formalised out here. *)
-      result_success S NA_INTEGER.
-
-Definition R_integer_divide S x y :=
-  add%stack "R_integer_divide" in
-  ifb x = NA_INTEGER \/ y = NA_INTEGER then
-    result_success S NA_REAL
-  else result_success S (Double.div (x : double) (y : double)).
-
 Definition do_arith S (call op args env : SEXP) : result SEXP :=
   add%stack "do_arith" in
   read%list args_car, args_cdr, _ := args using S in
@@ -2476,22 +2895,18 @@ Definition do_arith S (call op args env : SEXP) : result SEXP :=
               let%success op_val := PRIMVAL runs S op using S in
               ifb op_val = PLUSOP then
                 let%success ans := ScalarValue2 globals S arg1 arg2 using S in
-                let%success res := R_integer_plus S i1 i2 using S in
-                run%success SET_SCALAR_IVAL S ans res using S in
+                run%success SET_SCALAR_IVAL S ans (R_integer_plus i1 i2) using S in
                 result_rreturn S ans
               else ifb op_val = MINUSOP then
                 let%success ans := ScalarValue2 globals S arg1 arg2 using S in
-                let%success res := R_integer_minus S i1 i2 using S in
-                run%success SET_SCALAR_IVAL S ans res using S in
+                run%success SET_SCALAR_IVAL S ans (R_integer_minus i1 i2) using S in
                 result_rreturn S ans
               else ifb op_val = TIMESOP then
                 let%success ans := ScalarValue2 globals S arg1 arg2 using S in
-                let%success res := R_integer_times S i1 i2 using S in
-                run%success SET_SCALAR_IVAL S ans res using S in
+                run%success SET_SCALAR_IVAL S ans (R_integer_times i1 i2) using S in
                 result_rreturn S ans
               else ifb op_val = DIVOP then
-                let%success res := R_integer_divide S i1 i2 using S in
-                let (S, ans) := ScalarReal globals S res in
+                let (S, ans) := ScalarReal globals S (R_integer_divide i1 i2) in
                 result_rreturn S ans
               else result_rskip S
             else result_rskip S

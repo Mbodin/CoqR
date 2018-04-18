@@ -99,8 +99,8 @@ let lift5 f comp1 comp2 comp3 comp4 comp5 : token_type =
 let mkFloat str : token_type = fun g _ s ->
   let (s, e) = scalarReal g s (float_of_string str) in
   Result_success (s, e)
-let mkInt str : token_type = fun g _ s ->
-  let (s, e) = scalarInteger g s (int_of_string str) in
+let mkInt n : token_type = fun g _ s ->
+  let (s, e) = scalarInteger g s n in
   Result_success (s, e)
 let mkComplex str : token_type = fun g _ s ->
   let c = {
@@ -115,7 +115,7 @@ let mkComplex str : token_type = fun g _ s ->
 let mkIntCheck str =
   let f = float_of_string str in
   if f = float_of_int (int_of_float f) then
-    mkInt str
+    mkInt (int_of_float f)
   else mkFloat str
 
 

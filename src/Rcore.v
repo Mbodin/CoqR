@@ -4136,6 +4136,27 @@ Definition setAttrib S (vec name val : SEXP) :=
         unimplemented_function "row_names_gets"
       else installAttrib S vec name val.
 
+Definition copyMostAttrib S inp (ans : SEXP) :=
+  add%stack "copyMostAttrib" in
+  ifb ans = R_NilValue then
+    result_error S "Attempt to set an attribute on NULL."
+  else
+    let%success inp_attr := ATTRIB S inp using S in
+    fold%success
+    along inp_attr
+    as s_car, s_tag do
+      ifb s_tag <> R_NamesSymbol
+          /\ s_tag <> R_DimSymbol
+          /\ s_tag <> R_DimNamesSymbol then
+        run%success installAttrib S ans s_tag s_car using S in
+        result_skip S
+      else result_skip S using S, runs, globals in
+    if%success OBJECT S inp using S then
+      SET_OBJECT S ans true in
+    if%success IS_S4_OBJECT S inp using S then
+      SET_S4_OBJECT S ans
+    else UNSET_S4_OBJECT S ans.
+
 
 (** ** objects.c **)
 
