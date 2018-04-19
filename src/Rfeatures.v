@@ -671,6 +671,51 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
           result_success S rval
     else result_error S "It can only be used for arguments.".
 
+Definition do_get (S : state) (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_get" in
+  run%success Rf_checkArityCall S op args call using S in
+  unimplemented_function "do_get".
+
+Definition do_assign S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_assign" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let%success args_car_str := isString S args_car using S in
+  let%success args_car_len := R_length globals runs S args_car using S in
+  ifb ~ args_car_str \/ args_car_len = 0 then
+    result_error S "Invalid first argument"
+  else
+    (** A potential warning has been formalised out here. **)
+    let%success args_car_0 := STRING_ELT S args_car 0 using S in
+    let%success name := installTrChar globals runs S args_car_0 using S in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+    let val := args_cdr_car in
+    read%list args_cdr_cdr_car, args_cdr_cdr_cdr, _ := args_cdr_cdr using S in
+    let aenv := args_cdr_cdr_car in
+    let%success aenv_type := TYPEOF S aenv using S in
+    ifb aenv_type = NilSxp then
+      result_error S "Use of NULL environment is defunct."
+    else
+      let%success aenv :=
+        ifb aenv_type <> EnvSxp then
+          result_success S aenv
+        else
+          simple_as_environment globals S aenv using S in
+      let%success aenv_type := TYPEOF S aenv using S in
+      ifb aenv_type <> EnvSxp then
+        result_error S "Invalid ‘envir’ argument."
+      else
+        read%list args_cdr_cdr_cdr_car, _, _ := args_cdr_cdr_cdr using S in
+        let%success ginherits := asLogical globals S args_cdr_cdr_cdr_car using S in
+        ifb ginherits = NA_LOGICAL then
+          result_error S "Invalid ‘inherits’ argument."
+        else
+          run%success
+            ifb ginherits <> 0 then
+              setVar globals runs S name val aenv
+            else defineVar globals runs S name val aenv using S in
+          result_success S val.
+
 
 (** ** bind.c **)
 
@@ -1581,14 +1626,6 @@ Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SEXP).
 
-Definition simple_as_environment S arg :=
-  add%stack "simple_as_environment" in
-  let%success arg_s4 := IS_S4_OBJECT S arg using S in
-  let%success arg_type := TYPEOF S arg using S in
-  ifb arg_s4 /\ arg_type = S4Sxp then
-    unimplemented_function "R_getS4DataSlot"
-  else result_success S (R_NilValue : SEXP).
-
 Definition do_eval S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_eval" in
   run%success Rf_checkArityCall S op args call using S in
@@ -1605,7 +1642,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
     else
       let%success encl_ie := isEnvironment S encl using S in
       ifb negb encl_ie then
-        let%success encl := simple_as_environment S encl using S in
+        let%success encl := simple_as_environment globals S encl using S in
         let%success encl_ie := isEnvironment S encl using S in
         if negb encl_ie then
           result_error S "Invalid argument."
@@ -1968,6 +2005,122 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
             run%success endcontext globals runs S cntxt using S in
             run%success cat_cleanup S ifile using S in
             result_success S (R_NilValue : SEXP).
+
+Definition do_newenv S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_newenv" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let%success hash := asInteger globals S args_car using S in
+  let args := args_cdr in
+  read%list args_car, args_cdr, _ := args using S in
+  let enclos := args_car in
+  if%success isNull S enclos using S then
+    result_error S "Use of NULL environment is defunct."
+  else
+    let%success enclos :=
+      let%success enclos_env := isEnvironment S enclos using S in
+      if enclos_env then
+        result_success S enclos
+      else
+        simple_as_environment globals S enclos using S in
+    let%success enclos_env := isEnvironment S enclos using S in
+    if negb enclos_env then
+      result_error S "‘enclos’ must be an environment."
+    else
+      let%success ans :=
+        ifb hash <> 0 then
+          let args := args_cdr in
+          read%list args_car, _, _ := args using S in
+          let%success size := coerceVector globals runs S args_car IntSxp using S in
+          read%Integer size_0 := size at 0 using S in
+          run%success
+            ifb size_0 = NA_INTEGER then
+              write%Integer size at 0 := 0 using S in
+              result_skip S
+            else result_skip S using S in
+          R_NewHashedEnv globals runs S enclos size
+        else NewEnvironment globals runs S R_NilValue R_NilValue enclos using S in
+      result_success S ans.
+
+Definition do_parentenv S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_parentenv" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let arg := args_car in
+  let%success arg :=
+    let%success arg_env := isEnvironment S arg using S in
+    if arg_env then
+      result_success S arg
+    else
+      simple_as_environment globals S arg using S in
+  let%success arg_env := isEnvironment S arg using S in
+  if negb arg_env then
+    result_error S "The argument is not an environment."
+  else
+    ifb arg = R_EmptyEnv then
+      result_error S "The empty environment has no parent."
+    else
+      read%env _, arg_env := arg using S in
+      result_success S (env_enclos arg_env).
+
+Definition do_parentenvgets S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_parentenvgets" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, args_cdr, _ := args using S in
+  let env := args_car in
+  if%success isNull S env using S then
+    result_error S "Use of NULL environment is defunct."
+  else
+    let%success env :=
+      let%success env_env := isEnvironment S env using S in
+      if env_env then
+        result_success S env
+      else
+        simple_as_environment globals S env using S in
+    let%success env_env := isEnvironment S env using S in
+    if negb env_env then
+      result_error S "The argument is not an environment."
+    else
+      ifb env = R_EmptyEnv then
+        result_error S "Can not set the parent of the empty environment."
+      else
+        run%success
+          if%success R_EnvironmentIsLocked globals S env using S then
+            if%success R_IsNamespaceEnv globals runs S env using S then
+              result_error S "Can not set the parent environment of a namespace."
+            else if%success R_IsImportsEnv globals runs S env using S then
+              result_error S "Can not set the parent environment of package imports."
+            else result_skip S
+          else result_skip S using S in
+        read%list args_cdr_car, _, _ := args_cdr using S in
+        let parent := args_cdr_car in
+        if%success isNull S parent using S then
+          result_error S "Use of NULL environment is defunct."
+        else
+          let%success parent :=
+            let%success parent_env := isEnvironment S parent using S in
+            if parent_env then
+              result_success S parent
+            else
+              simple_as_environment globals S parent using S in
+          let%success parent_env := isEnvironment S parent using S in
+          if negb parent_env then
+            result_error S "‘parent’ is not an environment."
+          else
+            run%success SET_ENCLOS S env parent using S in
+            result_success S args_car.
+
+Definition do_envir S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_envir" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let%success args_car_type := TYPEOF S args_car using S in
+  ifb args_car_type = CloSxp then
+    read%clo _, args_car_clo := args_car using S in
+    result_success S (clo_env args_car_clo)
+  else ifb args_car = R_NilValue then
+    result_success S (context_sysparent (R_GlobalContext S))
+  else getAttrib globals runs S args_car R_DotEnvSymbol.
 
 
 (** ** seq.c **)
@@ -3372,7 +3525,6 @@ if%success isPairList S x using S then
     fold%return (xmatch, havematch) := (R_NilValue : SEXP, 0) along x as y, _, y_list do
         let y_tag := list_tagval y_list in
         let y_car := list_carval y_list in
-        
             let%success pstr := pstrmatch S y_tag input slen using S in
                 match pstr with
                 | EXACT_MATCH => let y := y_car in
@@ -4161,11 +4313,11 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "all.names" (dummy_function "do_allnames") (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
               rdecl "comment" (dummy_function "do_comment") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "comment<-" (dummy_function "do_commentgets") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_LEFT true ;
-              rdecl "get" (dummy_function "do_get") (1)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "get0" (dummy_function "do_get") (2)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "get" do_get (1)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "get0" do_get (2)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false ;
               rdecl "mget" (dummy_function "do_mget") (1)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "exists" (dummy_function "do_get") (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "assign" (dummy_function "do_assign") (0)%Z eval111 (4)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "exists" do_get (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "assign" do_assign (0)%Z eval111 (4)%Z PP_FUNCALL PREC_FN false ;
               rdecl "list2env" (dummy_function "do_list2env") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "remove" (dummy_function "do_remove") (0)%Z eval111 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "duplicated" (dummy_function "do_duplicated") (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
@@ -4597,7 +4749,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "formals" (dummy_function "do_formals") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "body" (dummy_function "do_body") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "bodyCode" (dummy_function "do_bodyCode") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "environment" (dummy_function "do_envir") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "environment" do_envir (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "environmentName" (dummy_function "do_envirName") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "env2list" (dummy_function "do_env2list") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "reg.finalizer" (dummy_function "do_regFinaliz") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
@@ -4620,9 +4772,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "merge" (dummy_function "do_merge") (0)%Z eval11 (4)%Z PP_FUNCALL PREC_FN false ;
               rdecl "capabilities" (dummy_function "do_capabilities") (0)%Z eval11 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "capabilitiesX11" (dummy_function "do_capabilitiesX11") (0)%Z eval11 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "new.env" (dummy_function "do_newenv") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "parent.env" (dummy_function "do_parentenv") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "parent.env<-" (dummy_function "do_parentenvgets") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_LEFT true ;
+              rdecl "new.env" do_newenv (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "parent.env" do_parentenv (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "parent.env<-" do_parentenvgets (0)%Z eval11 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "topenv" (dummy_function "do_topenv") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "l10n_info" (dummy_function "do_l10n_info") (0)%Z eval11 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "Cstack_info" (dummy_function "do_Cstack_info") (0)%Z eval11 (0)%Z PP_FUNCALL PREC_FN false ;

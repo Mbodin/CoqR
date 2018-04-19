@@ -48,13 +48,17 @@ clean_tlc:
 
 all_interp: src/runR.native src/runR.d.byte src/initial.state
 
+# Runs the program.
 run: src/runR.native src/initial.state
 	${AT}src/runR.native -initial-state src/initial.state
 
-# To launch the program faster through the “make run” command.
+# Precomputes the initial state.
 src/initial.state: src/runR.native
 	${AT}# Note: the following command may take some time to execute.
-	${AT}src/runR.native -non-interactive -final-state src/initial.state > /dev/null
+	${AT}src/runR.native -non-interactive -final-state $@ > /dev/null
+
+Rlib/bootstrapping.state: src/initial.state
+	${AT}src/runR.native -non-interactive -initial-state $< -final-state $@ > /dev/null
 
 clean_interp:
 	${AT}rm src/runR.native || true
@@ -72,10 +76,10 @@ src/Extraction.vo: Makefile.coq
 	${AT}+make -f Makefile.coq $@
 
 src/extract.ml: src/Extraction.vo
-	${AT}mv extract.ml src/extract.ml 2> /dev/null || true
+	${AT}mv extract.ml $@ 2> /dev/null || true
 
 src/extract.mli: src/Extraction.vo
-	${AT}mv extract.mli src/extract.mli 2> /dev/null || true
+	${AT}mv extract.mli $@ 2> /dev/null || true
 
 src/runR.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
 	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..

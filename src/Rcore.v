@@ -1131,6 +1131,36 @@ Definition XTRUELENGTH S x :=
   else STDVEC_TRUELENGTH S x.
 
 
+(** ** builtin.c **)
+
+(** The function names of this section corresponds to the macro names
+  in the file main/builtin.c. **)
+
+Definition R_IsImportsEnv S env :=
+  add%stack "R_IsImportsEnv" in
+  let%success env_null := isNull S env using S in
+  let%success env_env := isEnvironment S env using S in
+  ifb env_null \/ ~ env_env then
+    result_success S false
+  else
+    read%env _, env_env := env using S in
+    ifb env_enclos env_env = R_BaseNamespace then
+      result_success S false
+    else
+      let%success name := runs_getAttrib runs S env R_NameSymbol using S in
+      let%success name_str := isString S name using S in
+      let%success name_len := LENGTH S name using S in
+      ifb ~ name_str \/ name_len <> 1 then
+        result_success S false
+      else
+        let imports_prefix := "imports:"%string in
+        let%success name_0 := STRING_ELT S name 0 using S in
+        let%success name_string := CHAR S name_0 using S in
+        ifb String.substring 0 (String.length imports_prefix) name_string = imports_prefix then
+          result_success S true
+        else result_success S false.
+
+
 (** ** duplicate.c **)
 
 (** The function names of this section corresponds to the function names
@@ -1777,8 +1807,8 @@ Definition mkString S (str : string) : state * SEXP :=
 Definition iSDDName S (name : SEXP) :=
   add%stack "iSDDName" in
   let%success buf := CHAR S name using S in
-  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
-    let buf := substring 2 (String.length buf) buf in
+  ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := String.substring 2 (String.length buf) buf in
     (** I am simplifying the C code here. **)
     result_success S (decide (Forall (fun c : Ascii.ascii =>
         Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
@@ -2348,6 +2378,20 @@ Definition SET_FRAME S x v :=
   write%defined x := x_ using S in
   result_skip S.
 
+Definition SET_ENCLOS S x v :=
+  add%stack "SET_ENCLOS" in
+  read%env x_, x_env := x using S in
+  let x_env := {|
+      env_frame := env_frame x_env ;
+      env_enclos := v
+    |} in
+  let x_ := {|
+      NonVector_SExpRec_header := x_ ;
+      NonVector_SExpRec_data := x_env
+    |} in
+  write%defined x := x_ using S in
+  result_skip S.
+
 Definition addMissingVarsToNewEnv S (env addVars : SEXP) :=
   add%stack "addMissingVarsToNewEnv" in
   ifb addVars = R_NilValue then
@@ -2453,6 +2497,30 @@ Definition SET_SYMBOL_BINDING_VALUE S sym val :=
     read%sym _, sym_sym := sym using S in
     setActiveValue S (sym_value sym_sym) val
   else SET_SYMVALUE S sym val.
+
+Definition simple_as_environment S arg :=
+  add%stack "simple_as_environment" in
+  let%success arg_s4 := IS_S4_OBJECT S arg using S in
+  let%success arg_type := TYPEOF S arg using S in
+  ifb arg_s4 /\ arg_type = S4Sxp then
+    unimplemented_function "R_getS4DataSlot"
+  else result_success S (R_NilValue : SEXP).
+
+Definition R_EnvironmentIsLocked S env :=
+  add%stack "R_EnvironmentIsLocked" in
+  let%success env_type := TYPEOF S env using S in
+  ifb env_type = NilSxp then
+    result_error S "Use of NULL environment is defunct."
+  else
+    let%success env :=
+      ifb env_type <> EnvSxp then
+        simple_as_environment S env
+      else result_success S env using S in
+    let%success env_type := TYPEOF S env using S in
+    ifb env_type <> EnvSxp then
+      result_error S "Not an environment."
+    else
+      FRAME_IS_LOCKED S env.
 
 Definition gsetVar S (symbol value rho : SEXP) : result unit :=
   add%stack "gsetVar" in
@@ -2561,6 +2629,26 @@ Definition findVarInFrame3 S rho symbol (doGet : bool) :=
 Definition findVarInFrame S rho symbol :=
   add%stack "findVarInFrame" in
   findVarInFrame3 S rho symbol true.
+
+Definition R_IsNamespaceEnv S (rho : SEXP) :=
+  add%stack "R_IsNamespaceEnv" in
+  ifb rho = R_BaseNamespace then
+    result_success S true
+  else
+    let%success rho_type := TYPEOF S rho using S in
+    ifb rho_type = EnvSxp then
+      let%success info := findVarInFrame3 S rho R_NamespaceSymbol true using S in
+      let%success info_type := TYPEOF S info using S in
+      ifb info <> R_UnboundValue /\ info_type = EnvSxp then
+        let%success spec_install := install S "spec" using S in
+        let%success spec := findVarInFrame3 S info spec_install true using S in
+        let%success spec_type := TYPEOF S spec using S in
+        ifb spec <> R_UnboundValue /\ spec_type = StrSxp then
+          let%success spec_len := LENGTH S spec using S in
+          result_success S (decide (spec_len > 0))
+        else result_success S false
+      else result_success S false
+    else result_success S false.
 
 Definition EnsureLocal S symbol rho :=
   add%stack "EnsureLocal" in
@@ -2676,8 +2764,8 @@ Definition ddVal S symbol :=
   add%stack "ddVal" in
   let%success symbol_name := PRINTNAME S symbol using S in
   let%success buf := CHAR S symbol_name using S in
-  ifb substring 0 2 buf = ".."%string /\ String.length buf > 2 then
-    let buf := substring 2 (String.length buf - 2) in
+  ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := String.substring 2 (String.length buf - 2) in
     unimplemented_function "strtol"
   else result_success S 0.
 
