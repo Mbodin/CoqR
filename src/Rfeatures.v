@@ -716,6 +716,21 @@ Definition do_assign S (call op args rho : SEXP) : result SEXP :=
             else defineVar globals runs S name val aenv using S in
           result_success S val.
 
+Definition do_emptyenv S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_emptyenv" in
+  run%success Rf_checkArityCall S op args call using S in
+  result_success S (R_EmptyEnv : SEXP).
+
+Definition do_baseenv S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_baseenv" in
+  run%success Rf_checkArityCall S op args call using S in
+  result_success S (R_BaseEnv : SEXP).
+
+Definition do_globalenv S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_globalenv" in
+  run%success Rf_checkArityCall S op args call using S in
+  result_success S (R_GlobalEnv : SEXP).
+
 
 (** ** bind.c **)
 
@@ -4664,9 +4679,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "enc2native" (dummy_function "do_enc2") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "enc2utf8" (dummy_function "do_enc2") (1)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "emptyenv" (dummy_function "do_emptyenv") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "baseenv" (dummy_function "do_baseenv") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "globalenv" (dummy_function "do_globalenv") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "emptyenv" do_emptyenv (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "baseenv" do_baseenv (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "globalenv" do_globalenv (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "environment<-" (dummy_function "do_envirgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "pos.to.env" (dummy_function "do_pos2env") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 

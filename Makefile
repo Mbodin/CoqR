@@ -39,6 +39,8 @@ Makefile: ;
 .PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run random clean_random
 
 clean_all: clean clean_tlc
+	${AT}rm src/initial.state || true
+	${AT}rm Rlib/bootstrapping.state || true
 
 tlc:
 	${AT}cd lib/tlc ; make ; cd ../..
@@ -57,8 +59,8 @@ src/initial.state: src/runR.native
 	${AT}# Note: the following command may take some time to execute.
 	${AT}src/runR.native -non-interactive -final-state $@ > /dev/null
 
-Rlib/bootstrapping.state: src/initial.state
-	${AT}src/runR.native -non-interactive -initial-state $< -final-state $@ > /dev/null
+Rlib/bootstrapping.state: src/initial.state Rlib/bootstrapping.R
+	${AT}cat Rlib/bootstrapping.R | src/runR.native -initial-state $< -final-state $@ > /dev/null
 
 clean_interp:
 	${AT}rm src/runR.native || true
