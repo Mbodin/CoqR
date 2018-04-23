@@ -2221,7 +2221,15 @@ Ltac rewrite_read_SExp :=
   [Some ?S'] everywhere in the context. **)
 Ltac define_write_SExp S p p_ :=
   lazymatch goal with
-  | E : write_SExp S p p_ = Some ?S' |- _ => try rewrite E in *
+  | E : write_SExp S p p_ = Some ?S' |- _ =>
+    try rewrite E;
+    try rewrite E in *
+  | E : read_SExp (state_memory S) p = Some _ |- _ =>
+    let S' := fresh1 S in
+    let ES' := fresh "E" S' in
+    lets (S'&ES'): read_write_SExp_Some p_ E;
+    try rewrite E; (* This forces the instantiation of [E] in the goal first. *)
+    try rewrite E in *
   | _ =>
     let S' := fresh1 S in
     let ES' := fresh "E" S' in
@@ -2230,14 +2238,17 @@ Ltac define_write_SExp S p p_ :=
           false;
           match goal with
           | A : alloc_SExp _ _ = (S, p) |- _ =>
-            applys~ alloc_write_SExp_not_None A ES'
+            applys alloc_write_SExp_not_None A ES';
+            solve [ false~ ]
           | E : read_SExp (state_memory S) p = Some _ |- _ =>
             let R := fresh "R" in
             rewrites >> write_read_SExp_None (rm ES') in E;
-            inverts~ E
+            inverts E; solve [ false~ ]
           end
         | autos~; simpls* ]
-    | try rewrite ES' in *; try assumption ]
+    | try rewrite ES';
+      try rewrite ES' in *;
+      try assumption ]
   end.
 
 
@@ -2777,10 +2788,14 @@ Ltac transition_conserve S S' :=
       | repeat lazymatch goal with
         | A : alloc_SExp ?S0 ?p_ = (S, ?p) |- _ =>
           try update_safe_props_from_alloc A S0 S p_;
+          let F := fresh "F" in
+          forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
         | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
           try update_safe_props_from_alloc A S S' p_;
+          let F := fresh "F" in
+          forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
         | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
@@ -3039,6 +3054,7 @@ Ltac computeR_step :=
     let L := fresh "L" in
     forwards (OKS'&OKG'&OKl'&L): allocList_safe E; try solve_premises_smart;
     [idtac]
+  | _ => idtac
   end;
   clear_trivial.
 

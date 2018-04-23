@@ -45,6 +45,23 @@ Proof.
     introv M1 M2. applys only_one_nil OKS; apply* may_have_types_same_memory.
 Qed.
 
+Lemma init_R_NilValue_safe : forall S,
+  safe_state S ->
+  result_prop (fun S NilValue => safe_state S /\ safe_pointer S NilValue)
+    (fun _ => False) (fun _ _ _ => False) (init_R_NilValue S).
+Proof.
+  introv OKS. unfold init_R_NilValue. computeR.
+  simpl. splits~.
+  - skip (* TODO *).
+    (*constructors.
+    (** no_null_pointer_entry_point **)
+    + rewrite~ move_along_entry_point_same_contexts.
+      applys~ no_null_pointer_entry_point OKS.
+    (** safe_entry_points **)
+    (** only_one_nil **)*)
+  - skip (* TODO *).
+Qed.
+
 
 (* I think that it would be easy to use tactics to check that [setup_Rmainloop]
   is indeed of the form [result_success S globals] or something like that. *)

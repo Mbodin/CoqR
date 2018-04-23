@@ -893,6 +893,14 @@ Lemma alloc_read_SExp_diff : forall S S' p p' p_ p'_,
   p <> p'.
 Proof. introv A E N. substs. rewrite (alloc_read_SExp_fresh A) in E. inverts~ E. Qed.
 
+Lemma read_write_SExp_Some : forall (S : state) p p_ p_',
+  read_SExp S p = Some p_ ->
+  exists S', write_SExp S p p_' = Some S'.
+Proof.
+  introv E. unfolds write_SExp. lets (S'&E'): read_SExp_write_memory_SExp E.
+  rewrite* E'.
+Qed.
+
 
 (** * Initial Memory **)
 

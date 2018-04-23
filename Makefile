@@ -48,7 +48,7 @@ tlc:
 clean_tlc:
 	${AT}cd lib/tlc ; make clean ; cd ../..
 
-all_interp: src/runR.native src/runR.d.byte src/initial.state
+all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping.state
 
 # Runs the program.
 run: src/runR.native src/initial.state
