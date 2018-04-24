@@ -1576,6 +1576,11 @@ Ltac get_safe_globals S globals cont :=
   | H : safe_globals S globals |- _ => cont H
   end.
 
+Ltac get_safe_globals_no_S globals cont :=
+  match goal with
+  | H : safe_globals _ globals |- _ => cont H
+  end.
+
 (** *** [list_type] **)
 
 (** There are several variants of [list_type] defined in this file.
@@ -1670,7 +1675,7 @@ Ltac get_may_have_types S p cont :=
     | read_globals ?globals R_NilValue =>
       get_safe_globals S globals ltac:(fun OKg =>
         let T := fresh "Tnil" in
-        forwards T: R_NilValue_may_have_types OKg; [idtac];
+        forwards T: R_NilValue_may_have_types OKg;
         cont T)
     end
   | _ =>
@@ -1721,9 +1726,10 @@ Ltac get_may_have_types_no_S p cont :=
   | |- _ =>
     lazymatch p with
     | read_globals ?globals R_NilValue =>
-      let T := fresh "Tnil" in
-      forwards~ T: R_NilValue_may_have_types; [idtac];
-      cont T
+      get_safe_globals_no_S globals ltac:(fun OKg =>
+        let T := fresh "Tnil" in
+        forwards T: R_NilValue_may_have_types OKg;
+        cont T)
     end
   | _ =>
     (** This case uses [bound_may_have_types], which produces an imprecise result.
@@ -1747,26 +1753,29 @@ Ltac get_safe_state S cont :=
   match goal with
   | H : safe_state S |- _ => cont H
   | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S r, P_success S r -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S r, P_success S r -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
   | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S, P_error S -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S, P_error S -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
   | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
-    let I := fresh "Impl" in
-    asserts I: (forall S n c, P_longjump S n c -> safe_state S);
-    [solve [autos*]|];
-    let R := fresh "Safe" in
-    forwards* R: (rm I) H; [idtac];
-    cont R
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S n c, P_longjump S n c -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
   end.
 
 
@@ -1802,15 +1811,16 @@ Ltac get_safe_pointer_base S p cont :=
     rewrite <- safe_pointer_rewrite in H; cont H
   | M : move_along_entry_point _ S = Some p |- _ =>
     get_safe_state S ltac:(fun OKS =>
-      let R := fresh "Safe" in
-      forwards~ R: safe_entry_points OKS M;
-      try solve [
-            applys~ no_null_pointer_entry_point OKS M;
-            let A := fresh "A" in
-            introv A;
-            prove_no_null_pointer_exceptions_entry_point A ];
-      [idtac];
-      cont R)
+      let p' := fresh1 p in
+      let R := fresh "OK" p' in
+      asserts R: (safe_pointer S p);
+      [ applys* safe_entry_points OKS M;
+        solve [
+          applys~ no_null_pointer_entry_point OKS M;
+          let A := fresh "A" in
+          introv A;
+          prove_no_null_pointer_exceptions_entry_point A ]
+      | cont R ])
   | _ =>
     let p' := fresh1 p in
     let OKp := fresh "OK" p' in
@@ -1887,12 +1897,14 @@ Ltac get_safe_SExpRec S e_ cont :=
     get_safe_pointer_base S e ltac:(fun H =>
       let e_' := fresh1 e_ in
       let R := fresh "OK" e_' in
-      (forwards~ R: safe_SExpRec_read H P
-       || (let H' := fresh1 H in
-           lets H': H;
-           rewrite safe_pointer_rewrite in H';
-           forwards~ R: safe_SExpRec_read H' P)); [idtac];
-      cont R)
+      asserts R: (safe_SExpRec_gen safe_pointer S e_);
+      [ solve [
+            applys* safe_SExpRec_read H P
+          | let H' := fresh1 H in
+            lets H': H;
+            rewrite safe_pointer_rewrite in H';
+            forwards* R: safe_SExpRec_read H' P ]
+      | cont R ])
   | _ =>
     let e_' := fresh1 e_ in
     let R := fresh "OK" e_' in
@@ -1925,8 +1937,9 @@ Ltac get_safe_SExpRec S e_ cont :=
 
 (** *** [move_along_path_step] **)
 
-(** The continuation expects a pointer [p0] and an equality
-  of the form [move_along_path_step step S p0 = Some p]. **)
+(** The continuation expects a pointer [p0] and an equality of the
+  form [move_along_path_step step S p0 = Some p].  This tactic thus
+  looks for a pointer in the backward direction. **)
 Ltac get_move_along_path_step S p cont :=
   match goal with
   | M : move_along_path_step _ S ?p0 = Some p |- _ => cont p0 M
@@ -2030,13 +2043,14 @@ Ltac get_safe_pointer S p cont :=
       get_move_along_path S p ltac:(fun M =>
         let p' := fresh1 p in
         let OKp := fresh "OK" p' in
-        forwards~ OKp: safe_pointer_along_path OKS M;
-        try (applys~ no_null_pointer_along_path OKS M;
+        asserts OKp: (safe_pointer S p);
+        [ applys* safe_pointer_along_path OKS M;
+          solve [
+             applys~ no_null_pointer_along_path OKS M;
              let A := fresh "A" in
              introv A;
-             prove_no_null_pointer_exceptions_path_simple A);
-        [idtac];
-        cont OKp))
+             prove_no_null_pointer_exceptions_path_simple A ]
+        | cont OKp ]))
   | _ =>
     get_move_along_path_step S p ltac:(fun p0 M =>
       mark_as_seen p0;
@@ -2044,14 +2058,15 @@ Ltac get_safe_pointer S p cont :=
         let next OKp0 :=
           let p' := fresh1 p in
           let OKp := fresh "OK" p' in
-          forwards~ OKp: safe_pointer_along_path_step OKp0 M;
-          try (applys~ no_null_pointer_along_path_step OKp0 M;
+          asserts OKp: (safe_pointer S p);
+          [ applys* safe_pointer_along_path_step OKp0 M;
+            solve [
+               applys~ no_null_pointer_along_path_step OKp0 M;
                let A := fresh "A" in
                introv A;
-               prove_no_null_pointer_exceptions_path_suffix_simple A);
-          [idtac];
-          remove_already_seen p0;
-          cont OKp in
+               prove_no_null_pointer_exceptions_path_suffix_simple A ]
+          | remove_already_seen p0;
+            cont OKp ] in
         next OKp0
         || (let OKp0' := fresh1 OKp0 in
             lets OKp0': OKp0;
@@ -2061,14 +2076,15 @@ Ltac get_safe_pointer S p cont :=
     M : move_along_path_from _ S ?p0 = Some p |- _ =>
     let p' := fresh1 p in
     let OKp := fresh "OK" p' in
-    forwards~ OKp: safe_pointer_along_path_from OKp0 M;
-    try (applys~ no_null_pointer_along_path_from OKp0 M;
+    asserts OKp: (safe_pointer S p);
+    [ applys* safe_pointer_along_path_from OKp0 M;
+      solve [
+         applys~ no_null_pointer_along_path_from OKp0 M;
          let I := fresh "I" in
          let A := fresh "A" in
          introv I A; repeat inverts I as I;
-         prove_no_null_pointer_exceptions_path_suffix_simple A);
-    [idtac];
-    cont OKp
+         prove_no_null_pointer_exceptions_path_suffix_simple A ]
+    | cont OKp ]
   end.
 
 Ltac get_safe_pointer_no_S p cont :=
@@ -2775,12 +2791,35 @@ Ltac transition_conserve S S' :=
         let S'' := fresh1 S' in
         let OKS' := fresh "OK" S'' in
         let OKp_' := fresh1 OKp_ in
-        forwards~ OKS': alloc_SExp_safe_state (rm OKS) OKp_ A;
-        try prove_types_different ;
-        [idtac];
-        forwards~ OKp_': conserve_old_binding_safe_SExpRec (rm OKp_);
-        try applys~ alloc_SExp_conserve_old_binding A;
-        [idtac])
+        asserts OKS': (safe_state S');
+        [ applys* alloc_SExp_safe_state OKS OKp_ A;
+          solve [ prove_types_different ] |];
+        asserts OKp_': (safe_SExpRec S' p_);
+        [ applys* conserve_old_binding_safe_SExpRec OKp_;
+          solve [ applys* alloc_SExp_conserve_old_binding A ] |])
+    | OKS_cond : ?cond -> safe_state S |- _ =>
+      let S'' := fresh1 S' in
+      let OKS' := fresh "OK" S'' in
+      try (
+        asserts OKS': (safe_state S' \/ cond -> safe_state S');
+        [ let H := fresh in
+          intros [H|H];
+          [ exact H
+          | let OKS := fresh OKS_cond in
+            forwards OKS: OKS_cond H;
+            get_safe_SExpRec S p_ ltac:(fun OKp_ =>
+              let OKp_' := fresh1 OKp_ in
+              applys* alloc_SExp_safe_state OKS OKp_ A;
+              solve [ prove_types_different ]) ] |];
+        asserts OKp_': (safe_SExpRec S' p_ \/ cond -> safe_SExpRec S' p_);
+        [ let H := fresh in
+          intros [H|H];
+          [ exact H
+          | let OKS := fresh OKS_cond in
+            forwards OKS: OKS_cond H;
+            get_safe_SExpRec S p_ ltac:(fun OKp_ =>
+              applys* conserve_old_binding_safe_SExpRec OKp_;
+              solve [ applys* alloc_SExp_conserve_old_binding A ]) ] |])
     end in
   find_conserve_old_binding S S' ltac:(fun C =>
     first [

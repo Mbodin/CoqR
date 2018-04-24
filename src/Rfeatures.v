@@ -2441,11 +2441,11 @@ Definition integer_binary S (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
       result_success S ans
     else
       run%success
-        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+        ifb ans <> s2 /\ n = n2 /\ s2_attr <> R_NilValue then
           copyMostAttrib globals runs S s2 ans
         else result_skip S using S in
       run%success
-        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+        ifb ans <> s1 /\ n = n1 /\ s1_attr <> R_NilValue then
           copyMostAttrib globals runs S s1 ans
         else result_skip S using S in
       result_success S ans.
@@ -2721,11 +2721,11 @@ Definition real_binary S (code : int) s1 s2 : result SEXP :=
       result_success S ans
     else
       run%success
-        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+        ifb ans <> s2 /\ n = n2 /\ s2_attr <> R_NilValue then
           copyMostAttrib globals runs S s2 ans
         else result_skip S using S in
       run%success
-        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+        ifb ans <> s1 /\ n = n1 /\ s1_attr <> R_NilValue then
           copyMostAttrib globals runs S s1 ans
         else result_skip S using S in
       result_success S ans.
@@ -3007,10 +3007,10 @@ Definition do_arith S (call op args env : SEXP) : result SEXP :=
     else R_length globals runs S args using S in
   let arg1 := args_car in
   let arg2 := args_cdr_car in
-  read%defined arg1_ := arg1 using S in
-  read%defined arg2_ := arg1 using S in
   run%exit
-    ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
+    let%success arg1_attr := ATTRIB S arg1 using S in
+    let%success arg2_attr := ATTRIB S arg2 using S in
+    ifb arg1_attr <> R_NilValue \/ arg2_attr <> R_NilValue then
       if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
         result_rreturn S ans
       else result_rskip S

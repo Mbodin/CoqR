@@ -310,6 +310,19 @@ Lemma move_along_context_path_state_with_memory : forall S p m,
   move_along_context_path p (state_with_memory S m) = move_along_context_path p S.
 Proof. introv. induction~ p. simpl. rewrite~ IHp. Qed.
 
+Lemma move_along_context_path_write_SExp : forall S S' p p' p'_,
+  write_SExp S p' p'_ = Some S' ->
+  move_along_context_path p S' = move_along_context_path p S.
+Proof.
+  introv E. unfolds in E. destruct write_memory_SExp; inverts E.
+  apply~ move_along_context_path_state_with_memory.
+Qed.
+
+Lemma move_along_context_path_alloc_SExp : forall S S' p p' p'_,
+  alloc_SExp S p'_ = (S', p') ->
+  move_along_context_path p S' = move_along_context_path p S.
+Proof. introv E. inverts E. apply~ move_along_context_path_state_with_memory. Qed.
+
 Lemma move_along_context_path_same_contexts : forall S1 S2 p,
   state_context S1 = state_context S2 ->
   R_ExitContext S1 = R_ExitContext S2 ->
@@ -390,6 +403,14 @@ Definition move_along_entry_point e S :=
 Lemma move_along_entry_point_state_with_memory : forall S e m,
   move_along_entry_point e (state_with_memory S m) = move_along_entry_point e S.
 Proof. introv. destruct~ e. simpl. rewrite~ move_along_context_path_state_with_memory. Qed.
+
+Lemma move_along_entry_point_write_SExp : forall S S' e p p_,
+  write_SExp S p p_ = Some S' ->
+  move_along_entry_point e S' = move_along_entry_point e S.
+Proof.
+  introv E. unfolds in E. destruct write_memory_SExp; inverts E.
+  apply~ move_along_entry_point_state_with_memory.
+Qed.
 
 Lemma move_along_entry_point_alloc_SExp : forall S S' e p p_,
   alloc_SExp S p_ = (S', p) ->
