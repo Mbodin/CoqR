@@ -6,7 +6,7 @@ pipeline {
         sh 'eval `opam config env`'
         sh 'make tlc'
         sh 'make'
-	sh "cat ${env.WORKSPACE}/Rlib/base/*.R | ${env.WORKSPACE}/src/runR.native -initial-state ${env.WORKSPACE}/Rlib/bootstrapping.state -final-state ${env.WORKSPACE}/Rlib/bootstrapping.state"
+	sh "chmod 755 ${env.WORKSPACE}/base_setup.sh && ${env.WORKSPACE}/base_setup.sh ${env.WORKSPACE}"
       }
     }
 
@@ -24,7 +24,7 @@ pipeline {
 
   }
   environment {
-    COQ_INTERP = "${env.WORKSPACE}"
+    COQR_INTERP = "${env.WORKSPACE}"
     RSCRIPT = 'R'
   }
 }
