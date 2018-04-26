@@ -54,15 +54,29 @@ Lemma init_R_NilValue_safe : forall S,
     (fun _ => False) (fun _ _ _ => False) (init_R_NilValue S).
 Proof.
   introv OKS N. unfold init_R_NilValue. computeR.
+  asserts Ep: (forall p', may_have_types S2 ([NilSxp]) p' -> p = p').
+  { introv M. tests Dp: (p = p'); [ autos~ |].
+    false N p'.
+    forwards~ M1: may_have_types_write_SExp_inv ES2 M.
+    forwards~ M2: may_have_types_write_SExp_inv ES0 M1.
+    forwards~ M3: conserve_old_binding_may_have_types_inv C M2.
+    skip. (* TODO *) }
   simpl. splits~.
-  - skip (* TODO *).
-    (*constructors.
-    (** no_null_pointer_entry_point **)
-    + introv. rewrites~ >> move_along_entry_point_write_SExp ES2.
-      rewrites~ >> move_along_entry_point_write_SExp ES1.
+  - constructors.
+    + (** no_null_pointer_entry_point **)
+      introv. rewrites~ >> move_along_entry_point_write_SExp ES2.
+      rewrites~ >> move_along_entry_point_write_SExp ES0.
+      rewrites~ >> move_along_entry_point_alloc_SExp ES1.
       applys~ no_null_pointer_entry_point OKS.
-    (** safe_entry_points **)
-    (** only_one_nil **)*)
+    + (** safe_entry_points **)
+      introv M Dp0. rewrites~ >> move_along_entry_point_write_SExp ES2 in M.
+      rewrites~ >> move_along_entry_point_write_SExp ES0 in M.
+      rewrites~ >> move_along_entry_point_alloc_SExp ES1 in M.
+      forwards~ OKp0: safe_entry_points OKS M Dp0.
+      apply (conserve_old_binding_safe_pointer C) in OKp0.
+      skip. (* TODO *)
+    + (** only_one_nil **)
+      introv M1 M2. rewrites~ <- >> Ep M1.
   - skip (* TODO *).
 Qed.
 

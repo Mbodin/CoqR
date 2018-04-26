@@ -124,6 +124,13 @@ Lemma may_have_types_write_SExp_eq_exact : forall S S' p p_ t,
   may_have_types S' ([t]) p.
 Proof. introv W E. applys~ may_have_types_write_SExp_eq W. apply~ BagInSingle_list. Qed.
 
+Lemma may_have_types_write_SExp_inv : forall S S' p p' p_ l,
+  write_SExp S p p_ = Some S' ->
+  may_have_types S' l p' ->
+  p <> p' ->
+  may_have_types S l p'.
+Proof. introv W (p'_&E&T) D. exists p'_. splits~. rewrites~ <- >> read_write_SExp_neq W D. Qed.
+
 Lemma may_have_types_read_SExp : forall S l p p_,
   may_have_types S l p ->
   read_SExp S p = Some p_ ->
@@ -782,6 +789,16 @@ Proof.
   introv C (p_&E&T). forwards (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
   - apply* read_bound.
   - rewrite E in E1. inverts E1. substs. exists~ p2_.
+Qed.
+
+Lemma conserve_old_binding_may_have_types_inv : forall S S' l p,
+  conserve_old_binding S S' ->
+  may_have_types S' l p ->
+  bound S p ->
+  may_have_types S l p.
+Proof.
+  introv C (p_&E&T) B. forwards~ (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
+  rewrite E2 in E. inverts E. substs. exists~ p_.
 Qed.
 
 Lemma conserve_old_binding_list_type : forall Pheader Pcar Ptag S S' l_t l_car l_tag p,
@@ -2827,12 +2844,18 @@ Ltac transition_conserve S S' :=
       | repeat lazymatch goal with
         | A : alloc_SExp ?S0 ?p_ = (S, ?p) |- _ =>
           try update_safe_props_from_alloc A S0 S p_;
+          let A' := fresh A in
+          asserts A': (alloc_SExp S0 p_ = id (S, p));
+          [ apply* A |]; (** Saving a copy that won’t match. **)
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
         | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
           try update_safe_props_from_alloc A S S' p_;
+          let A' := fresh A in
+          asserts A': (alloc_SExp S p_ = id (S', p));
+          [ apply* A |]; (** Saving a copy that won’t match. **)
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
@@ -2980,7 +3003,7 @@ Proof.
       introv N Em. unfolds in Em. self_rewrite in Em. simpl in Em.
       destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; solve_premises_smart.
     + (** safe_pointer_along_path_step **)
-      introv Em NN. unfolds in Em. rewrite E0 in Em. simpl in Em.
+      introv Em NN. unfolds in Em. rewrite E1 in Em. simpl in Em.
       destruct s as [|?|[| |]|?|?|?|?]; inverts~ Em; solve_premises_smart.
     + (** safe_SExpRec_read **)
       self_rewrite. introv E2. inverts E2. solve_premises_smart.
