@@ -53,8 +53,9 @@ let normal_character = [^ '\\' '\'' '"' '`' '\x00'] (* This is improvable. *)
 (** *** Identifiers **)
 let reg_identifier =
   (** For simplicity, we do not deal with locales. **)
-  ('.' ['_' '.' 'a'-'z' 'A'-'Z'] | ['a'-'z' 'A'-'Z'])
-  ['_' '.' 'a'-'z' 'A'-'Z' '0'-'9']*
+  "." | (
+    ('.' ['_' '.' 'a'-'z' 'A'-'Z'] | ['a'-'z' 'A'-'Z'])
+    ['_' '.' 'a'-'z' 'A'-'Z' '0'-'9']*)
 
 let reserved_keywords =
   "if" | "else" | "repeat" | "while" | "function" | "for" | "in" | "next" | "break"
