@@ -132,9 +132,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
         nenv <- env
         ns <- .getNamespace(as.name(pkg))
         if(!is.null(ns)) nenv <- asNamespace(ns)
-        if (exists(".noGenerics", envir = nenv, inherits = FALSE))
+        if (exists(".noGenerics", envir = nenv, inherits = FALSE)) {
             TRUE
-        else {
+        } else {
             ## A package will have created a generic
             ## only if it has created a formal method.
 	    !any(startsWith(names(env), ".__T"))
@@ -234,10 +234,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
 	    pkgpath <- find.package(package, lib.loc, quiet = TRUE,
                                     verbose = verbose)
             if(length(pkgpath) == 0L) {
-                txt <- if(length(lib.loc))
+                txt <- if(length(lib.loc)) {
                     gettextf("there is no package called %s", sQuote(package))
-                else
-                    gettext("no library trees found in 'lib.loc'")
+                } else                    gettext("no library trees found in 'lib.loc'")
                 if(logical.return) {
                     warning(txt, domain = NA)
 		    return(FALSE)
@@ -282,9 +281,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                     	## No, so try to unload the previous one
                     	res <- tryCatch(unloadNamespace(package),
 					error = function(e) {
-					    P <- if(!is.null(cc <- conditionCall(e)))
+					    P <- if(!is.null(cc <- conditionCall(e))) {
 						     paste("Error in", deparse(cc)[1L], ": ")
-						 else "Error : "
+                        } else "Error : "
 					    stop(gettextf("Package %s version %s cannot be unloaded:\n %s",
 							  sQuote(package), oldversion,
 							  paste0(P, conditionMessage(e),"\n")),
@@ -300,9 +299,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
 			     paste(" in", deparse(cc)[1L]) else ""
 		    msg <- gettextf("package or namespace load failed for %s%s:\n %s",
 				    sQuote(package), P, conditionMessage(e))
-		    if(logical.return)
+		    if(logical.return) {
 			message(paste("Error:", msg), domain = NA) # returns NULL
-		    else stop(msg, call. = FALSE, domain = NA)
+            } else stop(msg, call. = FALSE, domain = NA)
 		})
 		if(logical.return && is.null(tt))
 		    return(FALSE)
@@ -319,21 +318,18 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                         checkConflicts(package, pkgname, pkgpath,
                                        nogenerics, ns)
                     on.exit()
-                    if (logical.return)
+                    if (logical.return) {
                         return(TRUE)
-                    else
-                        return(invisible(.packages()))
+                    } else                        return(invisible(.packages()))
                 }
-            } else
-		stop(gettextf("package %s does not have a namespace and should be re-installed",
+            } else		stop(gettextf("package %s does not have a namespace and should be re-installed",
 			      sQuote(package)), domain = NA)
 	}
 	if (verbose && !newpackage)
             warning(gettextf("package %s already present in search()",
                              sQuote(package)), domain = NA)
 
-    }
-    else if(!missing(help)) {
+    }    else if(!missing(help)) {
 	if(!character.only)
 	    help <- as.character(substitute(help))
         pkgName <- help[1L]            # only give help on one package
@@ -350,10 +346,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                 if("Encoding" %in% names(txt)) {
                     to <- if(Sys.getlocale("LC_CTYPE") == "C") "ASCII//TRANSLIT"else ""
                     tmp <- try(iconv(txt, from=txt["Encoding"], to=to))
-                    if(!inherits(tmp, "try-error"))
+                    if(!inherits(tmp, "try-error")) {
                         txt <- tmp
-                    else
-                        warning("'DESCRIPTION' has an 'Encoding' field and re-encoding is not possible",
+                    } else warning("'DESCRIPTION' has an 'Encoding' field and re-encoding is not possible",
                                 call. = FALSE)
                 }
                 nm <- paste0(names(txt), ":")
@@ -367,7 +362,7 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                 ## vignettes, their titles, and indicate whether PDFs
                 ## are available.
                 ## The index might have zero rows.
-                if(is.data.frame(txt) && nrow(txt))
+                if(is.data.frame(txt) && nrow(txt)) {
                     cbind(basename(gsub("\\.[[:alpha:]]+$", "",
                                         txt$File)),
                           paste(txt$Title,
@@ -376,17 +371,15 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                                               ", pdf",
                                               ""),
                                        ")")))
-                else NULL
-            } else
-            readLines(f)
+                } else NULL
+            } else readLines(f)
         }
         for(i in which(file.exists(docFiles)))
             pkgInfo[[i]] <- readDocFile(docFiles[i])
         y <- list(name = pkgName, path = pkgPath, info = pkgInfo)
         class(y) <- "packageInfo"
         return(y)
-    }
-    else {
+    } else {
 	## library():
         if(is.null(lib.loc))
             lib.loc <- .libPaths()
@@ -407,10 +400,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
                     if("Encoding" %in% names(txt)) {
                         to <- if(Sys.getlocale("LC_CTYPE") == "C") "ASCII//TRANSLIT" else ""
                         tmp <- try(iconv(txt, txt["Encoding"], to, "?"))
-                        if(!inherits(tmp, "try-error"))
+                        if(!inherits(tmp, "try-error")) {
                             txt <- tmp
-                        else
-                            warning("'DESCRIPTION' has an 'Encoding' field and re-encoding is not possible", call.=FALSE)
+                        } else warning("'DESCRIPTION' has an 'Encoding' field and re-encoding is not possible", call.=FALSE)
                     }
                     txt["Title"]
                 } else NA
@@ -436,9 +428,9 @@ function(package, help, pos = 2, lib.loc = NULL, character.only = FALSE,
         return(y)
     }
 
-    if (logical.return)
+    if (logical.return) {
 	TRUE
-    else invisible(.packages())
+    } else invisible(.packages())
 } ## {library}
 
 format.libraryIQR <-
@@ -494,27 +486,24 @@ function(chname, package, lib.loc, verbose = getOption("verbose"),
     ## it is not clear we should allow this, rather require a single
     ## package and library.
     for(pkg in find.package(package, lib.loc, verbose = verbose)) {
-        DLLpath <- if(nzchar(r_arch)) file.path(pkg, "libs", r_arch)
-	else    file.path(pkg, "libs")
+        DLLpath <- if(nzchar(r_arch)) file.path(pkg, "libs", r_arch)	else    file.path(pkg, "libs")
         file <- file.path(DLLpath, chname1)
         if(file.exists(file)) break else file <- ""
     }
     if(file == "")
-        if(.Platform$OS.type == "windows")
+        if(.Platform$OS.type == "windows") {
             stop(gettextf("DLL %s not found: maybe not installed for this architecture?", sQuote(chname)), domain = NA)
-        else
-            stop(gettextf("shared object %s not found", sQuote(chname1)),
+        } else stop(gettextf("shared object %s not found", sQuote(chname1)),
                  domain = NA)
     ## for consistency with library.dyn.unload:
     file <- file.path(normalizePath(DLLpath, "/", TRUE), chname1)
     ind <- vapply(dll_list, function(x) x[["path"]] == file, NA)
     if(length(ind) && any(ind)) {
         if(verbose)
-            if(.Platform$OS.type == "windows")
+            if(.Platform$OS.type == "windows") {
                 message(gettextf("DLL %s already loaded", sQuote(chname1)),
                         domain = NA)
-            else
-                message(gettextf("shared object '%s' already loaded",
+            } else message(gettextf("shared object '%s' already loaded",
                                  sQuote(chname1)), domain = NA)
         return(invisible(dll_list[[ seq_along(dll_list)[ind] ]]))
     }
@@ -534,8 +523,7 @@ function(chname, package, lib.loc, verbose = getOption("verbose"),
     }
     if(verbose)
         message(gettextf("now dyn.load(\"%s\") ...", file), domain = NA)
-    dll <- if("DLLpath" %in% names(list(...))) dyn.load(file, ...)
-    else dyn.load(file, DLLpath = DLLpath, ...)
+    dll <- if("DLLpath" %in% names(list(...))) dyn.load(file, ...) else dyn.load(file, DLLpath = DLLpath, ...)
     .dynLibs(c(dll_list, list(dll)))
     invisible(dll)
 }
@@ -547,33 +535,30 @@ function(chname, libpath, verbose = getOption("verbose"),
     dll_list <- .dynLibs()
 
     if(missing(chname) || nchar(chname, "c") == 0L)
-        if(.Platform$OS.type == "windows")
+        if(.Platform$OS.type == "windows") {
             stop("no DLL was specified")
-        else
-            stop("no shared object was specified")
+        } else stop("no shared object was specified")
 
     ## We need an absolute path here, and separators consistent with
     ## library.dynam
     libpath <- normalizePath(libpath, "/", TRUE)
     chname1 <- paste0(chname, file.ext)
-    file <- if(nzchar(.Platform$r_arch))
+    file <- if(nzchar(.Platform$r_arch)) {
              file.path(libpath, "libs", .Platform$r_arch, chname1)
-     else    file.path(libpath, "libs", chname1)
+    } else    file.path(libpath, "libs", chname1)
 
     pos <- which(vapply(dll_list, function(x) x[["path"]] == file, NA))
     if(!length(pos))
-        if(.Platform$OS.type == "windows")
+        if(.Platform$OS.type == "windows") {
             stop(gettextf("DLL %s was not loaded", sQuote(chname1)),
                  domain = NA)
-        else
-            stop(gettextf("shared object %s was not loaded", sQuote(chname1)),
+        } else stop(gettextf("shared object %s was not loaded", sQuote(chname1)),
                  domain = NA)
 
     if(!file.exists(file))
-        if(.Platform$OS.type == "windows")
+        if(.Platform$OS.type == "windows") {
             stop(gettextf("DLL %s not found", sQuote(chname1)), domain = NA)
-        else
-            stop(gettextf("shared object '%s' not found", sQuote(chname1)),
+        } else stop(gettextf("shared object '%s' not found", sQuote(chname1)),
                  domain = NA)
     if(verbose)
         message(gettextf("now dyn.unload(\"%s\") ...", file), domain = NA)
@@ -645,10 +630,9 @@ function(package = NULL, quiet = FALSE)
     pos <- match(pkgs, s)
     if(any(m <- is.na(pos))) {
         if(!quiet) {
-            if(all(m))
+            if(all(m)) {
                 stop("none of the packages are loaded")
-            else
-                warning(sprintf(ngettext(as.integer(sum(m)),
+            } else warning(sprintf(ngettext(as.integer(sum(m)),
                                          "package %s is not loaded",
                                          "packages %s are not loaded"),
                                 paste(package[m], collapse=", ")),
@@ -690,8 +674,7 @@ function(package = NULL, lib.loc = NULL, quiet = FALSE,
 	paths <- file.path(lib.loc, pkg)
 	paths <- paths[ file.exists(file.path(paths, "DESCRIPTION")) ]
 	if(use_loaded && isNamespaceLoaded(pkg)) {
-	    dir <- if (pkg == "base") system.file()
-		   else .getNamespaceInfo(asNamespace(pkg), "path")
+	    dir <- if (pkg == "base") system.file() else .getNamespaceInfo(asNamespace(pkg), "path")
             paths <- c(dir, paths)
         }
         ## trapdoor for tools:::setRlibs
@@ -708,19 +691,18 @@ function(package = NULL, lib.loc = NULL, quiet = FALSE,
                 ## Note that this is sometimes used for source
                 ## packages, e.g. by promptPackage from package.skeleton
                 pfile <- file.path(p, "Meta", "package.rds")
-                info <- if(file.exists(pfile))
+                info <- if(file.exists(pfile)) {
                     ## this must have these fields to get installed
                     readRDS(pfile)$DESCRIPTION[c("Package", "Version")]
-                else {
+                } else {
                     info <- tryCatch(read.dcf(file.path(p, "DESCRIPTION"),
                                               c("Package", "Version"))[1, ],
                                      error = identity)
                     if(inherits(info, "error")
                        || (length(info) != 2L)
-                       || anyNA(info))
+                       || anyNA(info)) {
                         c(Package = NA, Version = NA) # need dimnames below
-                    else
-                        info
+                    } else info
                 }
             })
             db <- do.call("rbind", db)
@@ -777,10 +759,9 @@ function(x, ...)
                          gettext("Index:"),
                          paste(strwrap(vignetteMsg), collapse = "\n")))
     formatDocEntry <- function(entry) {
-        if(is.list(entry) || is.matrix(entry))
+        if(is.list(entry) || is.matrix(entry)) {
             formatDL(entry, style = "list")
-        else
-            entry
+        } else entry
     }
     c(gettextf("\n\t\tInformation on package %s", sQuote(x$name)),
       unlist(lapply(which(!vapply(x$info, is.null, NA)),
@@ -849,10 +830,9 @@ function(pkgInfo, quietly = FALSE, lib.loc = NULL, useImports = FALSE)
 				     lib.loc[iV[!sufficient][1L]]),
                             call. = FALSE, domain = NA)
                 }
-		msg <- if (attached)
+		msg <- if (attached) {
 			   "package %s %s is loaded, but %s %s is required by %s"
-		       else
-			   "package %s %s was found, but %s %s is required by %s"
+        } else "package %s %s was found, but %s %s is required by %s"
                 stop(gettextf(msg, sQuote(pkg), current, dep$op,
                               target, sQuote(pkgname)),
                      call. = FALSE, domain = NA)

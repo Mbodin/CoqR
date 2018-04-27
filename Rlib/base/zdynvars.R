@@ -31,9 +31,7 @@
         if(!missing(new)) {
             class(new) <- "DLLInfoList"
             .Dyn.libs <<- new
-        }
-        else
-            .Dyn.libs
+        } else .Dyn.libs
     }
 })
 
@@ -48,8 +46,6 @@
             paths <- c(new, .Library.site, .Library)
             paths <- paths[dir.exists(paths)]
             .lib.loc <<- unique(normalizePath(paths, "/"))
-        }
-        else
-            .lib.loc
+        } else .lib.loc
     }
 })

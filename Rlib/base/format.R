@@ -125,20 +125,21 @@ formatC <- function (x, digits = NULL, width = NULL,
 
     format.char <- function (x, width, flag)
     {
-	if(is.null(width)) width <- 0L
-	else if(width < 0L) { flag <- "-"; width <- -width }
+	if(is.null(width)) {
+		width <- 0L
+	} else if(width < 0L) { flag <- "-"; width <- -width }
 	format.default(x, width=width,
 		       justify = if(flag=="-") "left" else "right")
     }
 
     if (!(n <- length(x))) return("")
-    if (is.null(mode))	  mode <- storage.mode(x)
-    else if (any(mode == c("double", "real", "integer")))  {
+    if (is.null(mode)) {
+		mode <- storage.mode(x)
+	} else if (any(mode == c("double", "real", "integer")))  {
       ## for .C call later on
 	if(mode == "real") mode <- "double"
 	storage.mode(x) <- mode
-    }
-    else if (mode != "character")
+    } else if (mode != "character")
         stop("'mode' must be \"double\" (\"real\"), \"integer\" or \"character\"")
     if (mode == "character" || (!is.null(format) && format == "s")) {
 	if (mode != "character") {
@@ -147,16 +148,14 @@ formatC <- function (x, digits = NULL, width = NULL,
 	}
 	return(format.char(x, width=width, flag=flag))
     }
-    if (missing(format) || is.null(format))
+    if (missing(format) || is.null(format)) {
 	format <- if (mode == "integer") "d" else "g"
-    else {
+	} else {
 	if (any(format == c("f", "e", "E", "g", "G", "fg"))) {
 	    if (mode == "integer") mode <- storage.mode(x) <- "double"
-	}
-	else if (format == "d") {
+	} else if (format == "d") {
 	    if (mode != "integer") mode <- storage.mode(x) <- "integer"
-	}
-	else stop('\'format\' must be one of {"f","e","E","g","G", "fg", "s"}')
+	} else stop('\'format\' must be one of {"f","e","E","g","G", "fg", "s"}')
     }
     some.special <- !all(Ok <- is.finite(x))
     if (some.special) {
@@ -166,20 +165,20 @@ formatC <- function (x, digits = NULL, width = NULL,
     }
     if(is.null(width) && is.null(digits))
 	width <- 1L
-    if (is.null(digits))
+    if (is.null(digits)) {
 	digits <- if (mode == "integer") 2L else 4L
-    else if(digits < 0L)
+	} else if(digits < 0L) {
 	digits <- 6L
-    else {
-	maxDigits <- if(format != "f") 50L else
-	    ceiling(-(.Machine$double.neg.ulp.digits + .Machine$double.min.exp) / log2(10))
+	} else {
+	maxDigits <- if(format != "f") 50L else ceiling(-(.Machine$double.neg.ulp.digits + .Machine$double.min.exp) / log2(10))
 	if (digits > maxDigits) {
             warning(gettextf("'digits' reduced to %d", maxDigits), domain = NA)
 	    digits <- maxDigits
 	}
     }
-    if(is.null(width))	width <- digits + 1L
-    else if (width == 0L) width <- digits
+    if(is.null(width)) {
+		width <- digits + 1L
+	} else if (width == 0L) width <- digits
     i.strlen <-
 	pmax(abs(as.integer(width)),
 	     if(format == "fg" || format == "f") {
@@ -191,8 +190,9 @@ formatC <- function (x, digits = NULL, width = NULL,
 			 1L + pmax(xEx, digits, digits + (-xEx) + 1L) +
 			     length(nf) # == nchar(flag, "b")
 		     }
-	     } else # format == "g" or "e":
-		 rep.int(digits + 8L, n)
+	     } else { # format == "g" or "e":
+		        rep.int(digits + 8L, n)
+         }
 	     )
     if(digits > 0 && any(nf == "#"))
 	digits <- -digits # C-code will notice "do not drop trailing zeros"
@@ -235,12 +235,13 @@ format.data.frame <- function(x, ..., justify = "none")
 	    len <- NROW(rval[[i]])
 	    if(len == nr) next
 	    if(length(dim(rval[[i]])) == 2L) {
-		rval[[i]] <- if(len < nr)
-		    rbind(rval[[i]], matrix(NA, nr-len, ncol(rval[[i]])))
-		else rval[[i]][seq_len(nr),]
+		rval[[i]] <- if(len < nr) {
+		    			rbind(rval[[i]], matrix(NA, nr-len, ncol(rval[[i]])))
+					} else rval[[i]][seq_len(nr),]
 	    } else {
-		rval[[i]] <- if(len < nr) c(rval[[i]], rep.int(NA, nr-len))
-		else rval[[i]][seq_len(nr)]
+		rval[[i]] <- if(len < nr) {
+						c(rval[[i]], rep.int(NA, nr-len))
+					} else rval[[i]][seq_len(nr)]
 	    }
 	}
     }
@@ -322,8 +323,7 @@ prettyNum <-
     if(is.na(is.cmplx)) { ## find if 'x' is format from a *complex*
 	ina <- is.na(x) | x == "NA"
 	is.cmplx <-
-	    if(all(ina)) FALSE
-	    else any(grepl("[0-9].*[-+][0-9].*i$", x))
+	    if(all(ina)) FALSE	    else any(grepl("[0-9].*[-+][0-9].*i$", x))
     }
     preserve.width <- match.arg(preserve.width)
     if(is.cmplx) {

@@ -22,16 +22,21 @@ R.home <- function(component="home")
     switch(component,
            "home" = rh,
            "bin" = if(.Platform$OS.type == "windows" &&
-                      nzchar(p <- .Platform$r_arch)) file.path(rh, component, p)
-           else file.path(rh, component),
-           "share" = if(nzchar(p <- Sys.getenv("R_SHARE_DIR"))) p
-           else file.path(rh, component),
-	   "doc" = if(nzchar(p <- Sys.getenv("R_DOC_DIR"))) p
-           else file.path(rh, component),
-           "include" = if(nzchar(p <- Sys.getenv("R_INCLUDE_DIR"))) p
-           else file.path(rh, component),
-           "modules" = if(nzchar(p <- .Platform$r_arch)) file.path(rh, component, p)
-           else file.path(rh, component),
+                      nzchar(p <- .Platform$r_arch)) {
+                file.path(rh, component, p)
+           } else file.path(rh, component),
+           "share" = if(nzchar(p <- Sys.getenv("R_SHARE_DIR"))) {
+                p
+           } else file.path(rh, component),
+	   "doc" = if(nzchar(p <- Sys.getenv("R_DOC_DIR"))) {
+            p
+       } else file.path(rh, component),
+           "include" = if(nzchar(p <- Sys.getenv("R_INCLUDE_DIR"))) {
+                p
+           } else file.path(rh, component),
+           "modules" = if(nzchar(p <- .Platform$r_arch)) {
+                file.path(rh, component, p)
+           } else file.path(rh, component),
            file.path(rh, component))
 }
 
@@ -59,10 +64,9 @@ file.show <-
         }
         delete.file <- TRUE
     }
-    if(is.function(pager))
+    if(is.function(pager)) {
 	pager(files, header = header, title = title, delete.file = delete.file)
-    else
-        .Internal(file.show(files, header, title, delete.file, pager))
+    } else     .Internal(file.show(files, header, title, delete.file, pager))
 }
 
 file.append <- function(file1, file2)
@@ -116,8 +120,9 @@ file.copy <- function(from, to,
         }
         return(.Internal(file.copy(from, to, overwrite, recursive,
                                    copy.mode, copy.date)))
-    } else if (nf > nt) stop("more 'from' files than 'to' files")
-    else if (recursive)
+    } else if (nf > nt) {
+        stop("more 'from' files than 'to' files")
+    } else if (recursive)
         warning("'recursive' will be ignored as 'to' is not a single existing directory")
     if(nt > nf) from <- rep_len(from, length.out = nt)
     okay <- file.exists(from)

@@ -41,8 +41,7 @@ load <- function (file, envir = parent.frame(), verbose = FALSE)
             return(.Internal(load(file, envir)))
         }
     } else if (inherits(file, "connection")) {
-        con <- if(inherits(file, "gzfile") || inherits(file, "gzcon")) file
-               else gzcon(file)
+        con <- if(inherits(file, "gzfile") || inherits(file, "gzcon")) file else gzcon(file)
     } else stop("bad 'file' argument")
 
     if (verbose)
@@ -72,9 +71,9 @@ save <- function(..., list = character(),
     if(missing(list) && !length(names))
 	warning("nothing specified to be save()d")
     list <- c(list, names)
-    if (!is.null(version) && version == 1)
+    if (!is.null(version) && version == 1) {
         .Internal(save(list, file, ascii, version, envir, eval.promises))
-    else {
+    }else {
         if (precheck) {
             ## check for existence of objects before opening connection
             ## (and e.g. clobering file)
@@ -98,27 +97,26 @@ save <- function(..., list = character(),
 	    }
 	    con <- switch(compress,
 			  "bzip2" = {
-			      if (!missing(compression_level))
+			      if (!missing(compression_level)) {
 				  bzfile(file, "wb", compression = compression_level)
-			      else bzfile(file, "wb")
+                  } else bzfile(file, "wb")
 			  }, "xz" = {
-			      if (!missing(compression_level))
+			      if (!missing(compression_level)) {
 				  xzfile(file, "wb", compression = compression_level)
-			      else xzfile(file, "wb", compression = 9)
+                  } else xzfile(file, "wb", compression = 9)
 			  }, "gzip" = {
-			      if (!missing(compression_level))
+			      if (!missing(compression_level)) {
 				  gzfile(file, "wb", compression = compression_level)
-			      else gzfile(file, "wb")
+                  } else gzfile(file, "wb")
 			  },
 			  "no compression" = file(file, "wb"),
 
 			  ## otherwise:
 			  stop(gettextf("'compress = \"%s\"' is invalid", compress)))
 	    on.exit(close(con))
-	}
-	else if (inherits(file, "connection"))
+	} else if (inherits(file, "connection")) {
 	    con <- file
-	else stop("bad file argument")
+        } else stop("bad file argument")
 	if(isOpen(con) && !ascii && summary(con)$text != "binary")
 	    stop("can only save to a binary connection")
 	.Internal(saveToConn(list, con, ascii, version, envir, eval.promises))
@@ -151,8 +149,7 @@ save.image <- function (file = ".RData", version = NULL, ascii = FALSE,
             i <- i + 1
             outfile <- paste0(file, "Tmp", i)
         }
-    }
-    else outfile <- file
+    } else outfile <- file
 
     on.exit(file.remove(outfile))
     save(list = names(.GlobalEnv), file = outfile,

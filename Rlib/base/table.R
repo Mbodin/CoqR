@@ -31,9 +31,9 @@ table <- function (..., exclude = if (useNA=="no") c(NA, NaN),
 			     deparse(x, nlines=1)[1L] ## 2
 			     ),
 		      "")
-	if (is.null(nm))
+	if (is.null(nm)) {
 	    dep
-	else {
+	} else {
 	    nm[fixup] <- dep
 	    nm
 	}
@@ -42,8 +42,9 @@ table <- function (..., exclude = if (useNA=="no") c(NA, NaN),
     miss.exc <- missing(exclude)
     ## useNA <- if (!miss.exc && is.null(exclude)) "always" (2.8.0 <= R <= 3.3.1)
     useNA <- if (miss.use && !miss.exc &&
-		 !match(NA, exclude, nomatch=0L)) "ifany"
-	     else match.arg(useNA)
+		 !match(NA, exclude, nomatch=0L)) {
+			"ifany"
+	} else match.arg(useNA)
     doNA <- useNA != "no"
     if(!miss.use && !miss.exc && doNA && match(NA, exclude, nomatch=0L))
 	warning("'exclude' containing NA and 'useNA' != \"no\"' are a bit contradicting")
@@ -53,8 +54,9 @@ table <- function (..., exclude = if (useNA=="no") c(NA, NaN),
     if (length(args) == 1L && is.list(args[[1L]])) { ## e.g. a data.frame
 	args <- args[[1L]]
 	if (length(dnn) != length(args))
-	    dnn <- if (!is.null(argn <- names(args))) argn
-		   else paste(dnn[1L], seq_along(args), sep = ".")
+	    dnn <- if (!is.null(argn <- names(args))) {
+				argn
+		} else paste(dnn[1L], seq_along(args), sep = ".")
     }
     # 0L, 1L, etc: keep 'bin' and 'pd' integer - as long as tabulate() requires it
     bin <- 0L
@@ -63,8 +65,9 @@ table <- function (..., exclude = if (useNA=="no") c(NA, NaN),
     pd <- 1L
     dn <- NULL
     for (a in args) {
-	if (is.null(lens)) lens <- length(a)
-	else if (length(a) != lens)
+	if (is.null(lens)) {
+		lens <- length(a)
+	} else if (length(a) != lens)
 	    stop("all arguments must have the same length")
         fact.a <- is.factor(a)
         ## The logic here is tricky in order to be sensible if
@@ -95,19 +98,14 @@ table <- function (..., exclude = if (useNA=="no") c(NA, NaN),
 			      ## FIXME? can we call  a <- factor(a, ...)
 			      ##        only here,and be done?
 			      TRUE
-			  }
-			  else if (!ifany && !anNAc)
+			  } else if (!ifany && !anNAc) {
 			      FALSE
-			  else
-			      TRUE
-		      }
-		      else
-			  FALSE
+			  } else TRUE
+		      } else FALSE
         } # else remains FALSE
-	if(add.na) ## complete the "manual" addNA():
+	if(add.na) { ## complete the "manual" addNA():
 	    a <- factor(a, levels = ll, exclude = NULL)
-	else
-	    ll <- levels(a)
+	} else ll <- levels(a)
         a <- as.integer(a)
         if (fact.a && !miss.exc) { ## remove excluded levels
 	    ll <- ll[keep <- which(match(ll, exclude, nomatch=0L) == 0L)]
@@ -171,10 +169,9 @@ function (x, digits = getOption("digits"), quote = FALSE, na.print = "",
 
     ## Numbers get right-justified by format(), irrespective of 'justify'.
     ## We need to keep column headers aligned.
-    if (is.numeric(x) || is.complex(x))
+    if (is.numeric(x) || is.complex(x)) {
         print(xx, quote = quote, right = TRUE, ...)
-    else
-        print(xx, quote = quote, ...)
+	} else print(xx, quote = quote, ...)
     invisible(x)
 }
 
@@ -250,8 +247,9 @@ is.table <- function(x) inherits(x, "table")
 as.table <- function(x, ...) UseMethod("as.table")
 as.table.default <- function(x, ...)
 {
-    if(is.table(x)) return(x)
-    else if(is.array(x) || is.numeric(x)) {
+    if(is.table(x)) {
+		return(x)
+	} else if(is.array(x) || is.numeric(x)) {
 	x <- as.array(x)
 	structure(class = c("table", oldClass(x)), provideDimnames(x))
     } else stop("cannot coerce to a table")
@@ -259,10 +257,9 @@ as.table.default <- function(x, ...)
 
 prop.table <- function(x, margin = NULL)
 {
-    if(length(margin))
+    if(length(margin)) {
 	sweep(x, margin, margin.table(x, margin), "/", check.margin=FALSE)
-    else
-	x / sum(x)
+	} else x / sum(x)
 }
 
 margin.table <- function(x, margin = NULL)
@@ -272,8 +269,7 @@ margin.table <- function(x, margin = NULL)
 	z <- apply(x, margin, sum)
 	dim(z) <- dim(x)[margin]
 	dimnames(z) <- dimnames(x)[margin]
-    }
-    else return(sum(x))
+    } else return(sum(x))
     class(z) <- oldClass(x) # avoid adding "matrix"
     z
 }

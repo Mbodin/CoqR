@@ -46,24 +46,22 @@ cut.default <-
 	    if(ok <- all(ch.br[-1L] != ch.br[-nb])) break
 	}
 	labels <-
-	    if(ok) paste0(if(right)"(" else "[",
+	    if(ok) { paste0(if(right)"(" else "[",
                           ch.br[-nb], ",", ch.br[-1L],
                           if(right)"]" else ")")
-	    else paste0("Range_", seq_len(nb - 1L))
+        } else paste0("Range_", seq_len(nb - 1L))
         if (ok && include.lowest) {
-            if (right)
+            if (right) {
                 substr(labels[1L], 1L, 1L) <- "[" # was "("
-            else
-                substring(labels[nb-1L],
+            } else substring(labels[nb-1L],
                           nchar(labels[nb-1L], "c")) <- "]" # was ")"
         }
-    } else if (is.logical(labels) && !labels)
+    } else if (is.logical(labels) && !labels) {
         codes.only <- TRUE
-    else if (length(labels) != nb - 1L)
+    } else if (length(labels) != nb - 1L)
         stop("lengths of 'breaks' and 'labels' differ")
     code <- .bincode(x, breaks, right, include.lowest)
-    if(codes.only) code
-    else factor(code, seq_along(labels), labels, ordered = ordered_result)
+    if(codes.only) code else factor(code, seq_along(labels), labels, ordered = ordered_result)
 }
 
 ## called from image.default and for use in packages.

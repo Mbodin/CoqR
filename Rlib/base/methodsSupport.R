@@ -21,12 +21,12 @@ trace <- function(what, tracer, exit, at, print, signature,
 {
     if(nargs() > 1L && !.isMethodsDispatchOn()) {
         ns <- try(loadNamespace("methods"))
-        if(isNamespace(ns))
+        if(isNamespace(ns)) {
             message("(loaded the methods namespace)", domain = NA)
-        else ## (should not be possible)
+        } else {## (should not be possible)
             stop("tracing functions requires the 'methods' package, but unable to load the 'methods' namespace")
-    }
-    else if(nargs() == 1L)
+        }
+    } else if(nargs() == 1L)
         return(.primTrace(what))
     tState <- tracingState(FALSE)
     on.exit(tracingState(tState))

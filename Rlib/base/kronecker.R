@@ -38,9 +38,9 @@ kronecker <- function (X, Y, FUN = "*", make.dimnames = FALSE, ...)
     dX <- dim(X)
     dY <- dim(Y)
     ld <- length(dX) - length(dY)
-    if (ld < 0L)
+    if (ld < 0L) {
 	dX <- dim(X) <- c(dX, rep.int(1, -ld))
-    else if (ld > 0L)
+	} else if (ld > 0L)
 	dY <- dim(Y) <- c(dY, rep.int(1, ld))
     opobj <- outer(X, Y, FUN, ...)
     dp <- as.vector(t(matrix(1L:(2*length(dX)), ncol = 2)[, 2:1]))
@@ -48,16 +48,16 @@ kronecker <- function (X, Y, FUN = "*", make.dimnames = FALSE, ...)
     dim(opobj) <- dX * dY
 
     if (make.dimnames && !(is.null(dnx) && is.null(dny))) {
-	if (is.null(dnx))
+	if (is.null(dnx)) {
 	    dnx <- vector("list", length(dX))
-	else if (ld < 0L)
+	} else if (ld < 0L)
 	    dnx <- c(dnx, vector("list", -ld))
 	tmp <- which(sapply(dnx, is.null))
 	dnx[tmp] <- lapply(tmp, function(i) rep.int("", dX[i]))
 
-	if (is.null(dny))
+	if (is.null(dny)) {
 	    dny <- vector("list", length(dY))
-	else if (ld > 0)
+	} else if (ld > 0)
 	    dny <- c(dny, vector("list", ld))
 	tmp <- which(sapply(dny, is.null))
 	dny[tmp] <- lapply(tmp, function(i) rep.int("", dY[i]))

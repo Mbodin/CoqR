@@ -32,8 +32,7 @@ seq.default <-
     if(!missing(along.with)) {
 	length.out <- length(along.with)
 	if(One) return(if(length.out) seq_len(length.out) else integer())
-    }
-    else if(!missing(length.out)) {
+    } else if(!missing(length.out)) {
         len <- length(length.out)
         if(!len) stop("argument 'length.out' must be of length 1")
         if(len > 1L) {
@@ -52,9 +51,9 @@ seq.default <-
         !is.finite(if(is.character(to)) to <- as.numeric(to) else to))
 	stop("'to' must be a finite number")
     if(is.null(length.out))
-	if(missing(by))
+	if(missing(by)) {
 	    from:to
-	else { # dealing with 'by'
+	} else { # dealing with 'by'
 	    del <- to - from
 	    if(del == 0 && to == 0) return(to)
             if (length(by) != 1L) stop("'by' must be of length 1")
@@ -80,32 +79,33 @@ seq.default <-
                 ## correct for possible overshot because of fuzz
                 if(by > 0) pmin(x, to) else pmax(x, to)
             }
-	}
-    else if(!is.finite(length.out) || length.out < 0L)
+	} else if(!is.finite(length.out) || length.out < 0L) {
 	stop("'length.out' must be a non-negative number")
-    else if(length.out == 0L) integer()
-    else if (One) seq_len(length.out)
-    else if(missing(by)) {
+	} else if(length.out == 0L) {
+		integer()
+	} else if (One) {
+		seq_len(length.out)
+	} else if(missing(by)) {
 	# if(from == to || length.out < 2) by <- 1
 	if(missing(to))
 	    to <- from + length.out - 1L
 	if(missing(from))
 	    from <- to - length.out + 1L
-	if(length.out > 2L) # not clear why these have as.vector, and not others
-	    if(from == to) rep.int(from, length.out)
-	    else { # *only* place we could (and did) use 'by's formal default
+	if(length.out > 2L) { # not clear why these have as.vector, and not others
+	    if(from == to) {
+			rep.int(from, length.out)
+		} else { # *only* place we could (and did) use 'by's formal default
 		by <- # integer if "easy"
 		    if(is.integer(del <- to - from) & is.integer(n1 <- length.out - 1L)
 		       && del %% n1 == 0L) del %/% n1 else del / n1
 		as.vector(c(from, from + seq_len(length.out - 2L) * by, to))
 	    }
-	else as.vector(c(from, to))[seq_len(length.out)]
-    }
-    else if(missing(to))
+	} else as.vector(c(from, to))[seq_len(length.out)]
+    } else if(missing(to)) {
 	from + (0L:(length.out - 1L)) * by
-    else if(missing(from))
+	} else if(missing(from)) {
 	to - ((length.out - 1L):0L) * by
-    else stop("too many arguments")
+	} else stop("too many arguments")
 }
 
 ## In reverence to the very first versions of R which already had sequence():

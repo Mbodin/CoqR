@@ -28,9 +28,9 @@ duplicated.data.frame <-
 {
     if(!identical(incomparables, FALSE))
 	.NotYetUsed("incomparables != FALSE")
-    if(length(x) != 1L)
+    if(length(x) != 1L) {
         duplicated(do.call("paste", c(x, sep="\r")), fromLast = fromLast)
-    else duplicated(x[[1L]], fromLast = fromLast, ...)
+    } else duplicated(x[[1L]], fromLast = fromLast, ...)
 }
 
 duplicated.matrix <- duplicated.array <-
@@ -97,11 +97,11 @@ unique.default <-
                ordered = is.ordered(x)))
     }
     z <- .Internal(unique(x, incomparables, fromLast, nmax))
-    if(inherits(x, "POSIXct"))
+    if(inherits(x, "POSIXct")) {
         structure(z, class = class(x), tzone = attr(x, "tzone"))
-    else if(inherits(x, "Date"))
+    } else if(inherits(x, "Date")){
         structure(z, class = class(x))
-    else z
+    } else z
 }
 
 unique.data.frame <- function(x, incomparables = FALSE, fromLast = FALSE, ...)

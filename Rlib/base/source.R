@@ -28,10 +28,13 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
          continue.echo = getOption("continue"),
          skip.echo = 0, keep.source = getOption("keep.source"))
 {
-    envir <- if (isTRUE(local)) parent.frame()
-	     else if(identical(local, FALSE)) .GlobalEnv
-	     else if (is.environment(local)) local
-	     else stop("'local' must be TRUE, FALSE or an environment")
+    envir <- if (isTRUE(local)) {
+			parent.frame()
+	} else if(identical(local, FALSE)) {
+			.GlobalEnv
+	} else if (is.environment(local)) {
+			local
+	} else stop("'local' must be TRUE, FALSE or an environment")
     if (!missing(echo)) {
 	if (!is.logical(echo))
 	    stop("'echo' must be logical")
@@ -94,28 +97,26 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
             ## so don't want to mark the strings.as from that encoding
             ## but we might know what we have encoded to, so
             loc <- utils::localeToCharset()[1L]
-            encoding <- if(have_encoding)
+            encoding <- if(have_encoding) {
                 switch(loc,
                        "UTF-8" = "UTF-8",
                        "ISO8859-1" = "latin1",
                        "unknown")
-            else "unknown"
+			} else "unknown"
 	}
     } else {
     	lines <- readLines(file, warn = FALSE)
         srcfile <-
-            if (isTRUE(keep.source))
+            if (isTRUE(keep.source)) {
                 srcfilecopy(deparse(substitute(file)), lines)
-            else
-                deparse(substitute(file))
+			} else deparse(substitute(file))
     }
 
     exprs <- if (!from_file) {
-        if (length(lines))  # there is a C-level test for this
+        if (length(lines)) {  # there is a C-level test for this
             .Internal(parse(stdin(), n = -1, lines, "?", srcfile, encoding))
-        else expression()
-    } else
-    	.Internal(parse(file, n = -1, NULL, "?", srcfile, encoding))
+		} else expression()
+    } else .Internal(parse(file, n = -1, NULL, "?", srcfile, encoding))
 
     on.exit()
     if (from_file) close(file)
@@ -125,9 +126,9 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
 
     if (chdir){
         if(is.character(ofile)) {
-	    if(grepl("^(ftp|http|file)://", ofile)) ## is URL
+	    if(grepl("^(ftp|http|file)://", ofile)) { ## is URL
                 warning("'chdir = TRUE' makes no sense for a URL")
-	    else if((path <- dirname(ofile)) != ".") {
+		} else if((path <- dirname(ofile)) != ".") {
                 owd <- getwd()
                 if(is.null(owd))
                     stop("cannot 'chdir' as current directory is unknown")
@@ -173,8 +174,9 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
 	}
 	if (echo) {
 	    nd <- 0
-	    srcref <- if(tail) attr(exprs, "wholeSrcref") else
-		if(i <= length(srcrefs)) srcrefs[[i]] # else NULL
+	    srcref <- if(tail) {
+			attr(exprs, "wholeSrcref")
+		} else if(i <= length(srcrefs)) srcrefs[[i]] # else NULL
  	    if (!is.null(srcref)) {
 	    	if (i == 1) lastshown <- min(skip.echo, srcref[3L]-1)
 	    	if (lastshown < srcref[3L]) {
@@ -191,8 +193,7 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
 					      c(leading, length(dep)-leading)),
 				      dep, collapse="\n")
 			nd <- nchar(dep, "c")
-		    } else
-		    	srcref <- NULL  # Give up and deparse
+		    } else srcref <- NULL  # Give up and deparse
 	    	}
 	    }
 	    if (is.null(srcref)) {
@@ -232,10 +233,9 @@ function(file, local = FALSE, echo = verbose, print.eval = echo,
 		utils::str(paste(curr.fun))
 	    }
 	    if (print.eval && yy$visible) {
-		if(isS4(yy$value))
+		if(isS4(yy$value)) {
 		    methods::show(yy$value)
-		else
-		    print(yy$value)
+		} else print(yy$value)
 	    }
 	    if (verbose)
 		cat(" .. after ", sQuote(deparse(ei, control =
@@ -261,8 +261,7 @@ function(file, envir = baseenv(), chdir = FALSE,
     	lines <- readLines(file, warn = FALSE)
     	srcfile <- srcfilecopy(file, lines, file.mtime(file), isFile = TRUE)
     	exprs <- parse(text = lines, srcfile = srcfile, keep.source = TRUE)
-    } else
-    	exprs <- parse(n = -1, file = file, srcfile = NULL, keep.source = FALSE)
+    } else exprs <- parse(n = -1, file = file, srcfile = NULL, keep.source = FALSE)
     if (length(exprs) == 0L)
 	return(invisible())
     if (chdir && (path <- dirname(file)) != ".") {

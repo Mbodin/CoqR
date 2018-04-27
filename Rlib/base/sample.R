@@ -30,7 +30,7 @@ sample <- function(x, size, replace = FALSE, prob = NULL)
 sample.int  <- function(n, size = n, replace = FALSE, prob = NULL,
                         useHash = (!replace && is.null(prob) && size <= n/2 && n > 1e7))
 {
-    if (useHash)
+    if (useHash) {
         .Internal(sample2(n, size))
-    else .Internal(sample(n, size, replace, prob))
+    } else .Internal(sample(n, size, replace, prob))
 }

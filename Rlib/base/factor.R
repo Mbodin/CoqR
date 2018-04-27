@@ -40,8 +40,7 @@ factor <- function(x = character(), levels, labels = levels,
 	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
 	     domain = NA)
     levels(f) <- ## nl == nL or 1
-	if (nl == nL) as.character(labels)
-	else paste0(labels, seq_along(levels))
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
     class(f) <- c(if(ordered) "ordered", "factor")
     f
 }
@@ -61,8 +60,9 @@ factor <- function(x = character(), levels, labels = levels,
 is.factor <- function(x) inherits(x, "factor")
 
 as.factor <- function(x) {
-    if (is.factor(x)) x
-    else if (!is.object(x) && is.integer(x)) {
+    if (is.factor(x)) {
+        x
+    } else if (!is.object(x) && is.integer(x)) {
         ## optimization for calls from tapply via split.default
         levels <- sort(unique.default(x)) # avoid array methods
         f <- match(x, levels)
@@ -110,19 +110,17 @@ droplevels.data.frame <- function(x, except = NULL, exclude, ...)
   {
     ix <- vapply(x, is.factor, NA)
     if (!is.null(except)) ix[except] <- FALSE
-    x[ix] <- if(missing(exclude))
-		  lapply(x[ix], droplevels)
-	     else lapply(x[ix], droplevels, exclude=exclude)
+    x[ix] <- if(missing(exclude)) lapply(x[ix], droplevels) else lapply(x[ix], droplevels, exclude=exclude)
     x
   }
 
 as.vector.factor <- function(x, mode="any")
 {
-    if(mode=="list") as.list(x)
-    else if(mode== "any" || mode== "character" || mode== "logical")
+    if(mode=="list") {
+        as.list(x)
+    } else if(mode== "any" || mode== "character" || mode== "logical") {
 	as.vector(levels(x)[x], mode)
-    else
-	as.vector(unclass(x), mode)
+    } else	as.vector(unclass(x), mode)
 }
 
 as.character.factor <- function(x,...) .Internal(asCharacterFactor(x))
@@ -141,9 +139,9 @@ print.factor <- function (x, quote = FALSE, max.levels = NULL,
                           width = getOption("width"), ...)
 {
     ord <- is.ordered(x)
-    if (length(x) == 0L)
+    if (length(x) == 0L) {
         cat(if(ord)"ordered" else "factor", "(0)\n", sep = "")
-    else {
+    } else {
         xx <- character(length(x))
         xx[] <- as.character(x)
         keepAttrs <- setdiff(names(attributes(x)), c("levels", "class"))
@@ -160,13 +158,11 @@ print.factor <- function (x, quote = FALSE, max.levels = NULL,
                 width <- width - (nchar(T0, "w") + 3L + 1L + 3L)
                                         # 3='...', 3=#lev, 1=extra
                 lenl <- cumsum(nchar(lev, "w") + nchar(colsep, "w"))
-                if(n <= 1L || lenl[n] <= width) n
-		else max(1L, which.max(lenl > width) - 1L)
+                if(n <= 1L || lenl[n] <= width) n else max(1L, which.max(lenl > width) - 1L)
             }
         drop <- n > maxl
         cat(if(drop) paste(format(n), ""), T0,
-            paste(if(drop)c(lev[1L:max(1,maxl-1)],"...",if(maxl > 1) lev[n])
-                      else lev, collapse = colsep),
+            paste(if(drop)c(lev[1L:max(1,maxl-1)],"...",if(maxl > 1) lev[n])   else lev, collapse = colsep),
             "\n", sep = "")
     }
     if(!isTRUE(val <- .valid.factor(x)))
@@ -305,12 +301,10 @@ Ops.ordered <- function (e1, e2)
     if (ord1 && ord2) {
 	e1 <- as.integer(e1) # was codes, but same thing for ordered factor.
 	e2 <- as.integer(e2)
-    }
-    else if (!ord1) {
+    } else if (!ord1) {
 	e1 <- match(e1, l2)
 	e2 <- as.integer(e2)
-    }
-    else if (!ord2) {
+    } else if (!ord2) {
 	e2 <- match(e2, l1)
 	e1 <- as.integer(e1)
     }
@@ -360,7 +354,6 @@ addNA <- function(x, ifany=FALSE)
     if (!is.factor(x)) x <- factor(x)
     if (ifany && !anyNA(x)) return(x)
     ll <- levels(x)
-    if (!anyNA(ll)) ll <- c(ll, NA)
-    else if (!ifany && !anyNA(x)) return(x)
+    if (!anyNA(ll)) ll <- c(ll, NA) else if (!ifany && !anyNA(x)) return(x)
     factor(x, levels=ll, exclude=NULL)
 }

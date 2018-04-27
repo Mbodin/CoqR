@@ -25,13 +25,13 @@
 tryCatch <- function(expr, ..., finally) {
     tryCatchList <- function(expr, names, parentenv, handlers) {
 	nh <- length(names)
-	if (nh > 1L)
+	if (nh > 1L) {
 	    tryCatchOne(tryCatchList(expr, names[-nh], parentenv,
                                      handlers[-nh]),
 			names[nh], parentenv, handlers[[nh]])
-	else if (nh == 1L)
+    } else if (nh == 1L) {
 	    tryCatchOne(expr, names, parentenv, handlers[[1L]])
-	else expr
+    } else expr
     }
     tryCatchOne <- function(expr, name, parentenv, handler) {
 	doTryCatch <- function(expr, name, parentenv, handler) {
@@ -51,8 +51,7 @@ tryCatch <- function(expr, ..., finally) {
 	    msg <- .Internal(geterrmessage())
 	    call <- value[[2L]]
 	    cond <- simpleError(msg, call)
-	}
-	else cond <- value[[1L]]
+	} else cond <- value[[1L]]
 	value[[3L]](cond)
     }
     if (! missing(finally))
@@ -113,10 +112,9 @@ print.condition <- function(x, ...) {
     msg <- conditionMessage(x)
     call <- conditionCall(x)
     cl <- class(x)[1L]
-    if (! is.null(call))
+    if (! is.null(call)) {
         cat("<", cl, " in ", deparse(call), ": ", msg, ">\n", sep="")
-    else
-        cat("<", cl, ": ", msg, ">\n", sep="")
+    } else cat("<", cl, ": ", msg, ">\n", sep="")
     invisible(x)
 }
 
@@ -124,19 +122,17 @@ as.character.condition <- function(x, ...) {
     msg <- conditionMessage(x)
     call <- conditionCall(x)
     cl <- class(x)[1L]
-    if (! is.null(call))
+    if (! is.null(call)) {
         paste0(cl, " in ", deparse(call)[1L], ": ", msg, "\n")
-    else
-        paste0(cl, ": ", msg, "\n")
+    } else paste0(cl, ": ", msg, "\n")
 }
 
 as.character.error <- function(x, ...) {
     msg <- conditionMessage(x)
     call <- conditionCall(x)
-    if (! is.null(call))
+    if (! is.null(call)) {
         paste0("Error in ", deparse(call)[1L], ": ", msg, "\n")
-    else
-        paste0("Error: ", msg, "\n")
+    } else paste0("Error: ", msg, "\n")
 }
 
 signalCondition <- function(cond) {
@@ -166,12 +162,12 @@ findRestart <- function(name, cond = NULL) {
     i <- 1L
     repeat {
         r <- .Internal(.getRestart(i))
-        if (is.null(r))
+        if (is.null(r)) {
             return(NULL)
-        else if (name == r[[1L]] &&
-                 (is.null(cond) || is.null(r$test) || r$test(cond)))
+        } else if (name == r[[1L]] &&
+                 (is.null(cond) || is.null(r$test) || r$test(cond))) {
             return(r)
-        else i <- i + 1L
+        } else i <- i + 1L
     }
 }
 
@@ -180,9 +176,9 @@ computeRestarts <- function(cond = NULL) {
     i <- 1L
     repeat {
         r <- .Internal(.getRestart(i))
-        if (is.null(r))
+        if (is.null(r)) {
             return(val)
-        else if (is.null(cond) || is.null(r$test) || r$test(cond))
+        } else if (is.null(cond) || is.null(r$test) || r$test(cond))
             val <- c(val, list(r))
         i <- i + 1L
     }
@@ -218,15 +214,13 @@ invokeRestartInteractively <- function(r) {
             if (p == "...") {
 		    prompt <- "... (a list): "
 		    args <- c(args, eval(parse(prompt = prompt)))
-		}
-		else {
+		} else {
 		    prompt <- paste0(p, ": ")
 		    args <- c(args, list(eval(parse(prompt = prompt))))
 		}
 	    }
 	}
-    }
-    else args <- r$interactive()
+    } else args <- r$interactive()
     .Internal(.invokeRestart(r, args))
 }
 
@@ -254,14 +248,14 @@ withRestarts <- function(expr, ...) {
         for (i in seq_along(specs)) {
             spec <- specs[[i]]
             name <- names[i]
-            if (is.function(spec))
+            if (is.function(spec)) {
                 restarts[[i]] <- makeRestart(handler = spec)
-            else if (is.character(spec))
+            } else if (is.character(spec)) {
                 restarts[[i]] <- makeRestart(description = spec)
-            else if (is.list(spec))
+            } else if (is.list(spec)) {
                 restarts[[i]] <- docall("makeRestart", spec)
-            else
-               stop("not a valid restart specification")
+            } else stop("not a valid restart specification")
+
             restarts[[i]]$name <- name
         }
         restarts
@@ -281,19 +275,19 @@ withRestarts <- function(expr, ...) {
     }
     withRestartList <- function(expr, restarts) {
 	nr <- length(restarts)
-	if (nr > 1L)
+	if (nr > 1L) {
 	    withOneRestart(withRestartList(expr, restarts[-nr]),
                            restarts[[nr]])
-	else if (nr == 1L)
+    } else if (nr == 1L) {
 	    withOneRestart(expr, restarts[[1L]])
-	else expr
+    } else expr
     }
     restarts <- makeRestartList(...)
-    if (length(restarts) == 0L)
+    if (length(restarts) == 0L) {
         expr
-    else if (length(restarts) == 1L)
+    } else if (length(restarts) == 1L) {
         withOneRestart(expr, restarts[[1L]])
-    else withRestartList(expr, restarts)
+    } else withRestartList(expr, restarts)
 }
 
 

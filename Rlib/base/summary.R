@@ -20,32 +20,31 @@ summary <- function (object, ...) UseMethod("summary")
 
 summary.default <- function(object, ..., digits)
 {
-    if(is.factor(object))
+    if(is.factor(object)) {
 	return(summary.factor(object, ...))
-    else if(is.matrix(object)) {
-	if(missing(digits))
+    } else if(is.matrix(object)) {
+	if(missing(digits)) {
             return(summary.matrix(object, ...))
-        else
-            return(summary.matrix(object, digits = digits, ...))
+    } else return(summary.matrix(object, digits = digits, ...))
     }
 
-    value <- if(is.logical(object)) # scalar or array!
+    value <- if(is.logical(object)) { # scalar or array!
 	c(Mode = "logical",
           {tb <- table(object, exclude = NULL, useNA = "ifany") # incl. NA s
            if(!is.null(n <- dimnames(tb)[[1L]]) && any(iN <- is.na(n)))
                dimnames(tb)[[1L]][iN] <- "NA's"
            tb
            })
-    else if(is.numeric(object)) {
+    } else if(is.numeric(object)) {
 	nas <- is.na(object)
 	object <- object[!nas]
 	qq <- stats::quantile(object)
         qq <- c(qq[1L:3L], mean(object), qq[4L:5L])
 	if(!missing(digits)) qq <- signif(qq, digits)
 	names(qq) <- c("Min.", "1st Qu.", "Median", "Mean", "3rd Qu.", "Max.")
-	if(any(nas))
+	if(any(nas)) {
 	    c(qq, "NA's" = sum(nas))
-	else qq
+    } else qq
     } else if(is.recursive(object) && !is.language(object) &&
 	      (n <- length(object))) { # do not allow long dims
 	sumry <- array("", c(n, 3L), list(names(object),
@@ -60,8 +59,7 @@ summary.default <- function(object, ..., digits)
 	}
 	sumry[, 1L] <- format(as.integer(ll))
 	sumry
-    }
-    else c(Length = length(object), Class = class(object), Mode = mode(object))
+    } else c(Length = length(object), Class = class(object), Mode = mode(object))
     class(value) <- c("summaryDefault", "table")
     value
 }
@@ -76,12 +74,12 @@ format.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L),
     class(xx) <- class(x)[-1]
     m <- match("NA's", names(x), 0)
     if(inherits(x, "Date") || inherits(x, "POSIXct")) {
-        if(length(a <- attr(x, "NAs")))
+        if(length(a <- attr(x, "NAs"))) {
             c(format(xx, digits=digits, ...), "NA's" = as.character(a))
-        else format(xx, digits=digits)
-    } else if(m && !is.character(x))
+        } else format(xx, digits=digits)
+    } else if(m && !is.character(x)) {
         xx <- c(format(xx[-m], digits=digits, ...), "NA's" = as.character(xx[m]))
-    else format(xx, digits=digits, ...)
+    } else format(xx, digits=digits, ...)
 }
 
 print.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
@@ -94,9 +92,9 @@ print.summaryDefault <- function(x, digits = max(3L, getOption("digits") - 3L), 
     class(xx) <- class(x)[-1] # for format
     m <- match("NA's", names(xx), 0)
     if(inherits(x, "Date") || inherits(x, "POSIXct")) {
-        xx <- if(length(a <- attr(x, "NAs")))
+        xx <- if(length(a <- attr(x, "NAs"))) {
             c(format(xx, digits=digits), "NA's" = as.character(a))
-        else format(xx, digits=digits)
+        } else format(xx, digits=digits)
         print(xx, digits=digits, ...)
         return(invisible(x))
     } else if(m && !is.character(x))
@@ -143,9 +141,9 @@ summary.data.frame <-
     nv <- length(object)
     nm <- names(object)
     lw <- numeric(nv)
-    nr <- if (nv)
+    nr <- if (nv) {
 	      max(vapply(z, function(x) NROW(x) + !is.null(attr(x, "NAs")), integer(1)))
-	  else 0
+    } else 0
     for(i in seq_len(nv)) {
         sms <- z[[i]]
         if(is.matrix(sms)) {

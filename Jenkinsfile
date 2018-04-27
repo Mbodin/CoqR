@@ -24,7 +24,7 @@ pipeline {
 
   }
   environment {
-    COQR_INTERP = "${env.WORKSPACE}"
+    COQ_INTERP = "${env.WORKSPACE}"
     RSCRIPT = 'R'
   }
 }

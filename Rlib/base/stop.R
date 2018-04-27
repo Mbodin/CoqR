@@ -27,8 +27,7 @@ stop <- function(..., call. = TRUE, domain = NULL)
         call <- conditionCall(cond)
         .Internal(.signalCondition(cond, message, call))
         .Internal(.dfltStop(message, call))
-    } else
-        .Internal(stop(call., .makeMessage(..., domain = domain)))
+    } else        .Internal(stop(call., .makeMessage(..., domain = domain)))
 }
 
 stopifnot <- function(...)
@@ -55,9 +54,7 @@ stopifnot <- function(...)
 
 		    sprintf(gettext("%s and %s are not equal:\n  %s"),
 			    Dparse(cl.i[[2]]),
-			    Dparse(cl.i[[3]]), abbrev(r))
-		else
-		    sprintf(ngettext(length(r),
+			    Dparse(cl.i[[3]]), abbrev(r))	else		    sprintf(ngettext(length(r),
 				     "%s is not TRUE",
 				     "%s are not all TRUE"),
 			    Dparse(cl.i))
@@ -83,8 +80,7 @@ warning <- function(..., call. = TRUE, immediate. = FALSE,
                 .Internal(.dfltWarn(message, call))
             }, muffleWarning = function() NULL) #**** allow simpler form??
         invisible(message)
-    } else
-        .Internal(warning(call., immediate., noBreaks.,
+    } else        .Internal(warning(call., immediate., noBreaks.,
                           .makeMessage(..., domain = domain)))
 }
 

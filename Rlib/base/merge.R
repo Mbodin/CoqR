@@ -79,8 +79,7 @@ merge.data.frame <-
             ij <- expand.grid(seq_len(nx), seq_len(ny))
             res <- cbind(x[ij[, 1L], , drop = FALSE], y[ij[, 2L], , drop = FALSE])
         }
-    }
-    else {
+    } else {
         if(any(by.x == 0L)) {
             x <- cbind(Row.names = I(row.names(x)), x)
             by.x <- by.x + 1L
@@ -110,10 +109,9 @@ merge.data.frame <-
         bxy <- bx[comm > 0L]             # the keys which are in both
         xinds <- match(bx, bxy, 0L, incomparables)
         yinds <- match(by, bxy, 0L, incomparables)
-        if(nx > 0L && ny > 0L)
+        if(nx > 0L && ny > 0L) {
             m <- .Internal(merge(xinds, yinds, all.x, all.y))
-        else
-            m <- list(xi = integer(), yi = integer(),
+        } else m <- list(xi = integer(), yi = integer(),
                       x.alone = seq_len(nx), y.alone = seq_len(ny))
         nm <- nm.x <- names(x)[-by.x]
         nm.by <- names(x)[by.x]
@@ -151,20 +149,20 @@ merge.data.frame <-
             zap <- (lxy+1L):(lxy+nxx)
             for(i in seq_along(y)) {
                 ## do it this way to invoke methods for e.g. factor
-                if(is.matrix(y[[1]])) y[[1]][zap, ] <- NA
-                else is.na(y[[i]]) <- zap
+                if(is.matrix(y[[1]])) {
+                    y[[1]][zap, ] <- NA
+                }else is.na(y[[i]]) <- zap
             }
         }
 
         if(has.common.nms) names(y) <- nm.y
         nm <- c(names(x), names(y))
         if(any(d <- duplicated(nm)))
-            if(sum(d) > 1L)
+            if(sum(d) > 1L) {
                 warning("column names ",
                         paste(sQuote(nm[d]), collapse = ", "),
                         " are duplicated in the result", domain = NA)
-            else
-                warning("column name ", sQuote(nm[d]),
+            } else warning("column name ", sQuote(nm[d]),
                         " is duplicated in the result", domain = NA)
         res <- cbind(x, y)
 

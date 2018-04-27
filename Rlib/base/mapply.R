@@ -24,14 +24,14 @@ mapply <- function(FUN,..., MoreArgs = NULL, SIMPLIFY = TRUE, USE.NAMES = TRUE)
     answer <- .Internal(mapply(FUN, dots, MoreArgs))
 
     if (USE.NAMES && length(dots)) {
-	if (is.null(names1 <- names(dots[[1L]])) && is.character(dots[[1L]]))
+	if (is.null(names1 <- names(dots[[1L]])) && is.character(dots[[1L]])) {
 	    names(answer) <- dots[[1L]]
-	else if (!is.null(names1))
+    } else if (!is.null(names1))
 	    names(answer) <- names1
     }
-    if(!identical(SIMPLIFY, FALSE) && length(answer))
+    if(!identical(SIMPLIFY, FALSE) && length(answer)) {
 	simplify2array(answer, higher = (SIMPLIFY == "array"))
-    else answer
+    } else answer
 }
 
 .mapply <- function(FUN, dots, MoreArgs)
@@ -59,8 +59,7 @@ Vectorize <- function(FUN, vectorize.args = arg.names, SIMPLIFY = TRUE,
 	     
     FUNV <- function() { ## will set the formals below
         args <- lapply(as.list(match.call())[-1L], eval, parent.frame())
-        names <- if(is.null(names(args))) character(length(args))
-        else names(args)
+        names <- if(is.null(names(args))) character(length(args)) else names(args)
         dovec <- names %in% vectorize.args
         do.call("mapply", c(FUN = FUN,
                             args[dovec],

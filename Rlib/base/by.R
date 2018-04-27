@@ -23,9 +23,9 @@ by <- function(data, INDICES, FUN, ..., simplify = TRUE) UseMethod("by")
 by.default <- function(data, INDICES, FUN, ..., simplify = TRUE)
 {
     dd <- as.data.frame(data)
-    if(length(dim(data)))
+    if(length(dim(data))) {
         by(dd, INDICES, FUN, ..., simplify = simplify)
-    else {
+    } else {
         if(!is.list(INDICES)) {        # record the names for print.by
             IND <- vector("list", 1L)
             IND[[1L]] <- INDICES

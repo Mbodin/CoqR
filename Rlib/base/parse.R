@@ -48,8 +48,7 @@ parse <- function(file = "", n = NULL, text = NULL, prompt = "?",
         	    srcfile <-
                         srcfilecopy(filename, text, file.mtime(filename),
                                     isFile = TRUE)
-                } else
-		    on.exit(close(file))
+                } else on.exit(close(file))
 	    }
 	}
     }

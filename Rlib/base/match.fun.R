@@ -31,9 +31,9 @@ match.fun <- function (FUN, descend = TRUE)
                           deparse(FUN)), domain = NA)
     }
     envir <- parent.frame(2)
-    if( descend )
+    if( descend ) {
         FUN <- get(as.character(FUN), mode = "function", envir = envir)
-    else {
+    } else {
         FUN <- get(as.character(FUN), mode = "any", envir = envir)
         if( !is.function(FUN) )
            stop(gettextf("found non-function '%s'", FUN), domain = NA)

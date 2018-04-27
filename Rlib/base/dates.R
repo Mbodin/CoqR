@@ -32,8 +32,7 @@ as.Date.POSIXct <- function(x, tz = "UTC", ...)
         z <- floor(unclass(x)/86400)
         attr(z, "tzone") <- NULL
         structure(z, class = "Date")
-    } else
-        as.Date(as.POSIXlt(x, tz = tz))
+    } else        as.Date(as.POSIXlt(x, tz = tz))
 }
 
 as.Date.POSIXlt <- function(x, ...) .Internal(POSIXlt2Date(x))
@@ -278,16 +277,15 @@ seq.Date <- function(from, to, by, length.out = NULL, along.with = NULL, ...)
         if(valid <= 2L) {
             by <- c(1, 7)[valid]
             if (length(by2) == 2L) by <- by * as.integer(by2[1L])
-        } else
-            by <- if(length(by2) == 2L) as.integer(by2[1L]) else 1
+        } else            by <- if(length(by2) == 2L) as.integer(by2[1L]) else 1
     } else if(!is.numeric(by)) stop("invalid mode for 'by'")
     if(is.na(by)) stop("'by' is NA")
 
     if(valid <= 2L) { # days or weeks
         from <- unclass(as.Date(from))
-        if(!is.null(length.out))
+        if(!is.null(length.out)) {
             res <- seq.int(from, by = by, length.out = length.out)
-        else {
+        } else {
             to0 <- unclass(as.Date(to))
             ## defeat test in seq.default
             res <- seq.int(0, to0 - from, by) + from
@@ -401,8 +399,7 @@ cut.Date <-
 	       right = right, ...)
     if(is.null(labels)) {
 	levels(res) <-
-	    as.character(if (is.numeric(breaks)) x[!duplicated(res)]
-			 else breaks[-length(breaks)])
+	    as.character(if (is.numeric(breaks)) x[!duplicated(res)]			 else breaks[-length(breaks)])
     }
     res
 }
@@ -454,10 +451,10 @@ diff.Date <- function (x, lag = 1L, differences = 1L, ...)
         return(structure(numeric(), class="difftime", units="days"))
     r <- x
     i1 <- -seq_len(lag)
-    if (ismat)
+    if (ismat) {
         for (i in seq_len(differences)) r <- r[i1, , drop = FALSE] -
             r[-nrow(r):-(nrow(r) - lag + 1L), , drop = FALSE]
-    else for (i in seq_len(differences))
+    } else for (i in seq_len(differences))
         r <- r[i1] - r[-length(r):-(length(r) - lag + 1L)]
     r
 }

@@ -24,8 +24,7 @@ getOption <- function(x, default = NULL)
     ## To avoid always performing the %in%,
     ## we use the original code if default is not specified.
     ## if(missing(default)) return(options(x)[[1L]])
-    if(missing(default) || x %in% names(options()))
+    if(missing(default) || x %in% names(options())) {
 	.Internal(getOption(x))
-    else
-	default
+    } else default
 }

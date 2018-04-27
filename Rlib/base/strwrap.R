@@ -100,13 +100,14 @@ function(x, width = 0.9 * getOption("width"), indent = 0, exdent = 0,
                     maxLength <- width - nchar(prefix, type="w") - exdent
                 }
                 currentIndex <- currentIndex + k
-                if(nc[currentIndex] == 0L)
+                if(nc[currentIndex] == 0L) {
                     ## Are we sitting on a space?
                     upperBlockIndex <- c(upperBlockIndex,
                                          currentIndex - 1L)
-                else
+                } else {
                     upperBlockIndex <- c(upperBlockIndex,
                                          currentIndex)
+                }
                 if(length(lens) > k) {
                     ## Are we looking at a space?
                     if(nc[currentIndex + 1L] == 0L) {
@@ -116,10 +117,9 @@ function(x, width = 0.9 * getOption("width"), indent = 0, exdent = 0,
                     lowerBlockIndex <- c(lowerBlockIndex,
                                          currentIndex + 1L)
                 }
-                if(length(lens) > k)
+                if(length(lens) > k) {
                     lens <- lens[-seq_len(k)] - lens[k]
-                else
-                    lens <- NULL
+                } else lens <- NULL
             }
 
             nBlocks <- length(upperBlockIndex)
@@ -133,10 +133,9 @@ function(x, width = 0.9 * getOption("width"), indent = 0, exdent = 0,
 
             yi <- c(yi, s, prefix)
         }
-        y <- if(length(yi))
+        y <- if(length(yi)) {
             c(y, list(yi[-length(yi)]))
-        else
-            c(y, "")
+        } else c(y, "")
     }
 
     if(length(pos <- which(enc == "latin1"))) {
@@ -162,22 +161,15 @@ function(x, y, style = c("table", "list"),
     if(is.list(x)) {
         if(length(x) == 2L && diff(lengths(x)) == 0L) {
             y <- x[[2L]]; x <- x[[1L]]
-        }
-        else
-            stop("incorrect value for 'x'")
-    }
-    else if(is.matrix(x)) {
+        } else stop("incorrect value for 'x'")
+    } else if(is.matrix(x)) {
         if(NCOL(x) == 2L) {
             y <- x[, 2L]; x <- x[, 1L]
-        }
-        else
-            stop("incorrect value for 'x'")
-    }
-    else if(missing(y) && !is.null(nms <- names(x))) {
+        } else stop("incorrect value for 'x'")
+    } else if(missing(y) && !is.null(nms <- names(x))) {
         y <- x
         x <- nms
-    }
-    else if(length(x) != length(y))
+    } else if(length(x) != length(y))
         stop("'x' and 'y' must have the same length")
     x <- as.character(x)
     if(!length(x)) return(x)
@@ -207,8 +199,7 @@ function(x, y, style = c("table", "list"),
                     paste,
                     collapse = paste0("\n", indentString))
         r <- paste0(x, unlist(y))
-    }
-    else if(style == "list") {
+    } else if(style == "list") {
         y <- strwrap(paste0(x, ": ", y), exdent = indent,
                      width = width, simplify = FALSE)
         r <- unlist(lapply(y, paste, collapse = "\n"))

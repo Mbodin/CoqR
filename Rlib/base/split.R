@@ -22,10 +22,11 @@ split.default <- function(x, f, drop = FALSE, sep = ".", lex.order = FALSE, ...)
 {
     if(!missing(...)) .NotYetUsed(deparse(...), error = FALSE)
 
-    if (is.list(f))
+    if (is.list(f)) {
 	f <- interaction(f, drop = drop, sep = sep, lex.order = lex.order)
-    else if (!is.factor(f)) f <- as.factor(f) # docs say as.factor
-    else if (drop) f <- factor(f) # drop extraneous levels
+    } else if (!is.factor(f)) {
+        f <- as.factor(f) # docs say as.factor
+    } else if (drop) f <- factor(f) # drop extraneous levels
     storage.mode(f) <- "integer"  # some factors have had double in the past
     if (is.null(attr(x, "class")))
 	return(.Internal(split(x, f)))
@@ -76,8 +77,7 @@ unsplit <- function (value, f, drop = FALSE)
     if (is.data.frame(value[[1L]])) {
         x <- value[[1L]][rep(NA, len),, drop = FALSE]
         rownames(x) <- unsplit(lapply(value, rownames), f, drop = drop)
-    } else
-        x <- value[[1L]][rep(NA, len)]
+    } else x <- value[[1L]][rep(NA, len)]
     split(x, f, drop = drop) <- value
     x
 }

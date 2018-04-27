@@ -17,9 +17,9 @@
 #  https://www.R-project.org/Licenses/
 
 .traceback <- function(x = NULL) {
-    if(is.null(x) && !is.null(x <- get0(".Traceback", envir = baseenv())))
-	{}
-    else if (is.numeric(x))
+    if(is.null(x) && !is.null(x <- get0(".Traceback", envir = baseenv()))) {
+
+    } else if (is.numeric(x))
     	x <- .Internal(traceback(x))
     x
 }
@@ -27,9 +27,9 @@
 traceback <- function(x = NULL, max.lines = getOption("deparse.max.lines"))
 {
     n <- length(x <- .traceback(x))
-    if(n == 0L)
+    if(n == 0L) {
         cat(gettext("No traceback available"), "\n")
-    else {
+    } else {
         for(i in 1L:n) {
             xi <- x[[i]]
             label <- paste0(n-i+1L, ": ")

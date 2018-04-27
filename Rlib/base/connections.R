@@ -21,8 +21,7 @@ stdout <- function() .Internal(stdout())
 stderr <- function() .Internal(stderr())
 
 isatty <- function(con) {
-    if (!inherits(con, "terminal")) FALSE
-    else .Internal(isatty(con))
+    if (!inherits(con, "terminal")) FALSE  else .Internal(isatty(con))
 }
 
 readLines <- function(con = stdin(), n = -1L, ok = TRUE, warn = TRUE,
@@ -202,8 +201,7 @@ showConnections <- function(all = FALSE)
     rownames(ans) <- set
     colnames(ans) <- c("description", "class", "mode", "text", "isopen",
                        "can read", "can write")
-    if(!all) ans[ans[, 5L] == "opened", , drop = FALSE]
-    else ans[, , drop = FALSE]
+    if(!all) ans[ans[, 5L] == "opened", , drop = FALSE] else ans[, , drop = FALSE]
 }
 
 getAllConnections <- function()
@@ -282,9 +280,9 @@ gzcon <- function(con, level = 6, allowNonCompressed = TRUE, text = FALSE)
     .Internal(gzcon(con, level, allowNonCompressed, text))
 
 socketSelect <- function(socklist, write = FALSE, timeout = NULL) {
-    if (is.null(timeout))
+    if (is.null(timeout)) {
         timeout <- -1
-    else if (timeout < 0)
+    } else if (timeout < 0)
         stop("'timeout' must be NULL or a non-negative number")
     if (length(write) < length(socklist))
         write <- rep_len(write, length(socklist))
@@ -294,9 +292,9 @@ socketSelect <- function(socklist, write = FALSE, timeout = NULL) {
 memCompress <-
     function(from, type = c("gzip", "bzip2", "xz", "none"))
 {
-    if(is.character(from))
+    if(is.character(from)) {
         from <- charToRaw(paste(from, collapse = "\n"))
-    else if(!is.raw(from)) stop("'from' must be raw or character")
+    } else if(!is.raw(from)) stop("'from' must be raw or character")
     type <- match(match.arg(type), c("none", "gzip", "bzip2", "xz"))
     .Internal(memCompress(from, type))
 }

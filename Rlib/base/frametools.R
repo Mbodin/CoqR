@@ -18,17 +18,17 @@
 
 subset.data.frame <- function (x, subset, select, drop = FALSE, ...)
 {
-    r <- if(missing(subset))
+    r <- if(missing(subset)) {
 	rep_len(TRUE, nrow(x))
-    else {
+    } else {
 	e <- substitute(subset)
 	r <- eval(e, x, parent.frame())
         if(!is.logical(r)) stop("'subset' must be logical")
 	r & !is.na(r)
     }
-    vars <- if(missing(select))
+    vars <- if(missing(select)) {
 	TRUE
-    else {
+    } else {
 	nl <- as.list(seq_along(x))
 	names(nl) <- names(x)
 	eval(substitute(select), nl, parent.frame())
@@ -48,15 +48,14 @@ subset.default <- function(x, subset, ...) {
 
 subset.matrix <- function(x, subset, select, drop = FALSE, ...)
 {
-    if(missing(select))
+    if(missing(select)) {
 	vars <- TRUE
-    else {
+    } else {
 	nl <- as.list(1L:ncol(x))
 	names(nl) <- colnames(x)
 	vars <- eval(substitute(select), nl, parent.frame())
     }
-    if(missing(subset)) subset <- TRUE
-    else if(!is.logical(subset)) stop("'subset' must be logical")
+    if(missing(subset)) subset <- TRUE else if(!is.logical(subset)) stop("'subset' must be logical")
     x[subset & !is.na(subset), vars, drop = drop]
 }
 
@@ -74,9 +73,9 @@ transform.data.frame <- function (`_data`, ...)
 	`_data`[inx[matched]] <- e[matched]
 	`_data` <- data.frame(`_data`)
     }
-    if (!all(matched))  # add as separate arguments to get replication
+    if (!all(matched)) {  # add as separate arguments to get replication
 	do.call("data.frame", c(list(`_data`), e[!matched]))
-    else `_data`
+    } else `_data`
 }
 
 transform <- function(`_data`,...) UseMethod("transform")

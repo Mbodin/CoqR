@@ -95,9 +95,7 @@ attach <- function(what, pos = 2L, name = deparse(substitute(what)),
         if(missing(name)) name <- paste0("file:", what)
         value <- .Internal(attach(NULL, pos, name))
         load(what, envir = as.environment(pos))
-    }
-    else
-        value <- .Internal(attach(what, pos, name))
+    } else value <- .Internal(attach(what, pos, name))
     if(warn.conflicts &&
        !exists(".conflicts.OK", envir = value, inherits = FALSE)) {
         checkConflicts(value)
@@ -113,8 +111,7 @@ detach <- function(name, pos = 2L, unload = FALSE, character.only = FALSE,
     if(!missing(name)) {
 	if(!character.only) name <- substitute(name)
 	pos <-
-	    if(is.numeric(name)) name
-	    else {
+	    if(is.numeric(name)) name else {
                 if (!is.character(name)) name <- deparse(name)
                 match(name, search())
             }
@@ -134,14 +131,15 @@ detach <- function(name, pos = 2L, unload = FALSE, character.only = FALSE,
 	if(startsWith(pkg, "package:") &&
            exists(".Depends", pkg, inherits = FALSE) &&
            pkgname %in% get(".Depends", pkg, inherits = FALSE))
-            if(force)
+            if(force) {
                 warning(gettextf("package %s is required by %s, which may no longer work correctly",
 				 sQuote(pkgname), sQuote(.rmpkg(pkg))),
                      call. = FALSE, domain = NA)
-            else
+            } else {
                 stop(gettextf("package %s is required by %s so will not be detached",
 			      sQuote(pkgname), sQuote(.rmpkg(pkg))),
                      call. = FALSE, domain = NA)
+            }
     }
     env <- as.environment(pos)
     libpath <- attr(env, "path")
@@ -163,8 +161,7 @@ detach <- function(name, pos = 2L, unload = FALSE, character.only = FALSE,
                         call. = FALSE, domain = NA)
             }
         }
-    }
-    else if(exists(".Last.lib", mode = "function", where = pos, inherits = FALSE)) {
+    } else if(exists(".Last.lib", mode = "function", where = pos, inherits = FALSE)) {
         .Last.lib <- get(".Last.lib",  mode = "function", pos = pos,
                          inherits = FALSE)
         if(!is.null(libpath)) {
@@ -222,13 +219,11 @@ ls <- objects <-
             if (pattern == "[") {
                 pattern <- "\\["
                 warning("replaced regular expression pattern '[' by  '\\\\['")
-            }
-            else if (length(grep("[^\\\\]\\[<-", pattern))) {
+            } else if (length(grep("[^\\\\]\\[<-", pattern))) {
                 pattern <- sub("\\[<-", "\\\\\\[<-", pattern)
                 warning("replaced '[<-' by '\\\\[<-' in regular expression pattern")
             }
         }
         grep(pattern, all.names, value = TRUE)
-    }
-    else all.names
+    } else all.names
 }

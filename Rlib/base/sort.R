@@ -26,8 +26,9 @@ sort <- function(x, decreasing = FALSE, ...)
 sort.default <- function(x, decreasing = FALSE, na.last = NA, ...)
 {
     ## The first case includes factors.
-    if(is.object(x)) x[order(x, na.last = na.last, decreasing = decreasing)]
-    else sort.int(x, na.last = na.last, decreasing = decreasing, ...)
+    if(is.object(x)) {
+        x[order(x, na.last = na.last, decreasing = decreasing)]
+    } else sort.int(x, na.last = na.last, decreasing = decreasing, ...)
 }
 
 sort.int <-
@@ -52,8 +53,7 @@ sort.int <-
                    method = "radix")
         y <- x[o]
         return(if (index.return) list(x = y, ix = o) else y)
-    }
-    else if (method == "auto" || !is.numeric(x))
+    } else if (method == "auto" || !is.numeric(x))
           method <- "shell" # explicitly prevent 'quick' for non-numeric data
 
     if(isfact <- is.factor(x)) {
@@ -78,8 +78,9 @@ sort.int <-
         y <- if(length(partial) <= 10L) {
             partial <- .Internal(qsort(partial, FALSE))
             .Internal(psort(x, partial))
-        } else if (is.double(x)) .Internal(qsort(x, FALSE))
-        else .Internal(sort(x, FALSE))
+        } else if (is.double(x)) {
+            .Internal(qsort(x, FALSE))
+        } else .Internal(sort(x, FALSE))
     } else {
         nms <- names(x)
 	switch(method,
@@ -101,9 +102,7 @@ sort.int <-
                    if(index.return || !is.null(nms)) {
                        o <- sort.list(x, decreasing = decreasing)
                        y <- if (index.return) list(x = x[o], ix = o) else x[o]
-                   }
-                   else
-                       y <- .Internal(sort(x, decreasing))
+                   } else y <- .Internal(sort(x, decreasing))
                })
     }
     if(!is.na(na.last) && has.na)
@@ -167,10 +166,10 @@ sort.list <- function(x, partial = NULL, na.last = TRUE, decreasing = FALSE,
         .NotYetUsed("partial != NULL")
     if(method == "quick") {
         if(is.factor(x)) x <- as.integer(x) # sort the internal codes
-        if(is.numeric(x))
+        if(is.numeric(x)) {
             return(sort(x, na.last = na.last, decreasing = decreasing,
                         method = "quick", index.return = TRUE)$ix)
-        else stop("method = \"quick\" is only for numeric 'x'")
+        } else stop("method = \"quick\" is only for numeric 'x'")
     }
     if (is.na(na.last)) {
         x <- x[!is.na(x)]

@@ -29,9 +29,9 @@ expand.grid <- function(..., KEEP.OUT.ATTRS = TRUE, stringsAsFactors = TRUE)
     iArgs <- seq_len(nargs)
     nmc <- paste0("Var", iArgs)
     nm <- names(args)
-    if(is.null(nm))
+    if(is.null(nm)) {
 	nm <- nmc
-    else if(any(ng0 <- nzchar(nm)))
+    } else if(any(ng0 <- nzchar(nm)))
 	nmc[ng0] <- nm[ng0]
     names(cargs) <- nmc
     rep.fac <- 1L

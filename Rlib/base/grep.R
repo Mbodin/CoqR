@@ -262,10 +262,7 @@ function(x, m, invert = FALSE)
     ## was given as TRUE, or all character string involved were ASCII.
     ## Hence, if useBytes is TRUE, we need to convert non-ASCII strings
     ## to a bytes encoding before computing match substrings.
-    useBytes <- if(ili)
-        any(unlist(lapply(m, attr, "useBytes")))
-    else
-        any(attr(m, "useBytes"))
+    useBytes <- if(ili) any(unlist(lapply(m, attr, "useBytes")))  else        any(attr(m, "useBytes"))
     if(useBytes) {
         ## Cf. tools::showNonASCII():
         asc <- iconv(x, "latin1", "ASCII")
@@ -288,9 +285,9 @@ function(x, m, invert = FALSE)
     y <- if(is.na(invert)) {
         Map(function(u, so, ml) {
                 if((n <- length(so)) == 1L) {
-                    if(is.na(so) )
+                    if(is.na(so) ) {
                         return(NA_character_) # Or u ...
-                    else if(so == -1L)
+                    } else if(so == -1L)
                         return(u)
                 }
                 eo <- so + ml - 1L
@@ -308,17 +305,16 @@ function(x, m, invert = FALSE)
                 substring(u, beg, end)
             },
             x, m,
-            if(ili)
+            if(ili) {
                 lapply(m, attr, "match.length")
-            else
-                attr(m, "match.length"),
+            } else                attr(m, "match.length"),
             USE.NAMES = FALSE)
     } else if(invert) {
         Map(function(u, so, ml) {
                 if((n <- length(so)) == 1L) {
-                    if(is.na(so) )
+                    if(is.na(so) ) {
                         return(NA_character_) # Or u ...
-                    else if(so == -1L)
+                    } else if(so == -1L)
                         return(u)
                 }
                 beg <- if(n > 1L) {
@@ -336,10 +332,9 @@ function(x, m, invert = FALSE)
                 substring(u, beg, end)
             },
             x, m,
-            if(ili)
+            if(ili) {
                 lapply(m, attr, "match.length")
-            else
-                attr(m, "match.length"),
+            } else                attr(m, "match.length"),
             USE.NAMES = FALSE)
     } else {
         Map(function(u, so, ml) {

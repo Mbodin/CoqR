@@ -28,9 +28,9 @@ simplify2array <- function(x, higher = TRUE)
 {
     if(length(common.len <- unique(lengths(x))) > 1L)
         return(x)
-    if(common.len == 1L)
+    if(common.len == 1L) {
         unlist(x, recursive = FALSE)
-    else if(common.len > 1L) {
+    } else if(common.len > 1L) {
         n <- length(x)
         ## make sure that array(*) will not call rep() {e.g. for 'call's}:
 	r <- unlist(x, recursive = FALSE, use.names = FALSE)
@@ -46,13 +46,12 @@ simplify2array <- function(x, higher = TRUE)
                       list(n2)) ## else NULL
             array(r, dim = d, dimnames = dnam)
 
-        } else if(prod(d <- c(common.len, n)) == length(r))
+        } else if(prod(d <- c(common.len, n)) == length(r)) {
             array(r, dim = d,
                   dimnames = if(!(is.null(n1 <- names(x[[1L]])) &
                   is.null(n2 <- names(x)))) list(n1,n2))
-        else x
-    }
-    else x
+        } else x
+    } else x
 }
 
 sapply <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
@@ -61,9 +60,9 @@ sapply <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
     answer <- lapply(X = X, FUN = FUN, ...)
     if(USE.NAMES && is.character(X) && is.null(names(answer)))
 	names(answer) <- X
-    if(!identical(simplify, FALSE) && length(answer))
+    if(!identical(simplify, FALSE) && length(answer)) {
 	simplify2array(answer, higher = (simplify == "array"))
-    else answer
+    } else answer
 }
 
 vapply <- function(X, FUN, FUN.VALUE, ...,  USE.NAMES = TRUE)

@@ -23,23 +23,19 @@ saveRDS <-
     if(is.character(file)) {
 	if(file == "") stop("'file' must be non-empty string")
 	mode <- if(ascii %in% FALSE) "wb" else "w"
-	con <- if (is.logical(compress))
+	con <- if (is.logical(compress)) {
 		   if(compress) gzfile(file, mode) else file(file, mode)
-	       else
-		   switch(compress,
+    } else switch(compress,
 			  "bzip2" = bzfile(file, mode),
 			  "xz"    = xzfile(file, mode),
 			  "gzip"  = gzfile(file, mode),
 			  stop("invalid 'compress' argument: ", compress))
         on.exit(close(con))
-    }
-    else if(inherits(file, "connection")) {
+    } else if(inherits(file, "connection")) {
         if (!missing(compress))
             warning("'compress' is ignored unless 'file' is a file name")
         con <- file
-    }
-    else
-        stop("bad 'file' argument")
+    } else stop("bad 'file' argument")
     .Internal(serializeToConn(object, con, ascii, version, refhook))
 }
 
@@ -48,9 +44,9 @@ readRDS <- function(file, refhook = NULL)
     if(is.character(file)) {
         con <- gzfile(file, "rb")
         on.exit(close(con))
-    } else if (inherits(file, "connection"))
+    } else if (inherits(file, "connection")) {
 	con <- if(inherits(file, "url")) gzcon(file) else file
-    else stop("bad 'file' argument")
+    } else stop("bad 'file' argument")
     .Internal(unserializeFromConn(con, refhook))
 }
 
@@ -63,9 +59,9 @@ serialize <-
             stop("'connection' must be a connection")
         if (missing(ascii)) ascii <- summary(connection)$text == "text"
     }
-    if (!ascii && inherits(connection, "sockconn"))
+    if (!ascii && inherits(connection, "sockconn")) {
         .Internal(serializeb(object, connection, xdr, version, refhook))
-    else {
+    } else {
 	type <- if(is.na(ascii)) 2L else if(ascii) 1L else if(!xdr) 3L else 0L
         .Internal(serialize(object, connection, type, version, refhook))
     }

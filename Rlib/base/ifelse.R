@@ -32,17 +32,16 @@ ifelse <- function (test, yes, no)
                                          identical(names(yat), "srcref")))
                         return(yes)
                 }
-            }
-            else if (length(no) == 1) {
+            } else if (length(no) == 1) {
                 nat <- attributes(no)
                 if (is.null(nat) || (is.function(no) &&
                                      identical(names(nat), "srcref")))
                     return(no)
             }
         }
+    } else { ## typically a "class"; storage.mode<-() typically fails
+        test <- if(isS4(test)) methods::as(test, "logical") else as.logical(test)
     }
-    else ## typically a "class"; storage.mode<-() typically fails
-	test <- if(isS4(test)) methods::as(test, "logical") else as.logical(test)
     ans <- test
     ok <- !(nas <- is.na(test))
     if (any(test[ok]))

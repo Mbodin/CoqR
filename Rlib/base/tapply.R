@@ -46,9 +46,9 @@ tapply <- function (X, INDEX, FUN = NULL, ..., default = NA, simplify = TRUE)
     ansmat <- array(
 	if (simplify && all(lengths(ans) == 1L)) {
 	    ans <- unlist(ans, recursive = FALSE, use.names = FALSE)
-	    if(!is.null(ans) && is.na(default) && is.atomic(ans))
+	    if(!is.null(ans) && is.na(default) && is.atomic(ans)) {
 		vector(typeof(ans))
-	    else default
+        } else default
 	} else vector("list", prod(extent)),
 	dim = extent, dimnames = namelist)
     if(length(ans)) {

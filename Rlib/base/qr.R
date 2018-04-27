@@ -91,16 +91,17 @@ qr.coef <- function(qr, y)
 		      NAOK = TRUE)[c("coef","info")]
 	if(z$info) stop("exact singularity in 'qr.coef'")
 	pivotted <- k < p
-	if(pivotted)
+	if(pivotted) {
 	    coef[qr$pivot[seq_len(k)], ] <- z$coef
-	else coef                        <- z$coef
+    } else coef                        <- z$coef
     }
     ## in all cases, fixup dimnames (and drop to vector when y was):
     if(!is.null(nam))
-	if(pivotted)
+	if(pivotted) {
 	    rownames(coef)[qr$pivot] <- nam
-	else # faster
+    } else {# faster
 	    rownames(coef)           <- nam
+    }
     if(im && !is.null(nam <- colnames(y)))
 	colnames(coef) <- nam
     if(im) coef else drop(coef)
@@ -207,8 +208,9 @@ qr.Q <- function (qr, complete = FALSE, Dvec)
 	Dvec <- rep.int(if (cmplx) 1 + 0i else 1,
 			if (complete) n else min(dqr))
     D <-
-	if (complete) diag(Dvec, n)
-	else {
+	if (complete) {
+        diag(Dvec, n)
+    } else {
 	    ncols <- min(dqr)
 	    diag(Dvec[seq_len(ncols)], nrow = n, ncol = ncols)
 	}
@@ -236,9 +238,9 @@ qr.X <- function (qr, complete = FALSE,
     cmplx <- mode(R) == "complex"
     p <- as.integer(dim(R)[2L])
     if(is.na(p)) stop("invalid NCOL(R)")
-    if (ncol < p)
+    if (ncol < p) {
 	R <- R[, seq_len(ncol), drop = FALSE]
-    else if (ncol > p) {
+    } else if (ncol > p) {
 	tmp <- diag(if (!cmplx) 1 else 1 + 0i, nrow(R), ncol)
 	tmp[, seq_len(p)] <- R
 	R <- tmp

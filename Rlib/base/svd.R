@@ -28,10 +28,9 @@ svd <- function(x, nu = min(n,p), nv = min(n,p), LINPACK = FALSE)
     res <- list(d = La.res$d)
     if (nu) res$u <- La.res$u
     if (nv) {
-	if (is.complex(x))
+	if (is.complex(x)) {
 	    res$v <- Conj(t(La.res$vt))
-	else
-	    res$v <- t(La.res$vt)
+    } else res$v <- t(La.res$vt)
     }
     res
 }

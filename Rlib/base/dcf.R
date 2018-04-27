@@ -138,9 +138,9 @@ function(x, file = "", append = FALSE,
          width = 0.9 * getOption("width"),
          keep.white = NULL)
 {
-    if(file == "")
+    if(file == "") {
         file <- stdout()
-    else if(is.character(file)) {
+    } else if(is.character(file)) {
         file <- file(file, if(append) "a" else "w")
         on.exit(close(file))
     }
@@ -157,10 +157,10 @@ function(x, file = "", append = FALSE,
 	     gsub("\n[ \t]*\n", "\n .\n ", s, perl = TRUE, useBytes = TRUE),
              perl = TRUE, useBytes = TRUE)
     fmt <- function(tag, val, fold = TRUE) {
-        s <- if(fold)
+        s <- if(fold) {
             formatDL(rep.int(tag, length(val)), val, style = "list",
                      width = width, indent = indent)
-        else {
+        } else {
             ## Need to ensure a leading whitespace for continuation
             ## lines.
             sprintf("%s: %s", tag,

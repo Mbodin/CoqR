@@ -38,15 +38,14 @@ getNativeSymbolInfo <- function(name, PACKAGE, unlist = TRUE,
 {
     if(missing(PACKAGE)) PACKAGE <- ""
 
-    if(is.character(PACKAGE))
+    if(is.character(PACKAGE)) {
         pkgName <- PACKAGE
-    else if(inherits(PACKAGE, "DLLInfo")) {
+    } else if(inherits(PACKAGE, "DLLInfo")) {
         pkgName <- PACKAGE[["path"]]
         PACKAGE <- PACKAGE[["info"]]
     } else if(inherits(PACKAGE, "DLLInfoReference")) {
         pkgName <- character()
-    } else
-        stop(gettextf("must pass a package name, %s or %s object",
+    } else stop(gettextf("must pass a package name, %s or %s object",
                       dQuote("DLLInfo"),
                       dQuote("DllInfoReference")),
              domain = NA)
@@ -64,10 +63,9 @@ getNativeSymbolInfo <- function(name, PACKAGE, unlist = TRUE,
 	v
     })
 
-   if(length(name) == 1L && unlist)
+   if(length(name) == 1L && unlist) {
      syms <- syms[[1L]]
-   else
-     names(syms) <- name
+   } else     names(syms) <- name
 
    syms
 }
@@ -173,10 +171,9 @@ function(f = sys.function(-1), doStop = FALSE)
     e <- environment(f)
 
     if(!isNamespace(e)) {
-        if(doStop)
+        if(doStop) {
             stop("function is not in a namespace, so cannot locate associated DLL")
-        else
-            return(NULL)
+        } else            return(NULL)
     }
 
     if(is.null(r <- getCallingDLLe(e)) && doStop)

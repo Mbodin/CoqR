@@ -39,8 +39,7 @@ function(f, x, init, right = FALSE, accumulate = FALSE)
         if(right) {
             init <- x[[len]]
             ind <- ind[-len]
-        }
-        else {
+        } else {
             init <- x[[1L]]
             ind <- ind[-1L]
         }
@@ -50,14 +49,12 @@ function(f, x, init, right = FALSE, accumulate = FALSE)
         if(right) {
             for(i in rev(ind))
                 init <- forceAndCall(2, f, x[[i]], init)
-        }
-        else {
+        }        else {
             for(i in ind)
                 init <- forceAndCall(2, f, init, x[[i]])
         }
         init
-    }
-    else {
+    }    else {
         len <- length(ind) + 1L
         ## We need a list to accumulate the results as these do not
         ## necessarily all have length one (e.g., reducing with c()).
@@ -83,8 +80,7 @@ function(f, x, init, right = FALSE, accumulate = FALSE)
                     init <- forceAndCall(2, f, x[[i]], init)
                     out[[i]] <- init
                 }
-            }
-            else {
+            }            else {
                 for(i in ind) {
                     out[[i]] <- init
                     init <- forceAndCall(2, f, init, x[[i]])
@@ -139,10 +135,7 @@ Find <-
 function(f, x, right = FALSE, nomatch = NULL)
 {
     f <- match.fun(f)
-    if((pos <- Position(f, x, right, nomatch = 0L)) > 0L)
-        x[[pos]]
-    else
-        nomatch
+    if((pos <- Position(f, x, right, nomatch = 0L)) > 0L)  x[[pos]]    else        nomatch
 }
 
 identity <-

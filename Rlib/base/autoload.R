@@ -45,9 +45,10 @@ autoloader <- function (name, package, ...)
     autoload(name, package, reset = TRUE, ...)
     ## reevaluate the object
     where <- match(paste0("package:", package), search())
-    if (exists(name, where = where, inherits = FALSE))
-	eval(as.name(name), as.environment(where))
-    else
+    if (exists(name, where = where, inherits = FALSE)) {
+	    eval(as.name(name), as.environment(where))
+    } else {
 	stop(gettextf("autoloader did not find '%s' in '%s'", name, package),
              domain = NA)
+    }
 }

@@ -72,13 +72,13 @@ function(x)
 as.numeric_version <-
 function(x)
 {
-    if(is.numeric_version(x)) x
-    else if(is.package_version(x)) {
+    if(is.numeric_version(x)) {
+        x
+    } else if(is.package_version(x)) {
         ## Pre 2.6.0 is.package_version() compatibility code ...
         ## Simplify eventually ...
         structure(x, class = c(class(x), "numeric_version"))
-    }
-    else if(is.list(x) && all(vapply(x, is.integer, NA))) {
+    } else if(is.list(x) && all(vapply(x, is.integer, NA))) {
         bad <- vapply(x,
                       function(e) anyNA(e) || any(e < 0L),
                       NA)
@@ -87,8 +87,7 @@ function(x)
         }
         class(x) <- "numeric_version"
         x
-    }
-    else numeric_version(x)
+    } else numeric_version(x)
 }
 
 ## Package versions must have at least two integers, corresponding to
@@ -185,10 +184,9 @@ function(x)
 `[.numeric_version` <-
 function(x, i, j)
 {
-    y <- if(missing(j))
+    y <- if(missing(j)) {
         unclass(x)[i]
-    else
-        lapply(unclass(x)[i], "[", j)
+    } else lapply(unclass(x)[i], "[", j)
     ## Change sequences which are NULL or contains NAs to integer().
     bad <- vapply(y, function(t) is.null(t) || anyNA(t), NA)
     if(any(bad))
@@ -201,9 +199,9 @@ function(x, i, j)
 function(x, i, j, value)
 {
     y <- unclass(x)
-    if(missing(j))
+    if(missing(j)) {
         y[i] <- unclass(as.numeric_version(value))
-    else {
+    } else {
         ## Listify value as needed and validate.
         if(!is.list(value)) value <- list(value)
         value <- lapply(value, as.integer)
@@ -222,10 +220,9 @@ function(x, i, j, value)
 `[[.numeric_version` <-
 function(x, ..., exact = NA)
 {
-   if(length(list(...)) < 2L)
+   if(length(list(...)) < 2L) {
       structure(list(unclass(x)[[..., exact=exact]]), class = oldClass(x))
-   else
-      unclass(x)[[..1, exact=exact]][..2]
+   } else unclass(x)[[..1, exact=exact]][..2]
 }
 
 ## allowed forms
@@ -237,9 +234,9 @@ function(x, ..., value)
    z <- unclass(x)
    if(nargs() < 4L) {
        if(length(..1) < 2L) {
-           if(is.character(value) && length(value) == 1L)
+           if(is.character(value) && length(value) == 1L) {
                value <- unclass(as.numeric_version(value))[[1L]]
-           else if(!is.integer(value)) stop("invalid 'value'")
+           } else if(!is.integer(value)) stop("invalid 'value'")
        } else {
            value <- as.integer(value)
            if(length(value) != 1L) stop("invalid 'value'")
@@ -287,13 +284,10 @@ function(..., na.rm)
     v <- xtfrm(x)
     if(!na.rm && length(pos <- which(is.na(v)))) {
         y <- x[pos[1L]]
-        if(as.character(.Generic) == "range")
+        if(as.character(.Generic) == "range") {
             c(y, y)
-        else
-            y
-    }
-    else
-        switch(.Generic,
+        } else y
+    } else switch(.Generic,
                max = x[which.max(v)],
                min = x[which.min(v)],
                range = x[c(which.min(v), which.max(v))])
@@ -322,10 +316,9 @@ function(..., recursive = FALSE)
     ## Try to preserve common extension classes.
     ## Note that this does not attempt to turn character strings into
     ## *package* versions if possible.
-    classes <- if(length(unique(lapply(x, class))) == 1L)
+    classes <- if(length(unique(lapply(x, class))) == 1L) {
         class(x[[1L]])
-    else
-        "numeric_version"
+    } else "numeric_version"
     structure(unlist(x, recursive = FALSE), class = classes)
 }
 
@@ -372,10 +365,9 @@ print.numeric_version <-
 function(x, ...)
 {
     y <- as.character(x)
-    if(!length(y))
+    if(!length(y)) {
         writeLines(gettext("<0 elements>"))
-    else
-        print(noquote(ifelse(is.na(y), NA_character_, sQuote(y))), ...)
+    } else print(noquote(ifelse(is.na(y), NA_character_, sQuote(y))), ...)
     invisible(x)
 }
 

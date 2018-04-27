@@ -58,8 +58,7 @@ apply <- function(X, MARGIN, FUN, ...)
         newX <- array(vector(typeof(X), 1L), dim = c(prod(d.call), 1L))
         ans <- forceAndCall(1, FUN, if(length(d.call) < 2L) newX[,1] else
                    array(newX[, 1L], d.call, dn.call), ...)
-        return(if(is.null(ans)) ans else if(length(d.ans) < 2L) ans[1L][-1L]
-               else array(ans, d.ans, dn.ans))
+        return(if(is.null(ans)) ans else if(length(d.ans) < 2L) ans[1L][-1L]  else array(ans, d.ans, dn.ans))
     }
     ## else
     newX <- aperm(X, c(s.call, s.ans))
@@ -71,12 +70,12 @@ apply <- function(X, MARGIN, FUN, ...)
             tmp <- forceAndCall(1, FUN, newX[,i], ...)
             if(!is.null(tmp)) ans[[i]] <- tmp
         }
-    } else
+    } else {
        for(i in 1L:d2) {
            tmp <- forceAndCall(1, FUN, array(newX[,i], d.call, dn.call), ...)
            if(!is.null(tmp)) ans[[i]] <- tmp
         }
-
+    }
     ## answer dims and dimnames
 
     ans.list <- is.recursive(ans[[1L]])
@@ -93,10 +92,9 @@ apply <- function(X, MARGIN, FUN, ...)
     if(length(MARGIN) == 1L && len.a == d2) {
 	names(ans) <- if(length(dn.ans[[1L]])) dn.ans[[1L]] # else NULL
 	ans
-    }
-    else if(len.a == d2)
-	array(ans, d.ans, dn.ans)
-    else if(len.a && len.a %% d2 == 0L) {
+    } else if(len.a == d2) {
+	    array(ans, d.ans, dn.ans)
+    } else if(len.a && len.a %% d2 == 0L) {
         if(is.null(dn.ans)) dn.ans <- vector(mode="list", length(d.ans))
 	dn1 <- list(ans.names)
 	if(length(dn.call) && !is.null(n1 <- names(dn <- dn.call[1])) &&
@@ -106,6 +104,5 @@ apply <- function(X, MARGIN, FUN, ...)
 	array(ans, c(len.a %/% d2, d.ans),
 	      if(!is.null(names(dn.ans)) || !all(vapply(dn.ans, is.null, NA)))
 		  dn.ans)
-    } else
-	ans
+    } else	ans
 }

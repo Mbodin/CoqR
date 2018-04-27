@@ -61,9 +61,9 @@ lazyLoadDBexec <- function(filebase, fun, filter)
     list2env(map$references, env)
     envenv <- mkenv()
     envhook <- function(n) {
-        if (existsInFrame(n, envenv))
+        if (existsInFrame(n, envenv)) {
             envenv[[n]]
-        else {
+        } else {
             e <- mkenv()
             envenv[[n]] <- e           # MUST do this immediately
             key <- env[[n]]
@@ -90,8 +90,7 @@ lazyLoadDBexec <- function(filebase, fun, filter)
         vars <- vars[use]
         vals <- map$variables[use]
         use <- NULL
-    } else
-        vals <-  map$variables
+    } else        vals <-  map$variables
 
     ## This may use vals.
     res <- fun(environment())

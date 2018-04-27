@@ -27,10 +27,9 @@ function(file = "", what = double(), nmax = -1L, n = -1L, sep = "",
 {
     na.strings <- as.character(na.strings)# allow it to be NULL
     if(!missing(n)) {
-        if(missing(nmax))
+        if(missing(nmax)) {
             nmax <- n / pmax(length(what), 1L)
-        else
-            stop("either specify 'nmax' or 'n', but not both.")
+        } else stop("either specify 'nmax' or 'n', but not both.")
     }
     if (missing(file) && !missing(text)) {
 	file <- textConnection(text, encoding = "UTF-8")
@@ -39,8 +38,9 @@ function(file = "", what = double(), nmax = -1L, n = -1L, sep = "",
     }
 
     if(is.character(file))
-        if(file == "") file <- stdin()
-        else {
+        if(file == "") {
+            file <- stdin()
+        } else {
             file <- if(nzchar(fileEncoding))
                 file(file, "r", encoding = fileEncoding) else file(file, "r")
             on.exit(close(file))

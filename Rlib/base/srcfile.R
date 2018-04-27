@@ -78,8 +78,9 @@ open.srcfile <- function(con, line, ...) {
             warning(gettextf("Timestamp of %s has changed",
                              sQuote(srcfile$filename)),
                     call. = FALSE, domain = NA)
-	if (is.null(srcfile$encoding)) encoding <- getOption("encoding")
-	else encoding <- srcfile$encoding
+	if (is.null(srcfile$encoding)) {
+        encoding <- getOption("encoding")
+    } else encoding <- srcfile$encoding
 	# Specifying encoding below means that reads will convert to the native encoding
 	srcfile$conn <- conn <- file(srcfile$filename, open="rt", encoding=encoding)
 	srcfile$line <- 1L
@@ -99,8 +100,9 @@ open.srcfile <- function(con, line, ...) {
 close.srcfile <- function(con, ...) {
     srcfile <- con
     conn <- srcfile$conn
-    if (is.null(conn)) return()
-    else {
+    if (is.null(conn)) {
+        return()
+    } else {
 	close(conn)
 	rm(list=c("conn", "line"), envir=srcfile)
     }
@@ -189,8 +191,9 @@ getSrcLines <- function(srcfile, first, last) {
 	    srcfile$fixedNewlines <- TRUE
 	}
         last <- min(last, length(srcfile$lines))
-        if (first > last) return(character())
-        else return(srcfile$lines[first:last])
+        if (first > last) {
+            return(character())
+        } else return(srcfile$lines[first:last])
     }
     if (!.isOpen(srcfile)) on.exit(close(srcfile))
     conn <- open(srcfile, first)
@@ -229,15 +232,14 @@ as.character.srcref <- function(x, useSource = TRUE, to = x, ...)
     }
 
     if (useSource) {
-    	if (inherits(srcfile, "srcfilecopy") || inherits(srcfile, "srcfilealias"))
+    	if (inherits(srcfile, "srcfilecopy") || inherits(srcfile, "srcfilealias")) {
     	    lines <- try(getSrcLines(srcfile, x[7L], x[8L]), TRUE)
-    	else
- 	    lines <- try(getSrcLines(srcfile, x[1L], x[3L]), TRUE)
+        } else lines <- try(getSrcLines(srcfile, x[1L], x[3L]), TRUE)
     }
-    if (!useSource || inherits(lines, "try-error"))
+    if (!useSource || inherits(lines, "try-error")) {
     	lines <- paste("<srcref: file \"", srcfile$filename, "\" chars ",
                        x[1L],":",x[5L], " to ",x[3L],":",x[6L], ">", sep="")
-    else if (length(lines)) {
+    } else if (length(lines)) {
     	enc <- Encoding(lines)
     	Encoding(lines) <- "latin1"  # so byte counting works
         if (length(lines) < x[3L] - x[1L] + 1L)

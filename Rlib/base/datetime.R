@@ -24,8 +24,9 @@ Sys.timezone <- function(location = TRUE)
     tz <- Sys.getenv("TZ", names = FALSE)
     if(!location || nzchar(tz)) return(Sys.getenv("TZ", unset = NA_character_))
     lt <- normalizePath("/etc/localtime") # Linux, macOS, ...
-    if (grepl(pat <- "^/usr/share/zoneinfo/", lt)) sub(pat, "", lt)
-    else if (lt == "/etc/localtime" && file.exists("/etc/timezone") &&
+    if (grepl(pat <- "^/usr/share/zoneinfo/", lt)) {
+        sub(pat, "", lt)
+    } else if (lt == "/etc/localtime" && file.exists("/etc/timezone") &&
 	     dir.exists("/usr/share/zoneinfo") &&
 	     { # Debian etc.
 		 info <- file.info(normalizePath("/etc/timezone"),
@@ -43,8 +44,7 @@ Sys.timezone <- function(location = TRUE)
 		    identical(file.size(normalizePath(tzp)),
 			      file.size(lt))
 	     })
-	tz2
-    else NA_character_
+	tz2   else NA_character_
 }
 
 as.POSIXlt <- function(x, tz = "", ...) UseMethod("as.POSIXlt")
@@ -194,9 +194,9 @@ format.POSIXlt <- function(x, format = "", usetz = FALSE, ...)
                     break
                 }
 	format[f0] <-
-	    if(all(times[!is.na(times)] == 0)) "%Y-%m-%d"
-	    else if(np == 0L) "%Y-%m-%d %H:%M:%S"
-	    else paste0("%Y-%m-%d %H:%M:%OS", np)
+	    if(all(times[!is.na(times)] == 0)){
+            "%Y-%m-%d"
+        } else if(np == 0L) "%Y-%m-%d %H:%M:%S" else paste0("%Y-%m-%d %H:%M:%OS", np)
     }
     ## <FIXME>
     ## Move names handling to C code eventually ...
@@ -236,14 +236,14 @@ print.POSIXct <-
 print.POSIXlt <- function(x, tz = "", usetz = TRUE, ...)
 {
     max.print <- getOption("max.print", 9999L)
-    FORM <- if(missing(tz)) function(z) format(x, usetz = usetz)
-	    else function(z) format(x, tz = tz, usetz = usetz)
+    FORM <- if(missing(tz)) {
+                function(z) format(x, usetz = usetz)
+    } else function(z) format(x, tz = tz, usetz = usetz)
     if(max.print < length(x)) {
 	print(FORM(x[seq_len(max.print)]), ...)
         cat(' [ reached getOption("max.print") -- omitted',
             length(x) - max.print, 'entries ]\n')
-    } else
-	print(if(length(x)) FORM(x) else paste(class(x)[1L], "of length 0"), ...)
+    } else	print(if(length(x)) FORM(x) else paste(class(x)[1L], "of length 0"), ...)
     invisible(x)
 }
 
@@ -427,9 +427,9 @@ c.POSIXlt <- function(..., recursive = FALSE)
 
 ISOdatetime <- function(year, month, day, hour, min, sec, tz = "")
 {
-    if(min(vapply(list(year, month, day, hour, min, sec), length, 1, USE.NAMES=FALSE)) == 0L)
+    if(min(vapply(list(year, month, day, hour, min, sec), length, 1, USE.NAMES=FALSE)) == 0L) {
         .POSIXct(numeric(), tz = tz)
-    else {
+    } else {
         x <- paste(year, month, day, hour, min, sec, sep = "-")
         as.POSIXct(strptime(x, "%Y-%m-%d-%H-%M-%OS", tz = tz), tz = tz)
     }
@@ -468,13 +468,13 @@ difftime <-
     units <- match.arg(units)
     if(units == "auto")
 	units <-
-	    if(all(is.na(z))) "secs"
-	    else {
+	    if(all(is.na(z))){ "secs"
+        } else {
 		zz <- min(abs(z), na.rm = TRUE)
-		if(!is.finite(zz) || zz < 60) "secs"
-		else if(zz < 3600) "mins"
-		else if(zz < 86400) "hours"
-		else "days"
+		if(!is.finite(zz) || zz < 60) { "secs"
+        } else if(zz < 3600) { "mins"
+        } else if(zz < 86400) { "hours"
+        } else "days"
 	    }
     switch(units,
            "secs" = .difftime(z, units = "secs"),
@@ -539,9 +539,7 @@ print.difftime <- function(x, digits = getOption("digits"), ...)
         cat("Time differences in ", attr(x, "units"), "\n", sep = "")
         y <- unclass(x); attr(y, "units") <- NULL
 	print(y, digits=digits, ...)
-    }
-    else
-        cat("Time difference of ", format(unclass(x), digits = digits), " ",
+    }  else cat("Time difference of ", format(unclass(x), digits = digits), " ",
             attr(x, "units"), "\n", sep = "")
 
     invisible(x)
@@ -748,16 +746,15 @@ seq.POSIXt <-
         if(valid <= 5L) {
             by <- c(1, 60, 3600, 86400, 7*86400)[valid]
             if (length(by2) == 2L) by <- by * as.integer(by2[1L])
-        } else
-            by <- if(length(by2) == 2L) as.integer(by2[1L]) else 1
+        } else            by <- if(length(by2) == 2L) as.integer(by2[1L]) else 1
     } else if(!is.numeric(by)) stop("invalid mode for 'by'")
     if(is.na(by)) stop("'by' is NA")
 
     if(valid <= 5L) { # secs, mins, hours, days, weeks
         from <- unclass(as.POSIXct(from))
-        if(!is.null(length.out))
+        if(!is.null(length.out)) {
             res <- seq.int(from, by = by, length.out = length.out)
-        else {
+        } else {
             to0 <- unclass(as.POSIXct(to))
             ## defeat test in seq.default
             res <- seq.int(0, to0 - from, by) + from
@@ -879,8 +876,7 @@ cut.POSIXt <-
                right = right, ...)
     if(is.null(labels)) {
 	levels(res) <-
-	    as.character(if (is.numeric(breaks)) x[!duplicated(res)]
-			 else breaks[-length(breaks)])
+	    as.character(if (is.numeric(breaks)) x[!duplicated(res)]			 else breaks[-length(breaks)])
     }
     res
 }
@@ -993,9 +989,10 @@ diff.POSIXt <- function (x, lag = 1L, differences = 1L, ...)
         stop("'lag' and 'differences' must be integers >= 1")
     if (lag * differences >= xlen) return(.difftime(numeric(), "secs"))
     i1 <- -seq_len(lag)
-    if (ismat) for (i in seq_len(differences)) r <- r[i1, , drop = FALSE] -
+    if (ismat) {
+        for (i in seq_len(differences)) r <- r[i1, , drop = FALSE] -
             r[-nrow(r):-(nrow(r) - lag + 1), , drop = FALSE]
-    else for (i in seq_len(differences))
+    } else for (i in seq_len(differences))
         r <- r[i1] - r[-length(r):-(length(r) - lag + 1L)]
     r
 }
@@ -1061,9 +1058,9 @@ function(x, value)
 
 OlsonNames <- function()
 {
-    if(.Platform$OS.type == "windows")
+    if(.Platform$OS.type == "windows") {
         tzdir <- Sys.getenv("TZDIR", file.path(R.home("share"), "zoneinfo"))
-    else {
+    } else {
         tzdirs <- c(Sys.getenv("TZDIR"),
                     file.path(R.home("share"), "zoneinfo"),
                     "/usr/share/zoneinfo", # Linux, macOS, FreeBSD

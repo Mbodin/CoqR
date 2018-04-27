@@ -218,9 +218,9 @@ NextMethod <- function(generic=NULL, object=NULL, ...)
     .Internal(NextMethod(generic, object,...))
 
 data.class <- function(x) {
-    if (length(cl <- oldClass(x)))
+    if (length(cl <- oldClass(x))) {
 	cl[1L]
-    else {
+    } else {
 	l <- length(dim(x))
         if (l == 2L) "matrix" else if(l) "array" else mode(x)
     }

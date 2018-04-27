@@ -27,11 +27,9 @@ scale.default <- function(x, center = TRUE, scale = TRUE)
             center <- colMeans(x, na.rm=TRUE)
 	    x <- sweep(x, 2L, center, check.margin=FALSE)
         }
-    }
-    else if (is.numeric(center) && (length(center) == nc))
+    } else if (is.numeric(center) && (length(center) == nc)) {
 	x <- sweep(x, 2L, center, check.margin=FALSE)
-    else
-	stop("length of 'center' must equal the number of columns of 'x'")
+    } else stop("length of 'center' must equal the number of columns of 'x'")
     if (is.logical(scale)) {
 	if (scale) {
 	    f <- function(v) {
@@ -41,11 +39,9 @@ scale.default <- function(x, center = TRUE, scale = TRUE)
             scale <- apply(x, 2L, f)
 	    x <- sweep(x, 2L, scale, "/", check.margin=FALSE)
 	}
-    }
-    else if (is.numeric(scale) && length(scale) == nc)
+    } else if (is.numeric(scale) && length(scale) == nc) {
 	x <- sweep(x, 2L, scale, "/", check.margin=FALSE)
-    else
-	stop("length of 'scale' must equal the number of columns of 'x'")
+    } else stop("length of 'scale' must equal the number of columns of 'x'")
     if(is.numeric(center)) attr(x, "scaled:center") <- center
     if(is.numeric(scale)) attr(x, "scaled:scale") <- scale
     x

@@ -39,9 +39,9 @@ setHook <- function(hookName, value,
                   "append" = c(old, value),
                   "prepend" = c(value, old),
                   "replace" = if (is.null(value) || is.list(value)) value else list(value))
-    if (length(new))
+    if (length(new)) {
         assign(hookName, new, envir = .userHooksEnv, inherits = FALSE)
-    else if(exists(hookName, envir = .userHooksEnv, inherits = FALSE))
+    } else if(exists(hookName, envir = .userHooksEnv, inherits = FALSE))
         remove(list=hookName, envir = .userHooksEnv, inherits = FALSE)
     invisible()
 }

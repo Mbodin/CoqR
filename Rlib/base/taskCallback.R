@@ -98,8 +98,7 @@ function(handlers = list(), registered = FALSE, verbose = FALSE)
             if(length(tmp))
                 stop(gettextf("no such element '%s'", which), domain = NA)
             which <- tmp
-        } else
-        which <- as.integer(which)
+        } else which <- as.integer(which)
 
         handlers <<- handlers[-which]
 
@@ -138,10 +137,11 @@ function(handlers = list(), registered = FALSE, verbose = FALSE)
                 if(.verbose)
                     cat(gettextf("Removing %s", paste(discard, collapse=", ")), "\n")
                 idx <- is.na(match(names(handlers), discard))
-                if(length(idx))
+                if(length(idx)) {
                     handlers <<- handlers[idx]
-                else
+                } else {
                     handlers <<- list()
+                }
             }
             return(TRUE)
         }

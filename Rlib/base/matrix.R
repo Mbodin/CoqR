@@ -35,13 +35,15 @@ NCOL <- function(x) if(length(d <- dim(x)) > 1L) d[2L] else 1L
 rownames <- function(x, do.NULL = TRUE, prefix = "row")
 {
     dn <- dimnames(x)
-    if(!is.null(dn[[1L]]))
+    if(!is.null(dn[[1L]])) {
 	dn[[1L]]
-    else {
+    } else {
         nr <- NROW(x)
-	if(do.NULL) NULL
-        else if(nr > 0L) paste0(prefix, seq_len(nr))
-        else character()
+	if(do.NULL) {
+        NULL
+    } else if(nr > 0L) {
+            paste0(prefix, seq_len(nr))
+    } else character()
     }
 }
 
@@ -70,13 +72,15 @@ colnames <- function(x, do.NULL = TRUE, prefix = "col")
     if(is.data.frame(x) && do.NULL)
 	return(names(x))
     dn <- dimnames(x)
-    if(!is.null(dn[[2L]]))
+    if(!is.null(dn[[2L]])) {
 	dn[[2L]]
-    else {
+    } else {
         nc <- NCOL(x)
-	if(do.NULL) NULL
-        else if(nc > 0L) paste0(prefix, seq_len(nc))
-        else character()
+	if(do.NULL) {
+        NULL
+    } else if(nc > 0L) {
+            paste0(prefix, seq_len(nc))
+    } else character()
     }
 }
 
