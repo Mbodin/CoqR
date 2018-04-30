@@ -741,30 +741,6 @@ Proof.
     introv. rewrites* >> move_along_entry_point_alloc_SExp A.
 Qed.
 
-Lemma write_SExp_conserve_old_binding_not_bound : forall S S' p p_,
-  ~ bound S p ->
-  write_SExp S p p_ = Some S' ->
-  conserve_old_binding S S'.
-Proof.
-  introv NB W. constructors.
-  - (** conserve_old_binding_binding **)
-    introv (p_'&E&_). exists p_'. splits~. exists p_'. splits~.
-    eapply read_write_SExp_neq in W.
-    + rewrite~ W.
-    + intro_subst. false NB. applys* read_bound E.
-  - (** conserve_old_binding_entry_point **)
-    introv. rewrites* >> move_along_entry_point_write_SExp W.
-Qed.
-
-Lemma write_SExp_conserve_old_binding_read_None : forall (S S' : state) p p_,
-  read_SExp S p = None ->
-  write_SExp S p p_ = Some S' ->
-  conserve_old_binding S S'.
-Proof.
-  introv R W. applys write_SExp_conserve_old_binding_not_bound W.
-  introv B. lets (p_'&E): bound_read B. rewrite E in R. inverts* R.
-Qed.
-
 Lemma only_one_nil_SExpRec : forall S p1 p2 e1 e2 e1_ e2_,
   safe_state S ->
   move_along_path p1 S = Some e1 ->
