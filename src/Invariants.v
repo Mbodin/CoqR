@@ -717,6 +717,16 @@ Proof.
   - rewrite safe_pointer_rewrite in OKe. applys~ safe_SExpRec_read OKe.
 Qed.
 
+Lemma read_bound : forall (S : state) p p_,
+  read_SExp S p = Some p_ ->
+  bound S p.
+Proof. introv E. exists* p_. Qed.
+
+Lemma bound_read : forall (S : state) p,
+  bound S p ->
+  exists p_, read_SExp S p = Some p_.
+Proof. introv (p_&E&_). exists* p_. Qed.
+
 Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
   alloc_SExp S e_ = (S', e) ->
   conserve_old_binding S S'.
@@ -731,15 +741,29 @@ Proof.
     introv. rewrites* >> move_along_entry_point_alloc_SExp A.
 Qed.
 
-Lemma read_bound : forall (S : state) p p_,
-  read_SExp S p = Some p_ ->
-  bound S p.
-Proof. introv E. exists* p_. Qed.
+Lemma write_SExp_conserve_old_binding_not_bound : forall S S' p p_,
+  ~ bound S p ->
+  write_SExp S p p_ = Some S' ->
+  conserve_old_binding S S'.
+Proof.
+  introv NB W. constructors.
+  - (** conserve_old_binding_binding **)
+    introv (p_'&E&_). exists p_'. splits~. exists p_'. splits~.
+    eapply read_write_SExp_neq in W.
+    + rewrite~ W.
+    + intro_subst. false NB. applys* read_bound E.
+  - (** conserve_old_binding_entry_point **)
+    introv. rewrites* >> move_along_entry_point_write_SExp W.
+Qed.
 
-Lemma bound_read : forall (S : state) p,
-  bound S p ->
-  exists p_, read_SExp S p = Some p_.
-Proof. introv (p_&E&_). exists* p_. Qed.
+Lemma write_SExp_conserve_old_binding_read_None : forall (S S' : state) p p_,
+  read_SExp S p = None ->
+  write_SExp S p p_ = Some S' ->
+  conserve_old_binding S S'.
+Proof.
+  introv R W. applys write_SExp_conserve_old_binding_not_bound W.
+  introv B. lets (p_'&E): bound_read B. rewrite E in R. inverts* R.
+Qed.
 
 Lemma only_one_nil_SExpRec : forall S p1 p2 e1 e2 e1_ e2_,
   safe_state S ->
@@ -1194,92 +1218,6 @@ Proof.
   introv W M D. forwards (e_&R&_): move_along_path_step_bound M.
   unfolds move_along_path_step. rewrite R in M.
   rewrites~ >> read_write_SExp_neq W in R. rewrite~ R.
-Qed.
-
-Lemma write_SExp_may_have_types : forall S S' l p' p p_,
-  ~ bound S p ->
-  write_SExp S p p_ = Some S' ->
-  may_have_types S l p' ->
-  may_have_types S' l p'.
-Proof.
-  introv NB W (p_'&E&T). exists p_'. splits~.
-  rewrites~ >> read_write_SExp_neq W.
-  intro_subst. false NB. applys* read_bound E.
-Qed.
-
-Lemma write_SExp_list_type : forall Pheader Pcar Ptag S S' l_t l_car l_tag p' p p_,
-  ~ bound S p ->
-  write_SExp S p p_ = Some S' ->
-  list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag p' ->
-  list_type_such_that Pheader Pcar Ptag S' l_t l_car l_tag p'.
-Proof.
-  introv NB W L. induction L as [? ? ? ? I|? ? ? ? p_' h car cdr tag E M H HH A L T IH]
-    using list_type_ind.
-  - apply list_type_nil. applys~ write_SExp_may_have_types NB W.
-  - apply list_type_cons. exists p_'. splits~.
-    + rewrites~ >> read_write_SExp_neq W.
-      intro_subst. false NB. applys~ read_bound E.
-    + exists h car cdr tag. splits~; applys~ write_SExp_may_have_types NB W.
-Qed.
-
-Lemma write_SExp_safe_SExpRec_type : forall S S' t p p_ p_',
-  ~ bound S p ->
-  write_SExp S p p_ = Some S' ->
-  safe_SExpRec_type S t p_' ->
-  safe_SExpRec_type S' t p_'.
-Proof.
-  introv NB W OK. inverts OK; constructors~;
-    try (introv M; match goal with P : _ |- _ =>
-                     let P' := fresh P in forwards P': P M;
-                     repeat (let P'' := fresh P in
-                       lets (?&P''): (rm P'); rename P'' into P')
-                   end; try splits);
-    try applys_first (>> write_SExp_may_have_types
-                         write_SExp_list_type) W; autos*.
-Qed.
-
-Lemma write_SExp_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p p_ p_',
-  ~ bound S p ->
-  write_SExp S p p_ = Some S' ->
-  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
-  safe_SExpRec_gen safe_pointer1 S p_' ->
-  safe_SExpRec_gen safe_pointer2 S' p_'.
-Proof.
-  introv N W CSafe E. constructors~.
-  - applys* write_SExp_safe_SExpRec_type.
-    applys~ SExpType_corresponds_to_datatype E.
-  - constructors~.
-    + applys~ CSafe E.
-    + applys~ write_SExp_list_type N W E.
-Qed.
-
-Lemma safe_pointer_write_SExp : forall S S' p p' p'_,
-  write_SExp S p' p'_ = Some S' ->
-  ~ bound S p' ->
-  safe_pointer S p ->
-  safe_pointer S' p.
-Proof.
-  introv E NB. gen p. pcofix IH. introv OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
-  - (** pointer_bound **)
-    tests Dp: (p = p').
-    + applys~ bound_write_exact E.
-    + applys~ bound_write E. applys~ pointer_bound OKp.
-  - (** no_null_pointer_along_path_step **)
-    introv NPE M. tests Dp: (p = p').
-    + false NB. applys~ pointer_bound OKp.
-    + applys~ no_null_pointer_along_path_step OKp NPE.
-      applys~ write_SExp_move_along_path_step_inv E.
-  - (** safe_pointer_along_path_step **)
-    introv M D. tests Dp: (p = p').
-    + false NB. applys~ pointer_bound OKp.
-    + right. applys IH. forwards~ E': write_SExp_move_along_path_step_inv E M.
-      applys~ safe_pointer_along_path_step E'.
-  - (** safe_SExpRec_read **)
-    introv R. tests Dp: (p = p').
-    + false NB. applys~ pointer_bound OKp.
-    + forwards~ E': read_write_SExp_neq p E.
-      rewrite E' in R. forwards OKp_: safe_SExpRec_read OKp R.
-      applys~ write_SExp_safe_SExpRec_aux NB E OKp_.
 Qed.
 
 
@@ -2900,6 +2838,16 @@ Ltac find_conserve_old_binding S S' cont :=
   | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
     let C := fresh "C" in
     forwards~ C: alloc_SExp_conserve_old_binding E;
+    cont C
+  | W : write_SExp S ?p ?p_ = Some S',
+    NB : ~ bound S ?p |- _ =>
+    let C := fresh "C" in
+    forwards~ C: write_SExp_conserve_old_binding_not_bound NB W;
+    cont C
+  | W : write_SExp S ?p ?p_ = Some S',
+    R : read_SExp S ?p = None |- _ =>
+    let C := fresh "C" in
+    forwards~ C: write_SExp_conserve_old_binding_not_bound R W;
     cont C
   end.
 
