@@ -55,6 +55,8 @@ let fetch_result = ref true
 let show_outputs = Hooks.log
 let show_outputs_readable = Hooks.log_only_at_newlines
 
+let trace = Hooks.trace
+
 let initial_state = ref ""
 let final_state = ref ""
 
@@ -68,12 +70,15 @@ let boolean_switches =
   let category_print = ("show", "hide", "all", "Show", "Hide", "every available information about the state", false) in
   let category_read = ("human", "computer", "readable", "human", "computer", "Makes the output easily readable by a", true) in
   let category_computation = ("show", "hide", "computations", "Show", "Hide", "intermediate computations", false) in
+  let category_debug = ("enable", "disable", "debug", "Enable", "Disable", "all debugging features", false) in
   let print_switch categories dep =
     make_boolean_switch (category_print :: categories) dep "show" "hide" "Show" "Hide" in
   let write_switch categories dep =
     make_boolean_switch (category_read :: categories) dep "use" "no" "Write" "Do not write" in
   let computation_switch categories dep =
     make_boolean_switch (category_computation :: categories) dep "show" "hide" "Show" "Do not show" in
+  let debug_switch categories dep =
+    make_boolean_switch (category_debug :: categories) dep "enable" "disable" "Enable" "Disable" in
   let print_context =
     print_switch [] [] show_context "context" "the execution context" true in
   let print_unlike_R =
@@ -114,7 +119,8 @@ let boolean_switches =
     print_switch [] [] print_prompt "prompt" "the prompt (the “>” shown before inputs)" true ;
     print_switch [] [] print_stack "stack" "the execution stack in case of an error" true ;
     print_switch [] [] done_message "done" "a feedback when interactive commands are executed" true ;
-    make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false
+    make_boolean_switch [] [] "verbose" "quiet" "Show" "Hide" verbose "output" "messages explaining what the program is doing" false ;
+    debug_switch [] [] trace "trace" "tracing functions" true
   ]
 
 let get_pointer (_, _, _, _, _, _, p, _, _, _) = p

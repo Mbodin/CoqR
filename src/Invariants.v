@@ -2815,16 +2815,6 @@ Ltac find_conserve_old_binding S S' cont :=
     let C := fresh "C" in
     forwards~ C: alloc_SExp_conserve_old_binding E;
     cont C
-  | W : write_SExp S ?p ?p_ = Some S',
-    NB : ~ bound S ?p |- _ =>
-    let C := fresh "C" in
-    forwards~ C: write_SExp_conserve_old_binding_not_bound NB W;
-    cont C
-  | W : write_SExp S ?p ?p_ = Some S',
-    R : read_SExp S ?p = None |- _ =>
-    let C := fresh "C" in
-    forwards~ C: write_SExp_conserve_old_binding_not_bound R W;
-    cont C
   end.
 
 (** Given two states whose property [conserve_old_binding S S'] is
