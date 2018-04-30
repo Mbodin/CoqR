@@ -77,7 +77,7 @@ let stack_depth = ref 0
 
 let add_stack_entering name cont =
   if !trace then (
-    print_endline (String.make !stack_depth ' ' ^ "-> " ^ char_list_to_string name) ;
+    print_endline (String.make !stack_depth ' ' ^ "{ " ^ char_list_to_string name) ;
     incr stack_depth
   ) ;
   cont ()
@@ -85,7 +85,7 @@ let add_stack_entering name cont =
 let add_stack_leaving name cont =
   if !trace then (
     decr stack_depth ;
-    print_endline (String.make !stack_depth ' ' ^ "<- " ^ char_list_to_string name)
+    print_endline (String.make !stack_depth ' ' ^ "} " ^ char_list_to_string name)
   ) ;
   cont ()
 
