@@ -2441,11 +2441,11 @@ Definition integer_binary S (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
       result_success S ans
     else
       run%success
-        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+        ifb ans <> s2 /\ n = n2 /\ s2_attr <> R_NilValue then
           copyMostAttrib globals runs S s2 ans
         else result_skip S using S in
       run%success
-        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+        ifb ans <> s1 /\ n = n1 /\ s1_attr <> R_NilValue then
           copyMostAttrib globals runs S s1 ans
         else result_skip S using S in
       result_success S ans.
@@ -2721,11 +2721,11 @@ Definition real_binary S (code : int) s1 s2 : result SEXP :=
       result_success S ans
     else
       run%success
-        ifb ans <> s2 /\ n = n2 /\ s2_attr = R_NilValue then
+        ifb ans <> s2 /\ n = n2 /\ s2_attr <> R_NilValue then
           copyMostAttrib globals runs S s2 ans
         else result_skip S using S in
       run%success
-        ifb ans <> s1 /\ n = n1 /\ s1_attr = R_NilValue then
+        ifb ans <> s1 /\ n = n1 /\ s1_attr <> R_NilValue then
           copyMostAttrib globals runs S s1 ans
         else result_skip S using S in
       result_success S ans.
@@ -3007,10 +3007,10 @@ Definition do_arith S (call op args env : SEXP) : result SEXP :=
     else R_length globals runs S args using S in
   let arg1 := args_car in
   let arg2 := args_cdr_car in
-  read%defined arg1_ := arg1 using S in
-  read%defined arg2_ := arg1 using S in
   run%exit
-    ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
+    let%success arg1_attr := ATTRIB S arg1 using S in
+    let%success arg2_attr := ATTRIB S arg2 using S in
+    ifb arg1_attr <> R_NilValue \/ arg2_attr <> R_NilValue then
       if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
         result_rreturn S ans
       else result_rskip S
@@ -3994,30 +3994,28 @@ Definition do_internal S (call op args env : SEXP) : result SEXP :=
   read%list args_car, _, _ := args using S in
   let s := args_car in
   let%success pl := isPairList S s using S in
-  run%success
-    ifb ~ pl then
+  if negb pl then
+    result_error S "Invalid .Internal() argument."
+  else
+    read%list s_car, s_cdr, _ := s using S in
+    let sfun := s_car in
+    let%success isym := isSymbol S sfun using S in
+    if negb isym then
       result_error S "Invalid .Internal() argument."
-    else result_skip S using S in
-  read%list s_car, s_cdr, _ := s using S in
-  let sfun := s_car in
-  let%success isym := isSymbol S sfun using S in
-  run%success
-    ifb ~ isym then
-      result_error S "Invalid .Internal() argument."
-    else result_skip S using S in
-  read%sym _, sfun_sym := sfun using S in
-  run%success
-    ifb sym_internal sfun_sym = R_NilValue then
-      result_error S "There is no such .Internal() function."
-    else result_skip S using S in
-  let%success args :=
-    let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
-    ifb sfun_internal_type = BuiltinSxp then
-      evalList globals runs S s_cdr env call 0
-    else result_success S s_cdr using S in
-  let%success f := PRIMFUN runs S (sym_internal sfun_sym) using S in
-  let%success ans := f S s (sym_internal sfun_sym) args env using S in
-  result_success S ans.
+    else
+      read%sym _, sfun_sym := sfun using S in
+      ifb sym_internal sfun_sym = R_NilValue then
+        result_error S "There is no such .Internal function."
+      else
+        let%success args :=
+          let args := s_cdr in
+          let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
+          ifb sfun_internal_type = BuiltinSxp then
+            evalList globals runs S args env call 0
+          else result_success S args using S in
+        let%success f := PRIMFUN runs S (sym_internal sfun_sym) using S in
+        let%success ans := f S s (sym_internal sfun_sym) args env using S in
+        result_success S ans.
 
 
 Fixpoint R_Primitive_loop S R_FunTab primname lmi :=

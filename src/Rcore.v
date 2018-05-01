@@ -3983,8 +3983,7 @@ Definition installAttrib S vec name val :=
       ifb list_tagval s_list = name then
         set%car s := val using S in
         result_rreturn S val
-      else result_rsuccess S s
-    using S, runs, globals in
+      else result_rsuccess S s using S, runs, globals in
     let (S, s) := CONS S val R_NilValue in
     set%tag s := name using S in
     run%success
@@ -4224,7 +4223,7 @@ Definition setAttrib S (vec name val : SEXP) :=
         unimplemented_function "row_names_gets"
       else installAttrib S vec name val.
 
-Definition copyMostAttrib S inp (ans : SEXP) :=
+Definition copyMostAttrib S (inp ans : SEXP) :=
   add%stack "copyMostAttrib" in
   ifb ans = R_NilValue then
     result_error S "Attempt to set an attribute on NULL."

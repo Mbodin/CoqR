@@ -901,6 +901,10 @@ Proof.
   rewrite* E'.
 Qed.
 
+Lemma write_SExp_NULL : forall S p_,
+  write_SExp S NULL p_ = None.
+Proof. reflexivity. Qed.
+
 
 (** * Initial Memory **)
 
