@@ -23,13 +23,81 @@ Require Export Invariants.
 Require Import Paco.paco.
 
 
-(* TODO: Add a section with an hypothesis of the form “runs is
-  safe”. Then close the section, use the lemmae of RfeaturesAux,
-  and conclude that [do_while] is safe. *)
+Section Parameterised.
+
+Variable globals : Globals.
+
+Let read_globals := read_globals globals.
+Local Coercion read_globals : GlobalVariable >-> SEXP.
+
+Variable runs : runs_type.
+
+Hypothesis runs_while_loop_safe : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
+    S (a : A) (expr stat : _ -> A -> _),
+  (forall S a,
+    P_success S a ->
+    result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
+  (forall S a,
+    P_success S a ->
+    result_prop (fun _ b => b = true) (fun _ => False) (fun _ _ _ => False) (expr S a) ->
+    result_prop P_success P_error P_longjump (stat S a)) ->
+  result_prop P_success P_error P_longjump (runs_while_loop runs S a expr stat).
+
 
 (** * Lemmae about Rcore.v **)
 
+Lemma PRIMARITY_safe : forall S x,
+  safe_state S ->
+  safe_pointer S x ->
+  result_prop (fun S _ => safe_state S) safe_state (fun _ _ _ => False)
+    (PRIMARITY runs S x).
+Proof.
+  introv OKS OKx. unfolds PRIMARITY. computeR_step.
+  skip. (* FIXME: someyhing loops in [computeR_step] here. *)
+Qed.
+
 (** * Lemmae about Rfeatures.v **)
+
+Lemma Rf_checkArityCall_safe : forall S op args call,
+  safe_state S ->
+  safe_pointer S op ->
+  safe_pointer S args ->
+  safe_pointer S call ->
+  result_prop (fun S _ => safe_state S) (fun S => safe_state S) (fun _ _ _ => False)
+    (Rf_checkArityCall globals runs S op args call).
+Proof.
+  introv OKS OKop OKargs OKcall. unfolds Rf_checkArityCall. computeR.
+  cutR safe_state.
+  { apply~ PRIMARITY_safe. }
+  cutR safe_state.
+  { skip. (* TODO: apply~ R_length_safe. *) }
+  cases_if.
+  - computeR.
+    cutR safe_state.
+    { skip. (* TODO: apply~ PRIMINTERNAL_safe. *) }
+    cases_if.
+    + simpl. autos~.
+    + simpl. autos~.
+  - simpl. autos~.
+Qed.
+
+Lemma do_while_safe : forall S call op args rho,
+  safe_state S ->
+  safe_globals S globals ->
+  safe_pointer S call ->
+  safe_pointer S op ->
+  safe_pointer S args ->
+  safe_pointer S rho ->
+  result_prop (fun S nil =>
+      safe_state S /\ safe_pointer S nil /\ nil = R_NilValue)
+    (fun S => safe_state S) (fun _ _ _ => False)
+    (do_while globals runs S call op args rho).
+Proof.
+  introv OKS OKg OKcall OKop OKargs OKrho. unfolds do_while. computeR.
+  cutR safe_state.
+  { apply~ Rf_checkArityCall_safe. }
+  computeR. skip. (* FIXME: the [safe_pointer] hypotheses were not transposed. *)
+Qed.
 
 (** * Lemmae about Rinit.v **)
 
@@ -90,3 +158,8 @@ Proof.
     introv M1 M2. rewrites~ <- >> Ep M1.
 Qed.
 
+End Parameterised.
+
+(** * Closing the loop **)
+
+(* TODO *)

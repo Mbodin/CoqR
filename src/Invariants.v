@@ -1547,6 +1547,9 @@ Ltac clear_trivial :=
   | E : ?x = ?x |- _ => clear E
   | H1 : ?P, H2 : ?P |- _ => clear H2
   | I : ?x \in [?y] |- _ => explode_list I
+  end;
+  repeat match goal with
+  | u : unit |- _ => clear u
   end.
 
 
@@ -1937,11 +1940,11 @@ Ltac get_safe_SExpRec S e_ cont :=
       let R := fresh "OK" e_' in
       asserts R: (safe_SExpRec_gen safe_pointer S e_);
       [ solve [
-            applys* safe_SExpRec_read H P
+            applys* safe_SExpRec_read H P; pfold; autos~
           | let H' := fresh1 H in
             lets H': H;
             rewrite safe_pointer_rewrite in H';
-            forwards* R: safe_SExpRec_read H' P ]
+            forwards* R: safe_SExpRec_read H' P; pfold; autos~ ]
       | cont R ])
   | _ =>
     let e_' := fresh1 e_ in
@@ -2084,10 +2087,12 @@ Ltac get_safe_pointer S p cont :=
         asserts OKp: (safe_pointer S p);
         [ applys* safe_pointer_along_path OKS M;
           solve [
-             applys~ no_null_pointer_along_path OKS M;
-             let A := fresh "A" in
-             introv A;
-             prove_no_null_pointer_exceptions_path_simple A ]
+              pfold; autos~
+            | applys~ no_null_pointer_along_path OKS M;
+              try solve [ pfold; autos~ ];
+              let A := fresh "A" in
+              introv A;
+              prove_no_null_pointer_exceptions_path_simple A ]
         | cont OKp ]))
   | _ =>
     get_move_along_path_step S p ltac:(fun p0 M =>
@@ -2099,10 +2104,12 @@ Ltac get_safe_pointer S p cont :=
           asserts OKp: (safe_pointer S p);
           [ applys* safe_pointer_along_path_step OKp0 M;
             solve [
-               applys~ no_null_pointer_along_path_step OKp0 M;
-               let A := fresh "A" in
-               introv A;
-               prove_no_null_pointer_exceptions_path_suffix_simple A ]
+                pfold; autos~
+              | applys~ no_null_pointer_along_path_step OKp0 M;
+                try solve [ pfold; autos~ ];
+                let A := fresh "A" in
+                introv A;
+                prove_no_null_pointer_exceptions_path_suffix_simple A ]
           | remove_already_seen p0;
             cont OKp ] in
         next OKp0
@@ -2117,13 +2124,25 @@ Ltac get_safe_pointer S p cont :=
     asserts OKp: (safe_pointer S p);
     [ applys* safe_pointer_along_path_from OKp0 M;
       solve [
-         applys~ no_null_pointer_along_path_from OKp0 M;
-         let I := fresh "I" in
-         let A := fresh "A" in
-         introv I A; repeat inverts I as I;
-         prove_no_null_pointer_exceptions_path_suffix_simple A ]
+          pfold; autos~
+        | applys~ no_null_pointer_along_path_from OKp0 M;
+          try solve [ pfold; autos~ ];
+          let I := fresh "I" in
+          let A := fresh "A" in
+          introv I A; repeat inverts I as I;
+          prove_no_null_pointer_exceptions_path_suffix_simple A ]
     | cont OKp ]
   end.
+
+Ltac get_safe_pointer_unfolded S p cont :=
+  get_safe_pointer S p ltac:(fun OKp =>
+    lazymatch type of OKp with
+    | safe_pointer _ _ =>
+      let OKp' := fresh1 OKp in
+      forwards OKp': paco2_unfold safe_pointer_gen_mon OKp;
+      cont OKp'
+    | safe_pointer_gen _ _ _ => cont OKp
+    end).
 
 Ltac get_safe_pointer_no_S p cont :=
   match goal with
@@ -2257,7 +2276,8 @@ Ltac rewrite_read_SExp :=
       let e' := fresh1 e in
       let e_ := fresh e' "_" in
       let Ee_ := fresh "E" e_ in
-      let Pe_ := fresh T e_ in
+      let T' := fresh1 T in
+      let Pe_ := fresh T' e_ in
       lets (e_&Ee_&Pe_): (rm T);
       try rewrite Ee_ in * in
     lazymatch goal with
@@ -2265,8 +2285,10 @@ Ltac rewrite_read_SExp :=
     | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
     | B : bound S e |- _ => bound_such_that_prop B
     | _ =>
-      (get_may_have_types S e ltac:(bound_such_that_prop))
-      || rewrite read_SExp_NULL
+      rewrite read_SExp_NULL
+      || (get_may_have_types S e ltac:(bound_such_that_prop))
+      || (get_safe_pointer_unfolded S e ltac:(fun OKe =>
+            bound_such_that_prop (pointer_bound OKe)))
     end;
     try unfold_shape_pointer false S e
   end; clear_trivial.
@@ -2360,11 +2382,13 @@ Ltac prove_not_NULL :=
         lets OKp0': OKp0;
         rewrite safe_pointer_rewrite in OKp0';
         applys~ no_null_pointer_along_path_step OKp0' M;
+        try solve [ pfold; autos~ ];
         clear OKp0';
         prove_no_null_pointer_exceptions)
     | M : move_along_path _ ?S = Some p |- _ =>
       get_safe_state S ltac:(fun OKS =>
         applys~ no_null_pointer_along_path OKS M;
+        try solve [ pfold; autos~ ];
         prove_no_null_pointer_exceptions)
     | M : move_along_entry_point _ ?S = Some p |- _ =>
       get_safe_state S ltac:(fun OKS =>
@@ -2373,6 +2397,7 @@ Ltac prove_not_NULL :=
     | M : move_along_path_from _ ?S ?p0 = Some p |- _ =>
       get_safe_pointer S p0 ltac:(fun OKp0 =>
         applys~ no_null_pointer_along_path_from OKp0 M;
+        try solve [ pfold; autos~ ];
         prove_no_null_pointer_exceptions)
     | _ =>
       solve [
@@ -2647,7 +2672,7 @@ Ltac solve_premises_lemmae :=
       solve [
           get_may_have_types S p ltac:(fun M =>
             applys~ may_have_types_bound M; solve_premises)
-        | get_safe_pointer S p ltac:(fun OKp =>
+        | get_safe_pointer_unfolded S p ltac:(fun OKp =>
             applys~ pointer_bound OKp; solve_premises)
         | apply* bound_such_that_weaken; solve_premises ]
     end

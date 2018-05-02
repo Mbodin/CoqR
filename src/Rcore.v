@@ -33,7 +33,6 @@ Section Parameterised.
 Variable globals : Globals.
 
 Let read_globals := read_globals globals.
-
 Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
