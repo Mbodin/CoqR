@@ -435,8 +435,7 @@ let rec print_SExpRec_like_R_aux prefix_list attrib_prefix_list d s g p e =
              ^ fetch_print_SExpRec_like_R c
              ^ (if t = read_globals g R_NilValue then "" else ")")
              ^ (if str = "" then "" else ", " ^ str)) "" s g p))
-    | EnvSxp0 e ->
-      (false, fetch_print_SExpRec_like_R (env_frame e))
+    | EnvSxp0 e -> (false, "")
     | CloSxp0 c -> (false, "")
     | PromSxp0 p -> (false, "value: " ^ fetch_print_SExpRec_like_R (prom_value p)) in
   let base =

@@ -31,21 +31,34 @@ Open Scope monad_scope.
 
 (** ** Function definitions **)
 
-Definition add_stack (A : Type) fname (r : result A) : result A :=
-  match r with
-  | result_success S0 a => result_success S0 a
-  | result_longjump S0 n t => result_longjump S0 n t
-  | result_error_stack S0 stack s => result_error_stack S0 (fname :: stack) s
-  | result_impossible_stack S0 stack s => result_impossible_stack S0 (fname :: stack) s
-  | result_not_implemented_stack stack s => result_not_implemented_stack (fname :: stack) s
-  | result_bottom S0 => result_bottom S0
-  end.
+(** When entering a function, we mark it using this function.
+  This can then help to trace function definitions when debugging. **)
+
+(** We rely on two OCaml hooks to effectively trace functions. **)
+Definition add_stack_entering A (name : string) (cont : unit -> A) := cont tt.
+Definition add_stack_leaving A (name : string) (cont : unit -> A) := cont tt.
+
+(** The main function. **)
+Definition add_stack (A : Type) fname : result A -> result A :=
+  add_stack_entering fname (fun _ r =>
+    add_stack_leaving fname (fun _ =>
+      match r with
+      | result_success S0 a => result_success S0 a
+      | result_longjump S0 n t => result_longjump S0 n t
+      | result_error_stack S0 stack s =>
+        result_error_stack S0 (fname :: stack) s
+      | result_impossible_stack S0 stack s =>
+        result_impossible_stack S0 (fname :: stack) s
+      | result_not_implemented_stack stack s =>
+        result_not_implemented_stack (fname :: stack) s
+      | result_bottom S0 => result_bottom S0
+      end)).
 
 Notation "'add%stack' fname 'in' cont" :=
   (add_stack fname cont)
   (at level 50, left associativity) : monad_scope.
 
-
+(** We also provide a specialised version to mark unimplemented functions. **)
 Definition unimplemented_function (A : Type) fname : result A :=
   add%stack fname in
   result_not_implemented ("Function not implemented: " ++ fname ++ ".").
@@ -54,7 +67,7 @@ Arguments unimplemented_function [A].
 
 (** ** [let]-monads **)
 
-(** The monad for result. **)
+(** The monad for result.  This is a usual monadic binder. **)
 Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=
   match r with
   | result_success S0 a => f S0 a
@@ -65,6 +78,8 @@ Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) :
   | result_bottom S0 => result_bottom S0
   end.
 
+(** We provide the [let%success] notation.  It takes a result and evaluate it.
+  Some tuple notations are accepted for convenience. **)
 Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
   (if_success r (fun S a => cont))
   (at level 50, left associativity) : monad_scope.
@@ -105,7 +120,8 @@ Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ',' a8 
   (at level 50, left associativity) : monad_scope.
 
 
-(** Similar to [if_success], but from an option type. We suppose that the option type is defined. **)
+(** Similar to [if_success], but option types.  Success is given when the
+  option type is defined. **)
 Definition if_defined_msg msg (A B : Type) S (o : option A) (f : A -> result B) : result B :=
   match o with
   | Some x => f x
@@ -118,6 +134,8 @@ Definition if_defined_msg msg (A B : Type) S (o : option A) (f : A -> result B) 
 
 Definition if_defined := if_defined_msg "".
 
+(** Similar to [let%success], the [let%defined] notation takes an option type.
+  Some tuple notations also have been defined for convenience. **)
 Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=
   (if_defined S o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
@@ -142,6 +160,10 @@ Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'using' S 
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** When more than one [let%defined] is defined in the same function,
+  it can be frustrating not to know which it is.  We provide the [with "msg"]
+  notation to add a message that will be printed when debugging if the
+  [let%defined] failed (that is, it received [None]). **)
 Notation "'let%defined' a ':=' o 'with' msg 'using' S 'in' cont" :=
   (if_defined_msg msg S o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
@@ -167,10 +189,18 @@ Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'with' msg
   (at level 50, left associativity) : monad_scope.
 
 
+(** Typical instantiations of the [let%defined] monadic binder is by
+  calling the functions [write_SExp] and [read_SExp].  We provide the
+  following notations for these two frequent cases. **)
+
+(** The notation [write%defined p := p_] writes the object [p_] in the
+  place given by the pointer [p]. **)
 Notation "'write%defined' p ':=' p_ 'using' S 'in' cont" :=
   (let%defined S := write_SExp S p p_ with "write%defined" using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The notation [read%defined p_ := p] reads the object pointer by [p],
+  giving it the name [p_]. **)
 Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
   (let%defined p_ := read_SExp S p with "read%defined" using S in cont)
   (at level 50, left associativity) : monad_scope.
@@ -178,13 +208,21 @@ Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
 
 (** ** Flow-control Monads **)
 
+(** The monadic binder [run%success] is equivalent to [let%success],
+  but doesn’t bind any new term.  This is practical when we only care
+  of the side-effects of an imperative function, but not its result. **)
 Notation "'run%success' c 'using' S 'in' cont" :=
   (let%success _ := c using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The result [result_skip S] returns an arbitrary value which is not
+  meant to be bound.  Its type is [result unit]. **)
 Definition result_skip S :=
   result_success S tt.
 
+(** When a function returns (through the monad) a boolean, a common
+  operation is to case-analysis on it.  This function provides this
+  notation shortcut. **)
 Definition if_then_else_success A (b : result bool) (c1 c2 : state -> result A) :=
   let%success b := b using S in
   if b then c1 S else c2 S.
@@ -193,6 +231,9 @@ Notation "'if%success' b 'using' S 'then' c1 'else' c2" :=
   (if_then_else_success b (fun S => c1) (fun S => c2))
   (at level 50, left associativity) : monad_scope.
 
+(** Sometimes (typically in the precense of side-effects), we don’t
+  need an [else] clause.  This notation enables not to write it,
+  assuming that the [then] clause returns a [result unit]. **)
 Definition if_then_success A b c cont : result A :=
   run%success
     if%success b using S then
@@ -204,6 +245,10 @@ Notation "'if%success' b 'using' S 'then' c 'in' cont" :=
   (if_then_success b (fun S => c) (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
+(** Sometimes, a monadic function returns an option type (of the
+  overall type [result (option A)]).  This notation enables to
+  pattern-match it while providing a binding for the matched
+  returned value. **)
 Definition if_option_defined A B (c : result (option A)) cont_then cont_else : result B :=
   let%success ans := c using S in
   match ans with
@@ -219,6 +264,17 @@ Notation "'if%defined' ans ':=' c 'using' S 'then' cont_then 'else' cont_else" :
 (** * Monads to View Objects Differently **)
 
 (** ** Basic Language Elements **)
+
+(** Each of the function of this section are of the form [if_is_*],
+  where [*] represents a basic language element ([prim], [sym],
+  [list], [env], [clo] and [prom]).  See the definition [SExpRec_union]
+  of Rinternals for more information.
+
+  This section also contains notations of the form [let%* a_, a_* := e_]
+  to get the object [e_] to be read as a [*].  The [a_] identifier then
+  represent to [NonVector] component of [e_]:  it is rarely used, but can
+  be useful.  Of course, such statement will fail if given an object [e_]
+  of the wrong kind. **)
 
 Definition if_is_prim A S (e_ : SExpRec) (cont : NonVector_SExpRec -> PrimSxp_struct -> result A) : result A :=
   let%defined e_ := get_NonVector e_ with "if_is_prim, vector test" using S in
@@ -280,6 +336,9 @@ Notation "'let%prom' a_ ',' a_prom ':=' e_ 'using' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
+(** The functions [read_as_*], and their equivalent notation
+  [read%* e_, e_* := e] combines [read%defined] and [let%*]. **)
+
 Definition read_as_prim A S (e : SEXP) cont : result A :=
   let%defined e_ := read_SExp S e with "read_as_prim" using S in
   let%prim e_, e_prim := e_ using S in
@@ -308,6 +367,16 @@ Definition read_as_list A S (e : SEXP) cont : result A :=
 Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   (read_as_list S e (fun e_ e_list => cont))
   (at level 50, left associativity) : monad_scope.
+
+(** As lists are a very frequent case of basic language element,
+  we provide the two additional notations with resectively four
+  and three binders (not to be mixed with the usual version with
+  only two binders):  [read%list e_, e_car, e_cdr, e_tag := e]
+  reads [e] as a [NonVector] (binded to [e_]), then as a list,
+  and binds the car, cdr, and tag projections of the list into
+  the corresponding binders.  The version with only three binders
+  [read%list e_car, e_cdr, e_tag := e] only binds these last
+  three. **)
 
 Definition read_as_list_all A S (e : SEXP) cont : result A :=
   read%list e_, e_list := e using S in
@@ -358,19 +427,44 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
 
 (** ** Vectors **)
 
-Definition read_cell_Vector_SExpRec A B S (v : Vector_SExpRec A) n cont : result B :=
-  let%defined c := ArrayList.read_option v n with "read_cell_Vector_SExpRec" using S in
+(** Vectors are typically read by fetching one of its cell.  If [v_] is a vector
+  (for instance taken from a [get_Vector*] function), then
+  [read%cell c := v_ at n] reads the [n]th cell of the vector [v_], binding it
+  to [c]. **)
+
+Definition read_cell_Vector_SExpRec A B S (v_ : Vector_SExpRec A) n cont : result B :=
+  let%defined c := ArrayList.read_option v_ n with "read_cell_Vector_SExpRec" using S in
   cont c.
 
-Notation "'read%cell' c ':=' v 'at' n 'using' S 'in' cont" :=
-  (read_cell_Vector_SExpRec S v n (fun c => cont))
+Notation "'read%cell' c ':=' v_ 'at' n 'using' S 'in' cont" :=
+  (read_cell_Vector_SExpRec S v_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition update_Vector_SExpRec_cell A (v : Vector_SExpRec A) n c :=
-  ifb n < ArrayList.length v then
-    Some (update_Vector_SExpRec v (ArrayList.write v n c))
+Definition update_Vector_SExpRec_cell A (v_ : Vector_SExpRec A) n c :=
+  ifb n < ArrayList.length v_ then
+    Some (update_Vector_SExpRec v_ (ArrayList.write v_ n c))
   else None.
+
+(** The following functions check that the vector [e_] is a vector,
+  and is of the right type ([Char], [Logical], [Integer], [Real],
+  [Complex], or [Pointer], see the definition [SExpRec] of
+  Rinternals for more information).  The notation is
+  [let%Vector* e_vector := e_], where [*] is to be replaced by the
+  expected type.
+
+  Variants include [read%Vector* e_ := e] to read the pointer [e],
+  then check that it is a vector [e_] of the expected type,
+  [let%* c := e_ at n] to get its [n]th cell, [read%* c := e at n]
+  to read its [n]th cell from a pointer [e], [write%Vector* e := v]
+  to replace the vector pointer by [e] by the vector [v], and
+  [write%* e at n := c] to update the [n]th cell of the vector
+  pointed by [e] by the content [c].  In all cases, cell types are
+  transparently given to Coq:  type errors over cells [c] are
+  statically checked by Coq (whereas type errors over the type of
+  the vector pointed by a pointer [e] is not, and thus protected
+  by a [let%defined] monadic binder).  The most frequent patterns
+  are [read%* c := e at n] and [write%* e at n := c]. **)
 
 Definition let_VectorChar A S e_ cont : result A :=
   let%defined e_vector := get_VectorChar e_ with "let_VectorChar" using S in
@@ -713,7 +807,7 @@ Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
 (** ** [map]-monads **)
 
 (** Mapping on-place the content of a pointer is a frequent scheme.
-  Here is a monad for it. **)
+  Here is a monad binder for it. **)
 Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SEXP)
     (cont : state -> result A) : result A :=
   read%defined p_ := p using S in
@@ -724,6 +818,8 @@ Notation "'map%pointer' p 'with' map 'using' S 'in' cont" :=
   (map_pointer S map p (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
+(** The following two functions enable to respectively map and set
+  the [gp] field of objects from a pointer. **)
 Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
   (map%pointer p with map_gp f using S in cont)
   (at level 50, left associativity) : monad_scope.
@@ -732,10 +828,14 @@ Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
   (map%pointer p with set_gp v using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The following function enables to set the [attrib] field of
+  objects from a pointer. **)
 Notation "'set%attrib' p ':=' a 'using' S 'in' cont" :=
   (map%pointer p with set_attrib a using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The following function enables to set the [obj] field of
+  objects from a pointer. **)
 Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
   (map%pointer p with set_obj o using S in cont)
   (at level 50, left associativity) : monad_scope.
@@ -755,7 +855,7 @@ Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
   (map_list S map p (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
-(** Updating the first element of a list. **)
+(** Updating the first element (car) of a list. **)
 Definition set_car A S car (p : SEXP) (f : state -> result A) : result A :=
   map%list p with set_car_list car using S in f S.
 
@@ -763,7 +863,7 @@ Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
   (set_car S car p (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
-(** Updating the tail of a list. **)
+(** Updating the tail (cdr) of a list. **)
 Definition set_cdr A S cdr (p : SEXP) (f : state -> result A) : result A :=
   map%list p with set_cdr_list cdr using S in f S.
 

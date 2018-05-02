@@ -20,6 +20,8 @@
 let log = ref false
 let log_only_at_newlines = ref true
 
+let trace = ref false
+
 
 let char_list_to_string str =
   String.concat "" (List.map (String.make 1) str)
@@ -69,4 +71,21 @@ let generic_flush channel loc print buffer st =
 
 let stdout_flush st = generic_flush stdout "stdout" print_string stdout_buffer st
 let stderr_flush st = generic_flush stderr "stderr" prerr_string stderr_buffer st
+
+
+let stack_depth = ref 0
+
+let add_stack_entering name cont =
+  if !trace then (
+    print_endline (String.make !stack_depth ' ' ^ "{ " ^ char_list_to_string name) ;
+    incr stack_depth
+  ) ;
+  cont ()
+
+let add_stack_leaving name cont =
+  if !trace then (
+    decr stack_depth ;
+    print_endline (String.make !stack_depth ' ' ^ "} " ^ char_list_to_string name)
+  ) ;
+  cont ()
 

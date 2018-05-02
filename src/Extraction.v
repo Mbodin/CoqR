@@ -37,6 +37,9 @@ Extract Constant run_stderr_print => "Hooks.stderr_print".
 Extract Constant run_stdout_flush => "Hooks.stdout_flush".
 Extract Constant run_stderr_flush => "Hooks.stderr_flush".
 
+Extract Constant add_stack_entering => "Hooks.add_stack_entering".
+Extract Constant add_stack_leaving => "Hooks.add_stack_leaving".
+
 Extract Inductive positive => "int"
 [ "(fun p -> 1 + (2 * p))"
   "(fun p -> 2 * p)"
