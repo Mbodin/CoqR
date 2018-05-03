@@ -319,11 +319,11 @@ Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
 
 Lemma if_success_result : forall A B r (cont : state -> A -> result B)
     (P_success P'_success : _ -> _ -> Prop) P_error P_longjump,
+  result_prop P_success P_error P_longjump r ->
   (forall S a, P_success S a ->
     result_prop P'_success P_error P_longjump (cont S a)) ->
-  result_prop P_success P_error P_longjump r ->
   result_prop P'_success P_error P_longjump (let%success a := r using S in cont S a).
-Proof. introv I P. destruct* r. Qed.
+Proof. introv P I. destruct* r. Qed.
 
 Lemma if_defined_msg_pass : forall A B S a msg (cont : A -> result B),
   let%defined a := Some a with msg using S in cont a
@@ -750,6 +750,7 @@ Proof. introv E. unfolds. rewrite~ E. Qed.
 
 Lemma set_longjump_result : forall A runs S mask cjmpbuf (f : _ -> _ -> result A)
     P_success P_error P_longjump,
+  result_prop P_success P_error P_longjump (f S mask) ->
   (forall S S' mask',
     f S mask = result_longjump S' cjmpbuf mask' ->
     result_prop P_success P_error P_longjump (runs_set_longjump runs S' mask' cjmpbuf f)) ->
@@ -757,10 +758,9 @@ Lemma set_longjump_result : forall A runs S mask cjmpbuf (f : _ -> _ -> result A
     f S mask = result_longjump S cjmpbuf mask' ->
     n <> cjmpbuf ->
     P_longjump S n mask') ->
-  result_prop P_success P_error P_longjump (f S mask) ->
   result_prop P_success P_error P_longjump (set_longjump runs S mask cjmpbuf f).
 Proof.
-  introv I1 I2 R. unfolds set_longjump. destruct (f S mask) eqn: E; autos~.
+  introv R I1 I2. unfolds set_longjump. destruct (f S mask) eqn: E; autos~.
   cases_if as C; autos~. fold_bool. rew_refl in C. substs. applys~ I1 E.
 Qed.
 
@@ -1358,16 +1358,20 @@ Ltac simplifyR :=
     the second element of the sequence. **)
 Ltac cutR P :=
   lazymatch goal with
-  | |- result_prop ?P_success ?P_error ?P_longjump (if_success ?r ?cont) =>
+  | |- result_prop _ _ _ (if_success ?r ?cont) =>
     let P' := fresh "P" in
     first [
-        eapply if_success_result with (P_success := P); [introv P'|]
-      | eapply if_success_result with (P_success := fun S _ => P S) ]; [introv P'|]
-  | |- result_prop ?P_success ?P_error ?P_longjump (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
+        eapply if_success_result with (P_success := P);
+        [|introv P']
+      | eapply if_success_result with (P_success := fun S _ => P S);
+        [|introv _ P' || introv P'] ]
+  | |- result_prop _ _ _ (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
     let E := fresh "E" in
     let D := fresh "D" in
     first [
-        eapply set_longjump_result with (P_longjump := P); [introv E|introv E D|]
-      | eapply set_longjump_result with (P_longjump := fun S _ _ => P S) ]; [introv E|introv E D|]
+        eapply set_longjump_result with (P_longjump := P);
+        [|introv E|introv E D]
+      | eapply set_longjump_result with (P_longjump := fun S _ _ => P S);
+        [|introv E|introv E D] ]
   end.
 

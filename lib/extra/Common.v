@@ -579,6 +579,100 @@ Proof.
     rewrite~ (not_indom_read_option I').
 Qed.
 
+(** A notion of equivalence for heaps. **)
+Definition heap_equiv K V (h1 h2 : heap K V) :=
+  forall k v, binds h1 k v <-> binds h2 k v.
+
+Lemma heap_equiv_refl : forall K V (h : heap K V),
+  heap_equiv h h.
+Proof. introv. unfolds. autos*. Qed.
+
+Lemma heap_equiv_sym : forall K V (h1 h2 : heap K V),
+  heap_equiv h1 h2 ->
+  heap_equiv h2 h1.
+Proof. introv E. unfolds heap_equiv. introv. rewrite* E. Qed.
+
+Lemma heap_equiv_trans : forall K V (h1 h2 h3 : heap K V),
+  heap_equiv h1 h2 ->
+  heap_equiv h2 h3 ->
+  heap_equiv h1 h3.
+Proof. introv E1 E2. unfolds heap_equiv. introv. rewrite* E1. Qed.
+
+Lemma heap_equiv_binds : forall K V (h1 h2 : heap K V) k v,
+  heap_equiv h1 h2 ->
+  binds h1 k v ->
+  binds h2 k v.
+Proof. introv E B. unfolds in E. rewrite* <- E. Qed.
+
+Lemma heap_equiv_indom : forall K V (h1 h2 : heap K V) k,
+  heap_equiv h1 h2 ->
+  indom h1 k ->
+  indom h2 k.
+Proof.
+  introv E I. lets (v&B): @indom_binds I.
+  forwards B': heap_equiv_binds E B. applys~ @binds_indom B'.
+Qed.
+
+Lemma heap_equiv_read : forall K `{Comparable K} V `{Inhab V} (h1 h2 : heap K V) k,
+  heap_equiv h1 h2 ->
+  indom h1 k ->
+  read h1 k = read h2 k.
+Proof.
+  introv E I. forwards (v&B): @indom_binds I.
+  rewrites >> binds_read B. symmetry. apply binds_read.
+  applys~ heap_equiv_binds E B.
+Qed.
+
+Lemma heap_equiv_read_option : forall K `{Comparable K} V (h1 h2 : heap K V) k,
+  heap_equiv h1 h2 ->
+  read_option h1 k = read_option h2 k.
+Proof.
+  introv E. tests I: (indom h1 k).
+  - forwards (v&B): @indom_binds I.
+    rewrites >> (@binds_read_option) B. symmetry. apply binds_read_option.
+    applys~ heap_equiv_binds E B.
+  - do 2 rewrite~ @not_indom_read_option.
+    introv I'. false I. applys~ heap_equiv_indom I'. applys~ heap_equiv_sym E.
+Qed.
+
+Lemma heap_equiv_write : forall K V (h1 h2 : heap K V) k v,
+  heap_equiv h1 h2 ->
+  heap_equiv (write h1 k v) (write h2 k v).
+Proof.
+  introv E. unfolds heap_equiv. iff B;
+    (forwards [(?&?)|(D&B')]: @binds_write_inv B;
+     [ substs; apply binds_write_eq
+     | apply~ @binds_write_neq; applys~ heap_equiv_binds B'; apply~ heap_equiv_sym ]).
+Qed.
+
+Lemma heap_equiv_write_write : forall K V (h1 h2 : heap K V) k v v',
+  heap_equiv h1 h2 ->
+  heap_equiv (write (write h1 k v') k v) (write h2 k v).
+Proof.
+  introv E. unfolds heap_equiv. iff B;
+    (forwards [(?&?)|(D&B')]: @binds_write_inv B;
+     [ substs; apply binds_write_eq
+     | repeat apply~ @binds_write_neq ]).
+  - forwards~ B'': @binds_write_neq_inv B'. applys~ heap_equiv_binds B''.
+  - applys~ heap_equiv_binds B'. apply* heap_equiv_sym.
+Qed.
+
+Lemma heap_equiv_write_swap : forall K V (h1 h2 : heap K V) k1 k2 v1 v2,
+  k1 <> k2 ->
+  heap_equiv h1 h2 ->
+  heap_equiv (write (write h1 k1 v1) k2 v2) (write (write h2 k2 v2) k1 v1).
+Proof.
+  introv D E. unfolds heap_equiv. iff B;
+    repeat (match goal with
+    | B : binds (write _ _ _) _ _ |- _ =>
+      let D' := fresh "D" in
+      let B' := fresh "B" in
+      forwards [(?&?)|(D'&B')]: @binds_write_inv (rm B)
+    | |- binds (write _ _ _) _ _ =>
+      apply~ @binds_write_eq || apply~ @binds_write_neq
+    end; substs; tryfalse~); apply~ E.
+Qed.
+
 
 Definition list_to_string l :=
   fold_left (fun c str => String c str) EmptyString (rev l).
