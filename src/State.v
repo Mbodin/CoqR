@@ -45,7 +45,7 @@ Record memory := make_memory {
   [state_heap_SExp S1 = state_heap_SExp S2].  To get the full equality,
   we need the operation below. **)
 
-Record memory_same_except_for_memory S1 S2 := {
+Record memory_same_except_for_memory S1 S2 := make_memory_same_except_for_memory {
     memory_same_except_for_memory_fresh_locations :
       state_fresh_locations S1 = state_fresh_locations S2
   }.
@@ -76,7 +76,7 @@ Proof. introv [E1] E2. destruct S1, S2. simpls. substs. fequals. Qed.
   This is fine, as what we usually need is to prove that two heaps are
   equivalent.  The following definition catches this notion. **)
 
-Record memory_equiv (S1 S2 : memory) := {
+Record memory_equiv (S1 S2 : memory) := make_memory_equiv {
     memory_equiv_heap : heap_equiv S1 S2 ;
     memory_equiv_rest : memory_same_except_for_memory S1 S2
   }.
@@ -416,6 +416,39 @@ Lemma write_memory_SExp_write_memory_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
 Proof.
   introv D W1 W2. destruct p1 as [p1|], p2 as [p2|]; tryfalse. simpls.
   applys~ write_memory_SExp_nat_write_memory_SExp_nat_neq W1 W2.
+Qed.
+
+Lemma alloc_memory_SExp_nat_write_memory_SExp_nat_eq : forall S1 S2 S3 p p_1 p_2,
+  alloc_memory_SExp_nat S1 p_1 = (S2, p) ->
+  write_memory_SExp_nat S2 p p_2 = Some S3 ->
+  exists S3',
+    alloc_memory_SExp_nat S1 p_2 = (S3', p)
+    /\ memory_equiv S3 S3'.
+Proof.
+  introv A W. forwards (v&R): destruct_write_memory_SExp_nat_inv W.
+  forwards (S3'&W'&ES3'&E23): destruct_write_memory_SExp_nat p_2 R.
+  rewrite W' in W. inverts W.
+  eexists. splits~.
+  - inverts A. unfolds. simpl. fequals.
+  - simpl. constructors~.
+    + simpl. rewrite ES3'. inverts A. simpl.
+      apply~ heap_equiv_write_write. apply~ heap_equiv_refl.
+    + apply memory_same_except_for_memory_sym.
+      applys~ memory_same_except_for_memory_trans E23.
+      inverts A. constructors~; simpl.
+Qed.
+
+Lemma alloc_memory_SExp_write_memory_SExp_eq : forall S1 S2 S3 p p_1 p_2,
+  alloc_memory_SExp S1 p_1 = (S2, p) ->
+  write_memory_SExp S2 p p_2 = Some S3 ->
+  exists S3',
+    alloc_memory_SExp S1 p_2 = (S3', p)
+    /\ memory_equiv S3 S3'.
+Proof.
+  introv A W. destruct p as [p|]; tryfalse. simpls.
+  forwards~ (S3'&W'&E): alloc_memory_SExp_nat_write_memory_SExp_nat_eq S1 p p_1 W.
+  - inverts~ A.
+  - exists S3'. splits~. unfolds. rewrite~ W'.
 Qed.
 
 Lemma alloc_memory_SExp_nat_write_memory_SExp_nat_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
@@ -966,7 +999,7 @@ Record state := make_state {
 
 Definition R_GlobalContext := state_context.
 
-Record state_same_except_for_memory S1 S2 := {
+Record state_same_except_for_memory S1 S2 := make_state_same_except_for_memory {
     state_same_except_for_memory_state_context :
       state_context S1 = state_context S2 ;
     state_same_except_for_memory_R_ExitContext :
@@ -1004,7 +1037,7 @@ Lemma state_same_except_for_memory_eq : forall S1 S2,
   S1 = S2.
 Proof. introv [E1] E2. destruct S1, S2. simpls. substs. fequals. Qed.
 
-Record state_equiv (S1 S2 : state) := {
+Record state_equiv (S1 S2 : state) := make_state_equiv {
     state_equiv_memory : memory_equiv S1 S2 ;
     state_equiv_rest : state_same_except_for_memory S1 S2
   }.
@@ -1046,6 +1079,10 @@ Definition state_with_memory S m := {|
     R_OutputCon := R_OutputCon S ;
     R_asymSymbol := R_asymSymbol S
   |}.
+
+Lemma state_same_except_for_memory_state_with_memory : forall S m,
+  state_same_except_for_memory S (state_with_memory S m).
+Proof. introv. destruct S. constructors~. Qed.
 
 Definition state_with_context S c := {|
     state_memory := state_memory S ;
@@ -1219,23 +1256,88 @@ Proof.
   rewrite* E'.
 Qed.
 
+Lemma write_read_SExp_Some : forall S S' p p_,
+  write_SExp S p p_ = Some S' ->
+  exists p_', read_SExp S p = Some p_'.
+Proof.
+  introv W. destruct read_SExp eqn: R.
+  - exists*.
+  - rewrite~ read_write_SExp_None in W. inverts W.
+Qed.
+
 Lemma write_SExp_NULL : forall S p_,
   write_SExp S NULL p_ = None.
 Proof. reflexivity. Qed.
+
+Lemma alloc_SExp_equiv : forall S1 S2 S1' S2' e1 e2 e_,
+  state_equiv S1 S2 ->
+  alloc_SExp S1 e_ = (S1', e1) ->
+  alloc_SExp S2 e_ = (S2', e2) ->
+  e1 = e2 /\ state_equiv S1' S2'.
+Proof.
+  introv E A1 A2. unfolds alloc_SExp.
+  destruct (alloc_memory_SExp S1) as [S1'' e1'] eqn: A1'. inverts A1.
+  destruct (alloc_memory_SExp S2) as [S2'' e2'] eqn: A2'. inverts A2.
+  forwards~ (Ee&ES): alloc_memory_SExp_equiv A1' A2'.
+  - applys~ state_equiv_memory E.
+  - subst. splits~. constructors~.
+    applys~ state_same_except_for_memory_trans S1.
+    { apply~ state_same_except_for_memory_sym.
+      apply state_same_except_for_memory_state_with_memory. }
+    applys~ state_same_except_for_memory_trans E.
+    apply state_same_except_for_memory_state_with_memory.
+Qed.
+
+Lemma write_SExp_equiv : forall S1 S2 S1' S2' e e_,
+  state_equiv S1 S2 ->
+  write_SExp S1 e e_ = Some S1' ->
+  write_SExp S2 e e_ = Some S2' ->
+  state_equiv S1' S2'.
+Proof.
+  introv E W1 W2. unfolds write_SExp.
+  destruct (write_memory_SExp S1) eqn: W1'; inverts W1.
+  destruct (write_memory_SExp S2) eqn: W2'; inverts W2.
+  forwards~ ES: write_memory_SExp_equiv W1' W2'.
+  - applys~ state_equiv_memory E.
+  - subst. constructors~.
+    applys~ state_same_except_for_memory_trans S1.
+    { apply~ state_same_except_for_memory_sym.
+      apply state_same_except_for_memory_state_with_memory. }
+    applys~ state_same_except_for_memory_trans E.
+    apply state_same_except_for_memory_state_with_memory.
+Qed.
+
+Lemma write_SExp_equiv_exists : forall S1 S2 S1' e e_,
+  state_equiv S1 S2 ->
+  write_SExp S1 e e_ = Some S1' ->
+  exists S2',
+    write_SExp S2 e e_ = Some S2'
+    /\ state_equiv S1' S2'.
+Proof.
+  introv E W1. forwards (e_'&Ee_): write_read_SExp_Some W1.
+  rewrites >> read_SExp_equiv E in Ee_.
+  forwards (S2'&W2): read_write_SExp_Some Ee_. exists S2'. splits*.
+  applys* write_SExp_equiv E W1 W2.
+Qed.
 
 Lemma write_SExp_write_SExp_eq : forall S1 S2 S3 p p_1 p_2,
   write_SExp S1 p p_1 = Some S2 ->
   write_SExp S2 p p_2 = Some S3 ->
   exists S3',
     write_SExp S1 p p_2 = Some S3'
-    /\ memory_equiv S3 S3'.
+    /\ state_equiv S3 S3'.
 Proof.
   introv W1 W2. unfolds write_SExp.
   destruct (write_memory_SExp S1 p p_1) eqn: W1'; tryfalse.
   destruct (write_memory_SExp S2 p p_2) eqn: W2'; tryfalse.
   inverts W1. inverts W2.
   forwards~ (S3'&W'&E): write_memory_SExp_write_memory_SExp_eq W1' W2'.
-  rewrite W'. eexists. splits*.
+  rewrite W'. eexists. splits*. constructors~.
+  applys~ state_same_except_for_memory_trans S1.
+  { apply~ state_same_except_for_memory_sym.
+    applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+    apply state_same_except_for_memory_state_with_memory. }
+  apply state_same_except_for_memory_state_with_memory.
 Qed.
 
 Lemma write_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
@@ -1245,7 +1347,7 @@ Lemma write_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   exists S2' S3',
     write_SExp S1 p2 p_2 = Some S2'
     /\ write_SExp S2' p1 p_1 = Some S3'
-    /\ memory_equiv S3 S3'.
+    /\ state_equiv S3 S3'.
 Proof.
   introv D W1 W2. unfolds write_SExp.
   destruct (write_memory_SExp S1 p1 p_1) eqn: W1'; tryfalse.
@@ -1254,7 +1356,33 @@ Proof.
   forwards~ (S2'&S3'&W1&W2&E): write_memory_SExp_write_memory_SExp_neq W1' W2'.
   rewrite W1. do 2 eexists. splits*.
   - simpl. rewrite* W2.
-  - simpls~.
+  - simpls~. constructors~.
+    applys~ state_same_except_for_memory_trans S1.
+    { apply~ state_same_except_for_memory_sym.
+      applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+      apply state_same_except_for_memory_state_with_memory. }
+    applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+    apply state_same_except_for_memory_state_with_memory.
+Qed.
+
+Lemma alloc_SExp_write_SExp_eq : forall S1 S2 S3 p p_1 p_2,
+  alloc_SExp S1 p_1 = (S2, p) ->
+  write_SExp S2 p p_2 = Some S3 ->
+  exists S3',
+    alloc_SExp S1 p_2 = (S3', p)
+    /\ state_equiv S3 S3'.
+Proof.
+  introv A W. unfolds write_SExp.
+  destruct (write_memory_SExp S2 p p_2) eqn: W'; tryfalse. inverts W.
+  forwards~ (S3'&A'&E): alloc_memory_SExp_write_memory_SExp_eq W'.
+  - inverts A. reflexivity.
+  - unfolds alloc_SExp. rewrite A'. eexists. splits*.
+    constructors~. destruct alloc_memory_SExp in A. inverts A.
+    applys~ state_same_except_for_memory_trans S1.
+    { apply~ state_same_except_for_memory_sym.
+      applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+      apply state_same_except_for_memory_state_with_memory. }
+    apply state_same_except_for_memory_state_with_memory.
 Qed.
 
 Lemma alloc_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
@@ -1264,7 +1392,7 @@ Lemma alloc_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   exists S2' S3',
     write_SExp S1 p2 p_2 = Some S2'
     /\ alloc_SExp S2' p_1 = (S3', p1)
-    /\ memory_equiv S3 S3'.
+    /\ state_equiv S3 S3'.
 Proof.
   introv D A W. unfolds write_SExp.
   destruct (write_memory_SExp S2 p2 p_2) eqn: W'; tryfalse. inverts W.
@@ -1272,7 +1400,13 @@ Proof.
   - inverts A. reflexivity.
   - rewrite W. do 2 eexists. splits*.
     + inverts A'. reflexivity.
-    + simpls~.
+    + constructors~. unfolds in A. destruct alloc_memory_SExp in A. inverts A.
+      applys~ state_same_except_for_memory_trans S1.
+      { apply~ state_same_except_for_memory_sym.
+        applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+        apply state_same_except_for_memory_state_with_memory. }
+      applys~ state_same_except_for_memory_trans state_same_except_for_memory_state_with_memory.
+      apply state_same_except_for_memory_state_with_memory.
 Qed.
 
 

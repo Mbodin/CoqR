@@ -34,6 +34,7 @@ Variable runs : runs_type.
 
 Hypothesis runs_while_loop_safe : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
+  P_success S a ->
   (forall S a,
     P_success S a ->
     result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
@@ -135,7 +136,6 @@ Lemma init_R_NilValue_safe : forall S,
     (fun _ => False) (fun _ _ _ => False) (init_R_NilValue S).
 Proof.
   introv OKS N. unfold init_R_NilValue. computeR.
-  (* TODO: A lemma to collapse successive [write_SExp] on the same pointer. *)
   asserts Ep: (forall p', may_have_types S2 ([NilSxp]) p' -> p = p').
   { introv M. tests Dp: (p = p'); [ autos~ |].
     false N p'.
@@ -145,19 +145,6 @@ Proof.
     lets (p_&E'&_): may_have_types_bound M2.
     rewrites~ >> alloc_read_SExp_neq ES1 in E'.
     applys read_bound E'. }
-  (* FIXME: Useful?
-  asserts (S2'&ES2S2'&ES2'): (exists S2',
-    state_equiv S2 S2'
-    /\ alloc_SExp S (set_named_plural {|
-           NonVector_SExpRec_header :=
-             make_SExpRecHeader (build_SxpInfo NilSxp false) p ;
-           NonVector_SExpRec_data := {|
-             list_carval := p ;
-             list_cdrval := p ;
-             list_tagval := p
-           |}
-         |}) = (S2', p)).
-  { skip. (* TODO *) } *)
   asserts OKp: (safe_pointer S2 p).
   { pcofix IH. pfold. constructors.
     - (** pointer_bound **)
@@ -193,7 +180,15 @@ Proof.
     apply (conserve_old_binding_safe_pointer C) in OKp0.
     tests Dp: (p0 = p).
     * apply OKp.
-    * skip. (* TODO *)
+    * forwards~ OKp0': safe_entry_points M.
+      applys conserve_old_binding_safe_pointer OKp0'.
+      forwards (S1'&A1&E1): alloc_SExp_write_SExp_eq ES1 ES0.
+      forwards (S2'&ES2'&E2): write_SExp_equiv_exists E1 ES2.
+      forwards (S3'&A3&E3): alloc_SExp_write_SExp_eq A1 ES2'.
+      applys conserve_old_binding_trans S3'.
+      -- applys alloc_SExp_conserve_old_binding A3.
+      -- applys state_equiv_conserve_old_binding.
+         applys state_equiv_sym. applys state_equiv_trans E2 E3.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
 Qed.
@@ -205,6 +200,7 @@ End Parameterised.
 Lemma runs_while_loop_safe : forall n globals
     A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
+  P_success S a ->
   (forall S a,
     P_success S a ->
     result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
@@ -214,9 +210,12 @@ Lemma runs_while_loop_safe : forall n globals
     result_prop P_success P_error P_longjump (stat S a)) ->
   result_prop P_success P_error P_longjump (runs_while_loop (runs n globals) S a expr stat).
 Proof.
-  introv OKexpr OKstat. rewrite runs_proj_while_loop_eq.
-  gen S a. induction n; introv.
+  introv OKS OKexpr OKstat. rewrite runs_proj_while_loop_eq.
+  gen S a. induction n; introv OKS.
   - simpl. autos~.
-  - simpl. skip. (* TODO *)
+  - simpl. computeR. forwards Rexpr: OKexpr OKS. destruct expr eqn: E; autos~.
+    simpl in Rexpr. computeR. cases_if.
+    + skip. (* FIXME: problem in the statement [forwards~ Rstat: OKstat Rexpr]. *)
+    + apply~ Rexpr.
 Qed.
 

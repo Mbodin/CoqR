@@ -842,7 +842,11 @@ Proof.
   - applys* conserve_old_binding_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_transitive : forall S1 S2 S3,
+Lemma conserve_old_binding_refl : forall S,
+  conserve_old_binding S S.
+Proof. introv. constructors~. introv (p_&E&_). exists p_. splits~. exists* p_. Qed.
+
+Lemma conserve_old_binding_trans : forall S1 S2 S3,
   conserve_old_binding S1 S2 ->
   conserve_old_binding S2 S3 ->
   conserve_old_binding S1 S3.
