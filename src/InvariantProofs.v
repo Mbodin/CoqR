@@ -49,11 +49,19 @@ Hypothesis runs_while_loop_safe : forall A (P_success : _ -> _ -> Prop) P_error 
 Lemma PRIMARITY_safe : forall S x,
   safe_state S ->
   safe_pointer S x ->
-  result_prop (fun S _ => safe_state S) safe_state (fun _ _ _ => False)
-    (PRIMARITY runs S x).
+  may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
+  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
+    safe_state (fun _ _ _ => False) (PRIMARITY runs S x).
 Proof.
-  introv OKS OKx. unfolds PRIMARITY. computeR_step.
-  skip. (* FIXME: someyhing loops in [computeR_step] here. *)
+  introv OKS OKx Tx. unfolds PRIMARITY. computeR.
+  (* TODO: Get the prim from the invariant here. *)
+  skip. (* simplifyR. *)
+  (*- simplifyR.
+  unfold_monad; repeat let_simpl.
+  repeat (unfold_monad; repeat let_simpl).
+  simpl. computeR_step.
+  rewrite_read_SExp.
+  skip. (* FIXME: someyhing loops in [computeR_step] here. *)*)
 Qed.
 
 (** * Lemmae about Rfeatures.v **)
@@ -63,22 +71,21 @@ Lemma Rf_checkArityCall_safe : forall S op args call,
   safe_pointer S op ->
   safe_pointer S args ->
   safe_pointer S call ->
-  result_prop (fun S _ => safe_state S) (fun S => safe_state S) (fun _ _ _ => False)
+  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
+    safe_state (fun _ _ _ => False)
     (Rf_checkArityCall globals runs S op args call).
 Proof.
   introv OKS OKop OKargs OKcall. unfolds Rf_checkArityCall. computeR.
-  cutR safe_state.
-  { apply~ PRIMARITY_safe. }
-  cutR safe_state.
-  { skip. (* TODO: apply~ R_length_safe. *) }
+  cutR PRIMARITY_safe.
+  { skip. }
+  lets (OKS0&CSS0): (rm P). transition_conserve S S0. skip. (* TODO: cutR R_length_safe.
   cases_if.
   - computeR.
-    cutR safe_state.
-    { skip. (* TODO: apply~ PRIMINTERNAL_safe. *) }
+    cutR PRIMINTERNAL_safe.
     cases_if.
     + simpl. autos~.
     + simpl. autos~.
-  - simpl. autos~.
+  - simpl. splits~. *)
 Qed.
 
 Lemma do_while_safe : forall S call op args rho,
@@ -87,16 +94,17 @@ Lemma do_while_safe : forall S call op args rho,
   safe_pointer S call ->
   safe_pointer S op ->
   safe_pointer S args ->
+  may_have_types S ([NilSxp; ListSxp]) args ->
   safe_pointer S rho ->
   result_prop (fun S nil =>
       safe_state S /\ safe_pointer S nil /\ nil = R_NilValue)
     (fun S => safe_state S) (fun _ _ _ => False)
     (do_while globals runs S call op args rho).
 Proof.
-  introv OKS OKg OKcall OKop OKargs OKrho. unfolds do_while. computeR.
-  cutR safe_state.
-  { apply~ Rf_checkArityCall_safe. }
-  computeR. skip. (* FIXME: the [safe_pointer] hypotheses were not transposed. *)
+  introv OKS OKg OKcall OKop OKargs Targs OKrho. unfolds do_while. computeR.
+  cutR Rf_checkArityCall_safe.
+  lets (OKS0&CSS0): (rm P). transition_conserve S S0. computeR.
+  skip. (* TODO *)
 Qed.
 
 (** * Lemmae about Rinit.v **)
@@ -127,7 +135,7 @@ Lemma init_R_NilValue_safe : forall S,
     (fun _ => False) (fun _ _ _ => False) (init_R_NilValue S).
 Proof.
   introv OKS N. unfold init_R_NilValue. computeR.
-  (* TODO: A lemma to collapsesuccessive [write_SExp] on the same pointer. *)
+  (* TODO: A lemma to collapse successive [write_SExp] on the same pointer. *)
   asserts Ep: (forall p', may_have_types S2 ([NilSxp]) p' -> p = p').
   { introv M. tests Dp: (p = p'); [ autos~ |].
     false N p'.
@@ -137,8 +145,40 @@ Proof.
     lets (p_&E'&_): may_have_types_bound M2.
     rewrites~ >> alloc_read_SExp_neq ES1 in E'.
     applys read_bound E'. }
+  (* FIXME: Useful?
+  asserts (S2'&ES2S2'&ES2'): (exists S2',
+    state_equiv S2 S2'
+    /\ alloc_SExp S (set_named_plural {|
+           NonVector_SExpRec_header :=
+             make_SExpRecHeader (build_SxpInfo NilSxp false) p ;
+           NonVector_SExpRec_data := {|
+             list_carval := p ;
+             list_cdrval := p ;
+             list_tagval := p
+           |}
+         |}) = (S2', p)).
+  { skip. (* TODO *) } *)
   asserts OKp: (safe_pointer S2 p).
-  { pcofix IH. pfold. skip. (* TODO *) }
+  { pcofix IH. pfold. constructors.
+    - (** pointer_bound **)
+      applys~ read_bound E.
+    - (** no_null_pointer_along_path_step **)
+      destruct s; introv NE M; unfolds in M; rewrite E in M; simpl in M; inverts M.
+      + solve_premises_smart.
+      + destruct s; simpl; solve_premises_smart.
+    - (** safe_pointer_along_path_step **)
+      destruct s; introv M D'; unfolds in M; rewrite E in M; simpl in M; inverts~ M.
+      destruct s; simpls~.
+    - (** safe_SExpRec_read **)
+      introv E'. rewrite E in E'. inverts E'. constructors.
+      + (** SExpType_corresponds_to_datatype **)
+        simpl. constructors; solve_premises_smart.
+      + (** SExpRec_header **)
+        constructors; simpl.
+        * (** safe_attrib **)
+          autos~.
+        * (** attrib_list **)
+          apply~ list_type_nil. solve_premises_smart. }
   simpl. splits~. constructors.
   - (** no_null_pointer_entry_point **)
     introv. rewrites~ >> move_along_entry_point_write_SExp ES2.
@@ -162,4 +202,21 @@ End Parameterised.
 
 (** * Closing the loop **)
 
-(* TODO *)
+Lemma runs_while_loop_safe : forall n globals
+    A (P_success : _ -> _ -> Prop) P_error P_longjump
+    S (a : A) (expr stat : _ -> A -> _),
+  (forall S a,
+    P_success S a ->
+    result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
+  (forall S a,
+    P_success S a ->
+    result_prop (fun _ b => b = true) (fun _ => False) (fun _ _ _ => False) (expr S a) ->
+    result_prop P_success P_error P_longjump (stat S a)) ->
+  result_prop P_success P_error P_longjump (runs_while_loop (runs n globals) S a expr stat).
+Proof.
+  introv OKexpr OKstat. rewrite runs_proj_while_loop_eq.
+  gen S a. induction n; introv.
+  - simpl. autos~.
+  - simpl. skip. (* TODO *)
+Qed.
+

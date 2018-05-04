@@ -417,6 +417,14 @@ Lemma move_along_entry_point_alloc_SExp : forall S S' e p p_,
   move_along_entry_point e S' = move_along_entry_point e S.
 Proof. introv E. inverts E. apply~ move_along_entry_point_state_with_memory. Qed.
 
+Lemma move_along_entry_point_same_entry_points : forall S S' e,
+  state_same_except_for_memory S S' ->
+  move_along_entry_point e S' = move_along_entry_point e S.
+Proof.
+  introv E. destruct S, S'. inverts E. simpls. substs. destruct~ e.
+  simpl. erewrite~ move_along_context_path_same_contexts.
+Qed.
+
 
 (** * Paths **)
 

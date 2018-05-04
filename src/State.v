@@ -966,6 +966,76 @@ Record state := make_state {
 
 Definition R_GlobalContext := state_context.
 
+Record state_same_except_for_memory S1 S2 := {
+    state_same_except_for_memory_state_context :
+      state_context S1 = state_context S2 ;
+    state_same_except_for_memory_R_ExitContext :
+      R_ExitContext S1 = R_ExitContext S2 ;
+    state_same_except_for_memory_R_SymbolTable :
+      R_SymbolTable S1 = R_SymbolTable S2 ;
+    state_same_except_for_memory_R_ReturnedValue :
+      R_ReturnedValue S1 = R_ReturnedValue S2 ;
+    state_same_except_for_memory_R_Connections :
+      R_Connections S1 = R_Connections S2 ;
+    state_same_except_for_memory_R_OutputCon :
+      R_OutputCon S1 = R_OutputCon S2 ;
+    state_same_except_for_memory_R_asymSymbol :
+      R_asymSymbol S1 = R_asymSymbol S2
+  }.
+
+Lemma state_same_except_for_memory_refl : forall S,
+  state_same_except_for_memory S S.
+Proof. introv. constructors*. Qed.
+
+Lemma state_same_except_for_memory_trans : forall S1 S2 S3,
+  state_same_except_for_memory S1 S2 ->
+  state_same_except_for_memory S2 S3 ->
+  state_same_except_for_memory S1 S3.
+Proof. introv [E1] [E2]. constructors; etransitivity; eassumption. Qed.
+
+Lemma state_same_except_for_memory_sym : forall S1 S2,
+  state_same_except_for_memory S1 S2 ->
+  state_same_except_for_memory S2 S1.
+Proof. introv [E]. constructors*. Qed.
+
+Lemma state_same_except_for_memory_eq : forall S1 S2,
+  state_same_except_for_memory S1 S2 ->
+  state_memory S1 = state_memory S2 ->
+  S1 = S2.
+Proof. introv [E1] E2. destruct S1, S2. simpls. substs. fequals. Qed.
+
+Record state_equiv (S1 S2 : state) := {
+    state_equiv_memory : memory_equiv S1 S2 ;
+    state_equiv_rest : state_same_except_for_memory S1 S2
+  }.
+
+Lemma state_equiv_refl : forall S,
+  state_equiv S S.
+Proof.
+  introv. constructors.
+  - apply~ memory_equiv_refl.
+  - apply~ state_same_except_for_memory_refl.
+Qed.
+
+Lemma state_equiv_trans : forall S1 S2 S3,
+  state_equiv S1 S2 ->
+  state_equiv S2 S3 ->
+  state_equiv S1 S3.
+Proof.
+  introv [E1 R1] [E2 R2]. constructors.
+  - applys~ memory_equiv_trans E1 E2.
+  - applys~ state_same_except_for_memory_trans R1 R2.
+Qed.
+
+Lemma state_equiv_sym : forall S1 S2,
+  state_equiv S1 S2 ->
+  state_equiv S2 S1.
+Proof.
+  introv [E R]. constructors.
+  - applys~ memory_equiv_sym E.
+  - applys~ state_same_except_for_memory_sym R.
+Qed.
+
 Definition state_with_memory S m := {|
     state_memory := m ;
     state_context := state_context S ;

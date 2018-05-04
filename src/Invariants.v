@@ -741,6 +741,18 @@ Proof.
     introv. rewrites* >> move_along_entry_point_alloc_SExp A.
 Qed.
 
+Lemma state_equiv_conserve_old_binding : forall (S S' : state),
+  state_equiv S S' ->
+  conserve_old_binding S S'.
+Proof.
+  introv E. constructors.
+  - (** conserve_old_binding_binding **)
+    introv (p_&Ep&_). exists p_. splits~. exists p_. splits~.
+    rewrites* <- >> read_SExp_equiv E.
+  - (** conserve_old_binding_entry_point **)
+    introv. rewrites* >> move_along_entry_point_same_entry_points E.
+Qed.
+
 Lemma only_one_nil_SExpRec : forall S p1 p2 e1 e2 e1_ e2_,
   safe_state S ->
   move_along_path p1 S = Some e1 ->
@@ -2376,6 +2388,23 @@ Proof. autos*. Qed.
 Ltac prove_not_NULL :=
   let aux p :=
     match goal with
+    | R : read_SExp ?S p = Some ?p' |- _ =>
+      intro_subst;
+      rewrite read_SExp_NULL in R; solve [ inverts~ R ]
+    | B : bound ?S p |- _ =>
+      let p' := fresh1 p in
+      let p_ := fresh p' "_" in
+      let R := fresh "R" in
+      lets (p_&R&_): B;
+      intro_subst;
+      rewrite read_SExp_NULL in R; solve [ inverts~ R ]
+    | B : bound_such_that ?S p |- _ =>
+      let p' := fresh1 p in
+      let p_ := fresh p' "_" in
+      let R := fresh "R" in
+      lets (p_&R&_): B;
+      intro_subst;
+      rewrite read_SExp_NULL in R; solve [ inverts~ R ]
     | M : move_along_path_step _ ?S ?p0 = Some p |- _ =>
       get_safe_pointer S p0 ltac:(fun OKp0 =>
         let OKp0' := fresh1 OKp0 in
@@ -2839,6 +2868,16 @@ Ltac find_conserve_old_binding S S' cont :=
   | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
     let C := fresh "C" in
     forwards~ C: alloc_SExp_conserve_old_binding E;
+    cont C
+  | E : state_equiv S S' |- _ =>
+    let C := fresh "C" in
+    forwards~ C: state_equiv_conserve_old_binding E;
+    cont C
+  | E : state_equiv S' S |- _ =>
+    let E' := fresh E in
+    forwards~ E': state_equiv_sym E;
+    let C := fresh "C" in
+    forwards~ C: state_equiv_conserve_old_binding E';
     cont C
   end.
 
