@@ -32,22 +32,21 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
-Hypothesis runs_while_loop_safe : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
+Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
   P_success S a ->
   (forall S a,
     P_success S a ->
-    result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
-  (forall S a,
-    P_success S a ->
-    result_prop (fun _ b => b = true) (fun _ => False) (fun _ _ _ => False) (expr S a) ->
-    result_prop P_success P_error P_longjump (stat S a)) ->
+    result_prop (fun S (b : bool) =>
+        P_success S a
+        /\ (b -> result_prop P_success P_error P_longjump (stat S a)))
+      P_error P_longjump (expr S a)) ->
   result_prop P_success P_error P_longjump (runs_while_loop runs S a expr stat).
 
 
 (** * Lemmae about Rcore.v **)
 
-Lemma PRIMARITY_safe : forall S x,
+Lemma PRIMARITY_result : forall S x,
   safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
@@ -62,38 +61,60 @@ Proof.
   repeat (unfold_monad; repeat let_simpl).
   simpl. computeR_step.
   rewrite_read_SExp.
-  skip. (* FIXME: someyhing loops in [computeR_step] here. *)*)
+  skip. (* FIXME: something loops in [computeR_step] here. *)*)
 Qed.
+
+Lemma PRIMINTERNAL_result : forall S x,
+  safe_state S ->
+  safe_pointer S x ->
+  may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
+  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
+    safe_state (fun _ _ _ => False) (PRIMINTERNAL runs S x).
+Admitted. (* TODO *)
+
+Lemma R_length_result : forall S s,
+  safe_state S ->
+  safe_pointer S s ->
+  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
+    (fun _ => False) (fun _ _ _ => False) (R_length globals runs S s).
+Proof.
+  introv OKS OKs. unfolds R_length. computeR.
+  forwards Ts: bound_may_have_types S s.
+  { solve_premises_smart. }
+  unfolds all_SExpTypes.
+  explode_list Ts; (cutR TYPEOF_result;
+    [ apply Ts
+    | lets (E&C): (rm P); rewrite E; transition_conserve S S0;
+      try solve [ splits~ ] ]).
+Admitted. (* TODO: when a function doesn’t change the state, states the equality, not just [conserve_old_binding]. *)
 
 (** * Lemmae about Rfeatures.v **)
 
-Lemma Rf_checkArityCall_safe : forall S op args call,
+Lemma Rf_checkArityCall_result : forall S op args call,
   safe_state S ->
   safe_pointer S op ->
+  may_have_types S ([SpecialSxp; BuiltinSxp]) op ->
   safe_pointer S args ->
   safe_pointer S call ->
   result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
     safe_state (fun _ _ _ => False)
     (Rf_checkArityCall globals runs S op args call).
 Proof.
-  introv OKS OKop OKargs OKcall. unfolds Rf_checkArityCall. computeR.
-  cutR PRIMARITY_safe.
-  { skip. }
-  lets (OKS0&CSS0): (rm P). transition_conserve S S0. skip. (* TODO: cutR R_length_safe.
-  cases_if.
-  - computeR.
-    cutR PRIMINTERNAL_safe.
-    cases_if.
-    + simpl. autos~.
-    + simpl. autos~.
-  - simpl. splits~. *)
+  introv OKS OKop Top OKargs OKcall. unfolds Rf_checkArityCall. computeR.
+  cutR PRIMARITY_result.
+  lets (OKS0&CSS0): (rm P). transition_conserve S S0.
+  cutR R_length_result. lets (OKS1&CS0S1): (rm P). transition_conserve S0 S1. cases_if.
+  - computeR. cutR PRIMINTERNAL_result.
+    lets (OKS2&CS1S2): (rm P). transition_conserve S1 S2. cases_if; simpl; autos~.
+  - simpl. splits~. applys~ conserve_old_binding_trans CSS0 CS0S1.
 Qed.
 
-Lemma do_while_safe : forall S call op args rho,
+Lemma do_while_result : forall S call op args rho,
   safe_state S ->
   safe_globals S globals ->
   safe_pointer S call ->
   safe_pointer S op ->
+  may_have_types S ([SpecialSxp; BuiltinSxp]) op ->
   safe_pointer S args ->
   may_have_types S ([NilSxp; ListSxp]) args ->
   safe_pointer S rho ->
@@ -102,15 +123,15 @@ Lemma do_while_safe : forall S call op args rho,
     (fun S => safe_state S) (fun _ _ _ => False)
     (do_while globals runs S call op args rho).
 Proof.
-  introv OKS OKg OKcall OKop OKargs Targs OKrho. unfolds do_while. computeR.
-  cutR Rf_checkArityCall_safe.
+  introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
+  cutR Rf_checkArityCall_result.
   lets (OKS0&CSS0): (rm P). transition_conserve S S0. computeR.
   skip. (* TODO *)
 Qed.
 
 (** * Lemmae about Rinit.v **)
 
-Lemma InitConnections_safe : forall S,
+Lemma InitConnections_result : forall S,
   safe_state S ->
   safe_state (InitConnections S).
 Proof.
@@ -129,7 +150,7 @@ Qed.
 
 (** The function [init_R_NilValue] allocates a new [NilSxp]: we have
   to suppose that this is the first we ever allocated. **)
-Lemma init_R_NilValue_safe : forall S,
+Lemma init_R_NilValue_result : forall S,
   safe_state S ->
   (forall p, ~ may_have_types S ([NilSxp]) p) ->
   result_prop (fun S NilValue => safe_state S /\ safe_pointer S NilValue)
@@ -197,25 +218,24 @@ End Parameterised.
 
 (** * Closing the loop **)
 
-Lemma runs_while_loop_safe : forall n globals
+Lemma runs_while_loop_result : forall n globals
     A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
   P_success S a ->
   (forall S a,
     P_success S a ->
-    result_prop (fun S _ => P_success S a) P_error P_longjump (expr S a)) ->
-  (forall S a,
-    P_success S a ->
-    result_prop (fun _ b => b = true) (fun _ => False) (fun _ _ _ => False) (expr S a) ->
-    result_prop P_success P_error P_longjump (stat S a)) ->
+    result_prop (fun S (b : bool) =>
+        P_success S a
+        /\ (b -> result_prop P_success P_error P_longjump (stat S a)))
+      P_error P_longjump (expr S a)) ->
   result_prop P_success P_error P_longjump (runs_while_loop (runs n globals) S a expr stat).
 Proof.
-  introv OKS OKexpr OKstat. rewrite runs_proj_while_loop_eq.
+  introv OKS OKexpr. rewrite runs_proj_while_loop_eq.
   gen S a. induction n; introv OKS.
-  - simpl. autos~.
+  - simpls~.
   - simpl. computeR. forwards Rexpr: OKexpr OKS. destruct expr eqn: E; autos~.
-    simpl in Rexpr. computeR. cases_if.
-    + skip. (* FIXME: problem in the statement [forwards~ Rstat: OKstat Rexpr]. *)
-    + apply~ Rexpr.
+    lets (OKS'&OKstat): (rm Rexpr). computeR. cases_if.
+    + destruct stat eqn: E'; autos~. computeR. apply~ IHn. apply~ OKstat.
+    + apply~ OKS'.
 Qed.
 

@@ -2298,6 +2298,7 @@ Ltac rewrite_read_SExp :=
       try rewrite Ee_ in * in
     lazymatch goal with
     | E : read_SExp (state_memory S) e = _ |- _ => rewrite E
+    | T : may_have_types S ?l e |- _ => bound_such_that_prop T
     | B : bound_such_that S ?P e |- _ => bound_such_that_prop B
     | B : bound S e |- _ => bound_such_that_prop B
     | _ =>
@@ -2402,11 +2403,18 @@ Ltac prove_not_NULL :=
       lets (p_&R&_): B;
       intro_subst;
       rewrite read_SExp_NULL in R; solve [ inverts~ R ]
-    | B : bound_such_that ?S p |- _ =>
+    | B : bound_such_that ?S _ p |- _ =>
       let p' := fresh1 p in
       let p_ := fresh p' "_" in
       let R := fresh "R" in
       lets (p_&R&_): B;
+      intro_subst;
+      rewrite read_SExp_NULL in R; solve [ inverts~ R ]
+    | T : may_have_types ?S _ p |- _ =>
+      let p' := fresh1 p in
+      let p_ := fresh p' "_" in
+      let R := fresh "R" in
+      lets (p_&R&_): T;
       intro_subst;
       rewrite read_SExp_NULL in R; solve [ inverts~ R ]
     | M : move_along_path_step _ ?S ?p0 = Some p |- _ =>
@@ -3064,8 +3072,12 @@ Proof. introv T. unfolds. rewrite_read_SExp. simplifyR. self_rewrite. Qed.
 
 Lemma TYPEOF_result : forall S x t,
   may_have_types S ([t]) x ->
-  result_prop (fun S r => r = t) (fun _ => False) (fun _ _ _ => False) (TYPEOF S x).
-Proof. introv T. unfolds TYPEOF. rewrite_read_SExp. simplifyR. Qed.
+  result_prop (fun S' r => r = t /\ conserve_old_binding S S')
+    (fun _ => False) (fun _ _ _ => False) (TYPEOF S x).
+Proof.
+  introv T. unfolds TYPEOF. rewrite_read_SExp. simplifyR.
+  splits~. apply conserve_old_binding_refl.
+Qed.
 
 
 (** ** [CONS] **)
@@ -3080,7 +3092,8 @@ Lemma CONS_safe : forall globals S S' l_car l_tag car cdr l,
   l_tag \c [NilSxp; CharSxp] ->
   CONS globals S car cdr = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
-  /\ list_type_safe S' ([ListSxp]) l_car ([NilSxp] \u l_tag) l.
+  /\ list_type_safe S' ([ListSxp]) l_car ([NilSxp] \u l_tag) l
+  /\ conserve_old_binding S S'.
 Proof.
   introv OKS OKG OKcar Lcdr Tcar Icar Itag E. unfolds in E.
   transition_conserve S S'.
@@ -3109,14 +3122,15 @@ Lemma allocList_aux_safe : forall globals S S' n l l0,
   list_type_safe S ([ListSxp]) ([NilSxp]) ([NilSxp]) l0 ->
   allocList_aux globals S n l0 = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
-  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
+  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l
+  /\ conserve_old_binding S S'.
 Proof.
   introv OKS OKG OKl0 L E. gen S S' l. induction n; introv OKS OKG OKl0 L E.
-  - inverts E. splits~.
+  - inverts E. splits~. apply~ conserve_old_binding_refl.
   - simpl in E. destruct allocList_aux as [S2 p] eqn: Ep.
-    forwards~ (OKS2&OKG2&OKp&Lp): IHn Ep.
-    forwards~ (OKS'&OKG'&OKl&Ll): CONS_safe Lp E; try solve_premises_smart.
-    simplify_context. splits*.
+    forwards~ (OKS2&OKG2&OKp&Lp&C): IHn Ep.
+    forwards~ (OKS'&OKG'&OKl&Ll&C'): CONS_safe Lp E; try solve_premises_smart.
+    simplify_context. splits*. applys conserve_old_binding_trans C C'.
 Qed.
 
 Lemma allocList_safe : forall globals S S' n l,
@@ -3124,7 +3138,8 @@ Lemma allocList_safe : forall globals S S' n l,
   safe_globals S globals ->
   allocList globals S n = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
-  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l.
+  /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l
+  /\ conserve_old_binding S S'.
 Proof.
   introv OKS OKG E. unfolds in E. applys~ allocList_aux_safe E.
   - applys~ globals_not_NULL_safe OKG. applys~ globals_not_NULL OKG.
