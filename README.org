@@ -47,7 +47,10 @@ Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
  - =src/Rcore.v= contains translations of the main functions of R;
  - =src/Rfeatures.v= contains translations of additional functions of R (typically present
-   in the default heap).
+   in the default heap);
+ - =src/Invariants.v= defines some invariants of R’s structures;
+ - =src/InvariantProofs.v= contains proofs that the invariants defined in =src/Invariants.v=
+   are conserved along the execution.
 
 
 * Building the Project
@@ -134,8 +137,7 @@ A faster-to-load version is available with the following invocation.
 #+END_SRC
 
 The first =make= command also created a =html/= folder,
-with a more readable version of the files and their documentations
-(taste may vary).
+with an arguably more readable version of the files and their documentations.
 See for instance the table of contents in =html/toc.html=.
 
 

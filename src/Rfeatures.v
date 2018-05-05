@@ -731,6 +731,37 @@ Definition do_globalenv S (call op args rho : SEXP) : result SEXP :=
   result_success S (R_GlobalEnv : SEXP).
 
 
+(** ** context.c **)
+
+(** The function names of this section corresponds to the function names
+  in the file main/context.c. **)
+
+Fixpoint do_parentframe_loop cptr t (n : int) :=
+  match context_nextcontext cptr with
+  | None => (R_GlobalEnv : SEXP)
+  | Some cptr_nextcontext =>
+    ifb context_type_mask (context_callflag cptr) Ctxt_Function then
+      ifb context_cloenv cptr = t then
+        ifb n = 1 then context_sysparent cptr
+        else do_parentframe_loop cptr_nextcontext (context_sysparent cptr) (n - 1)
+      else do_parentframe_loop cptr_nextcontext t n
+    else do_parentframe_loop cptr_nextcontext t n
+  end.
+
+Definition do_parentframe S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_parentframe" in
+  run%success Rf_checkArityCall S op args call using S in
+  read%list args_car, _, _ := args using S in
+  let t := args_car in
+  let%success n := asInteger globals S t using S in
+  ifb n = NA_INTEGER \/ n < 1 then
+    result_error S "Invalid ‘n’ value."
+  else
+    let cptr := R_GlobalContext S in
+    let t := context_sysparent cptr in
+    result_success S (do_parentframe_loop cptr t n).
+
+
 (** ** bind.c **)
 
 (** The function names of this section corresponds to the function names
@@ -4745,7 +4776,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "browserText" (dummy_function "do_sysbrowser") (1)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "browserCondition" (dummy_function "do_sysbrowser") (2)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "browserSetDebug" (dummy_function "do_sysbrowser") (3)%Z eval111 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "parent.frame" (dummy_function "do_parentframe") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "parent.frame" do_parentframe (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "sort" (dummy_function "do_sort") (1)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "is.unsorted" (dummy_function "do_isunsorted") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "psort" (dummy_function "do_psort") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;

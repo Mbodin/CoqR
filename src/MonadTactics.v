@@ -1062,9 +1062,10 @@ Ltac unfold_monad_with_subresult t r :=
           unfold_monad_pass t
         | let A := get_abort_lemma t in
           first [
-              rewrite A; try solve_premises
+              rewrite A; solve_premises
+            | rewrite A; try solve_premises; [idtac]
             | rewrite rewrite_impossible_result with (r := t);
-              [| apply A; try solve_premises ];
+              [| apply A; solve_premises ];
               unfolds_get_impossible
             | let H := fresh "Habort" in
               asserts H: (aborting_result r);
@@ -1073,7 +1074,7 @@ Ltac unfold_monad_with_subresult t r :=
                   | solve [ applys* impossible_result_aborting_result ]
                   | solve [ applys* bottom_result_aborting_result ]
                   | let AT := get_aborts_lemma t in
-                    apply AT; try solve_premises ]
+                    apply AT; solve_premises ]
               | rewrite A with H ] ] ]
     | unfold_monad_simplify t ].
 
@@ -1089,9 +1090,10 @@ Ltac unfold_monad_without_subresult t :=
       unfold_monad_pass t
     | let A := get_abort_lemma t in
       first [
-          rewrite A; try solve_premises
+          rewrite A; solve_premises
+        | rewrite A; try solve_premises; [idtac]
         | rewrite rewrite_impossible_result with (r := t);
-          [| apply A; try solve_premises ];
+          [| apply A; solve_premises ];
           unfolds_get_impossible ]
     | unfold_monad_simplify t ].
 
@@ -1362,16 +1364,22 @@ Ltac cutR P :=
     let P' := fresh "P" in
     first [
         eapply if_success_result with (P_success := P);
-        [|introv P']
+        [| introv P' ]
       | eapply if_success_result with (P_success := fun S _ => P S);
-        [|introv _ P' || introv P'] ]
+        [| introv _ P' || introv P' ]
+      | applys~ if_success_result P; try (introv _ P' || introv P')
+      | eapply if_success_result;
+        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
   | |- result_prop _ _ _ (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
     let E := fresh "E" in
     let D := fresh "D" in
     first [
         eapply set_longjump_result with (P_longjump := P);
-        [|introv E|introv E D]
+        [| introv E | introv E D ]
       | eapply set_longjump_result with (P_longjump := fun S _ _ => P S);
-        [|introv E|introv E D] ]
+        [| introv E | introv E D ]
+      | applys~ set_longjump_result P; try (introv _ P' || introv P')
+      | eapply set_longjump_result;
+        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
   end.
 
