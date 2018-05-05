@@ -656,10 +656,18 @@ length (NA) ; nchar (NA)
 length (NULL) ; nchar (NULL)
 length (NaN) ; nchar (NaN)
 
-# Miscellaneous primitive operator tests.
+# Miscellaneous primitive and builtin operator tests.
 .Primitive ("invisible") () ; .Primitive ("invisible") (42)
 (.Primitive ("invisible") ()) ; (.Primitive ("invisible") (42))
 .Primitive ("invisible") (42, 18)
+globalenv () ; parent.frame () ; globalenv () == parent.frame ()
+x <- 1 ; globalenv () $ x ; parent.frame () $ x ; emptyenv () $ x ; baseenv () $ x
+x <- 1 ; f <- function (x) globalenv () $ x ; f () ; f (2) ; x <- 3 ; f (4)
+f <- function () globalenv () $ x ; x <- 1 ; f () ; (function (x) f ()) (2) ; (function (x) f ()) () ; (function () { x <- 3 ; f () }) ()
+x <- 1 ; f <- function (x) parent.frame () $ x ; f () ; f (2) ; x <- 3 ; f (4)
+f <- function () parent.frame () $ x ; x <- 1 ; f () ; (function (x) f ()) (2) ; (function (x) f ()) () ; (function () { x <- 3 ; f () }) ()
+x <- 1 ; f <- function (x) emptyenv () $ x ; f () ; f (2) ; x <- 3 ; f (4)
+x <- 1 ; f <- function (x) baseenv () $ x ; f () ; f (2) ; x <- 3 ; f (4)
 
 # Miscellaneous.
 levels
