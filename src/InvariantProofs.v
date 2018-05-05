@@ -46,37 +46,39 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
 
 (** * Lemmae about Rcore.v **)
 
+Lemma read_R_FunTab_result : forall S n,
+  (* FIXME: n < ArrayList.length ?? -> *)
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (read_R_FunTab runs S n).
+Proof.
+  introv. unfolds read_R_FunTab. computeR.
+  skip. (* TODO *)
+Qed.
+
 Lemma PRIMARITY_result : forall S x,
   safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
-  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
-    safe_state (fun _ _ _ => False) (PRIMARITY runs S x).
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (PRIMARITY runs S x).
 Proof.
   introv OKS OKx Tx. unfolds PRIMARITY. computeR.
-  (* TODO: Get the prim from the invariant here. *)
-  skip. (* simplifyR. *)
-  (*- simplifyR.
-  unfold_monad; repeat let_simpl.
-  repeat (unfold_monad; repeat let_simpl).
-  simpl. computeR_step.
-  rewrite_read_SExp.
-  skip. (* FIXME: something loops in [computeR_step] here. *)*)
+  skip. (* TODO: cutR read_R_FunTab_result. *)
 Qed.
 
 Lemma PRIMINTERNAL_result : forall S x,
   safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
-  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
-    safe_state (fun _ _ _ => False) (PRIMINTERNAL runs S x).
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (PRIMINTERNAL runs S x).
 Admitted. (* TODO *)
 
 Lemma R_length_result : forall S s,
   safe_state S ->
   safe_pointer S s ->
-  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
-    (fun _ => False) (fun _ _ _ => False) (R_length globals runs S s).
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (R_length globals runs S s).
 Proof.
   introv OKS OKs. unfolds R_length. computeR.
   forwards Ts: bound_may_have_types S s.
@@ -84,9 +86,8 @@ Proof.
   unfolds all_SExpTypes.
   explode_list Ts; (cutR TYPEOF_result;
     [ apply Ts
-    | lets (E&C): (rm P); rewrite E; transition_conserve S S0;
-      try solve [ splits~ ] ]).
-Admitted. (* TODO: when a function doesn’t change the state, states the equality, not just [conserve_old_binding]. *)
+    | lets (E&C): (rm P); substs; simpl; autos~ ]).
+Admitted. (* TODO *)
 
 (** * Lemmae about Rfeatures.v **)
 
@@ -96,17 +97,15 @@ Lemma Rf_checkArityCall_result : forall S op args call,
   may_have_types S ([SpecialSxp; BuiltinSxp]) op ->
   safe_pointer S args ->
   safe_pointer S call ->
-  result_prop (fun S' _ => safe_state S' /\ conserve_old_binding S S')
-    safe_state (fun _ _ _ => False)
+  result_prop (fun S' _ => S' = S) safe_state (fun _ _ _ => False)
     (Rf_checkArityCall globals runs S op args call).
 Proof.
   introv OKS OKop Top OKargs OKcall. unfolds Rf_checkArityCall. computeR.
-  cutR PRIMARITY_result.
-  lets (OKS0&CSS0): (rm P). transition_conserve S S0.
-  cutR R_length_result. lets (OKS1&CS0S1): (rm P). transition_conserve S0 S1. cases_if.
+  cutR PRIMARITY_result. substs.
+  cutR R_length_result. substs. cases_if.
   - computeR. cutR PRIMINTERNAL_result.
-    lets (OKS2&CS1S2): (rm P). transition_conserve S1 S2. cases_if; simpl; autos~.
-  - simpl. splits~. applys~ conserve_old_binding_trans CSS0 CS0S1.
+    substs. cases_if; simpl; autos~.
+  - simpl. autos~.
 Qed.
 
 Lemma do_while_result : forall S call op args rho,
@@ -124,8 +123,7 @@ Lemma do_while_result : forall S call op args rho,
     (do_while globals runs S call op args rho).
 Proof.
   introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
-  cutR Rf_checkArityCall_result.
-  lets (OKS0&CSS0): (rm P). transition_conserve S S0. computeR.
+  cutR Rf_checkArityCall_result. substs. computeR.
   skip. (* TODO *)
 Qed.
 
@@ -149,7 +147,8 @@ Proof.
 Qed.
 
 (** The function [init_R_NilValue] allocates a new [NilSxp]: we have
-  to suppose that this is the first we ever allocated. **)
+  to suppose that this is the first we ever allocated for the
+  invariant to hold. **)
 Lemma init_R_NilValue_result : forall S,
   safe_state S ->
   (forall p, ~ may_have_types S ([NilSxp]) p) ->

@@ -1212,6 +1212,65 @@ Proof.
   rewrites~ >> read_write_SExp_neq W in R. rewrite~ R.
 Qed.
 
+Lemma safe_SExpRec_type_ListSxp_struct : forall S (p_ : SExpRec),
+  type p_ \in [NilSxp ; ListSxp ; LangSxp ; DotSxp] ->
+  safe_SExpRec_type S (type p_) p_ ->
+  exists header car cdr tag,
+    p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag).
+Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
+
+Lemma safe_SExpRec_type_PrimSxp_struct : forall S (p_ : SExpRec),
+  type p_ \in [SpecialSxp ; BuiltinSxp] ->
+  safe_SExpRec_type S (type p_) p_ ->
+  exists header offset,
+    p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset).
+Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
+
+Lemma safe_SExpRec_type_VectorPointer : forall S (p_ : SExpRec),
+  type p_ \in [StrSxp ; VecSxp ; ExprSxp] ->
+  safe_SExpRec_type S (type p_) p_ ->
+  exists header array,
+    p_ = SExpRec_VectorPointer (make_Vector_SExpRec header
+           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)).
+Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
+
+Lemma safe_pointer_ListSxp_struct : forall S p,
+  may_have_types S ([NilSxp ; ListSxp ; LangSxp ; DotSxp]) p ->
+  safe_pointer S p ->
+  bound_such_that S (fun p_ =>
+    exists header car cdr tag,
+      p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)) p.
+Proof.
+  introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
+  forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
+  exists p_. splits~. applys~ safe_SExpRec_type_ListSxp_struct T OKp_.
+Qed.
+
+Lemma safe_pointer_PrimSxp_struct : forall S p,
+  may_have_types S ([SpecialSxp ; BuiltinSxp]) p ->
+  safe_pointer S p ->
+  bound_such_that S (fun p_ =>
+    exists header offset,
+      p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset)) p.
+Proof.
+  introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
+  forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
+  exists p_. splits~. applys~ safe_SExpRec_type_PrimSxp_struct T OKp_.
+Qed.
+
+Lemma safe_pointer_VectorPointer : forall S p,
+  may_have_types S ([StrSxp ; VecSxp ; ExprSxp]) p ->
+  safe_pointer S p ->
+  bound_such_that S (fun p_ =>
+    exists header array,
+      p_ = SExpRec_VectorPointer (make_Vector_SExpRec header
+             (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array))) p.
+Proof.
+  introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
+  forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
+  exists p_. splits~. applys~ safe_SExpRec_type_VectorPointer T OKp_.
+Qed.
+
 
 (** * General tactics **)
 
@@ -2201,8 +2260,7 @@ Ltac put_type_in_context p_ :=
   | R : read_SExp (state_memory ?S) ?p = Some p_ |- _ =>
     get_may_have_types S p ltac:(fun M =>
       let T := fresh "T" in
-      forwards T: may_have_types_read_SExp M R;
-      put_type_in_context p_)
+      forwards~ T: may_have_types_read_SExp M R)
   end; clear_useless_type_eq.
 
 (** Extracts relevant information for [p_] from an hypothesis
@@ -2212,21 +2270,52 @@ Ltac put_type_in_context p_ :=
 Ltac force_unfold_shape explode S p_ :=
   let invert_type OKp_ :=
     put_type_in_context p_;
-    let aux t :=
+    let inverts_explode t :=
       lazymatch explode with
       | true => inverts~ OKp_; t
       | false =>
-         try solve [ inverts~ OKp_; t ];
          ((inverts~ OKp_; t; [idtac]) || solve [ inverts~ OKp_; t ])
       end in
     lazymatch goal with
     | T : type (get_SxpInfo p_) = ?t |- _ =>
-      aux ltac:(try solve [ inverts~ T ])
-    | T : type (get_SxpInfo p_) \in _ |- _ =>
-      aux ltac:(try solve [ false; repeat inverts T ])
+      inverts_explode ltac:(try solve [ inverts~ T ])
+    | T : type (get_SxpInfo p_) \in ?l |- _ =>
+      let solve_in := applys BagInIncl T; solve_incl in
+      first [
+          (** Direct approach **)
+          inverts_explode ltac:(try solve [
+            false;
+            lazymatch l with
+            | _ _ => idtac
+            | _ => unfold l in T
+            end;
+            explode_list T; inverts~ T ])
+        (** Lemmae-based approach **)
+        | let header := fresh "header" in
+          let car := fresh "car" in
+          let cdr := fresh "cdr" in
+          let tag := fresh "tag" in
+          let p_' := fresh1 p_ in
+          let E := fresh "E" p_' in
+          forwards (header&car&cdr&tag&E): safe_SExpRec_type_ListSxp_struct OKp_;
+          [ solve_in | inverts E ]
+        | let header := fresh "header" in
+          let offset := fresh "offset" in
+          let p_' := fresh1 p_ in
+          let E := fresh "E" p_' in
+          forwards (header&offset&E): safe_SExpRec_type_PrimSxp_struct OKp_;
+          [ solve_in | inverts E ]
+        | let header := fresh "header" in
+          let array := fresh "array" in
+          let p_' := fresh1 p_ in
+          let E := fresh "E" p_' in
+          forwards (header&array&E): safe_SExpRec_type_VectorPointer OKp_;
+          [ solve_in | inverts E ]
+        ]
     end in
   lazymatch goal with
-  | OKp_ : safe_SExpRec_type _ S (type (get_SxpInfo p_)) p_ |- _ => invert_type OKp_
+  | OKp_ : safe_SExpRec_type _ S (type (get_SxpInfo p_)) p_ |- _ =>
+    invert_type OKp_
   | _ =>
     get_safe_SExpRec S p_ ltac:(fun OKp_ =>
       let OKp_' := fresh1 OKp_ in
@@ -3072,12 +3161,9 @@ Proof. introv T. unfolds. rewrite_read_SExp. simplifyR. self_rewrite. Qed.
 
 Lemma TYPEOF_result : forall S x t,
   may_have_types S ([t]) x ->
-  result_prop (fun S' r => r = t /\ conserve_old_binding S S')
-    (fun _ => False) (fun _ _ _ => False) (TYPEOF S x).
-Proof.
-  introv T. unfolds TYPEOF. rewrite_read_SExp. simplifyR.
-  splits~. apply conserve_old_binding_refl.
-Qed.
+  result_prop (fun S' r => r = t /\ S' = S) (fun _ => False) (fun _ _ _ => False)
+    (TYPEOF S x).
+Proof. introv T. unfolds TYPEOF. rewrite_read_SExp. simplifyR. splits~. Qed.
 
 
 (** ** [CONS] **)

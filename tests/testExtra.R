@@ -651,7 +651,15 @@ l <- "a" ; l$a
 length ("") ; length ("a") ; length ("\\")
 nchar ("") ; nchar ("a") ; nchar ("\\")
 length (c ("", "a", "\\")) ; nchar (c ("", "a", "\\"))
+length (list ("", "a", "\\")) ; nchar (list ("", "a", "\\"))
 length (NA) ; nchar (NA)
+length (NULL) ; nchar (NULL)
+length (NaN) ; nchar (NaN)
+
+# Miscellaneous primitive operator tests.
+.Primitive ("invisible") () ; .Primitive ("invisible") (42)
+(.Primitive ("invisible") ()) ; (.Primitive ("invisible") (42))
+.Primitive ("invisible") (42, 18)
 
 # Miscellaneous.
 levels
