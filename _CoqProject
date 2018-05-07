@@ -22,23 +22,25 @@
 ./src/Loops.v
 ./src/Rcore.v
 
-./src/main/Errors.v
-./src/main/Util.v
-./src/main/Attrib.v
-./src/main/Coerce.v
-./src/main/Envir.v
-./src/main/Context.v
-./src/main/Bind.v
-./src/main/Eval.v
-./src/main/Connections.v
-./src/main/Printutils.v
-./src/main/Builtin.v
-./src/main/Seq.v
-./src/main/Complex.v
-./src/nmath/Sign.v
-./src/main/Arithmetic.v
-./src/main/Subset.v
-./src/main/Relop.v
+-R ./src/features Features
+
+./src/features/Errors.v
+./src/features/Util.v
+./src/features/Attrib.v
+./src/features/Coerce.v
+./src/features/Envir.v
+./src/features/Context.v
+./src/features/Bind.v
+./src/features/Eval.v
+./src/features/Connections.v
+./src/features/Printutils.v
+./src/features/Builtin.v
+./src/features/Seq.v
+./src/features/Complex.v
+./src/featuresh/Sign.v
+./src/features/Arithmetic.v
+./src/features/Subset.v
+./src/features/Relop.v
 
 ./src/Rfeatures.v
 ./src/Rinit.v
@@ -51,3 +53,4 @@
 ./src/Invariants.v
 ./src/InvariantProofs.v
 ./src/Relation.v
+
