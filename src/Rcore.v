@@ -102,7 +102,7 @@ Definition GTOP := 6.
 
 (** ** Rmath.h **)
 
-(** The function names of this section corresponds to the macro names
+(** The function names of this section correspond to the macro names
   in the file include/Rmath.h. **)
 
 Definition ISNAN (x : double) :=
@@ -111,7 +111,7 @@ Definition ISNAN (x : double) :=
 
 (** ** Rinternals.h **)
 
-(** The function names of this section corresponds to the macro names
+(** The function names of this section correspond to the macro names
   in the file include/Rinternals.h. **)
 
 Definition TYPEOF S x :=
@@ -418,7 +418,7 @@ Definition SET_TRUELENGTH S x v :=
 
 (** ** Defn.h **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file include/Defn.h. **)
 
 Definition SPECIAL_SYMBOL_BIT := 12.
@@ -504,7 +504,7 @@ Definition PRVALUE S p :=
 
 (** ** memory.c **)
 
-(** The function names of this section corresponds to the function
+(** The function names of this section correspond to the function
   names in the file main/memory.c. **)
 
 Definition CONS S (car cdr : SEXP) : state * SEXP :=
@@ -660,7 +660,7 @@ Definition allocFormalsList6 S sym1 sym2 sym3 sym4 sym5 sym6 :=
 
 (** ** Rinlinedfuns.c **)
 
-(** The function names of this section corresponds to the function
+(** The function names of this section correspond to the function
   names in the file include/Rinlinedfuns.c. **)
 
 (** The way the original functions [allocVector], [allocVector3], etc.
@@ -1132,7 +1132,7 @@ Definition XTRUELENGTH S x :=
 
 (** ** builtin.c **)
 
-(** The function names of this section corresponds to the macro names
+(** The function names of this section correspond to the macro names
   in the file main/builtin.c. **)
 
 Definition R_IsImportsEnv S env :=
@@ -1162,7 +1162,7 @@ Definition R_IsImportsEnv S env :=
 
 (** ** duplicate.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/duplicate.c. **)
 
 Definition lazy_duplicate S s :=
@@ -1535,7 +1535,7 @@ Definition R_cycle_detected S s child :=
 
 (** ** dstruct.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/dstruct.c. **)
 
 Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
@@ -1580,7 +1580,7 @@ Definition mkCLOSXP S (formals body rho : SEXP) :=
 
 (** ** Rinlinedfuns.c **)
 
-(** The function names of this section corresponds to the function
+(** The function names of this section correspond to the function
   names in the file include/Rinlinedfuns.c.  The most important
   functions of eval.c are however only shown in a previous section.**)
 
@@ -1670,7 +1670,7 @@ Definition isValidString S x :=
 
 (** ** eval.c **)
 
-(** The function names of this section corresponds to the function
+(** The function names of this section correspond to the function
   names in the file main/eval.c. The most important functions of
   eval.c are however only shown in a later section. **)
 
@@ -1700,7 +1700,7 @@ Definition PREXPR S e :=
 
 (** ** arithmetic.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/arithmetic.c. **)
 
 Definition R_IsNA (x : double) :=
@@ -1734,7 +1734,7 @@ Definition ScalarValue2 S x y :=
 
 (** ** util.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/util.c. **)
 
 Definition type2rstr S (t : SExpType) :=
@@ -1763,7 +1763,7 @@ Definition nthcdr S s n :=
 
 (** ** printutils.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/printutils.c. **)
 
 Definition EncodeLogical x :=
@@ -1780,7 +1780,7 @@ Definition StringFromReal S x :=
 
 (** ** envir.c **)
 
-(** The function names of this section corresponds to the function
+(** The function names of this section correspond to the function
   names in the file main/envir.c. The most important functions of
   envir.c are however only shown in a later section. **)
 
@@ -1800,7 +1800,7 @@ Definition mkString S (str : string) : state * SEXP :=
 
 (** ** dstruct.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/dstruct.c. **)
 
 Definition iSDDName S (name : SEXP) :=
@@ -1825,7 +1825,7 @@ Definition mkSYMSXP S (name value : SEXP) :=
 
 (** ** names.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/names.c. **)
 
 Definition mkSymMarker S pname :=
@@ -1869,7 +1869,7 @@ Definition installChar S charSXP :=
 
 (** ** sysutils.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/sysutils.c. **)
 
 Definition translateChar S x :=
@@ -1893,7 +1893,7 @@ Definition installTrChar S x :=
 
 (** ** gram.y **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/gram.y. **)
 
 Definition mkTrue S :=
@@ -1963,7 +1963,7 @@ Definition CheckFormalArgs S formlist new :=
 
 (** ** context.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/context.c. **)
 
 (** Instead of updating a context given as its first argument, it returns it. **)
@@ -2114,7 +2114,7 @@ Arguments findcontext [A].
 
 (** ** match.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/match.c. **)
 
 Definition psmatch f t exact :=
@@ -2341,7 +2341,7 @@ Definition matchArgs S formals supplied (call : SEXP) :=
 
 (** ** envir.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/envir.c. **)
 
 Definition R_NewHashedEnv S (enclos size : SEXP) :=
@@ -2884,7 +2884,7 @@ Definition R_isMissing S (symbol rho : SEXP) :=
 
 (** ** altrep.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/altrep.c. **)
 
 (** The alternative representation ALTREP is meant to symbolically
@@ -2947,7 +2947,7 @@ Definition R_compact_intrange S (n1 n2 : nat) :=
 
 (** ** utils.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/utils.c. **)
 
 Definition truenames : list string :=
@@ -2971,7 +2971,7 @@ Definition isBlankString s :=
 
 (** ** coerce.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/coerce.c. **)
 
 Definition LogicalFromString S (x : SEXP) :=
@@ -3861,7 +3861,7 @@ Definition copyDimAndNames S x ans :=
 
 (** ** attrib.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/attrib.c. **)
 
 Definition isOneDimensionalArray S vec :=
@@ -4246,7 +4246,7 @@ Definition copyMostAttrib S (inp ans : SEXP) :=
 
 (** ** objects.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/objects.c. **)
 
 Definition R_has_methods S (op : SEXP) :=
@@ -4288,7 +4288,7 @@ Definition asS4 S s (flag : bool) (complete : int) :=
 
 (** ** objects.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/objects.c. **)
 
 Definition R_possible_dispatch (S : state) (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
@@ -4297,7 +4297,7 @@ Definition R_possible_dispatch (S : state) (call op args rho : SEXP) (promisedAr
 
 (** ** eval.c **)
 
-(** The function names of this section corresponds to the function names
+(** The function names of this section correspond to the function names
   in the file main/eval.c. **)
 
 Definition COPY_TAG S vto vfrom :=
