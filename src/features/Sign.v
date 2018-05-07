@@ -1,6 +1,6 @@
-(** Features.Printutils.
+(** Features.Sign.
   The function names of this file correspond to the function names
-  in the file main/printutils.c. **)
+  in the file nmath/sign.c. **)
 
 (* Copyright © 2018 Martin Bodin, Tomás Díaz
 
@@ -21,8 +21,6 @@
 Set Implicit Arguments.
 Require Import Ascii.
 Require Import Rcore.
-Require Import Util.
-Require Import Connections.
 
 Section Parameters.
 
@@ -37,12 +35,11 @@ Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
 
-
-(** This function is inspired from [Rprintf]. **)
-Definition Rprint S str :=
-  add%stack "Rprint" in
-  let con_num := R_OutputCon S in
-  run_print S con_num str.
+Definition sign x :=
+  ifb ISNAN x then x
+  else ifb x > 0 then 1
+  else ifb x = 0 then 0
+  else (-1)%Z.
 
 End Parameters.
 

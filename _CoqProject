@@ -37,7 +37,7 @@
 ./src/features/Builtin.v
 ./src/features/Seq.v
 ./src/features/Complex.v
-./src/featuresh/Sign.v
+./src/features/Sign.v
 ./src/features/Arithmetic.v
 ./src/features/Subset.v
 ./src/features/Relop.v

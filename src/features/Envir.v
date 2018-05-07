@@ -1,13 +1,28 @@
-(** ** envir.c **)
-
-(** The function names of this section corresponds to the function names
+(** Features.Envir.
+  The function names of this file correspond to the function names
   in the file main/envir.c. **)
 
-Set Implicit Arguments.
-Require Import Ascii.
-Require Export Rcore.
-Require Export Util.
+(* Copyright © 2018 Martin Bodin, Tomás Díaz
 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
+
+Set Implicit Arguments.
+Require Import Rcore.
+Require Import Util.
+
+Section Parameters.
 
 Variable globals : Globals.
 
@@ -147,3 +162,6 @@ Definition do_globalenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_globalenv" in
   run%success Rf_checkArityCall S op args call using S in
   result_success S (R_GlobalEnv : SEXP).
+
+End Parameters.
+

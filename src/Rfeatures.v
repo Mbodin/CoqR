@@ -18,153 +18,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii.
-Require Export Rcore.
-
-
-Section Parameters.
-
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
-Variable runs : runs_type.
-
-Local Coercion Pos.to_nat : positive >-> nat.
-
-Local Coercion int_to_double : Z >-> double.
 
 (** * Interpreter functions **)
 
-(** ** errors.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/errors.c. **)
-
 Require Export Errors.
-Arguments WrongArgCount [A].
-
-
-(** ** util.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/util.c. **)
-
-(** There is a macro replacing every call to [checkArity (a, b)] to
-  [Rf_checkArityCall (a, b, call)]. This macro is not convertible in
-  Coq as the [call] argument is not available in scope. We thus unfold
-  this macro during the translation. **)
-
 Require Export Util.
-
-(** ** attrib.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/attrib.c. **)
-
-(** This enumeration is used in a local definition. **)
 Require Export Attrib.
-
-(** ** coerce.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/coerce.c. **)
-
 Require Export Coerce.
-
-(** ** envir.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/envir.c. **)
-
 Require Export Envir.
-
-(** ** context.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/context.c. **)
-
 Require Export Context.
-
-(** ** bind.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/bind.c. **)
-
 Require Export Bind.
-
-(** ** eval.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/eval.c. **)
-
 Require Export Eval.
-
-(** ** connections.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/connections.c. **)
-
 Require Export Connections.
-
-(** ** printutils.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/printutils.c. **)
-
-(** This function is inspired from [Rprintf]. **)
-
 Require Export Printutils.
-
-
-(** ** builtin.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/builtin.c. **)
-
 Require Export Builtin.
-
-(** ** seq.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/seq.c. **)
-
 Require Export Seq.
-
-(** ** sign.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file nmath/sign.c. **)
-
 Require Export Sign.
-
-(** ** complex.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/complex.c. **)
-
 Require Export Complex.
-
-(** ** arithmetic.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/arithmetic.c. **)
-
 Require Export Arithmetic.
-
-(** ** subset.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/subset.c. **)
-
 Require Export Subset.
-
-(** ** relop.c **)
-
-(** The function names of this section corresponds to the function names
-  in the file main/relop.c. **)
-
 Require Export Relop.
 
 (** ** names.c **)

@@ -1,13 +1,30 @@
-(** ** subset.c **)
-
-(** The function names of this section corresponds to the function names
+(** Features.Subset.
+  The function names of this file correspond to the function names
   in the file main/subset.c. **)
+
+(* Copyright © 2018 Martin Bodin, Tomás Díaz
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Export Rcore.
-Require Export Util.
-Require Export Arithmetic.
+Require Import Rcore.
+Require Import Util.
+Require Import Arithmetic.
+
+Section Parameters.
 
 Variable globals : Globals.
 
@@ -448,3 +465,6 @@ Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
       let%success args_cdr_car_0 := STRING_ELT S args_cdr_car 0 using S in
       let%success ans := R_subset3_dflt S ans_car  args_cdr_car_0 call using S in
       result_success S ans.
+
+End Parameters.
+
