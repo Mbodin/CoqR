@@ -108,6 +108,14 @@ Proof.
   - simpl. autos~.
 Qed.
 
+Lemma BodyHasBraces_result : forall S body,
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (BodyHasBraces globals S body).
+Proof.
+  introv. unfolds BodyHasBraces. computeR.
+  skip. (* TODO *)
+Qed.
+
 Lemma do_while_result : forall S call op args rho,
   safe_state S ->
   safe_globals S globals ->
@@ -124,7 +132,15 @@ Lemma do_while_result : forall S call op args rho,
 Proof.
   introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
   cutR Rf_checkArityCall_result. substs. computeR.
-  skip. (* TODO *)
+  unfolds list_cdrval. unfold_shape_pointer_one S cdr. computeR.
+  cutR BodyHasBraces_result. substs.
+  unfolds begincontext.
+  match goal with |- context [ state_with_context _ ?cptr' ] => sets_eq cptr: cptr' end.
+  sets_eq S': (state_with_context S cptr).
+  computeR. cutR safe_state.
+  - cases_if; skip. (* TODO *)
+  - skip. (* TODO: lacks hypothesis about [runs_set_longjump]. *)
+  - skip. (* TODO: Something is wrong here… *)
 Qed.
 
 (** * Lemmae about Rinit.v **)
