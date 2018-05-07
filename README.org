@@ -231,9 +231,17 @@ Provides abstractions to reason about the heap.
 
 *** =Invariants.v=
 
-States some invariants of R’s heap, as well as lemmae and tactics to manipulate it.
+States some invariants of R’s heap.
 
-*** =InvariantProofs.v=
+*** =InvariantsAux.v=
+
+Contains lemmae about the invariants stated in =Invariants.v=.
+
+*** =InvariantsTactics.v=
+
+Defines tactics to manipulate the invariants defined in =Invariants.v=.
+
+*** =InvariantsProofs.v=
 
 Proofs of some invariants respected by the functions defined in =Rcore.v=,
 =Rinit.v=, and =Rfeatures.v=.

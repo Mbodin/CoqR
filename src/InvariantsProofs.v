@@ -19,7 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Require Import Rcore RfeaturesAux Rinit.
-Require Export Invariants.
+Require Export InvariantsTactics.
 Require Import Paco.paco.
 
 

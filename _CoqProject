@@ -50,6 +50,7 @@
 ./src/MonadTactics.v
 ./src/Path.v
 ./src/Invariants.v
-./src/InvariantProofs.v
-./src/Relation.v
+./src/InvariantsAux.v
+./src/InvariantsTactics.v
+./src/InvariantsProofs.v
 
