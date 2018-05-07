@@ -1055,9 +1055,9 @@ Ltac unfold_monad_simplify t :=
   it thus both manages passing and failing situations.
   The lemmae given by [get_abort_lemma] usually require as a
   premise to apply the lemmae given by [get_aborts_lemma]. **)
-Ltac unfold_monad_with_subresult t r :=
+Ltac unfold_monad_with_subresult t res :=
   first [
-      result_computed r;
+      result_computed res;
       first [
           unfold_monad_pass t
         | let A := get_abort_lemma t in
@@ -1068,7 +1068,7 @@ Ltac unfold_monad_with_subresult t r :=
               [| apply A; solve_premises ];
               unfolds_get_impossible
             | let H := fresh "Habort" in
-              asserts H: (aborting_result r);
+              asserts H: (aborting_result res);
               [ first [
                     reflexivity
                   | solve [ applys* impossible_result_aborting_result ]
@@ -1101,10 +1101,16 @@ Ltac unfold_monad_without_subresult t :=
   [reflexivity] tactic can deal with most cases involving
   [result_bottom]. **)
 Ltac deal_with_bottom :=
-  first [
+  solve [
       reflexivity
+    | match goal with
+      | B : bottom_result ?r |- _ => inverts B
+      end
     | repeat match goal with
-      | B : bottom_result ?r |- _ => destruct r; simpl in B; inverts B
+      | B : bottom_result ?r |- _ =>
+        let r' := fresh1 r in
+        let E := fresh "E" r' in
+        destruct r eqn: E; simpl in B; inverts B
       end; autos* ].
 
 (** When the computation is blocked because of an expression

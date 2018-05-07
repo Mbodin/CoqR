@@ -1216,8 +1216,15 @@ Lemma safe_SExpRec_type_ListSxp_struct : forall S (p_ : SExpRec),
   type p_ \in [NilSxp ; ListSxp ; LangSxp ; DotSxp] ->
   safe_SExpRec_type S (type p_) p_ ->
   exists header car cdr tag,
-    p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag).
-Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
+    p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
+    /\ may_have_types S all_storable_SExpTypes car
+    /\ may_have_types S ([NilSxp ; ListSxp ; DotSxp]) cdr
+    /\ may_have_types S ([NilSxp ; CharSxp]) tag.
+Proof.
+  introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts OKp_;
+    simpl in I; do 4 eexists; splits; try reflexivity; autos~;
+    simpl; try rewrite~ I; apply* may_have_types_weaken; solve_incl.
+Qed.
 
 Lemma safe_SExpRec_type_PrimSxp_struct : forall S (p_ : SExpRec),
   type p_ \in [SpecialSxp ; BuiltinSxp] ->
@@ -1231,15 +1238,25 @@ Lemma safe_SExpRec_type_VectorPointer : forall S (p_ : SExpRec),
   safe_SExpRec_type S (type p_) p_ ->
   exists header array,
     p_ = SExpRec_VectorPointer (make_Vector_SExpRec header
-           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array)).
-Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
+           (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array))
+    /\ forall a,
+         Mem a (ArrayList.to_list array) ->
+         may_have_types S all_storable_SExpTypes a.
+Proof.
+  introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts OKp_ as F;
+    simpl in I; do 2 eexists; splits; try reflexivity; autos~;
+    introv M; apply F in M; apply* may_have_types_weaken; solve_incl.
+Qed.
 
 Lemma safe_pointer_ListSxp_struct : forall S p,
   may_have_types S ([NilSxp ; ListSxp ; LangSxp ; DotSxp]) p ->
   safe_pointer S p ->
   bound_such_that S (fun p_ =>
     exists header car cdr tag,
-      p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)) p.
+      p_ = make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag)
+      /\ may_have_types S all_storable_SExpTypes car
+      /\ may_have_types S ([NilSxp ; ListSxp ; DotSxp]) cdr
+      /\ may_have_types S ([NilSxp ; CharSxp]) tag) p.
 Proof.
   introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
   forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
@@ -1264,7 +1281,10 @@ Lemma safe_pointer_VectorPointer : forall S p,
   bound_such_that S (fun p_ =>
     exists header array,
       p_ = SExpRec_VectorPointer (make_Vector_SExpRec header
-             (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array))) p.
+             (make_VecSxp_struct (ArrayList.length array) (ArrayList.length array) array))
+      /\ forall a,
+           Mem a (ArrayList.to_list array) ->
+           may_have_types S all_storable_SExpTypes a) p.
 Proof.
   introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
   forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
@@ -1631,8 +1651,9 @@ Ltac clear_trivial :=
 (** *** Miscellaneous **)
 
 (** [look_for_equality] takes a pointer [p], a tactic [recognize] returning
-  either [true] or [false], and a continuation.  The continuation is assured
-  to be called with a [p'] such that [recognize p'] and the equality [p = p']. **)
+  either [true] or [false], and a continuation.  If called, the continuation
+  is assured to be called on a [p'] such that [recognize p'] and on an
+  hypothesis of the form [p = p']. **)
 Ltac look_for_equality p recognize cont :=
   let r := recognize p in
   lazymatch r with
@@ -1661,8 +1682,10 @@ Ltac look_for_equality p recognize cont :=
     end
   end.
 
-(** Similar than [look_for_equality], but instead of providing a tactic,
-  we provide a term against which to match. **)
+(** Similar than [look_for_equality], but instead of providing a tactic
+  stating whether this term is acceptable, we provide directly a term.
+  This tactic will look for equalities between [p] and [term].  The
+  continuation only expects the equality [p = term]. **)
 Ltac look_for_equality_term p term cont :=
   lazymatch p with
   | term => cont (eq_refl p)
@@ -1677,6 +1700,19 @@ Ltac look_for_equality_term p term cont :=
       asserts E: (p = term); [ reflexivity | cont E ]
     end
   end.
+
+(** Checks whether, in the current context, the given term [term] is indeed of
+  the form [Some term'].  It then calls the continuation [cont] with arguments
+  [term'], as well as an equiality of the form [term = Some term']. **)
+Ltac should_be_some term cont :=
+  look_for_equality term ltac:(fun o =>
+    lazymatch o with
+    | Some _ => constr:(true)
+    | _ => constr:(false)
+    end) ltac:(fun someterm' E =>
+      lazymatch someterm' with
+      | Some ?term' => cont term' E
+      end).
 
 
 (** ** Getting some properties **)
@@ -2060,27 +2096,22 @@ Ltac get_move_along_path_step S p cont :=
   match goal with
   | M : move_along_path_step _ S ?p0 = Some p |- _ => cont p0 M
   | R : read_SExp (state_memory S) ?p0 = Some ?p0_ |- _ =>
+    (** We consider an allocated potential pointer [p0].  We now inspect whether
+      the object [p0_] contains [p] in one of its projections. **)
     let look_for_projection step term L :=
       look_for_equality_term p term ltac:(fun E =>
         let p' := fresh1 p in
         let E' := fresh "M" p' in
         asserts E': (move_along_path_step step S p0 = Some p);
         [ unfold move_along_path_step;
-          rewrite R;
-          repeat rewrite_first L;
-          simpl; try simpl in E;
-          rewrite E;
+          rewrite R; try reflexivity;
+          repeat rewrite_first L; try reflexivity;
+          (rewrite E || (simpl; try simpl in E; rewrite E)); try reflexivity;
           repeat rewrite_first L;
           reflexivity
         | cont p0 E' ]) in
-    let should_be_some term cont :=
-      look_for_equality term ltac:(fun o =>
-        lazymatch o with
-        | Some _ => constr:(true)
-        | _ => constr:(false)
-        end) cont in
     first [
-        look_for_projection Sattrib (attrib (get_SExpRecHeader p0_)) nil
+        look_for_projection Sattrib (attrib (get_SExpRecHeader p0_)) >>
       | should_be_some (get_NonVector p0_) ltac:(fun p0_' Ep0_ =>
           first [
               should_be_some (get_symSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_sym =>
@@ -2089,32 +2120,33 @@ Ltac get_move_along_path_step S p cont :=
                   | look_for_projection (SNonVectorSym Ssym_value) (sym_value p0_sym) >> Ep0_ Ep0_sym
                   | look_for_projection (SNonVectorSym Ssym_internal) (sym_internal p0_sym) >> Ep0_ Ep0_sym
                   ])
-            | should_be_some (get_listSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_list =>
+            | should_be_some (get_listSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_list Ep0_list =>
                 first [
-                    look_for_projection (SNonVectorSym Slist_carval) (list_carval p0_sym) >> Ep0_ Ep0_list
-                  | look_for_projection (SNonVectorSym Slist_cdrval) (list_cdrval p0_sym) >> Ep0_ Ep0_list
-                  | look_for_projection (SNonVectorSym Slist_tagval) (list_tagval p0_sym) >> Ep0_ Ep0_list
+                    look_for_projection (SNonVectorList Slist_carval) (list_carval p0_list) >> Ep0_ Ep0_list
+                  | look_for_projection (SNonVectorList Slist_cdrval) (list_cdrval p0_list) >> Ep0_ Ep0_list
+                  | look_for_projection (SNonVectorList Slist_tagval) (list_tagval p0_list) >> Ep0_ Ep0_list
                   ])
-            | should_be_some (get_envSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_env =>
+            | should_be_some (get_envSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_env Ep0_env =>
                 first [
-                    look_for_projection (SNonVectorSym Senv_frame) (env_frame p0_sym) >> Ep0_ Ep0_env
-                  | look_for_projection (SNonVectorSym Senv_enclos) (env_enclos p0_sym) >> Ep0_ Ep0_env
+                    look_for_projection (SNonVectorEnv Senv_frame) (env_frame p0_env) >> Ep0_ Ep0_env
+                  | look_for_projection (SNonVectorEnv Senv_enclos) (env_enclos p0_env) >> Ep0_ Ep0_env
                   ])
-            | should_be_some (get_cloSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_clo =>
+            | should_be_some (get_cloSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_clo Ep0_clo =>
                 first [
-                    look_for_projection (SNonVectorSym Sclo_formals) (clo_formals p0_sym) >> Ep0_ Ep0_clo
-                  | look_for_projection (SNonVectorSym Sclo_body) (clo_body p0_sym) >> Ep0_ Ep0_clo
-                  | look_for_projection (SNonVectorSym Sclo_env) (clo_env p0_sym) >> Ep0_ Ep0_clo
+                    look_for_projection (SNonVectorClo Sclo_formals) (clo_formals p0_clo) >> Ep0_ Ep0_clo
+                  | look_for_projection (SNonVectorClo Sclo_body) (clo_body p0_clo) >> Ep0_ Ep0_clo
+                  | look_for_projection (SNonVectorClo Sclo_env) (clo_env p0_clo) >> Ep0_ Ep0_clo
                   ])
-            | should_be_some (get_promSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_sym Ep0_prom =>
+            | should_be_some (get_promSxp (NonVector_SExpRec_data p0_')) ltac:(fun p0_prom Ep0_prom =>
                 first [
-                    look_for_projection (SNonVectorSym Sprom_value) (prom_value p0_sym) >> Ep0_ Ep0_prom
-                  | look_for_projection (SNonVectorSym Sprom_expr) (prom_expr p0_sym) >> Ep0_ Ep0_prom
-                  | look_for_projection (SNonVectorSym Sprom_env) (prom_env p0_sym) >> Ep0_ Ep0_prom
+                    look_for_projection (SNonVectorProm Sprom_value) (prom_value p0_prom) >> Ep0_ Ep0_prom
+                  | look_for_projection (SNonVectorProm Sprom_expr) (prom_expr p0_prom) >> Ep0_ Ep0_prom
+                  | look_for_projection (SNonVectorProm Sprom_env) (prom_env p0_prom) >> Ep0_ Ep0_prom
                   ])
             ])
       | should_be_some (get_VectorPointer p0_) ltac:(fun p0_' Ep0_ =>
-          let v0 := eval simpl in (ArrayList.to_list (VecSxp_data (Vector_SExpRec_vecsxp p0_'))) in
+          let v0 :=
+            eval simpl in (ArrayList.to_list (VecSxp_data (Vector_SExpRec_vecsxp p0_'))) in
           let rec t n l :=
             match l with
             | ?p' :: ?l' =>
@@ -2297,7 +2329,10 @@ Ltac force_unfold_shape explode S p_ :=
           let tag := fresh "tag" in
           let p_' := fresh1 p_ in
           let E := fresh "E" p_' in
-          forwards (header&car&cdr&tag&E): safe_SExpRec_type_ListSxp_struct OKp_;
+          let Tcar := fresh "T" car in
+          let Tcdr := fresh "T" cdr in
+          let Ttag := fresh "T" tag in
+          forwards (header&car&cdr&tag&E&Tcar&Tcdr&Ttag): safe_SExpRec_type_ListSxp_struct OKp_;
           [ solve_in | inverts E ]
         | let header := fresh "header" in
           let offset := fresh "offset" in
@@ -2309,7 +2344,8 @@ Ltac force_unfold_shape explode S p_ :=
           let array := fresh "array" in
           let p_' := fresh1 p_ in
           let E := fresh "E" p_' in
-          forwards (header&array&E): safe_SExpRec_type_VectorPointer OKp_;
+          let F := fresh "F" array in
+          forwards (header&array&E&F): safe_SExpRec_type_VectorPointer OKp_;
           [ solve_in | inverts E ]
         ]
     end in

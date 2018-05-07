@@ -106,7 +106,7 @@ We can now clone the project.
     git submodule update --init
 #+END_SRC
 
-We need to compile TLC.
+We need to compile TLC, a Coq library used thorough the project.
 #+BEGIN_SRC bash
     make tlc
 #+END_SRC
@@ -115,6 +115,11 @@ The Makefile should now work.
 #+BEGIN_SRC bash
     make
 #+END_SRC
+
+It is possible that during the extraction, Coq complains that
+some opaque constants were accessed, or that some logical axioms
+were encountered.
+These comes from the TLC library and can be safely ignored.
 
 This should create the following program.
 #+BEGIN_SRC bash
