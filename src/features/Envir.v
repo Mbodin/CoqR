@@ -38,8 +38,8 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition do_missing S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_missing" in
-  run%success Rf_checkArityCall S op args call using S in
-  run%success Rf_check1arg S args call "x" using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_check1arg globals S args call "x" using S in
   read%list args_car, _, _ := args using S in
   let%success sym :=
     let sym := args_car in
@@ -105,12 +105,12 @@ Definition do_missing S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_get (S : state) (call op args rho : SEXP) : result SEXP :=
   add%stack "do_get" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   unimplemented_function "do_get".
 
 Definition do_assign S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_assign" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let%success args_car_str := isString S args_car using S in
   let%success args_car_len := R_length globals runs S args_car using S in
@@ -150,17 +150,17 @@ Definition do_assign S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_emptyenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_emptyenv" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   result_success S (R_EmptyEnv : SEXP).
 
 Definition do_baseenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_baseenv" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   result_success S (R_BaseEnv : SEXP).
 
 Definition do_globalenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_globalenv" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   result_success S (R_GlobalEnv : SEXP).
 
 End Parameters.

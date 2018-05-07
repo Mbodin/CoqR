@@ -136,7 +136,7 @@ Definition VectorSubset S (x s call : SEXP) :=
       let%success s_mat := isMatrix globals runs S s using S in
       let%success x_arr := isArray globals runs S x using S in
       ifb s_mat /\ x_arr then
-        let%success s_cols := ncols S s using S in
+        let%success s_cols := ncols globals runs S s using S in
         let%success attrib_len := R_length globals runs S attrib using S in
         ifb s_cols = attrib_len then
           let%success s :=
@@ -445,7 +445,7 @@ Definition fixSubset3Args S (call args env : SEXP) :=
 
 Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
   add%stack "do_subset3" in
-    run%success Rf_checkArityCall S op args call using S in
+    run%success Rf_checkArityCall globals runs S op args call using S in
     let%success args := fixSubset3Args S call args env using S in
 
     let%success (disp, ans) := R_DispatchOrEvalSP S call op "$" args env using S in

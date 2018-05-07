@@ -23,6 +23,7 @@ Require Import Ascii.
 Require Import Rcore.
 Require Import Util.
 Require Import Printutils.
+Require Import Connections.
 
 Section Parameters.
 
@@ -96,7 +97,7 @@ Definition cat_cleanup S con_num :=
 
 Definition do_cat S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_cat" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   (* Call to [PrintDefaults] formalised out. *)
   read%list args_car, args_cdr, _ := args using S in
   let objs := args_car in
@@ -216,7 +217,7 @@ Definition do_cat S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_newenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_newenv" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let%success hash := asInteger globals S args_car using S in
   let args := args_cdr in
@@ -252,7 +253,7 @@ Definition do_newenv S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_parentenv S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_parentenv" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let arg := args_car in
   let%success arg :=
@@ -273,7 +274,7 @@ Definition do_parentenv S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_parentenvgets S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_parentenvgets" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let env := args_car in
   if%success isNull S env using S then
@@ -320,7 +321,7 @@ Definition do_parentenvgets S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_envir S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_envir" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success args_car_type := TYPEOF S args_car using S in
   ifb args_car_type = CloSxp then

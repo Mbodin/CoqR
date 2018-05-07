@@ -50,7 +50,7 @@ Fixpoint do_parentframe_loop cptr t (n : int) :=
 
 Definition do_parentframe S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_parentframe" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let t := args_car in
   let%success n := asInteger globals S t using S in

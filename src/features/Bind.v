@@ -602,7 +602,7 @@ Definition do_c_dftl S (call op args env : SEXP) : result SEXP :=
 
 Definition do_c S (call op args env : SEXP) : result SEXP :=
   add%stack "do_c" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   let%success (disp, ans) :=
     DispatchAnyOrEval globals runs S call op "c" args env true true using S in
   if disp then result_success S ans

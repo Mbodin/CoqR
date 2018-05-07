@@ -129,7 +129,7 @@ Definition do_attr S (call op args env : SEXP) : result SEXP :=
 
 Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
   add%stack "do_attrgets" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   let%success op_val := PRIMVAL runs S op using S in
   ifb op_val <> 0 then
     let%success input := allocVector globals S StrSxp 1 using S in

@@ -254,7 +254,7 @@ Definition do_function S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_break S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_break" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   let%success op_val := PRIMVAL runs S op using S in
   match int_to_nbits_check op_val with
   | None => result_impossible S "The variable “op_val” should be of type “context_type”."
@@ -263,7 +263,7 @@ Definition do_break S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_paren S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_paren" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   result_success S args_car.
 
@@ -327,7 +327,7 @@ Definition do_if S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_while S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_while" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list _, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
   let body := args_cdr_car in
@@ -351,7 +351,7 @@ Definition do_while S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_repeat" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let body := args_car in
   let%success cntxt :=
@@ -368,7 +368,7 @@ Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_eval S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_eval" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let expr := args_car in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in

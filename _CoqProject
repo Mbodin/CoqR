@@ -22,8 +22,6 @@
 ./src/Loops.v
 ./src/Rcore.v
 
--R ./src/features Features
-
 ./src/features/Errors.v
 ./src/features/Util.v
 ./src/features/Attrib.v
@@ -41,6 +39,7 @@
 ./src/features/Arithmetic.v
 ./src/features/Subset.v
 ./src/features/Relop.v
+./src/features/Names.v
 
 ./src/Rfeatures.v
 ./src/Rinit.v

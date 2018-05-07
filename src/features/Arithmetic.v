@@ -766,7 +766,7 @@ Definition R_unary S (call op s1 : SEXP) : result SEXP :=
   | LglSxp => logical_unary S operation s1
   | IntSxp => integer_unary S operation s1
   | RealSxp => real_unary S operation s1
-  | CplxSxp => complex_unary S operation s1
+  | CplxSxp => complex_unary globals runs S operation s1
   | _ => result_error S "Invalid argument to unary operator."
   end.
 
@@ -918,8 +918,8 @@ Definition math1 S sa f (lcall : SEXP) :=
 
 Definition do_math1 S (call op args env : SEXP) : result SEXP :=
   add%stack "do_math1" in
-  run%success Rf_checkArityCall S op args call using S in
-  run%success Rf_check1arg S args call "x" using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_check1arg globals S args call "x" using S in
   if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
     result_success S ans
   else

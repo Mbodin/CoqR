@@ -38,15 +38,15 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition do_typeof S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_typeof" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success t := TYPEOF S args_car using S in
   type2rstr globals S t.
 
 Definition do_is S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_is" in
-  run%success Rf_checkArityCall S op args call using S in
-  run%success Rf_check1arg S args call "x" using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_check1arg globals S args call "x" using S in
   let%success op_val := PRIMVAL runs S op using S in
   read%list args_car, _, _ := args using S in
   let%success args_car_obj := isObject S args_car using S in
@@ -195,8 +195,8 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_isna S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_isna" in
-  run%success Rf_checkArityCall S op args call using S in
-  run%success Rf_check1arg S args call "x" using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_check1arg globals S args call "x" using S in
   let%success (disp, ans) :=
     DispatchOrEval globals runs S call op "is.na" args rho true true using S in
   if disp then
@@ -296,8 +296,8 @@ Definition do_isna S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_isnan S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_isnan" in
-  run%success Rf_checkArityCall S op args call using S in
-  run%success Rf_check1arg S args call "x" using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_check1arg globals S args call "x" using S in
   let%success (disp, ans) :=
     DispatchOrEval globals runs S call op "is.na" args rho true true using S in
   if disp then
@@ -339,7 +339,7 @@ Definition do_isnan S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_isvector" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   let x := args_car in
   read%list args_cdr_car, _, _ := args_cdr using S in

@@ -87,7 +87,7 @@ Definition seq_colon S n1 n2 (call : SEXP) : result SEXP :=
 
 Definition do_colon S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_colon" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, args_cdr, _ := args using S in
   read%list args_cdr_car, _, _ := args_cdr using S in
   let%success args_car_in := inherits globals runs S args_car "factor" using S in

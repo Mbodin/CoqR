@@ -98,7 +98,7 @@ Definition run_flush S n :=
 
 Definition do_getconnection S (call op args env : SEXP) : result SEXP :=
   add%stack "do_getconnection" in
-  run%success Rf_checkArityCall S op args call using S in
+  run%success Rf_checkArityCall globals runs S op args call using S in
   read%list args_car, _, _ := args using S in
   let%success what := asInteger globals S args_car using S in
   ifb what = NA_INTEGER then
