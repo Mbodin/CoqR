@@ -42,20 +42,20 @@ Local Coercion int_to_double : Z >-> double.
 (** * Interpreter functions **)
 
 (** We recall from RinternalsAux.v that we write [p_] for the object
-  referenced by the pointer [p], and [p_f] for the field [f] or it **)
+  referenced by the pointer [p], and [p_f] for the field [f] of it. **)
 
-Require Export Rmath.
-Require Export RinternalsCore.
+Require Export CRmath.
+Require Export CRinternals.
 Arguments SET_MISSING : clear implicits.
 
-Require Export Defn.
+Require Export CDefn.
 Arguments SET_PRSEEN : clear implicits.
 
-Require Export Memory.
-Require Export Rinlinedfuns.
-Require Export BuiltinCore.
-Require Export Duplicate.
-Require Export Dstruct.
+Require Export CMemory.
+Require Export CRinlinedfuns.
+Require Export CBuiltin.
+Require Export CDuplicate.
+Require Export CDstruct.
 
 (** ** Rinlinedfuns.c **)
 
@@ -148,11 +148,11 @@ Definition isValidString S x :=
 
 
 
-Require Export EvalCore.
-Require Export ArithmeticCore.
-Require Export UtilCore.
-Require Export PrintutilsCore.
-Require Export EnvirCore.
+Require Export CEval.
+Require Export CArithmetic.
+Require Export CUtil.
+Require Export CPrintutils.
+Require Export CEnvir.
 
 (** ** dstruct.c **)
 
@@ -179,12 +179,11 @@ Definition mkSYMSXP S (name value : SEXP) :=
   result_success S c.
 
 
-Require Export NamesCore.
-Require Export Sysutils.
-Require Export Gram.
-Require Export ContextCore.
-Require Export Match.
-
+Require Export CNames.
+Require Export CSysutils.
+Require Export CGram.
+Require Export CContext.
+Require Export CMatch.
 
 
 (** ** envir.c **)
@@ -730,8 +729,7 @@ Definition R_isMissing S (symbol rho : SEXP) :=
       else result_success S false.
 
 
-
-Require Export Altrep.
+Require Export CAltrep.
 
 (** ** util.c **)
 
@@ -757,10 +755,9 @@ Definition isBlankString s :=
   decide (Forall (fun c => isspace c) (string_to_list s)).
 
 
-
-Require Export CoerceCore.
-Require Export AttribCore.
-Require Export Objects.
+Require Export CCoerce.
+Require Export CAttrib.
+Require Export CObjects.
 
 
 (** ** eval.c **)
