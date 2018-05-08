@@ -195,21 +195,36 @@ infinite execution.
 In some ways, this file provides notations enabling to write
 imperative loops in Coq.
 
+*** =core/=
+
+This folder contains Coq translations of various core functions of R from its C code.
+This folder is organised by the corresponding file name in the C source code of R.
+
+The core functions of R are the ones used thoroughly in R source code.
+They are internal C functions and are not linked to the initial R environment
+(defined in the =names.c= file in C).
+
 *** =Rcore.v=
 
-A Coq formalisation of the evaluation functions of R from its C code.
-Note that only relevant definitions are translated here. Some are just
-reinterpreted in Coq without following the original algorithm of the
-C source. See report for more details.
+This file wraps up all the files present in the =core/= folder.
 
 *** =Rinit.v=
 
 Initialises global variables.
 
+*** =features/=
+
+This folder contains Coq translations of various non-core functions of R from its C code.
+This folder is organised by the corresponding file name in the C source code of R.
+Most of the functions defined in the files of this folder appear in the initial
+environment of R, initialised in the file =names.c= in C.
+
 *** =Rfeatures.v=
 
-A Coq formalisation of additionnal functions of R from its C code.
-This file also contains the final interpreter.
+This file wraps up all the files present in the =features/= folder.
+This file also wraps all these functions into the main function array of =names.c=.
+Finally, this files defines the =runs= structure, enabling Coq functions to loop
+without explicitly manipulating a fuel.
 
 *** =RfeaturesAux.v=
 
@@ -245,15 +260,6 @@ Defines tactics to manipulate the invariants defined in =Invariants.v=.
 
 Proofs of some invariants respected by the functions defined in =Rcore.v=,
 =Rinit.v=, and =Rfeatures.v=.
-
-*** =Relation.v=
-
-Links the low-level formalisation to the C source code of R.
-
-*** =RelationCorrect.v=
-
-Proof that the relation defined in Module Relation holds along the
-execution of the functions of Rcore.
 
 *** =Extraction.v=
 
