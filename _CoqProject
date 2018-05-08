@@ -20,6 +20,30 @@
 ./src/InternalTypes.v
 ./src/Globals.v
 ./src/Loops.v
+
+./src/core/Rmath.v
+./src/core/RinternalsCore.v
+./src/core/Defn.v
+./src/core/Memory.v
+./src/core/Rinlinedfuns.v
+./src/core/BuiltinCore.v
+./src/core/Duplicate.v
+./src/core/Dstruct.v
+./src/core/EvalCore.v
+./src/core/ArithmeticCore.v
+./src/core/UtilCore.v
+./src/core/PrintutilsCore.v
+./src/core/EnvirCore.v
+./src/core/NamesCore.v
+./src/core/Sysutils.v
+./src/core/Gram.v
+./src/core/ContextCore.v
+./src/core/Match.v
+./src/core/Altrep.v
+./src/core/CoerceCore.v
+./src/core/AttribCore.v
+./src/core/Objects.v
+
 ./src/Rcore.v
 
 ./src/features/Errors.v
@@ -53,4 +77,3 @@
 ./src/InvariantsAux.v
 ./src/InvariantsTactics.v
 ./src/InvariantsProofs.v
-
