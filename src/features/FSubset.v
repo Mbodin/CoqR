@@ -21,8 +21,8 @@
 Set Implicit Arguments.
 Require Import Ascii.
 Require Import Rcore.
-Require Import Util.
-Require Import Arithmetic.
+Require Import FUtil.
+Require Import FArithmetic.
 
 Section Parameters.
 

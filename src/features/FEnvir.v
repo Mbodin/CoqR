@@ -20,7 +20,7 @@
 
 Set Implicit Arguments.
 Require Import Rcore.
-Require Import Util.
+Require Import FUtil.
 
 Section Parameters.
 

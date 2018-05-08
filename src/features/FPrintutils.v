@@ -19,10 +19,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii.
 Require Import Rcore.
-Require Import Util.
-Require Import Connections.
+Require Import FUtil.
+Require Import FConnections.
 
 Section Parameters.
 
@@ -36,7 +35,6 @@ Variable runs : runs_type.
 Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
-
 
 (** This function is inspired from [Rprintf]. **)
 Definition Rprint S str :=

@@ -21,9 +21,9 @@
 Set Implicit Arguments.
 Require Import Ascii.
 Require Import Rcore.
-Require Import Util.
-Require Import Printutils.
-Require Import Connections.
+Require Import FUtil.
+Require Import FPrintutils.
+Require Import FConnections.
 
 Section Parameters.
 
