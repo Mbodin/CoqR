@@ -30,6 +30,7 @@ Require Import CDuplicate.
 Require Import CArithmetic.
 Require Import CPrintutils.
 Require Import CSysutils.
+Require Import CUtil.
 
 Section Parameterised.
 

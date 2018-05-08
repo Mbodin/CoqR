@@ -23,7 +23,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii Double.
 Require Import Loops.
 Require Import CRinternals.
 Require Import CRinlinedfuns.
@@ -176,24 +175,6 @@ Definition nthcdr S s n :=
         result_success S (s, n - 1) using S, runs in
     result_success S s
   else result_error S "No CDR.".
-
-Definition truenames : list string :=
-  ["T"; "True"; "TRUE"; "true"]%string.
-
-Definition StringTrue name :=
-  decide (Mem name truenames).
-
-Definition falsenames : list string :=
-  ["F"; "False"; "FALSE"; "false"]%string.
-
-Definition StringFalse name :=
-  decide (Mem name falsenames).
-
-Definition isspace c :=
-  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
-
-Definition isBlankString s :=
-  decide (Forall (fun c => isspace c) (string_to_list s)).
 
 (** ** envir.c **)
 

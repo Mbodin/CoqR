@@ -19,11 +19,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii Double.
 Require Import Loops.
 Require Import Conflicts.
 Require Import CRinternals.
 Require Import CMemory.
+Require Import CDstruct.
 
 Section Parameterised.
 
@@ -56,30 +56,6 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-(** The following two functions are actually from main/dstruct.c. They
-  are placed here to solve a circular file dependency. **)
-Definition iSDDName S (name : SEXP) :=
-  add%stack "iSDDName" in
-  let%success buf := CHAR S name using S in
-  ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
-    let buf := String.substring 2 (String.length buf) buf in
-    (** I am simplifying the C code here. **)
-    result_success S (decide (Forall (fun c : Ascii.ascii =>
-        Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
-      (string_to_list buf)))
-  else
-  result_success S false.
-
-Definition mkSYMSXP S (name value : SEXP) :=
-  add%stack "mkSYMSXP" in
-  let%success i := iSDDName S name using S in
-  let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
-  run%success SET_DDVAL S c i using S in
-  result_success S c.
-
-
-
-
 Definition mkSymMarker S pname :=
   add%stack "mkSymMarker" in
   let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
@@ -106,7 +82,7 @@ Definition install S name_ : result SEXP :=
     result_error S "Attempt to use zero-length variable name."
   else
     let (S, str) := mkChar globals S name_ in
-    let%success sym := mkSYMSXP S str R_UnboundValue using S in
+    let%success sym := mkSYMSXP globals S str R_UnboundValue using S in
     let (S, SymbolTable) := CONS globals S sym (R_SymbolTable S) in
     let S := update_R_SymbolTable S SymbolTable in
     result_success S sym.
