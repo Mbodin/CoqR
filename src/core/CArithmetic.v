@@ -26,7 +26,7 @@ Require Import CRinlinedfuns.
 
 Section Parameterised.
 
-(** * Global Variables **)
+(** Global Variables **)
 
 Variable globals : Globals.
 
@@ -123,3 +123,4 @@ Definition ScalarValue2 S x y :=
       allocVector globals S x_type 1.
 
 End Parameterised.
+

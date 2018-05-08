@@ -21,6 +21,7 @@
 
 Require Export Rinternals InternalTypes Common.
 
+(** * Initialised **)
 
 (** Global variables that are initialised once, then treated as
   constants.  They are initialised in the file Rinit.v.
@@ -203,4 +204,45 @@ Proof. introv. destruct C; reflexivity. Qed.
 
 Definition flatten_Globals (g : Globals) : Globals :=
   Globals_with_mapping g (flatten_Global_mapping g).
+
+
+(** * Constants **)
+
+(** We now list constant global variables. **)
+
+(* We may want to make [INT_MIN] and [INT_MAX] a parameter of the formalisation,
+  as it depends on the C compiler options. *)
+Definition INT_MIN : int := - 2 ^ 31.
+Definition INT_MAX : int := 2 ^ 31 - 1.
+
+Definition R_INT_MAX := INT_MAX.
+Definition R_INT_MIN := INT_MIN.
+
+Definition R_NaInt := INT_MIN.
+Definition NA_INTEGER := R_NaInt.
+Definition NA_LOGICAL := R_NaInt.
+Definition R_PosInf : double := Double.posInf.
+Definition R_NegInf : double := Double.negInf.
+Definition R_NaN : double := Double.NaN.
+Definition R_NaReal : double := Double.NaN1954.
+Definition NA_REAL : double := R_NaReal.
+
+Definition R_NaString := NA_STRING.
+
+Definition R_XLEN_T_MAX : int := Zpos 4503599627370496.
+
+Definition PLUSOP := 1.
+Definition MINUSOP := 2.
+Definition TIMESOP := 3.
+Definition DIVOP := 4.
+Definition POWOP := 5.
+Definition MODOP := 6.
+Definition IDIVOP := 7.
+
+Definition EQOP := 1.
+Definition NEOP := 2.
+Definition LTOP := 3.
+Definition LEOP := 4.
+Definition GEOP := 5.
+Definition GTOP := 6.
 

@@ -26,8 +26,6 @@ Require Import CDuplicate.
 
 Section Parameterised.
 
-(** * Global Variables **)
-
 Variable globals : Globals.
 
 Let read_globals := read_globals globals.
@@ -55,44 +53,6 @@ Definition read_R_FunTab S n :=
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
-
-(* We may want to make [INT_MIN] and [INT_MAX] a parameter of the formalisation,
-  as it depends on the C compiler options. *)
-Definition INT_MIN : int := - 2 ^ 31.
-Definition INT_MAX : int := 2 ^ 31 - 1.
-
-Definition R_INT_MAX := INT_MAX.
-Definition R_INT_MIN := INT_MIN.
-
-Definition R_NaInt := INT_MIN.
-Definition NA_INTEGER := R_NaInt.
-Definition NA_LOGICAL := R_NaInt.
-Definition R_PosInf : double := Double.posInf.
-Definition R_NegInf : double := Double.negInf.
-Definition R_NaN : double := Double.NaN.
-Definition R_NaReal : double := Double.NaN1954.
-Definition NA_REAL : double := R_NaReal.
-
-Definition R_NaString := NA_STRING.
-
-Definition R_XLEN_T_MAX : int := Zpos 4503599627370496.
-
-Definition PLUSOP := 1.
-Definition MINUSOP := 2.
-Definition TIMESOP := 3.
-Definition DIVOP := 4.
-Definition POWOP := 5.
-Definition MODOP := 6.
-Definition IDIVOP := 7.
-
-Definition EQOP := 1.
-Definition NEOP := 2.
-Definition LTOP := 3.
-Definition LEOP := 4.
-Definition GEOP := 5.
-Definition GTOP := 6.
-
-(** End of Global Variables **)
 
 
 Definition R_has_methods S (op : SEXP) :=
@@ -134,5 +94,5 @@ Definition asS4 S s (flag : bool) (complete : int) :=
 Definition R_possible_dispatch (S : state) (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
   unimplemented_function "R_possible_dispatch".
 
-
 End Parameterised.
+
