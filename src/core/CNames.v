@@ -21,9 +21,9 @@
 Set Implicit Arguments.
 Require Import Ascii Double.
 Require Import Loops.
+Require Import Conflicts.
 Require Import CRinternals.
 Require Import CMemory.
-Require Import CEnvir.
 
 Section Parameterised.
 

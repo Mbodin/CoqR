@@ -19,8 +19,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii Double.
+Require Import Double.
 Require Import Loops.
+Require Import Conflicts.
 Require Import CRmath.
 Require Import CRinternals.
 Require Import CMemory.
@@ -28,7 +29,6 @@ Require Import CRinlinedfuns.
 Require Import CDuplicate.
 Require Import CArithmetic.
 Require Import CPrintutils.
-Require Import CEnvir.
 Require Import CSysutils.
 
 Section Parameterised.
@@ -60,70 +60,6 @@ Definition read_R_FunTab S n :=
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
-
-
-(** The following six functions are actually from main/util.c. They
-  are placed here to solve a circular file dependency. **)
-Definition truenames : list string :=
-  ["T"; "True"; "TRUE"; "true"]%string.
-
-Definition StringTrue name :=
-  decide (Mem name truenames).
-
-Definition falsenames : list string :=
-  ["F"; "False"; "FALSE"; "false"]%string.
-
-Definition StringFalse name :=
-  decide (Mem name falsenames).
-
-Definition isspace c :=
-  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
-
-Definition isBlankString s :=
-  decide (Forall (fun c => isspace c) (string_to_list s)).
-
-(** The following two functions are actually from main/Rinlinedfuns.c. They
-  are placed here to solve a circular file dependency. **)
-
-Definition isVectorizable S (s : SEXP) :=
-  add%stack "isVectorizable" in
-  ifb s = R_NilValue then
-    result_success S true
-  else if%success isNewList globals S s using S then
-    let%success n := XLENGTH S s using S in
-    do%exit
-    for i from 0 to n - 1 do
-      let%success s_i := VECTOR_ELT S s i using S in
-      let%success s_i_iv := isVector S s_i using S in
-      let%success s_i_len := LENGTH globals S s_i using S in
-      ifb ~ s_i_iv \/ s_i_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S in
-    result_success S true
-  else if%success isList globals S s using S then
-    fold%return
-    along s
-    as s_car, _ do
-      let%success s_car_iv := isVector S s_car using S in
-      let%success s_car_len := LENGTH globals S s_car using S in
-      ifb ~ s_car_iv \/ s_car_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S, runs, globals in
-    result_success S true
-  else result_success S false.
-
-Definition isArray S s :=
-  add%stack "isArray" in
-  if%success isVector S s using S then
-    let%success t := runs_getAttrib runs S s R_DimSymbol using S in
-    let%success t_type := TYPEOF S t using S in
-    let%success t_len := LENGTH globals S t using S in
-    ifb t_type = IntSxp /\ t_len > 0 then
-      result_success S true
-    else result_success S false
-  else result_success S false.
-
-
 
 
 Definition LogicalFromString S (x : SEXP) :=
@@ -402,7 +338,7 @@ Definition coercePairList S v type :=
     else ifb type = VecSxp then
       let%success rval := PairToVectorList S v using S in
       result_rreturn S rval
-    else if%success isVectorizable S v using S then
+    else if%success isVectorizable globals runs S v using S then
       let%success n := R_length globals runs S v using S in
       let%success rval := allocVector globals S type n using S in
       run%success
@@ -996,7 +932,7 @@ Definition copyDimAndNames S x ans :=
         run%success runs_setAttrib runs S ans R_DimSymbol dims using S in
         result_skip S
       else result_skip S using S in
-    if%success isArray S x using S then
+    if%success isArray globals runs S x using S then
       let%success names := runs_getAttrib runs S x R_DimNamesSymbol using S in
       ifb names <> R_NilValue then
         run%success runs_setAttrib runs S ans R_DimNamesSymbol names using S in

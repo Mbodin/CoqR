@@ -21,6 +21,7 @@
 Set Implicit Arguments.
 Require Import Double.
 Require Import Loops.
+Require Import Conflicts.
 Require Import CRinternals.
 Require Import CMemory.
 Require Import CRinlinedfuns.
@@ -58,50 +59,6 @@ Definition read_R_FunTab S n :=
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
-
-
-(** The following two functions are actually from main/Rinlinedfuns.c. They
-  are placed here to solve a circular file dependency. **)
-
-Definition R_FixupRHS S x y :=
-  add%stack "R_FixupRHS" in
-  let%success y_named := NAMED S y using S in
-  ifb y <> R_NilValue /\ y_named <> named_temporary then
-    if%success R_cycle_detected globals runs S x y using S then
-      duplicate globals runs S y
-    else
-      map%pointer y with set_named_plural using S in
-      result_success S y
-  else result_success S y.
-
-Definition isVectorizable S (s : SEXP) :=
-  add%stack "isVectorizable" in
-  ifb s = R_NilValue then
-    result_success S true
-  else if%success isNewList globals S s using S then
-    let%success n := XLENGTH S s using S in
-    do%exit
-    for i from 0 to n - 1 do
-      let%success s_i := VECTOR_ELT S s i using S in
-      let%success s_i_iv := isVector S s_i using S in
-      let%success s_i_len := LENGTH globals S s_i using S in
-      ifb ~ s_i_iv \/ s_i_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S in
-    result_success S true
-  else if%success isList globals S s using S then
-    fold%return
-    along s
-    as s_car, _ do
-      let%success s_car_iv := isVector S s_car using S in
-      let%success s_car_len := LENGTH globals S s_car using S in
-      ifb ~ s_car_iv \/ s_car_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S, runs, globals in
-    result_success S true
-  else result_success S false.
-
-
 
 
 Definition isOneDimensionalArray S vec :=
@@ -340,7 +297,7 @@ Definition namesgets S (vec val : SEXP) :=
   add%stack "namesgets" in
   let%success val :=
     if%success isList globals S val using S then
-      let%success val_vec := isVectorizable S val using S in
+      let%success val_vec := isVectorizable globals runs S val using S in
       if negb val_vec then
         result_error S "Incompatible ‘names’ argument."
       else
@@ -444,7 +401,7 @@ Definition setAttrib S (vec name val : SEXP) :=
     else
       let%success val :=
         if%success MAYBE_REFERENCED S val using S then
-          R_FixupRHS S vec val
+          R_FixupRHS globals runs S vec val
         else result_success S val using S in
       ifb name = R_NamesSymbol then
         namesgets S vec val

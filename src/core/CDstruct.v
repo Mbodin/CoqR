@@ -19,7 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Double.
+Require Import Ascii Double.
 Require Import Loops.
 Require Import CRinternals.
 
@@ -93,6 +93,25 @@ Definition mkCLOSXP S (formals body rho : SEXP) :=
     let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
     result_success S c
   end.
+
+Definition iSDDName S (name : SEXP) :=
+  add%stack "iSDDName" in
+  let%success buf := CHAR S name using S in
+  ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
+    let buf := String.substring 2 (String.length buf) buf in
+    (** I am simplifying the C code here. **)
+    result_success S (decide (Forall (fun c : Ascii.ascii =>
+        Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
+      (string_to_list buf)))
+  else
+  result_success S false.
+
+Definition mkSYMSXP S (name value : SEXP) :=
+  add%stack "mkSYMSXP" in
+  let%success i := iSDDName S name using S in
+  let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
+  run%success SET_DDVAL S c i using S in
+  result_success S c.
 
 End Parameterised.
 

@@ -21,6 +21,7 @@
 ./src/Globals.v
 ./src/Loops.v
 
+./src/core/Conflicts.v
 ./src/core/CRmath.v
 ./src/core/CRinternals.v
 ./src/core/CDefn.v

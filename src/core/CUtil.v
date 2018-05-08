@@ -19,7 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Double.
+Require Import Ascii Double.
 Require Import Loops.
 Require Import CRinternals.
 Require Import CRinlinedfuns.
@@ -55,28 +55,23 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition type2rstr S (t : SExpType) :=
-  add%stack "type2rstr" in
-  let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
-  ifb res <> NULL then result_success S res
-  else result_success S (R_NilValue : SEXP).
+Definition truenames : list string :=
+  ["T"; "True"; "TRUE"; "true"]%string.
 
-Definition nthcdr S s n :=
-  add%stack "nthcdr" in
-  let%success s_li := isList globals S s using S in
-  let%success s_la := isLanguage globals S s using S in
-  let%success s_fr := isFrame globals runs S s using S in
-  let%success s_t := TYPEOF S s using S in
-  ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
-    do%success (s, n) := (s, n)
-    whileb n > 0 do
-      ifb s = R_NilValue then
-        result_error S "List too short."
-      else
-        read%list _, s_cdr, _ := s using S in
-        result_success S (s, n - 1) using S, runs in
-    result_success S s
-  else result_error S "No CDR.".
+Definition StringTrue name :=
+  decide (Mem name truenames).
+
+Definition falsenames : list string :=
+  ["F"; "False"; "FALSE"; "false"]%string.
+
+Definition StringFalse name :=
+  decide (Mem name falsenames).
+
+Definition isspace c :=
+  decide (Mem c [" " ; "009" (** '\t' **) ; "010" (** '\n' **) ; "011" (** '\v' **) ; "012" (** '\f' **) ; "013" (** '\r' **)]%char).
+
+Definition isBlankString s :=
+  decide (Forall (fun c => isspace c) (string_to_list s)).
 
 End Parameterised.
 

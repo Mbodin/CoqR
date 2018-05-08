@@ -136,3 +136,5 @@ Definition PRVALUE S p :=
 
 End Parameterised.
 
+Arguments SET_PRSEEN : clear implicits.
+

@@ -204,6 +204,12 @@ The core functions of R are the ones used thoroughly in R source code.
 They are internal C functions and are not linked to the initial R environment
 (defined in the =names.c= file in C).
 
+Due to some circular dependencies between C files (which is accepted in C, but not in Coq),
+some functions have been put in a special file =Conflicts.v=.
+Note that despite this special file, there still are some functions separated from their
+original file in other file.  They are however always preceeded by a comment warning for
+the exceptional location of the function definition.
+
 *** =Rcore.v=
 
 This file wraps up all the files present in the =core/= folder.
