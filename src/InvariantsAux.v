@@ -91,6 +91,16 @@ Proof.
   rewrite~ BagInter_list.
 Qed.
 
+Lemma may_have_types_merge_singl : forall S p t1 t2,
+  may_have_types S ([t1]) p ->
+  may_have_types S ([t2]) p ->
+  t1 = t2.
+Proof.
+  introv (p_1&R1&T1) (p_2&R2&T2). rewrite R1 in R2. inverts R2. transitivity (type p_2).
+  - symmetry. eapply BagInSingle_list. apply T1.
+  - eapply BagInSingle_list. apply T2.
+Qed.
+
 Lemma may_have_types_weaken : forall S p l1 l2,
   may_have_types S l1 p ->
   l1 \c l2 ->

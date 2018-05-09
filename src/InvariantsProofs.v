@@ -84,10 +84,12 @@ Lemma isLanguage_result : forall S (s : SEXP),
     (isLanguage globals S s).
 Proof.
   introv OKs. unfolds isLanguage. computeR.
-  unfold_shape_pointer_explode S s;
-    (cutR TYPEOF_result; [ eassumption |]; lets (?&?): (rm P); substs;
-    simpl; splits~; rew_refl; iff [?|?]; autos~; tryfalse~; simplify_context).
-  Optimize Proof.
+  rewrite safe_pointer_rewrite in OKs. forwards (s_&R&_): pointer_bound OKs.
+  forwards*: read_SExp_may_have_types_read_exact R.
+  cutR TYPEOF_result; [ eassumption |]. lets (?&?): (rm P). substs. simpl. splits~.
+  rew_refl. iff [EN|EL]; autos~.
+  - rewrite EL in *. autos~.
+  - right. applys~ may_have_types_merge_singl EL.
 Qed.
 
 Lemma R_length_result : forall S s,
@@ -102,9 +104,9 @@ Proof.
   unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
     [ apply Ts
     | lets (E&C): (rm P); substs; simpl; autos~ ]); computeR.
-  - skip. (* TODO *)
-  - skip. (* TODO *)
-  - skip. (* TODO *)
+  - skip. (* TODO: dealing with whileb. *)
+  - skip. (* TODO: dealing with whileb. *)
+  - skip. (* TODO: dealing with whileb. *)
   - destruct s0_; tryfalse; simpl; autos~.
   Optimize Proof.
 Qed.
@@ -130,11 +132,18 @@ Proof.
 Qed.
 
 Lemma BodyHasBraces_result : forall S body,
+  safe_state S ->
+  safe_globals S globals ->
+  safe_pointer S body ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (BodyHasBraces globals S body).
 Proof.
-  introv. unfolds BodyHasBraces. computeR.
-  skip. (* TODO *)
+  introv OKS OKg OKbody. unfolds BodyHasBraces. computeR.
+  cutR isLanguage_result. lets (?&(I&_)): (rm P). substs. cases_if.
+  - forwards~ [EN|EL]: (rm I); substs.
+    + forwards~ T: R_NilValue_may_have_types OKg. fold read_globals in T. computeR.
+    + computeR.
+  - simpl. autos~.
 Qed.
 
 Lemma do_while_result : forall S call op args rho,
@@ -153,15 +162,17 @@ Lemma do_while_result : forall S call op args rho,
 Proof.
   introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
   cutR Rf_checkArityCall_result. substs. computeR.
-  unfolds list_cdrval. unfold_shape_pointer_one S cdr. computeR.
-  cutR BodyHasBraces_result. substs.
+  unfolds list_cdrval. unfold_shape_pointer_one S cdr. computeR. fold read_globals.
+  cutR BodyHasBraces_result; try solve_premises_smart. substs.
   unfolds begincontext.
   match goal with |- context [ state_with_context _ ?cptr' ] => sets_eq cptr: cptr' end.
-  sets_eq S': (state_with_context S cptr).
-  computeR. cutR safe_state.
-  - cases_if; skip. (* TODO *)
+  sets_eq S': (state_with_context S cptr). computeR. cutR safe_state.
+  - cases_if as C; fold_bool; rew_refl in C.
+    + skip. (* TODO: while. *)
+    + computeR. skip. (* TODO: endcontext. *)
   - skip. (* TODO: lacks hypothesis about [runs_set_longjump]. *)
   - skip. (* TODO: Something is wrong here… *)
+  Optimize Proof.
 Qed.
 
 (** * Lemmae about Rinit.v **)
