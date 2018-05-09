@@ -501,4 +501,3 @@ Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
 
 End Parameters.
 
-.
