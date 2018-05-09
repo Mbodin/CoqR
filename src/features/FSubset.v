@@ -414,8 +414,41 @@ Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
             result_success S y
         else
           result_success S (R_NilValue : SEXP)
-    else result_not_implemented "from VectorList".
+    else if%success isVectorList S x using S then
+      let%success nlist := getAttrib globals runs S x R_NamesSymbol using S in
 
+      let%success n := xlength globals runs S x using S in
+      do%exit (imatch, havematch) := (-1, 0)
+      for i from 0 to n - 1 do
+        let%success nlist_i := STRING_ELT S nlist i using S in                            
+        let%success pstr := pstrmatch S nlist_i input slen using S in
+        match pstr with
+         | EXACT_MATCH => let%success y := VECTOR_ELT S x i using S in
+                          let%success x_named := NAMED S x using S in
+                          run%success RAISE_NAMED S y x_named using S in
+                          result_rsuccess S y
+         | PARTIAL_MATCH => let havematch := havematch + 1 in
+                            ifb havematch = 1 then
+                              let%success y := VECTOR_ELT S x i using S in
+                              map%pointer y with set_named_plural using S in
+                              run%success SET_VECTOR_ELT S x i y using S in
+                              result_rsuccess S (i, havematch)
+                            else
+                              result_rsuccess S (i, havematch)
+         | NO_MATCH => result_rsuccess S (imatch, havematch)
+        end
+      using S in                                                
+      ifb havematch = 1 then
+      (* A warning has been formalised out here. *)
+        let%success y := VECTOR_ELT S x imatch using S in
+        let%success x_named := NAMED S x using S in
+        run%success RAISE_NAMED S y x_named using S in
+        result_success S y
+      else 
+        result_success S (R_NilValue : SEXP)
+    else
+      result_not_implemented S "from Environment".
+           
 (* We choose not to formalise the last argument [syminp] in the following function. *)
 Definition fixSubset3Args S (call args env : SEXP) :=
   add%stack "fixSubset3args" in
@@ -468,3 +501,4 @@ Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
 
 End Parameters.
 
+.
