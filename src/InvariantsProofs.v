@@ -34,6 +34,8 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
+Hypothesis runs_max_step : exists max_step, runs = Rfeatures.runs max_step globals.
+
 Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
   P_success S a ->
@@ -53,29 +55,40 @@ Lemma read_R_FunTab_result : forall S n,
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (read_R_FunTab runs S n).
 Proof.
-  introv OKn. unfolds in OKn. unfolds read_R_FunTab. computeR.
-  (* FIXME: Something is wrong here: we need hypotheses on [runs]. *)
-  skip. (* TODO *)
+  introv OKn. unfolds in OKn.
+  forwards (max_step&Eruns): runs_max_step. rewrite Eruns in *.
+  unfolds read_R_FunTab. computeR.
+  forwards OKn': (rm OKn) max_step globals S. destruct Rfeatures.runs.
+  destruct runs_R_FunTab eqn: E'; simpls; autos~. cases_if; simpl; autos*.
 Qed.
 
 Lemma PRIMARITY_result : forall S x,
-  safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (PRIMARITY runs S x).
-Proof.
-  introv OKS OKx Tx. unfolds PRIMARITY. computeR.
-  skip. (* TODO: cutR read_R_FunTab_result. *)
-Qed.
+Proof. introv OKx Tx. unfolds PRIMARITY. computeR. cutR read_R_FunTab_result. Qed.
 
 Lemma PRIMINTERNAL_result : forall S x,
-  safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (PRIMINTERNAL runs S x).
-Admitted. (* TODO *)
+Proof. introv OKx Tx. unfolds PRIMINTERNAL. computeR. cutR read_R_FunTab_result. Qed.
+
+Lemma isLanguage_result : forall S (s : SEXP),
+  safe_pointer S s ->
+  result_prop (fun S' (il : bool) =>
+       S' = S /\ (il <-> s = R_NilValue \/ may_have_types S ([LangSxp]) s))
+    (fun _ => False) (fun _ _ _ => False)
+    (isLanguage globals S s).
+Proof.
+  introv OKs. unfolds isLanguage. computeR.
+  unfold_shape_pointer_explode S s;
+    (cutR TYPEOF_result; [ eassumption |]; lets (?&?): (rm P); substs;
+    simpl; splits~; rew_refl; iff [?|?]; autos~; tryfalse~; simplify_context).
+  Optimize Proof.
+Qed.
 
 Lemma R_length_result : forall S s,
   safe_state S ->
@@ -86,11 +99,15 @@ Proof.
   introv OKS OKs. unfolds R_length. computeR.
   forwards Ts: bound_may_have_types S s.
   { solve_premises_smart. }
-  unfolds all_SExpTypes.
-  explode_list Ts; (cutR TYPEOF_result;
+  unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
     [ apply Ts
-    | lets (E&C): (rm P); substs; simpl; autos~ ]).
-Admitted. (* TODO *)
+    | lets (E&C): (rm P); substs; simpl; autos~ ]); computeR.
+  - skip. (* TODO *)
+  - skip. (* TODO *)
+  - skip. (* TODO *)
+  - destruct s0_; tryfalse; simpl; autos~.
+  Optimize Proof.
+Qed.
 
 (** * Lemmae about Rfeatures.v **)
 

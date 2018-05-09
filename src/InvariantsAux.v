@@ -33,6 +33,11 @@ Lemma bound_such_that_weaken : forall S (P1 P2 : _ -> Prop) p,
   bound_such_that S P2 p.
 Proof. introv I (p_&E&H). exists* p_. Qed.
 
+Lemma bound_such_that_bound : forall S P p,
+  bound_such_that S P p ->
+  bound S p.
+Proof. introv (p_&E&H). exists* p_. Qed.
+
 Lemma bound_write : forall S S' p p' p_,
   write_SExp S p p_ = Some S' ->
   bound S p' ->
