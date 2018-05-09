@@ -42,8 +42,26 @@ Record runs_type : Type := runs_type_intro {
     runs_RealAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
     runs_ComplexAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
     runs_RawAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
-    runs_R_FunTab : funtab
+    runs_R_FunTab : option funtab
   }.
+
+(** The following function reads the [runs_R_FunTab] projection as a result. **)
+Definition get_R_FunTab runs S :=
+  add%stack "get_R_FunTab" in
+  match runs_R_FunTab runs with
+  | None => result_bottom S
+  | Some t => result_success S t
+  end.
+
+(** An accessor for the [runs_R_FunTab] projection. **)
+Definition read_R_FunTab runs S n :=
+  add%stack "read_R_FunTab" in
+  let%success t := get_R_FunTab runs S using S in
+  ifb n >= ArrayList.length t then
+    result_impossible S "Out of bounds."
+  else
+    let c := ArrayList.read t n in
+    result_success S c.
 
 
 (** * Frequent Patterns **)

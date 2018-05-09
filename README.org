@@ -45,9 +45,9 @@ More information can be found in the
 
 Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
- - =src/Rcore.v= contains translations of the main functions of R;
- - =src/Rfeatures.v= contains translations of additional functions of R (typically present
-   in the default heap);
+ - the =src/core/= folder contains translations of the main functions of R;
+ - the =src/features/= folder contains translations of additional functions of R (typically
+   present in the default heap);
  - =src/Invariants.v= defines some invariants of R’s structures;
  - =src/InvariantProofs.v= contains proofs that the invariants defined in =src/Invariants.v=
    are conserved along the execution.

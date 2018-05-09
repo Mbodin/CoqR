@@ -32,23 +32,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
-Definition get_R_FunTab S :=
-  add%stack "get_R_FunTab" in
-  match runs_R_FunTab runs with
-  | None => result_bottom S
-  | Some t => result_success S t
-  end.
-
-Definition read_R_FunTab S n :=
-  add%stack "read_R_FunTab" in
-  let%success t := get_R_FunTab S using S in
-  ifb n >= ArrayList.length t then
-    result_impossible S "Out of bounds."
-  else
-    let c := ArrayList.read t n in
-    result_success S c.
-
-
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
