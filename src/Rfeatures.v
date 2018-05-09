@@ -948,3 +948,5 @@ Fixpoint runs max_step globals : runs_type :=
     |}
   end.
 
+Optimize Heap.
+

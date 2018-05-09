@@ -150,6 +150,12 @@ Inductive null_pointer_exceptions_globals : GlobalVariable -> Prop := .
 
 (** ** Invariants **)
 
+(** A safe offset is defined as one linked with a function in the
+  [R_FunTab] array. **)
+Definition safe_offset n := forall max_step globals S,
+  result_prop (fun _ _ => True) (fun _ => True) (fun _ _ _ => True)
+    (read_R_FunTab (runs max_step globals) S n).
+
 (** The invariants defined in this file are about types.
   We here states for each R’s type how its field should be typed.
   For instance, the “cdr” field of a list is either of type
@@ -191,8 +197,10 @@ Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
       may_have_types S ([NilSxp ; CharSxp]) tag ->
       safe_SExpRec_type S LangSxp (make_NonVector_SExpRec header (make_ListSxp_struct car cdr tag))
   | SExpType_corresponds_to_data_SpecialSxp : forall header offset,
+      safe_offset offset ->
       safe_SExpRec_type S SpecialSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
   | SExpType_corresponds_to_data_BuiltinSxp : forall header offset,
+      safe_offset offset ->
       safe_SExpRec_type S BuiltinSxp (make_NonVector_SExpRec header (make_PrimSxp_struct offset))
   | SExpType_corresponds_to_data_CharSxp : forall header array,
       safe_SExpRec_type S CharSxp

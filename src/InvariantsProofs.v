@@ -1,4 +1,4 @@
-(** Invariants.
+(** InvariantsProofs.
   Contains the proofs of some invariants respected by the functions
   defined in Rcore, Rinit, and Rfeatures. **)
 
@@ -18,8 +18,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Import Rcore RfeaturesAux Rinit.
-Require Export InvariantsTactics.
+Require Import Rcore.
+Require Import RfeaturesAux.
+Require Import Rinit.
+Require Import InvariantsAux InvariantsTactics.
 Require Import Paco.paco.
 
 
@@ -47,11 +49,12 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
 (** * Lemmae about Rcore.v **)
 
 Lemma read_R_FunTab_result : forall S n,
-  (* FIXME: n < ArrayList.length ?? -> *)
+  safe_offset n ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (read_R_FunTab runs S n).
 Proof.
-  introv. unfolds read_R_FunTab. computeR.
+  introv OKn. unfolds in OKn. unfolds read_R_FunTab. computeR.
+  (* FIXME: Something is wrong here: we need hypotheses on [runs]. *)
   skip. (* TODO *)
 Qed.
 
@@ -106,6 +109,7 @@ Proof.
   - computeR. cutR PRIMINTERNAL_result.
     substs. cases_if; simpl; autos~.
   - simpl. autos~.
+  Optimize Proof.
 Qed.
 
 Lemma BodyHasBraces_result : forall S body,
@@ -227,6 +231,7 @@ Proof.
          applys state_equiv_sym. applys state_equiv_trans E2 E3.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
+  Optimize Proof.
 Qed.
 
 End Parameterised.

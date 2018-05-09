@@ -17,7 +17,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Export MonadTactics Rfeatures.
+Require Export Rfeatures.
+Require Import MonadTactics.
 
 
 (** * Projections of [runs] **)
@@ -97,7 +98,7 @@ Defined.
 
 Lemma runs_proj_while_loop_eq : forall max_step globals,
   runs_while_loop (runs max_step globals) = runs_proj_while_loop max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_set_longjump] **)
 
@@ -107,7 +108,7 @@ Defined.
 
 Lemma runs_proj_set_longjump_eq : forall max_step globals,
   runs_set_longjump (runs max_step globals) = runs_proj_set_longjump max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_R_cycle_detected] **)
 
@@ -117,7 +118,7 @@ Defined.
 
 Lemma runs_proj_R_cycle_detected_eq : forall max_step globals,
   runs_R_cycle_detected (runs max_step globals) = runs_proj_R_cycle_detected max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_eval] **)
 
@@ -127,7 +128,7 @@ Defined.
 
 Lemma runs_proj_eval_eq : forall max_step globals,
   runs_eval (runs max_step globals) = runs_proj_eval max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_getAttrib] **)
 
@@ -137,7 +138,7 @@ Defined.
 
 Lemma runs_proj_getAttrib_eq : forall max_step globals,
   runs_getAttrib (runs max_step globals) = runs_proj_getAttrib max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_setAttrib] **)
 
@@ -147,7 +148,7 @@ Defined.
 
 Lemma runs_proj_setAttrib_eq : forall max_step globals,
   runs_setAttrib (runs max_step globals) = runs_proj_setAttrib max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_duplicate1] **)
 
@@ -157,7 +158,7 @@ Defined.
 
 Lemma runs_proj_duplicate1_eq : forall max_step globals,
   runs_duplicate1 (runs max_step globals) = runs_proj_duplicate1 max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_stripAttrib] **)
 
@@ -167,7 +168,7 @@ Defined.
 
 Lemma runs_proj_stripAttrib_eq : forall max_step globals,
   runs_stripAttrib (runs max_step globals) = runs_proj_stripAttrib max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_evalseq] **)
 
@@ -177,7 +178,7 @@ Defined.
 
 Lemma runs_proj_evalseq_eq : forall max_step globals,
   runs_evalseq (runs max_step globals) = runs_proj_evalseq max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_R_isMissing] **)
 
@@ -188,7 +189,7 @@ Defined.
 (*
 Lemma runs_proj_R_isMissing_eq : forall max_step globals,
   runs_R_isMissing (runs max_step globals) = runs_proj_R_isMissing max_step globals.
-Proof. solve_eq_simple_projection. (* FIXME: Stack overflow *) Qed.
+Proof. solve_eq_simple_projection. (* FIXME: Stack overflow *) Optimize Proof. Qed.
  *)
 
 (** ** [runs_AnswerType] **)
@@ -199,7 +200,7 @@ Defined.
 
 Lemma runs_proj_AnswerType_eq : forall max_step globals,
   runs_AnswerType (runs max_step globals) = runs_proj_AnswerType max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_ListAnswer] **)
 
@@ -209,7 +210,7 @@ Defined.
 
 Lemma runs_proj_ListAnswer_eq : forall max_step globals,
   runs_ListAnswer (runs max_step globals) = runs_proj_ListAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_StringAnswer] **)
 
@@ -219,7 +220,7 @@ Defined.
 
 Lemma runs_proj_StringAnswer_eq : forall max_step globals,
   runs_StringAnswer (runs max_step globals) = runs_proj_StringAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_LogicalAnswer] **)
 
@@ -229,7 +230,7 @@ Defined.
 
 Lemma runs_proj_LogicalAnswer_eq : forall max_step globals,
   runs_LogicalAnswer (runs max_step globals) = runs_proj_LogicalAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_IntegerAnswer] **)
 
@@ -239,7 +240,7 @@ Defined.
 
 Lemma runs_proj_IntegerAnswer_eq : forall max_step globals,
   runs_IntegerAnswer (runs max_step globals) = runs_proj_IntegerAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_RealAnswer] **)
 
@@ -249,7 +250,7 @@ Defined.
 
 Lemma runs_proj_RealAnswer_eq : forall max_step globals,
   runs_RealAnswer (runs max_step globals) = runs_proj_RealAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_ComplexAnswer] **)
 
@@ -259,7 +260,7 @@ Defined.
 
 Lemma runs_proj_ComplexAnswer_eq : forall max_step globals,
   runs_ComplexAnswer (runs max_step globals) = runs_proj_ComplexAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_RawAnswer] **)
 
@@ -269,7 +270,7 @@ Defined.
 
 Lemma runs_proj_RawAnswer_eq : forall max_step globals,
   runs_RawAnswer (runs max_step globals) = runs_proj_RawAnswer max_step globals.
-Proof. solve_eq_simple_projection. Qed.
+Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 
 (** ** [runs_R_FunTab] **)
 
@@ -292,6 +293,7 @@ Proof.
   - destruct n'; try solve [ math ]. simpls.
     destruct expr; simpls~; tryfalse~. cases_if~.
     destruct body; simpls~; tryfalse~. rewrite~ IHn. math.
+  Optimize Proof.
 Qed.
 
 (** ** [runs_set_longjump] **)
@@ -305,6 +307,7 @@ Proof.
   - false~ B.
   - destruct n'; try solve [ math ]. simpls.
     destruct cont; simpls~; tryfalse~. cases_if~. rewrite~ IHn. math.
+  Optimize Proof.
 Qed.
 
 (** ** [runs_R_cycle_detected] **)
@@ -345,6 +348,7 @@ Proof.
     + rewrite~ IHn.
       * math.
       * destruct~ runs_proj_stripAttrib.
+  Optimize Proof.
 Qed.
 
 (** This is quite a heavy proof for now. **)
@@ -392,4 +396,7 @@ Qed.
 (** ** [runs_R_FunTab] **)
 
 (** Not yet applicable **)
+
+
+Optimize Heap.
 

@@ -499,3 +499,5 @@ Definition empty_state := {|
     R_asymSymbol := nil
   |}.
 
+Optimize Heap.
+

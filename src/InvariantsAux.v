@@ -218,6 +218,7 @@ Proof.
   - applys~ BagInIncl I1.
   - applys~ may_have_types_weaken Mcar.
   - applys~ may_have_types_weaken Mtag.
+  Optimize Proof.
 Qed.
 
 Lemma list_type_weaken : forall (P1header P2header P1car P2car P1tag P2tag : _ -> Prop)
@@ -239,6 +240,7 @@ Proof.
     + applys~ BagInIncl H Incl1.
     + applys~ may_have_types_weaken A Incl2.
     + applys~ may_have_types_weaken T Incl3.
+  Optimize Proof.
 Qed.
 
 Lemma list_head_such_that_weaken : forall (P1header P2header P1car P2car P1tag P2tag : _ -> Prop)
@@ -254,6 +256,7 @@ Lemma list_head_such_that_weaken : forall (P1header P2header P1car P2car P1tag P
 Proof.
   introv I1 I2 I3 Iheader Icar Itag L. applys~ list_type_head_such_that_weaken L.
   introv L'. applys~ list_type_weaken Icar Itag L'.
+  Optimize Proof.
 Qed.
 
 
@@ -273,6 +276,7 @@ Proof.
     intro_subst. destruct path.
     + rewrite move_along_path_from_nil in E2. inverts~ E2.
     + rewrite move_along_path_from_NULL in E2; [ inverts E2 | discriminate ].
+  Optimize Proof.
 Qed.
 
 Lemma safe_pointer_along_path_from : forall S p path e,
@@ -489,6 +493,7 @@ Proof.
   - apply list_type_cons. exists p_. splits~.
     + applys~ conserve_old_binding_read C.
     + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
+  Optimize Proof.
 Qed.
 
 Lemma conserve_old_binding_list_head : forall Pheader Pcar Ptag S S' l_t l_car l_tag p_,
@@ -545,6 +550,7 @@ Proof.
     + simpl in M. forwards M': conserve_old_binding_move_along_path_step C M.
       erewrite IHl; [apply M'|]. rewrite~ F.
     + inverts~ M.
+  Optimize Proof.
 Qed.
 
 Lemma conserve_old_binding_move_along_path : forall S S' p e,
@@ -667,6 +673,7 @@ Proof.
                    end; try splits);
     try applys_first (>> conserve_old_binding_may_have_types
                          conserve_old_binding_list_type) C; autos*.
+  Optimize Proof.
 Qed.
 
 Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
@@ -767,6 +774,7 @@ Proof.
   introv OKp. rewrite safe_pointer_rewrite in OKp. forwards (p_&R&_): pointer_bound OKp. exists p_. splits~.
   forwards~ OKp_: safe_SExpRec_read OKp R.
   apply SExpType_corresponds_to_datatype in OKp_. inverts OKp_; Mem_solve.
+  Optimize Proof.
 Qed.
 
 Lemma list_type_safe_safe_pointer : forall S globals l_car l_tag l,
@@ -796,6 +804,7 @@ Proof.
       rewrite T. constructors~; try solve [ applys* may_have_types_weaken ].
       apply list_type_may_have_types in L'.
       applys may_have_types_weaken L'. solve_incl.
+  Optimize Proof.
 Qed.
 
 Lemma conserve_old_binding_safe_globals : forall S S' globals,
@@ -848,7 +857,7 @@ Proof.
     introv Ep. rewrite <- E in Ep. constructors.
     + (** SExpType_corresponds_to_datatype **)
       forwards* OKp_: SExpType_corresponds_to_datatype OKp.
-      inversion OKp_; constructors; try solve [ applys~ may_have_types_same_memory E ].
+      inversion OKp_; constructors~; try solve [ applys~ may_have_types_same_memory E ].
       * applys~ list_type_same_memory E.
       * introv M. applys* may_have_types_same_memory E.
       * introv M. applys* may_have_types_same_memory E.
@@ -884,13 +893,15 @@ Proof.
   introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts OKp_;
     simpl in I; do 4 eexists; splits; try reflexivity; autos~;
     simpl; try rewrite~ I; apply* may_have_types_weaken; solve_incl.
+  Optimize Proof.
 Qed.
 
 Lemma safe_SExpRec_type_PrimSxp_struct : forall S (p_ : SExpRec),
   type p_ \in [SpecialSxp ; BuiltinSxp] ->
   safe_SExpRec_type S (type p_) p_ ->
   exists header offset,
-    p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset).
+    p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset)
+    /\ safe_offset offset.
 Proof. introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts* OKp_. Qed.
 
 Lemma safe_SExpRec_type_VectorPointer : forall S (p_ : SExpRec),
@@ -906,6 +917,7 @@ Proof.
   introv I OKp_. repeat inverts I as I; rewrite I in OKp_; inverts OKp_ as F;
     simpl in I; do 2 eexists; splits; try reflexivity; autos~;
     introv M; apply F in M; apply* may_have_types_weaken; solve_incl.
+  Optimize Proof.
 Qed.
 
 Lemma safe_pointer_ListSxp_struct : forall S p,
@@ -928,7 +940,8 @@ Lemma safe_pointer_PrimSxp_struct : forall S p,
   safe_pointer S p ->
   bound_such_that S (fun p_ =>
     exists header offset,
-      p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset)) p.
+      p_ = make_NonVector_SExpRec header (make_PrimSxp_struct offset)
+      /\ safe_offset offset) p.
 Proof.
   introv (p_&E&T) OKp. rewrite safe_pointer_rewrite in OKp.
   forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
@@ -951,3 +964,4 @@ Proof.
   exists p_. splits~. applys~ safe_SExpRec_type_VectorPointer T OKp_.
 Qed.
 
+Optimize Heap.

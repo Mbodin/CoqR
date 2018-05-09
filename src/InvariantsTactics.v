@@ -19,7 +19,7 @@
 
 Set Implicit Arguments.
 Require Import TLC.LibBag Paco.paco.
-Require Export InvariantsAux.
+Require Import InvariantsAux.
 
 (** * Simplifying tactics **)
 
@@ -1065,7 +1065,8 @@ Ltac force_unfold_shape explode S p_ :=
           let offset := fresh "offset" in
           let p_' := fresh1 p_ in
           let E := fresh "E" p_' in
-          forwards (header&offset&E): safe_SExpRec_type_PrimSxp_struct OKp_;
+          let OKoffset := fresh "OK" offset in
+          forwards (header&offset&E&OKoffset): safe_SExpRec_type_PrimSxp_struct OKp_;
           [ solve_in | inverts E ]
         | let header := fresh "header" in
           let array := fresh "array" in

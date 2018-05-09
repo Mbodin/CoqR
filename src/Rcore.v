@@ -60,3 +60,4 @@ Definition eval_global globals runs S e :=
   add%stack "eval_global" in
   eval globals runs S e (read_globals globals R_GlobalEnv).
 
+Optimize Heap.
