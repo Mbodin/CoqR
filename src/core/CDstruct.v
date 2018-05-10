@@ -33,23 +33,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
-Definition get_R_FunTab S :=
-  add%stack "get_R_FunTab" in
-  match runs_R_FunTab runs with
-  | None => result_bottom S
-  | Some t => result_success S t
-  end.
-
-Definition read_R_FunTab S n :=
-  add%stack "read_R_FunTab" in
-  let%success t := get_R_FunTab S using S in
-  ifb n >= ArrayList.length t then
-    result_impossible S "Out of bounds."
-  else
-    let c := ArrayList.read t n in
-    result_success S c.
-
-
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
@@ -58,7 +41,7 @@ Local Coercion int_to_double : Z >-> double.
 Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
   add%stack "mkPRIMSXP" in
   let type := if type then BuiltinSxp else SpecialSxp in
-  let%success R_FunTab := get_R_FunTab S using S in
+  let%success R_FunTab := get_R_FunTab runs S using S in
   let FunTabSize := ArrayList.length R_FunTab in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
   ifb offset >= FunTabSize then

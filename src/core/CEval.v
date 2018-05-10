@@ -42,22 +42,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
-Definition get_R_FunTab S :=
-  add%stack "get_R_FunTab" in
-  match runs_R_FunTab runs with
-  | None => result_bottom S
-  | Some t => result_success S t
-  end.
-
-Definition read_R_FunTab S n :=
-  add%stack "read_R_FunTab" in
-  let%success t := get_R_FunTab S using S in
-  ifb n >= ArrayList.length t then
-    result_impossible S "Out of bounds."
-  else
-    let c := ArrayList.read t n in
-    result_success S c.
-
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
@@ -301,31 +285,31 @@ Definition promiseArgs S (el rho : SEXP) : result SEXP :=
 Definition PRIMFUN S x :=
   add%stack "PRIMFUN" in
   read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
   result_success S (fun_cfun x_fun).
 
 Definition PRIMVAL S x :=
   add%stack "PRIMVAL" in
   read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
   result_success S (fun_code x_fun).
 
 Definition PPINFO S x :=
   add%stack "PPINFO" in
   read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
   result_success S (fun_gram x_fun).
 
 Definition PRIMARITY S x :=
   add%stack "PRIMARITY" in
   read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
   result_success S (fun_arity x_fun).
 
 Definition PRIMINTERNAL S x :=
   add%stack "PRIMINTERNAL" in
   read%prim _, x_prim := x using S in
-  let%success x_fun := read_R_FunTab S (prim_offset x_prim) using S in
+  let%success x_fun := read_R_FunTab runs S (prim_offset x_prim) using S in
   result_success S (funtab_eval_arg_internal (fun_eval x_fun)).
 
 Definition evalList S (el rho call : SEXP) n :=
