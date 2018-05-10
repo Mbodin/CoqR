@@ -86,6 +86,11 @@ Definition R_IsNaN x :=
   | None => false
   end.
 
+Definition R_finite (x : double) :=
+  decide (~ Double.isNaN x /\ x <> R_PosInf /\ x <> R_NegInf).
+
+Definition R_FINITE := R_finite.
+
 Definition ScalarValue1 S x :=
   add%stack "ScalarValue1" in
   if%success NO_REFERENCES S x using S then

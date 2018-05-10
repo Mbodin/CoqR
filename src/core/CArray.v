@@ -1,6 +1,6 @@
-(** Core.CBuiltin.
-  The function names in this file correspond to the macro names
-  in the file main/builtin.c. **)
+(** Core.CArray.
+  The function names in this file correspond to the function names
+  in the file main/attrib.c. **)
 
 (* Copyright © 2018 Martin Bodin
 
@@ -21,9 +21,9 @@
 Set Implicit Arguments.
 Require Import Double.
 Require Import Loops.
-Require Import CRinternals.
-Require Import CMemory.
 Require Import CRinlinedfuns.
+Require Import CAttrib.
+Require Import CDuplicate.
 
 Section Parameterised.
 
@@ -38,29 +38,21 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition R_IsImportsEnv S env :=
-  add%stack "R_IsImportsEnv" in
-  let%success env_null := isNull S env using S in
-  let%success env_env := isEnvironment S env using S in
-  ifb env_null \/ ~ env_env then
-    result_success S false
-  else
-    read%env _, env_env := env using S in
-    ifb env_enclos env_env = R_BaseNamespace then
-      result_success S false
+Definition allocArray S mode dims :=
+  add%stack "allocArray" in
+  let%success dims_len := LENGTH globals S dims using S in
+  do%success (dn, n) := (1 : double, 1 : nat)
+  for i from 0 to dims_len - 1 do
+    read%Integer dims_i := dims at i using S in
+    let dn := Double.mult dn (dims_i : double) in
+    ifb dn > (INT_MAX : double) then
+      result_error S "Too many element specified by ‘dims’."
     else
-      let%success name := runs_getAttrib runs S env R_NameSymbol using S in
-      let%success name_str := isString S name using S in
-      let%success name_len := LENGTH globals S name using S in
-      ifb ~ name_str \/ name_len <> 1 then
-        result_success S false
-      else
-        let imports_prefix := "imports:"%string in
-        let%success name_0 := STRING_ELT S name 0 using S in
-        let%success name_string := CHAR S name_0 using S in
-        ifb String.substring 0 (String.length imports_prefix) name_string = imports_prefix then
-          result_success S true
-        else result_success S false.
+      result_success S (dn, n * Z.to_nat dims_i) using S in
+  let%success dims := duplicate globals runs S dims using S in
+  let%success array := allocVector globals S mode n using S in
+  run%success setAttrib globals runs S array R_DimSymbol dims using S in
+  result_success S array.
 
 End Parameterised.
 

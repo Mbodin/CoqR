@@ -33,7 +33,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
-
 Local Coercion int_to_double : Z >-> double.
 
 

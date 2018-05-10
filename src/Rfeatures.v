@@ -32,6 +32,7 @@ Require Export FBind.
 Require Export FEval.
 Require Export FConnections.
 Require Export FPrintutils.
+Require Export FPrint.
 Require Export FBuiltin.
 Require Export FSeq.
 Require Export FSign.
@@ -39,6 +40,7 @@ Require Export FComplex.
 Require Export FArithmetic.
 Require Export FSubset.
 Require Export FRelop.
+Require Export FArray.
 Require Export FNames.
 
 (** * Closing the Loop **)
@@ -225,7 +227,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "...elt" (dummy_function "do_dotsElt") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "...length" (dummy_function "do_dotsLength") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "length" (dummy_function "do_length") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "length" do_length (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "length<-" (dummy_function "do_lengthgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "c" do_c (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "oldClass" (dummy_function "do_class") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
@@ -602,7 +604,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "withVisible" (dummy_function "do_withVisible") (1)%Z eval10 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "expression" (dummy_function "do_expression") (1)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "interactive" (dummy_function "do_interactive") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "invisible" (dummy_function "do_invisible") (0)%Z eval101 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "invisible" do_invisible (0)%Z eval101 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "rep" (dummy_function "do_rep") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "rep.int" (dummy_function "do_rep_int") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "rep_len" (dummy_function "do_rep_len") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
