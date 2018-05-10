@@ -31,6 +31,7 @@ Require Import CArithmetic.
 Require Import CPrintutils.
 Require Import CSysutils.
 Require Import CUtil.
+Require Import CAttrib.
 
 Section Parameterised.
 
@@ -244,6 +245,39 @@ Definition coerceSymbol S v type :=
 Definition PairToVectorList (S : state) (x : SEXP) : result SEXP :=
   unimplemented_function "PairToVectorList".
 
+Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
+  add%stack "VectorToPairList" in
+    let%success len := R_length globals runs S x using S in
+    
+    let (S, xnew) := allocList globals S len in 
+    let%success xnames := runs_getAttrib runs S x R_DimSymbol using S in
+    let named := xnames <> R_NilValue in
+    do%let xptr := xnew
+    for i from 0 to len - 1 do
+      let%success x_i := VECTOR_ELT S x i using S in
+      let%success x_named := NAMED S x using S in
+      run%success RAISE_NAMED S x_i x_named using S in
+       
+      set%car xptr := x_i using S in
+        
+      let%success xnames_i := STRING_ELT S xnames i using S in
+      let%success xnames_i_char := CHAR S xnames_i using S in
+      read%Char xnames_i_char_0 := xnames_i_char at 0 using S in
+                           
+      ifb named /\  xnames_i_char_0 <> '\0' then
+        let%success xnames_i_install := installTrChar globals runs S xnames_i using S in
+        set%tag xptr := xnames_i_install using S in
+        read%list _, xptr_cdr, _ := xptr using S in
+        result_success S xptr_cdr      
+      else  
+        read%list _, xptr_cdr, _ := xptr using S in
+        result_success S xptr_cdr
+    using S in
+    if%success len > 0 then                 
+      copyMostAttrib globals runs S x xnew
+    in
+      result_success S xnew.  
+                     
 Definition ComplexFromString S (x : SEXP) :=
   add%stack "ComplexFromString" in
   if%success
@@ -930,5 +964,19 @@ Definition copyDimAndNames S x ans :=
       else result_skip S
   else result_skip S.
 
+Fixpoint substituteList_loop el rho :=
+  match el with
+  | None => (R_NilValue : SEXP)
+  | Some
+
+      
+Definition substituteList (S : state) (el rho : SEXP) :=
+  add%stack "substituteList" in
+    let%success el_isNil := isNil S el using S in
+    if el_isNil then
+        result_success S el
+    else                 
+        result_success S (substituteList_loop el rho).
+  
 End Parameterised.
 

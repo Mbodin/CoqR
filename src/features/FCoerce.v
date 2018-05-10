@@ -378,5 +378,42 @@ Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
       else result_skip S using S in
     result_success S ans.
 
+Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_substitute" in
+    let%success argList := matchArgs globals runs S do_substitute_formals args call using S in
+
+    read%list argList_car, argList_cdr, _ := argList using S in
+    read%list argList_cdr_car, _, _ := argList_cdr using S in
+    let%success env :=
+        ifb argList_cdr_car = R_MissingArg then
+            result_success S rho
+        else  
+            eval globals runs S argList_cdr_car rho
+    using S in 
+    let%success env := 
+        ifb env = R_GlobalEnv then
+            result_success S (R_NilValue : SEXP)
+        else
+            let%success env_type := TYPEOF S env using S in
+            ifb env_type = VecSxp then
+                let%success env_vecToPairList := VectorToPairList S env using S in
+                NewEnvironment globals runs S (R_NilValue : SEXP) env_vecToPairList (R_BaseEnv : SEXP)
+        else ifb env_type = ListSxp then
+            let%success env_duplicate := duplicate globals runs S env using S in
+            NewEnvironment globals runs S (RNilValue : SEXP) env_duplicate (R_BaseEnv : SEXP)
+        else
+            result_success S env
+    using S in
+    let%success env_type := TYPEOF S env using S in
+    ifb env <> R_NilValue /\ env_type <> EnvSxp then
+        result_error S "invalid environment specified"
+    else
+        let%success argList_car_duplicate := duplicate globals runs S argList_car using S in
+        let%success t := CONS globals S argList_car_duplicate (R_NilValue : SEXP) using S in
+        let%success s := substituteList S t env using S in
+        read%list s_car, _, _ := s using S in
+        result_success S s_car
+.
+
 End Parameters.
 

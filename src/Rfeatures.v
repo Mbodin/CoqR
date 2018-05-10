@@ -166,7 +166,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl ".Primitive" do_primitive (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "call" (dummy_function "do_call") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "quote" (dummy_function "do_quote") (0)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "substitute" (dummy_function "do_substitute") (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "substitute" do_substitute (0)%Z eval0 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "missing" do_missing (1)%Z eval0 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "nargs" (dummy_function "do_nargs") (1)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
               rdecl "on.exit" (dummy_function "do_onexit") (0)%Z eval100 (-1)%Z PP_FUNCALL PREC_FN false ;
