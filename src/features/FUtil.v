@@ -32,7 +32,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
-
 Local Coercion int_to_double : Z >-> double.
 
 (** There is a macro replacing every call to [checkArity (a, b)] to

@@ -33,7 +33,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
-
 Local Coercion int_to_double : Z >-> double.
 
 (** This function is inspired from [Rprintf]. **)
