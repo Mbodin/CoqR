@@ -114,6 +114,7 @@ Inductive GlobalVariable :=
   | mkPRIMSXP_primCache
   | do_attr_do_attr_formals
   | do_attrgets_do_attrgets_formals
+  | do_substitute_do_substitute_formals
   .
 
 Definition all_GlobalVariables : list GlobalVariable.
