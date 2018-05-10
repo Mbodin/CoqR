@@ -42,6 +42,8 @@ Record runs_type : Type := runs_type_intro {
     runs_RealAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
     runs_ComplexAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
     runs_RawAnswer : state -> SEXP -> BindData -> SEXP -> result BindData ;
+    runs_substitute : state -> SEXP -> SEXP -> result SEXP ;
+    runs_substituteList : state -> SEXP -> SEXP -> result SEXP ;
     runs_R_FunTab : option funtab
   }.
 

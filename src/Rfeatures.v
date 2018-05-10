@@ -74,6 +74,8 @@ Fixpoint runs max_step globals : runs_type :=
       runs_RealAnswer := fun S _ _ _ => result_bottom S ;
       runs_ComplexAnswer := fun S _ _ _ => result_bottom S ;
       runs_RawAnswer := fun S _ _ _ => result_bottom S ;
+      runs_substitute := fun S _ _ => result_bottom S ;
+      runs_substituteList := fun S _ _ => result_bottom S ;
       runs_R_FunTab := None
     |}
   | S max_step =>
@@ -104,6 +106,8 @@ Fixpoint runs max_step globals : runs_type :=
       runs_RealAnswer := wrap RealAnswer ;
       runs_ComplexAnswer := wrap ComplexAnswer ;
       runs_RawAnswer := wrap RawAnswer ;
+      runs_substitute := wrap substitute ;
+      runs_substituteList := wrap substituteList ;
       runs_R_FunTab :=
 
         let eval0 := make_funtab_eval_arg false false in
