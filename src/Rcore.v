@@ -54,6 +54,7 @@ Require Export CAltrep.
 Require Export CCoerce.
 Require Export CAttrib.
 Require Export CObjects.
+Require Export CArray.
 
 (** Evaluates the expression in the global environment. **)
 Definition eval_global globals runs S e :=

@@ -44,6 +44,7 @@
 ./src/core/CCoerce.v
 ./src/core/CAttrib.v
 ./src/core/CObjects.v
+./src/core/CArray.v
 ./src/Rcore.v
 
 ./src/features/FErrors.v
@@ -63,6 +64,7 @@
 ./src/features/FArithmetic.v
 ./src/features/FSubset.v
 ./src/features/FRelop.v
+./src/features/FArray.v
 ./src/features/FNames.v
 ./src/Rfeatures.v
 

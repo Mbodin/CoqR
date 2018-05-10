@@ -23,6 +23,7 @@ Require Import Ascii.
 Require Import Rcore.
 Require Import FUtil.
 Require Import FArithmetic.
+Require Import FArray.
 
 Section Parameters.
 
@@ -36,7 +37,6 @@ Variable runs : runs_type.
 Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
-
 
 
 Definition pstrmatch S (target input : SEXP) slen :=
@@ -216,33 +216,33 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
           let%success nrow := INTEGER_ELT S dim 0 using S in
           let%success ncol := INTEGER_ELT S dim 1 using S in
           ifb i > 0 /\ j > 0 /\ i <= nrow /\ j <= ncol then
-            let k := (i - 1 + nrow * (j - 1))%Z in
+            let k := Z.to_nat (i - 1 + nrow * (j - 1))%Z in
             let%success x_type := TYPEOF S x using S in
             match x_type with
             | RealSxp =>
               let%success len := XLENGTH S x using S in
               ifb k <= len then
-                let%success x_k := REAL_ELT S x (Z.to_nat k) using S in
+                let%success x_k := REAL_ELT S x k using S in
                 let (S, r) := ScalarReal globals S x_k in
                 result_rreturn S r
               else result_rskip S
             | IntSxp =>
               let%success len := XLENGTH S x using S in
               ifb k <= len then
-                let%success x_k := INTEGER_ELT S x (Z.to_nat k) using S in
+                let%success x_k := INTEGER_ELT S x k using S in
                 let (S, r) := ScalarInteger globals S x_k in
                 result_rreturn S r
               else result_rskip S
             | LglSxp =>
               let%success len := XLENGTH S x using S in
               ifb k <= len then
-                let%success x_k := LOGICAL_ELT S x (Z.to_nat k) using S in
+                let%success x_k := LOGICAL_ELT S x k using S in
                 result_rreturn S (ScalarLogical globals x_k)
               else result_rskip S
             | CplxSxp =>
               let%success len := XLENGTH S x using S in
               ifb k <= len then
-                let%success x_k := COMPLEX_ELT S x (Z.to_nat k) using S in
+                let%success x_k := COMPLEX_ELT S x k using S in
                 let (S, r) := ScalarComplex globals S x_k in
                 result_rreturn S r
               else result_rskip S
@@ -269,7 +269,11 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
         let%success ndim := R_length globals runs S dim using S in
         let%success ax :=
           ifb ndim > 1 then
-            unimplemented_function "allocArray"
+            let%success ax := allocArray globals runs S VecSxp dim using S in
+            let%success x_dimnames := getAttrib globals runs S x R_DimNamesSymbol using S in
+            run%success setAttrib globals runs S ax R_DimNamesSymbol x_dimnames using S in
+            run%success setAttrib globals runs S ax R_NamesSymbol x_dimnames using S in
+            result_success S ax
           else
             let%success x_len := R_length globals runs S x using S in
             let%success ax := allocVector globals S VecSxp x_len using S in
@@ -383,7 +387,7 @@ Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
     let%success x_type := TYPEOF S x using S in
     let%success x :=
     ifb x_s4 /\ x_type = S4Sxp then
-      let%success x := result_not_implemented "R_getS4DataSlot" : result SEXP using S in
+      let%success x := unimplemented_function "R_getS4DataSlot" : result SEXP using S in
       ifb x = R_NilValue then
         result_error S "$ operator not defined for this S4 class."
       else
@@ -418,37 +422,57 @@ Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
       let%success nlist := getAttrib globals runs S x R_NamesSymbol using S in
 
       let%success n := xlength globals runs S x using S in
-      do%exit (imatch, havematch) := (-1, 0)
+      do%exit (imatch, havematch) := ((-1)%Z, 0)
       for i from 0 to n - 1 do
-        let%success nlist_i := STRING_ELT S nlist i using S in                            
+        let%success nlist_i := STRING_ELT S nlist i using S in
         let%success pstr := pstrmatch S nlist_i input slen using S in
         match pstr with
          | EXACT_MATCH => let%success y := VECTOR_ELT S x i using S in
                           let%success x_named := NAMED S x using S in
                           run%success RAISE_NAMED S y x_named using S in
-                          result_rsuccess S y
+                          result_rreturn S y
          | PARTIAL_MATCH => let havematch := havematch + 1 in
                             ifb havematch = 1 then
                               let%success y := VECTOR_ELT S x i using S in
                               map%pointer y with set_named_plural using S in
                               run%success SET_VECTOR_ELT S x i y using S in
-                              result_rsuccess S (i, havematch)
+                              result_rsuccess S (i : int, havematch)
                             else
-                              result_rsuccess S (i, havematch)
+                              result_rsuccess S (i : int, havematch)
          | NO_MATCH => result_rsuccess S (imatch, havematch)
         end
-      using S in                                                
+      using S in
       ifb havematch = 1 then
       (* A warning has been formalised out here. *)
-        let%success y := VECTOR_ELT S x imatch using S in
+        let%success y := VECTOR_ELT S x (Z.to_nat imatch) using S in
         let%success x_named := NAMED S x using S in
         run%success RAISE_NAMED S y x_named using S in
         result_success S y
-      else 
+      else
         result_success S (R_NilValue : SEXP)
-    else
-      result_not_implemented S "from Environment".
-           
+    else if%success isEnvironment S x using S then
+      let%success input_install := installTrChar globals runs S input using S in
+      let%success y := findVarInFrame globals runs S x input_install using S in
+      let%success y_type := TYPEOF S y using S in
+      let%success y :=
+        ifb y_type = PromSxp then
+          eval globals runs S y R_GlobalEnv
+        else result_success S y using S in
+      ifb y <> R_UnboundValue then
+        run%success
+          let%success y_named := NAMED S y using S in
+          ifb y_named <> named_temporary then
+            map%pointer y with set_named_plural using S in
+            result_skip S
+          else
+            let%success x_named := NAMED S x using S in
+            RAISE_NAMED S y x_named using S in
+        result_success S y
+      else result_success S (R_NilValue : SEXP)
+    else if%success isVectorAtomic S x using S then
+      result_error S "$ operator is invalid for atomic vectors."
+    else result_error S "This object is not subsettable.".
+
 (* We choose not to formalise the last argument [syminp] in the following function. *)
 Definition fixSubset3Args S (call args env : SEXP) :=
   add%stack "fixSubset3args" in

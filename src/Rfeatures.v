@@ -39,6 +39,7 @@ Require Export FComplex.
 Require Export FArithmetic.
 Require Export FSubset.
 Require Export FRelop.
+Require Export FArray.
 Require Export FNames.
 
 (** * Closing the Loop **)
@@ -225,7 +226,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "...elt" (dummy_function "do_dotsElt") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "...length" (dummy_function "do_dotsLength") (0)%Z eval1 (0)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "length" (dummy_function "do_length") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "length" do_length (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "length<-" (dummy_function "do_lengthgets") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_LEFT true ;
               rdecl "c" do_c (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "oldClass" (dummy_function "do_class") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;

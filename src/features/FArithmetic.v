@@ -38,11 +38,6 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition R_finite (x : double) :=
-  decide (~ Double.isNaN x /\ x <> R_PosInf /\ x <> R_NegInf).
-
-Definition R_FINITE := R_finite.
-
 Definition R_allocOrReuseVector S s1 s2 type n :=
   add%stack "R_allocOrReuseVector" in
   let%success n1 := XLENGTH S s1 using S in
