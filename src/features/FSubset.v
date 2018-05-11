@@ -51,7 +51,7 @@ Definition pstrmatch S (target input : SEXP) slen :=
         CHAR S target_name
       | CharSxp =>
         translateChar S target
-      | _ => result_error S "Invalid type."
+      | _ => result_impossible S "Invalid type."
       end using S in
     let%success si := translateChar S input using S in
     let si_0 := LibOption.unsome_default "000"%char (String.get 0 si) in

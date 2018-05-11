@@ -175,6 +175,7 @@ Definition mkChar S (str : string) : state * SEXP :=
 Definition mkString S (str : string) : state * SEXP :=
   let (S, c) := mkChar S str in
   alloc_vector_str globals S (ArrayList.from_list [c]).
+
 Definition BCCONSTS S e :=
   add%stack "BCCONSTS" in
   BCODE_CONSTS S e.
