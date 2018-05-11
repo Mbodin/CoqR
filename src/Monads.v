@@ -858,6 +858,12 @@ Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
   (map%pointer p with set_obj o using S in cont)
   (at level 50, left associativity) : monad_scope.
 
+(** The following function enables to set the [named] field of
+  objects from a pointer. **)
+Notation "'set%named' p ':=' n 'using' S 'in' cont" :=
+  (map%pointer p with set_named n using S in cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** Updating a list. **)
 Definition map_list A S f (p : SEXP) (cont : state -> result A) : result A :=
