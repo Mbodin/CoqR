@@ -19,6 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
+Require Import Ascii.
 Require Import Double.
 Require Import Loops.
 Require Import Conflicts.
@@ -31,7 +32,6 @@ Require Import CArithmetic.
 Require Import CPrintutils.
 Require Import CSysutils.
 Require Import CUtil.
-Require Import CAttrib.
 Require Import CEnvir.
 
 Section Parameterised.
@@ -46,6 +46,57 @@ Variable runs : runs_type.
 Definition int_to_double := Double.int_to_double : int -> double.
 
 Local Coercion int_to_double : Z >-> double.
+
+(** The following two functions are actually from main/attrib.c. It has been
+  placed here to solve a circular file dependency. **)
+
+Definition installAttrib S vec name val :=
+  add%stack "installAttrib" in
+  let%success vec_type := TYPEOF S vec using S in
+  ifb vec_type = CharSxp then
+    result_error S "Cannot set attribute on a CharSxp."
+  else ifb vec_type = SymSxp then
+    result_error S "Cannot set attribute on a symbol."
+  else
+    let%success vec_attr := ATTRIB S vec using S in
+    fold%return t := R_NilValue : SEXP
+    along vec_attr
+    as s, _, s_list do
+      ifb list_tagval s_list = name then
+        set%car s := val using S in
+        result_rreturn S val
+      else result_rsuccess S s using S, runs, globals in
+    let (S, s) := CONS globals S val R_NilValue in
+    set%tag s := name using S in
+    run%success
+      ifb vec_attr = R_NilValue then
+        run%success SET_ATTRIB S vec s using S in
+        result_skip S
+      else
+        set%cdr t := s using S in
+        result_skip S using S in
+    result_success S val.
+
+Definition copyMostAttrib S (inp ans : SEXP) :=
+  add%stack "copyMostAttrib" in
+  ifb ans = R_NilValue then
+    result_error S "Attempt to set an attribute on NULL."
+  else
+    let%success inp_attr := ATTRIB S inp using S in
+    fold%success
+    along inp_attr
+    as s_car, s_tag do
+      ifb s_tag <> R_NamesSymbol
+          /\ s_tag <> R_DimSymbol
+          /\ s_tag <> R_DimNamesSymbol then
+        run%success installAttrib S ans s_tag s_car using S in
+        result_skip S
+      else result_skip S using S, runs, globals in
+    if%success OBJECT S inp using S then
+      SET_OBJECT S ans true in
+    if%success IS_S4_OBJECT S inp using S then
+      SET_S4_OBJECT S ans
+    else UNSET_S4_OBJECT S ans.
 
 
 Definition LogicalFromString S (x : SEXP) :=
@@ -251,33 +302,42 @@ Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
     let%success len := R_length globals runs S x using S in
     
     let (S, xnew) := allocList globals S len in 
-    let%success xnames := runs_getAttrib runs S x R_DimSymbol using S in
-    let named := xnames <> R_NilValue in
-    do%let xptr := xnew
+    let%success xnames := runs_getAttrib runs S x R_NamesSymbol using S in
+    let named := decide (xnames <> (R_NilValue : SEXP)) in
+    
+    do%success xptr := xnew
     for i from 0 to len - 1 do
-      let%success x_i := VECTOR_ELT S x i using S in
-      let%success x_named := NAMED S x using S in
-      run%success RAISE_NAMED S x_i x_named using S in
-       
-      set%car xptr := x_i using S in
+                                              
+        let%success x_named := NAMED S x using S in                                     
+        let%success x_i := VECTOR_ELT S x i using S in
+        let%success x_i_named := NAMED S x_i using S in
+      
+        run%success
+        ifb x_named > x_i_named then
+            set%named x_i := x_named using S in
+            result_skip S
+        else result_skip S
+        using S in     
+               
+        set%car xptr := x_i using S in
         
-      let%success xnames_i := STRING_ELT S xnames i using S in
-      let%success xnames_i_char := CHAR S xnames_i using S in
-      read%Char xnames_i_char_0 := xnames_i_char at 0 using S in
-                           
-      ifb named /\  xnames_i_char_0 <> '\0' then
-        let%success xnames_i_install := installTrChar globals runs S xnames_i using S in
-        set%tag xptr := xnames_i_install using S in
-        read%list _, xptr_cdr, _ := xptr using S in
-        result_success S xptr_cdr      
-      else  
-        read%list _, xptr_cdr, _ := xptr using S in
-        result_success S xptr_cdr
+        let%success xnames_i := STRING_ELT S xnames i using S in
+        let%success xnames_i_char := CHAR S xnames_i using S in
+        let xnames_i_char_0 := LibOption.unsome_default "000"%char (String.get 0 xnames_i_char) in 
+        ifb named /\  xnames_i_char_0 <> "000"%char then
+            let%success xnames_i_install := installTrChar globals runs S xnames_i using S in
+            set%tag xptr := xnames_i_install using S in
+            read%list _, xptr_cdr, _ := xptr using S in
+            result_success S xptr_cdr      
+        else  
+            read%list _, xptr_cdr, _ := xptr using S in
+            result_success S xptr_cdr
     using S in
-    if%success len > 0 then                 
-      copyMostAttrib globals runs S x xnew
-    in
-      result_success S xnew.  
+    ifb len > 0 then
+        run%success copyMostAttrib S x xnew using S in
+        result_success S xnew
+    else
+        result_success S xnew.  
                      
 Definition ComplexFromString S (x : SEXP) :=
   add%stack "ComplexFromString" in
