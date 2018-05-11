@@ -32,6 +32,7 @@ Require Import CPrintutils.
 Require Import CSysutils.
 Require Import CUtil.
 Require Import CAttrib.
+Require Import CEnvir.
 
 Section Parameterised.
 
@@ -964,6 +965,32 @@ Definition copyDimAndNames S x ans :=
       else result_skip S
   else result_skip S.
 
+
+Definition substitute S (lang rho : SEXP) : result SEXP :=
+  add%stack "substitute" in
+    let%success lang_type := TYPEOF S lang using S in
+    match lang_type with
+    | PromSxp => let%success lang_prexpr := PREXPR globals S lang using S in
+                substitute S lang_prexpr rho
+    | SymSxp => ifb rho <> R_NilValue then
+                   run%success
+                   let%success t := findVarInFrame3 globals runs S rho lang true using S in
+                   ifb t <> R_UnboundValue then
+                       let%success t_type := TYPEOF S t using S in
+                       ifb t_type = PromSxp then
+                         do while ?
+                           map%pointer t with set_named_plural using S in
+                           result_success S t
+                       else ifb t_type = DotSxp then
+                           result_error S "'...' used in an incorrect context"
+                       else ifb rho <> R_GlobalEnv then
+                           result_success S t
+                       else result_success S lang                 
+                   else result_success S lang
+                else result_success S lang
+    | LangSxp => substituteList S lang rho
+    | _ => result_success S lang.
+                       
 Fixpoint substituteList_loop el rho p res : SEXP :=
   ifb el = R_NilValue then
       (R_NilValue : SEXP)
