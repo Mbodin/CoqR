@@ -35,7 +35,6 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
-
 Local Coercion int_to_double : Z >-> double.
 
 
@@ -50,12 +49,12 @@ Definition pstrmatch S (target input : SEXP) slen :=
       | SymSxp =>
         let%success target_name := PRINTNAME S target using S in
         CHAR S target_name
-      | StrSxp =>
+      | CharSxp =>
         translateChar S target
-      | _ => result_error S "Invalid type."
+      | _ => result_impossible S "Invalid type."
       end using S in
     let%success si := translateChar S input using S in
-    let%defined si_0 := String.get 0 si using S in
+    let si_0 := LibOption.unsome_default "000"%char (String.get 0 si) in
     ifb si_0 <> "000"%char /\ substring 0 slen st = substring 0 slen si then
       result_success S (ifb String.length st = slen then EXACT_MATCH else PARTIAL_MATCH)
     else result_success S NO_MATCH.

@@ -256,6 +256,7 @@ Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
   | SExpType_corresponds_to_data_ExtptrSxp : forall e_,
       safe_SExpRec_type S ExtptrSxp e_
   | SExpType_corresponds_to_data_RawSxp : forall e_,
+      (** We don’t know much about [RawSxp], but we know that it must be a vector. **)
       (forall e_NonVector, e_ <> SExpRec_NonVector e_NonVector) ->
       safe_SExpRec_type S RawSxp e_
   | SExpType_corresponds_to_data_S4Sxp : forall e_,

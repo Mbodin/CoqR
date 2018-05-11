@@ -5,7 +5,7 @@ A Coq formalisation of the R programming language
 
 This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
-It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
+It follows principles strongly inspired from the [[http://jscert.org/][JSCert project]]:
  - the code is as close as possible from a reference specification
    (in this case, the source of [[https://www.r-project.org/][GNU R]]).
    The formalisation has been written in a monadic form,

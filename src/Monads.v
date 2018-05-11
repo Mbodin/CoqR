@@ -18,6 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
+Require Import Ascii.
 Require Export State InternalTypes.
 
 
@@ -440,6 +441,16 @@ Notation "'read%cell' c ':=' v_ 'at' n 'using' S 'in' cont" :=
   (read_cell_Vector_SExpRec S v_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
+(** The following function is a variant of [read%cell], but with a default value. **)
+
+Definition read_cell_default_Vector_SExpRec A B (v_ : Vector_SExpRec A) n a cont : result B :=
+  let c := LibOption.unsome_default a (ArrayList.read_option v_ n) in
+  cont c.
+
+Notation "'read%cell' c ':=' v_ 'at' n 'with' default 'in' cont" :=
+  (read_cell_default_Vector_SExpRec v_ n default (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
 
 Definition update_Vector_SExpRec_cell A (v_ : Vector_SExpRec A) n c :=
   ifb n < ArrayList.length v_ then
@@ -492,10 +503,17 @@ Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
   (read_nth_cell_VectorChar S e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
+(** The character case is a little special as C strings ends with a ['\0']
+  character, but we chose not to follow this convention here.
+  To avoid making the code too cumbersome, we thus add here the exception
+  that when reading just after the array, we get the empty character ["000"%char]. **)
+
 Definition read_nth_cell_Char A S e n cont : result A :=
   read%VectorChar e_ := e using S in
-  read%cell c := e_ at n using S in
-  cont c.
+  ifb n = VecSxp_length e_ then cont "000"%char
+  else
+    read%cell c := e_ at n using S in
+    cont c.
 
 Notation "'read%Char' c ':=' e 'at' n 'using' S 'in' cont" :=
   (read_nth_cell_Char S e n (fun c => cont))
