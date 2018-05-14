@@ -68,7 +68,7 @@ Definition lazy_duplicate S s :=
     | RawSxp
     | StrSxp
     | S4Sxp =>
-      map%pointer s with set_named_plural using S in
+      set%named s := named_plural using S in
       result_skip S
     | _ =>
       result_error S "Unimplemented type."

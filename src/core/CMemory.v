@@ -141,7 +141,7 @@ Definition NewEnvironment S (namelist valuelist rho : SEXP) : result SEXP :=
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
 Definition mkPromise S (expr rho : SEXP) : result SEXP :=
   add%stack "mkPromise" in
-  map%pointer expr with set_named_plural using S in
+  set%named expr := named_plural using S in
   let (S, s) := alloc_SExp S (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
   result_success S s.
 

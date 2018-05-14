@@ -53,7 +53,7 @@ Definition R_FixupRHS S x y :=
     if%success R_cycle_detected globals runs S x y using S then
       duplicate globals runs S y
     else
-      map%pointer y with set_named_plural using S in
+      set%named y := named_plural using S in
       result_success S y
   else result_success S y.
 

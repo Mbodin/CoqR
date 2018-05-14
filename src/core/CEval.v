@@ -148,7 +148,7 @@ Definition forcePromise S (e : SEXP) : result SEXP :=
     run%success SET_PRSEEN S e 1 ltac:(nbits_ok) using S in
     let%success val := runs_eval runs S (prom_expr e_prom) (prom_env e_prom) using S in
     run%success SET_PRSEEN S e 0 ltac:(nbits_ok) using S in
-    map%pointer val with set_named_plural using S in
+    set%named val := named_plural using S in
     read%prom e_, e_prom := e using S in
     let e_prom := {|
         prom_value := val ;
@@ -572,7 +572,7 @@ Definition eval S (e rho : SEXP) :=
   | ExtptrSxp
   | WeakrefSxp
   | ExprSxp =>
-    map%pointer e with set_named_plural using S in
+    set%named e := named_plural using S in
     result_success S e
   | _ =>
     let%success rho_type := TYPEOF S rho using S in
@@ -608,14 +608,14 @@ Definition eval S (e rho : SEXP) :=
                   ifb prom_value tmp_prom = R_UnboundValue then
                     forcePromise S tmp
                   else result_success S (prom_value tmp_prom) using S in
-                map%pointer tmp with set_named_plural using S in
+                set%named tmp := named_plural using S in
                 result_success S tmp
               else
                 let%success tmp_type := TYPEOF S tmp using S in
                 let%success tmp_named := NAMED S tmp using S in
                 run%success
                   ifb tmp_type <> NilSxp /\ tmp_named = named_temporary then
-                    map%pointer tmp with set_named_unique using S in
+                    set%named tmp := named_unique using S in
                     result_skip S
                   else result_skip S using S in
                 result_success S tmp

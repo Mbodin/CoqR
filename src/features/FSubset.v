@@ -371,7 +371,7 @@ Definition do_subset S (call op args rho : SEXP) : result SEXP :=
     run%success
       let%success ans_named := NAMED S ans using S in
       ifb ans_named <> named_temporary then
-        map%pointer ans with set_named_plural using S in
+        set%named ans := named_plural using S in
         result_skip S
       else result_skip S using S in
     result_success S ans
@@ -433,7 +433,7 @@ Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
          | PARTIAL_MATCH => let havematch := havematch + 1 in
                             ifb havematch = 1 then
                               let%success y := VECTOR_ELT S x i using S in
-                              map%pointer y with set_named_plural using S in
+                              set%named y := named_plural using S in
                               run%success SET_VECTOR_ELT S x i y using S in
                               result_rsuccess S (i : int, havematch)
                             else
@@ -461,7 +461,7 @@ Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
         run%success
           let%success y_named := NAMED S y using S in
           ifb y_named <> named_temporary then
-            map%pointer y with set_named_plural using S in
+            set%named y := named_plural using S in
             result_skip S
           else
             let%success x_named := NAMED S x using S in
@@ -509,7 +509,7 @@ Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
       run%success
       let%success ans_named := NAMED S ans using S in
       ifb ans_named <> named_temporary then
-        map%pointer ans with set_named_plural using S in
+        set%named ans := named_plural using S in
         result_skip S
       else result_skip S using S in
         result_success S ans

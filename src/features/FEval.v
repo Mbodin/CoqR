@@ -228,7 +228,7 @@ Definition do_function S (call op args rho : SEXP) : result SEXP :=
     let%success op_type := TYPEOF S op using S in
     ifb op_type = PromSxp then
       let%success op := forcePromise globals runs S op using S in
-      map%pointer op with set_named_plural using S in
+      set%named op := named_plural using S in
       result_success S op
     else result_success S op using S in
   let%success len := R_length globals runs S args using S in

@@ -1042,9 +1042,9 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
                            let%success t_prexpr := PREXPR globals S t using S in
                            do%success t := t_prexpr
                            while let%success t_type := TYPEOF S t using S in
-                                 result_success S decide (t_type = PromSxp)                                       do PREXPR globals s t
+                                 result_success S decide (t_type = PromSxp) do PREXPR globals s t
                            using S, runs in
-                           map%pointer t with set_named_plural using S in
+                           set%named t := named_plural using S in
                            result_success S t
                        else ifb t_type = DotSxp then
                            result_error S "'...' used in an incorrect context"

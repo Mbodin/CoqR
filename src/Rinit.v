@@ -77,7 +77,7 @@ Definition init_R_NilValue S :=
       |}
     |} in
   write%defined R_NilValue := nil_obj using S in
-  map%pointer R_NilValue with set_named_plural using S in
+  set%named R_NilValue := named_plural using S in
   result_success S R_NilValue.
 
 (** The second part of [InitMemory], from main/memory.c **)
@@ -321,7 +321,7 @@ Definition InitTypeTables S :=
         | Some (cstr, _) =>
           let (S, rchar) := mkChar globals S cstr in
           let%success rstr := ScalarString globals S rchar using S in
-          map%pointer rstr with set_named_plural using S in
+          set%named rstr := named_plural using S in
           let%success rsym := install globals runs S cstr using S in
           result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
         | None => result_impossible S "Out of bound."

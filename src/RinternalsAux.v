@@ -461,6 +461,8 @@ Definition make_SExpRec_expr attrib array :=
 
 (** * Instances **)
 
+(** ** Comparable Instances **)
+
 Instance SExpType_Comparable : Comparable SExpType.
   prove_comparable_trivial_inductive.
 Defined.
@@ -493,4 +495,38 @@ Proof. apply prove_Inhab. repeat constructors. Qed.
 Instance Rcomplex_comparable : Comparable Rcomplex.
   prove_comparable_simple_inductive.
 Defined.
+
+
+(** ** Ordering the [named_field] type **)
+
+Definition named_field_lt n1 n2 :=
+  match n1, n2 with
+  | (named_temporary | named_unique), named_plural
+  | named_temporary, named_unique => true
+  | _, _ => false
+  end.
+
+Instance named_field_Lt : Lt named_field :=
+  Build_Lt named_field_lt.
+
+Instance named_field_Lt_Decidable : forall n1 n2 : named_field,
+    Decidable (n1 < n2).
+  introv. applys* Decidable_equiv (named_field_lt n1 n2). typeclass.
+Defined.
+
+Definition named_field_le n1 n2 :=
+  decide (n1 = n2 \/ n1 < n2).
+
+Instance named_field_Le : Le named_field :=
+  Build_Le named_field_le.
+
+Instance named_field_Le_Decidable : forall n1 n2 : named_field,
+    Decidable (n1 <= n2).
+  introv. applys* Decidable_equiv (named_field_le n1 n2). typeclass.
+Defined.
+
+Instance named_field_Gt : Gt named_field := gt_from_le.
+Instance named_field_Ge : Ge named_field := ge_from_le.
+(* FIXME: The definition of [ge_from_le] is really strange.
+  It has been fixed in recent versions of TLC: maybe it is time to update. *)
 

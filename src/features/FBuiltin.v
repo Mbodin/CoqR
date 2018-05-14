@@ -64,7 +64,7 @@ Definition do_makelist S (call op args rho : SEXP) : result SEXP :=
     run%success
       let%success args_car_named := NAMED S args_car using S in
       ifb args_car_named <> named_temporary then
-        map%pointer op with set_named_plural using S in
+        set%named op := named_plural using S in
         result_skip S
       else result_skip S using S in
     run%success SET_VECTOR_ELT S list i args_car using S in

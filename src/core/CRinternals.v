@@ -92,10 +92,10 @@ Definition INCREMENT_NAMED S x :=
   let%success x_named := NAMED S x using S in
   match x_named with
   | named_temporary =>
-    map%pointer x with set_named_unique using S in
+    set%named x := named_unique using S in
     result_skip S
   | named_unique =>
-    map%pointer x with set_named_plural using S in
+    set%named x := named_plural using S in
     result_skip S
   | named_plural =>
     result_skip S
@@ -112,10 +112,10 @@ Definition DECREMENT_NAMED S x :=
   | named_temporary =>
     result_skip S
   | named_unique =>
-    map%pointer x with set_named_temporary using S in
+    set%named x := named_temporary using S in
     result_skip S
   | named_plural =>
-    map%pointer x with set_named_unique using S in
+    set%named x := named_unique using S in
     result_skip S
   end.
 
@@ -140,7 +140,7 @@ Definition MAYBE_SHARED S x :=
 
 Definition MARK_NOT_MUTABLE S x :=
   add%stack "MARK_NOT_MUTABLE" in
-  map%pointer x with set_named_plural using S in
+  set%named x := named_plural using S in
   result_skip S.
 
 Definition ENSURE_NAMED S x :=
@@ -148,7 +148,7 @@ Definition ENSURE_NAMED S x :=
   let%success x_named := NAMED S x using S in
   match x_named with
   | named_temporary =>
-    map%pointer x with set_named_unique using S in
+    set%named x := named_unique using S in
     result_skip S
   | _ => result_skip S
   end.
@@ -157,20 +157,17 @@ Definition SETTER_CLEAR_NAMED S x :=
   add%stack "SETTER_CLEAR_NAMED" in
   let%success x_named := NAMED S x using S in
   ifb x_named = named_unique then
-    map%pointer x with set_named_temporary using S in
+    set%named x := named_temporary using S in
     result_skip S
   else result_skip S.
 
 Definition RAISE_NAMED S x n :=
   add%stack "RAISE_NAMED" in
   let%success x_named := NAMED S x using S in
-  match x_named, n with
-  | (named_temporary | named_unique), named_plural
-  | named_temporary, named_unique =>
-    map%pointer x with set_named n using S in
+  ifb x_named < n then
+    set%named x := named n using S in
     result_skip S
-  | _, _ => result_skip S
-  end.
+  else result_skip S.
 
 
 Definition DDVAL_BIT := 0.
