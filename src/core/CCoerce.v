@@ -303,7 +303,7 @@ Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
     
     let (S, xnew) := allocList globals S len in 
     let%success xnames := runs_getAttrib runs S x R_NamesSymbol using S in
-    let named := xnames <> R_NilValue  in
+    let named := decide (xnames <> R_NilValue) in
     
     do%success xptr := xnew
     for i from 0 to len - 1 do
@@ -1033,7 +1033,6 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
     | PromSxp => let%success lang_prexpr := PREXPR globals S lang using S in
                 runs_substitute runs S lang_prexpr rho
     | SymSxp => ifb rho <> R_NilValue then
-                   run%success
                    let%success t := findVarInFrame3 globals runs S rho lang true using S in
                    ifb t <> R_UnboundValue then
                        let%success t_type := TYPEOF S t using S in
@@ -1042,7 +1041,7 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
                            let%success t_prexpr := PREXPR globals S t using S in
                            do%success t := t_prexpr
                            while let%success t_type := TYPEOF S t using S in
-                                 result_success S decide (t_type = PromSxp) do PREXPR globals s t
+                                 result_success S (decide (t_type = PromSxp)) do PREXPR globals S t
                            using S, runs in
                            set%named t := named_plural using S in
                            result_success S t
@@ -1054,15 +1053,16 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
                    else result_success S lang
                else result_success S lang
     | LangSxp => runs_substituteList runs S lang rho
-    | _ => result_success S lang.
+    | _ => result_success S lang
+    end.
                        
                
 Definition substituteList (S : state) (el rho : SEXP) :=
-  add%stack "substituteList" 
-    if%success isNil S el then
+  add%stack "substituteList" in
+    if%success isNull S el using S then
         result_success S el           
     else
-        do%success (p, res) := ((R_NilValue : SEXP), (R_NilValue : SEXP))
+        do%success (el, p, res) := (el, R_NilValue : SEXP, R_NilValue : SEXP)
         whileb el <> R_NilValue do
             let%success h :=  
             read%list el_car, el_cdr, el_tag := el using S in
@@ -1081,16 +1081,17 @@ Definition substituteList (S : state) (el rho : SEXP) :=
                 else
                     let%success h_type := TYPEOF S h using S in
                     ifb h_type = DotSxp then
-                        result_success S (runs_substituteList runs S h R_NilValue)
+                        runs_substituteList runs S h R_NilValue
                     else
                         result_error S "'...' used in an incorrect context"
             else 
                 let%success h := substitute S el_car rho using S in
                 let%success h :=
-                if%success isLanguage globals S el then
-                    LCONS globals S h (R_NilValue : SEXP)
+                if%success isLanguage globals S el using S then
+                    LCONS globals S h R_NilValue
                 else
-                    CONS globals S h (R_NilValue : SEXP)
+                    let (S, h) := CONS globals S h R_NilValue in
+                    result_success S h
                 using S in
                 set%tag h := el_tag using S in
                 result_success S h
@@ -1114,7 +1115,7 @@ Definition substituteList (S : state) (el rho : SEXP) :=
             else
                 result_success S (p, res) using S in
             read%list _, el_cdr, _ := el using S in
-            result_success S el_cdr
+            result_success S (el_cdr, p, res)
         using S, runs in
     result_success S res.    
   

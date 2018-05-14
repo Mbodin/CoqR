@@ -165,7 +165,7 @@ Definition RAISE_NAMED S x n :=
   add%stack "RAISE_NAMED" in
   let%success x_named := NAMED S x using S in
   ifb x_named < n then
-    set%named x := named n using S in
+    set%named x := n using S in
     result_skip S
   else result_skip S.
 

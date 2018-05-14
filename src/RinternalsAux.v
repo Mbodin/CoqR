@@ -525,8 +525,25 @@ Instance named_field_Le_Decidable : forall n1 n2 : named_field,
   introv. applys* Decidable_equiv (named_field_le n1 n2). typeclass.
 Defined.
 
-Instance named_field_Gt : Gt named_field := gt_from_le.
-Instance named_field_Ge : Ge named_field := ge_from_le.
-(* FIXME: The definition of [ge_from_le] is really strange.
-  It has been fixed in recent versions of TLC: maybe it is time to update. *)
+Definition named_field_gt n1 n2 :=
+  decide (n2 < n1).
+
+Instance named_field_Gt : Gt named_field :=
+  Build_Gt named_field_gt.
+
+Instance named_field_Gt_Decidable : forall n1 n2 : named_field,
+    Decidable (n1 > n2).
+  introv. applys* Decidable_equiv (named_field_gt n1 n2). typeclass.
+Defined.
+
+Definition named_field_ge n1 n2 :=
+  decide (n1 = n2 \/ n1 > n2).
+
+Instance named_field_Ge : Ge named_field :=
+  Build_Ge named_field_ge.
+
+Instance named_field_Ge_Decidable : forall n1 n2 : named_field,
+    Decidable (n1 >= n2).
+  introv. applys* Decidable_equiv (named_field_ge n1 n2). typeclass.
+Defined.
 
