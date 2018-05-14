@@ -67,6 +67,7 @@
 ./src/features/FRelop.v
 ./src/features/FArray.v
 ./src/features/FNames.v
+./src/features/FLogic.v
 ./src/Rfeatures.v
 
 ./src/Rinit.v

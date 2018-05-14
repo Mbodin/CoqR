@@ -42,6 +42,7 @@ Require Export FSubset.
 Require Export FRelop.
 Require Export FArray.
 Require Export FNames.
+Require Export FLogic.
 
 (** * Closing the Loop **)
 
@@ -220,8 +221,8 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "|" (dummy_function "do_logic") (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
               rdecl "!" (dummy_function "do_logic") (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;
 
-              rdecl "&&" (dummy_function "do_logic2") (1)%Z eval0 (2)%Z PP_BINARY PREC_AND false ;
-              rdecl "||" (dummy_function "do_logic2") (2)%Z eval0 (2)%Z PP_BINARY PREC_OR false ;
+              rdecl "&&" do_logic2 (1)%Z eval0 (2)%Z PP_BINARY PREC_AND false ;
+              rdecl "||" do_logic2 (2)%Z eval0 (2)%Z PP_BINARY PREC_OR false ;
               rdecl ":" do_colon (0)%Z eval1 (2)%Z PP_BINARY2 PREC_COLON false ;
 
               rdecl "~" (dummy_function "do_tilde") (0)%Z eval0 (-1)%Z PP_BINARY PREC_TILDE false ;
@@ -955,4 +956,3 @@ Fixpoint runs max_step globals : runs_type :=
   end.
 
 Optimize Heap.
-
