@@ -303,7 +303,7 @@ Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
     
     let (S, xnew) := allocList globals S len in 
     let%success xnames := runs_getAttrib runs S x R_NamesSymbol using S in
-    let named := decide (xnames <> (R_NilValue : SEXP)) in
+    let named := xnames <> R_NilValue  in
     
     do%success xptr := xnew
     for i from 0 to len - 1 do
@@ -1051,60 +1051,67 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
     | LangSxp => substituteList S lang rho
     | _ => result_success S lang.
                        
-Fixpoint substituteList_loop el rho p res : SEXP :=
-  ifb el = R_NilValue then
-      (R_NilValue : SEXP)
-  else
-      let%success h :=  
-      read%list el_car, el_cdr, el_tag := el using S in
-      ifb el_car = R_DotsSymbol then
-          let%success h :=
-          ifb rho = R_NilValue then
-              result_success S (R_UnboundValue : SEXP)
-          else
-              findVarInFrame3 globals runs S rho el_car true
-          using S in
-          ifb h = R_UnboundValue then
-              LCONS globals S (R_DotsSymbol : SEXP) (R_NilValue : SEXP)
-          else ifb h = R_NilValue \/ h = R_MissingArg then
-              result_success S (R_NilValue : SEXP)
-          else
-              let%success h_type := TYPEOF S h using S in
-              ifb h_type = DotSxp then
-                  result_success S (substituteList_loop h R_NilValue p res)
-              else
-                  result_error S "'...' used in an incorrect context"
-      else 
-          let%success h := substitute S el_car rho using S in
-          let%success h :=
-          if%success isLanguage globals S el then
-              LCONS globals S h (R_NilValue : SEXP)
-          else
-              CONS globals S h (R_NilValue : SEXP)
-          using S in
-          set%tag h := el_tag using S in
-          result_success S h
-      using S in
-      let%success (p, res) :=       
-      ifb h <> R_NilValue then
-          let%success res :=
-          ifb res = R_NilValue then
-              result_success S h
-          else
-              set%cdr p := h using S in
-              result_success S res
-          using S in
-          while ... using S in
-          result_success S (h, res)    
-      else  result_success S (p, res) using S in
-      result_success S (substituteList_loop el_cdr rho p res).
-                       
+               
 Definition substituteList (S : state) (el rho : SEXP) :=
   add%stack "substituteList" 
     if%success isNil S el then
-        result_success S el
-    else                 
-        result_success S (substituteList_loop el rho (R_NilValue : SEXP) (R_NilValue : SEXP)).
+        result_success S el           
+    else
+        do%success (p, res) := ((R_NilValue : SEXP), (R_NilValue : SEXP))
+        whileb el <> R_NilValue do
+            let%success h :=  
+            read%list el_car, el_cdr, el_tag := el using S in
+
+            ifb el_car = R_DotsSymbol then
+                let%success h :=
+                ifb rho = R_NilValue then
+                    result_success S (R_UnboundValue : SEXP)
+                else
+                    findVarInFrame3 globals runs S rho el_car true
+                using S in
+                ifb h = R_UnboundValue then
+                    LCONS globals S (R_DotsSymbol : SEXP) (R_NilValue : SEXP)
+                else ifb h = R_NilValue \/ h = R_MissingArg then
+                    result_success S (R_NilValue : SEXP)
+                else
+                    let%success h_type := TYPEOF S h using S in
+                    ifb h_type = DotSxp then
+                        result_success S (runs_substituteList runs S h R_NilValue)
+                    else
+                        result_error S "'...' used in an incorrect context"
+            else 
+                let%success h := substitute S el_car rho using S in
+                let%success h :=
+                if%success isLanguage globals S el then
+                    LCONS globals S h (R_NilValue : SEXP)
+                else
+                    CONS globals S h (R_NilValue : SEXP)
+                using S in
+                set%tag h := el_tag using S in
+                result_success S h
+            using S in
+
+            let%success (p, res) :=       
+            ifb h <> R_NilValue then
+                let%success res :=
+                ifb res = R_NilValue then
+                    result_success S h
+                else
+                    set%cdr p := h using S in
+                    result_success S res
+                using S in
+                do%success h := h
+                while read%list _, h_cdr, _ := h using S in
+                    result_success S (decide (h_cdr <> R_NilValue))
+                    do read%list _, h_cdr, _ := h using S in
+                    result_success S h_cdr using S, runs in
+                result_success S (h, res)    
+            else
+                result_success S (p, res) using S in
+            read%list _, el_cdr, _ := el using S in
+            result_success S el_cdr
+        using S, runs in
+    result_success S res.    
   
 End Parameterised.
 
