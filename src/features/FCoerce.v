@@ -396,11 +396,11 @@ Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
         else
             let%success env_type := TYPEOF S env using S in
             ifb env_type = VecSxp then
-                let%success env_vecToPairList := VectorToPairList S env using S in
-                NewEnvironment globals runs S (R_NilValue : SEXP) env_vecToPairList (R_BaseEnv : SEXP)
+                let%success env_vecToPairList := VectorToPairList globals runs S env using S in
+                NewEnvironment globals runs S R_NilValue env_vecToPairList R_BaseEnv
         else ifb env_type = ListSxp then
             let%success env_duplicate := duplicate globals runs S env using S in
-            NewEnvironment globals runs S (RNilValue : SEXP) env_duplicate (R_BaseEnv : SEXP)
+            NewEnvironment globals runs S (R_NilValue : SEXP) env_duplicate (R_BaseEnv : SEXP)
         else
             result_success S env
     using S in
@@ -409,8 +409,8 @@ Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
         result_error S "invalid environment specified"
     else
         let%success argList_car_duplicate := duplicate globals runs S argList_car using S in
-        let%success t := CONS globals S argList_car_duplicate (R_NilValue : SEXP) using S in
-        let%success s := substituteList S t env using S in
+        let (S, t) := CONS globals S argList_car_duplicate R_NilValue in
+        let%success s := substituteList globals runs S t env using S in
         read%list s_car, _, _ := s using S in
         result_success S s_car
 .
