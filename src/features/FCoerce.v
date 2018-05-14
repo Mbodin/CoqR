@@ -380,7 +380,7 @@ Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_substitute" in
-    let%success argList := matchArgs globals runs S do_substitute_formals args call using S in
+    let%success argList := matchArgs globals runs S do_substitute_do_substitute_formals  args call using S in
 
     read%list argList_car, argList_cdr, _ := argList using S in
     read%list argList_cdr_car, _, _ := argList_cdr using S in
