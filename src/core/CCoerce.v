@@ -1031,14 +1031,19 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
     let%success lang_type := TYPEOF S lang using S in
     match lang_type with
     | PromSxp => let%success lang_prexpr := PREXPR globals S lang using S in
-                substitute S lang_prexpr rho
+                runs_substitute runs S lang_prexpr rho
     | SymSxp => ifb rho <> R_NilValue then
                    run%success
                    let%success t := findVarInFrame3 globals runs S rho lang true using S in
                    ifb t <> R_UnboundValue then
                        let%success t_type := TYPEOF S t using S in
+
                        ifb t_type = PromSxp then
-                         do while ?
+                           let%success t_prexpr := PREXPR globals S t using S in
+                           do%success t := t_prexpr
+                           while let%success t_type := TYPEOF S t using S in
+                                 result_success S decide (t_type = PromSxp)                                       do PREXPR globals s t
+                           using S, runs in
                            map%pointer t with set_named_plural using S in
                            result_success S t
                        else ifb t_type = DotSxp then
@@ -1047,8 +1052,8 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
                            result_success S t
                        else result_success S lang                 
                    else result_success S lang
-                else result_success S lang
-    | LangSxp => substituteList S lang rho
+               else result_success S lang
+    | LangSxp => runs_substituteList runs S lang rho
     | _ => result_success S lang.
                        
                
