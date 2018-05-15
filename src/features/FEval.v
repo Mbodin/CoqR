@@ -244,7 +244,7 @@ Definition do_function S (call op args rho : SEXP) : result SEXP :=
     let srcref := args_cdr_cdr_car in
     let%success srcref_type := TYPEOF S srcref using S in
     run%success
-      ifb srcref_type = NilSxp then
+      ifb not (srcref_type = NilSxp) then
         run%success
           setAttrib globals runs S rval R_SrcrefSymbol srcref using S in
         result_skip S
