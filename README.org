@@ -5,7 +5,7 @@ A Coq formalisation of the R programming language
 
 This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
-It follows principled inspired from the [[http://jscert.org/][JSCert project]]:
+It follows principles strongly inspired from the [[http://jscert.org/][JSCert project]]:
  - the code is as close as possible from a reference specification
    (in this case, the source of [[https://www.r-project.org/][GNU R]]).
    The formalisation has been written in a monadic form,
@@ -45,9 +45,9 @@ More information can be found in the
 
 Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
- - =src/Rcore.v= contains translations of the main functions of R;
- - =src/Rfeatures.v= contains translations of additional functions of R (typically present
-   in the default heap);
+ - the =src/core/= folder contains translations of the main functions of R;
+ - the =src/features/= folder contains translations of additional functions of R (typically
+   present in the default heap);
  - =src/Invariants.v= defines some invariants of R’s structures;
  - =src/InvariantProofs.v= contains proofs that the invariants defined in =src/Invariants.v=
    are conserved along the execution.
@@ -106,7 +106,7 @@ We can now clone the project.
     git submodule update --init
 #+END_SRC
 
-We need to compile TLC.
+We need to compile TLC, a Coq library used thorough the project.
 #+BEGIN_SRC bash
     make tlc
 #+END_SRC
@@ -115,6 +115,11 @@ The Makefile should now work.
 #+BEGIN_SRC bash
     make
 #+END_SRC
+
+It is possible that during the extraction, Coq complains that
+some opaque constants were accessed, or that some logical axioms
+were encountered.
+These comes from the TLC library and can be safely ignored.
 
 This should create the following program.
 #+BEGIN_SRC bash
@@ -190,21 +195,42 @@ infinite execution.
 In some ways, this file provides notations enabling to write
 imperative loops in Coq.
 
+*** =core/=
+
+This folder contains Coq translations of various core functions of R from its C code.
+This folder is organised by the corresponding file name in the C source code of R.
+
+The core functions of R are the ones used thoroughly in R source code.
+They are internal C functions and are not linked to the initial R environment
+(defined in the =names.c= file in C).
+
+Due to some circular dependencies between C files (which is accepted in C, but not in Coq),
+some functions have been put in a special file =Conflicts.v=.
+Note that despite this special file, there still are some functions separated from their
+original file in other file.  They are however always preceeded by a comment warning for
+the exceptional location of the function definition.
+
 *** =Rcore.v=
 
-A Coq formalisation of the evaluation functions of R from its C code.
-Note that only relevant definitions are translated here. Some are just
-reinterpreted in Coq without following the original algorithm of the
-C source. See report for more details.
+This file wraps up all the files present in the =core/= folder.
 
 *** =Rinit.v=
 
 Initialises global variables.
 
+*** =features/=
+
+This folder contains Coq translations of various non-core functions of R from its C code.
+This folder is organised by the corresponding file name in the C source code of R.
+Most of the functions defined in the files of this folder appear in the initial
+environment of R, initialised in the file =names.c= in C.
+
 *** =Rfeatures.v=
 
-A Coq formalisation of additionnal functions of R from its C code.
-This file also contains the final interpreter.
+This file wraps up all the files present in the =features/= folder.
+This file also wraps all these functions into the main function array of =names.c=.
+Finally, this files defines the =runs= structure, enabling Coq functions to loop
+without explicitly manipulating a fuel.
 
 *** =RfeaturesAux.v=
 
@@ -226,21 +252,20 @@ Provides abstractions to reason about the heap.
 
 *** =Invariants.v=
 
-States some invariants of R’s heap, as well as lemmae and tactics to manipulate it.
+States some invariants of R’s heap.
 
-*** =InvariantProofs.v=
+*** =InvariantsAux.v=
+
+Contains lemmae about the invariants stated in =Invariants.v=.
+
+*** =InvariantsTactics.v=
+
+Defines tactics to manipulate the invariants defined in =Invariants.v=.
+
+*** =InvariantsProofs.v=
 
 Proofs of some invariants respected by the functions defined in =Rcore.v=,
 =Rinit.v=, and =Rfeatures.v=.
-
-*** =Relation.v=
-
-Links the low-level formalisation to the C source code of R.
-
-*** =RelationCorrect.v=
-
-Proof that the relation defined in Module Relation holds along the
-execution of the functions of Rcore.
 
 *** =Extraction.v=
 

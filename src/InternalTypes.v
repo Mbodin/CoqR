@@ -192,7 +192,7 @@ Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; apply arbitrary.
 Qed.
 
-Definition funtab := option (ArrayList.array funtab_cell).
+Definition funtab := ArrayList.array funtab_cell.
 
 
 (** * [Type2Table] **)

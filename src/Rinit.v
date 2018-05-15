@@ -77,7 +77,7 @@ Definition init_R_NilValue S :=
       |}
     |} in
   write%defined R_NilValue := nil_obj using S in
-  map%pointer R_NilValue with set_named_plural using S in
+  set%named R_NilValue := named_plural using S in
   result_success S R_NilValue.
 
 (** The second part of [InitMemory], from main/memory.c **)
@@ -321,7 +321,7 @@ Definition InitTypeTables S :=
         | Some (cstr, _) =>
           let (S, rchar) := mkChar globals S cstr in
           let%success rstr := ScalarString globals S rchar using S in
-          map%pointer rstr with set_named_plural using S in
+          set%named rstr := named_plural using S in
           let%success rsym := install globals runs S cstr using S in
           result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
         | None => result_impossible S "Out of bound."
@@ -355,6 +355,14 @@ Definition do_attrgets_init S :=
   let%success which := install globals runs S "which" using S in
   let%success value := install globals runs S "value" using S in
   allocFormalsList3 globals S x which value.
+
+(** The initialisation of [do_substitute_do_substitute_formals], done in
+  C in [do_substitute], from main/coerce.c **)
+Definition do_substitute_init S :=
+  add%stack "do_substitute_init" in
+  let%success expr := install globals runs S "expr" using S in
+  let%success env := install globals runs S "env" using S in
+  allocFormalsList2 globals S expr env.
 
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
@@ -462,6 +470,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success do_attrgets_formals :=
     do_attrgets_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl do_attrgets_do_attrgets_formals do_attrgets_formals ] }} in
+  let%success do_substitute_formals :=
+    do_substitute_init globals (runs max_step globals) S using S in
+  let globals := {{ globals with [ decl do_substitute_do_substitute_formals do_substitute_formals ] }} in
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 
@@ -498,4 +509,6 @@ Definition empty_state := {|
     R_OutputCon := 0 ;
     R_asymSymbol := nil
   |}.
+
+Optimize Heap.
 

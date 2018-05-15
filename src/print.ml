@@ -109,7 +109,8 @@ let all_global_variables =
 
     (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ;
     (Do_attr_do_attr_formals, "static variable do_attr_formals from do_attr") ;
-    (Do_attrgets_do_attrgets_formals, "static variable do_attrgets_formals from do_attrgets") ]
+    (Do_attrgets_do_attrgets_formals, "static variable do_attrgets_formals from do_attrgets") ;
+    (Do_substitute_do_substitute_formals, "static variable do_substitute_formals from do_substitute") ]
 
 let _ =
   (** A sanity check that we forgot no name above **)

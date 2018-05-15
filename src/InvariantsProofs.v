@@ -1,4 +1,4 @@
-(** Invariants.
+(** InvariantsProofs.
   Contains the proofs of some invariants respected by the functions
   defined in Rcore, Rinit, and Rfeatures. **)
 
@@ -18,8 +18,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Import Rcore RfeaturesAux Rinit.
-Require Export Invariants.
+Require Import Rcore.
+Require Import RfeaturesAux.
+Require Import Rinit.
+Require Import InvariantsAux InvariantsTactics.
 Require Import Paco.paco.
 
 
@@ -31,6 +33,8 @@ Let read_globals := read_globals globals.
 Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
+
+Hypothesis runs_max_step : exists max_step, runs = Rfeatures.runs max_step globals.
 
 Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
     S (a : A) (expr stat : _ -> A -> _),
@@ -47,32 +51,46 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
 (** * Lemmae about Rcore.v **)
 
 Lemma read_R_FunTab_result : forall S n,
-  (* FIXME: n < ArrayList.length ?? -> *)
+  safe_offset n ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (read_R_FunTab runs S n).
 Proof.
-  introv. unfolds read_R_FunTab. computeR.
-  skip. (* TODO *)
+  introv OKn. unfolds in OKn.
+  forwards (max_step&Eruns): runs_max_step. rewrite Eruns in *.
+  unfolds read_R_FunTab. computeR.
+  forwards OKn': (rm OKn) max_step globals S. destruct Rfeatures.runs.
+  destruct runs_R_FunTab eqn: E'; simpls; autos~. cases_if; simpl; autos*.
 Qed.
 
 Lemma PRIMARITY_result : forall S x,
-  safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (PRIMARITY runs S x).
-Proof.
-  introv OKS OKx Tx. unfolds PRIMARITY. computeR.
-  skip. (* TODO: cutR read_R_FunTab_result. *)
-Qed.
+Proof. introv OKx Tx. unfolds PRIMARITY. computeR. cutR read_R_FunTab_result. Qed.
 
 Lemma PRIMINTERNAL_result : forall S x,
-  safe_state S ->
   safe_pointer S x ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) x ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (PRIMINTERNAL runs S x).
-Admitted. (* TODO *)
+Proof. introv OKx Tx. unfolds PRIMINTERNAL. computeR. cutR read_R_FunTab_result. Qed.
+
+Lemma isLanguage_result : forall S (s : SEXP),
+  safe_pointer S s ->
+  result_prop (fun S' (il : bool) =>
+       S' = S /\ (il <-> s = R_NilValue \/ may_have_types S ([LangSxp]) s))
+    (fun _ => False) (fun _ _ _ => False)
+    (isLanguage globals S s).
+Proof.
+  introv OKs. unfolds isLanguage. computeR.
+  rewrite safe_pointer_rewrite in OKs. forwards (s_&R&_): pointer_bound OKs.
+  forwards*: read_SExp_may_have_types_read_exact R.
+  cutR TYPEOF_result; [ eassumption |]. lets (?&?): (rm P). substs. simpl. splits~.
+  rew_refl. iff [EN|EL]; autos~.
+  - rewrite EL in *. autos~.
+  - right. applys~ may_have_types_merge_singl EL.
+Qed.
 
 Lemma R_length_result : forall S s,
   safe_state S ->
@@ -83,11 +101,15 @@ Proof.
   introv OKS OKs. unfolds R_length. computeR.
   forwards Ts: bound_may_have_types S s.
   { solve_premises_smart. }
-  unfolds all_SExpTypes.
-  explode_list Ts; (cutR TYPEOF_result;
+  unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
     [ apply Ts
-    | lets (E&C): (rm P); substs; simpl; autos~ ]).
-Admitted. (* TODO *)
+    | lets (E&C): (rm P); substs; simpl; autos~ ]); computeR.
+  - skip. (* TODO: dealing with whileb. *)
+  - skip. (* TODO: dealing with whileb. *)
+  - skip. (* TODO: dealing with whileb. *)
+  - destruct s0_; tryfalse; simpl; autos~.
+  Optimize Proof.
+Qed.
 
 (** * Lemmae about Rfeatures.v **)
 
@@ -105,6 +127,22 @@ Proof.
   cutR R_length_result. substs. cases_if.
   - computeR. cutR PRIMINTERNAL_result.
     substs. cases_if; simpl; autos~.
+  - simpl. autos~.
+  Optimize Proof.
+Qed.
+
+Lemma BodyHasBraces_result : forall S body,
+  safe_state S ->
+  safe_globals S globals ->
+  safe_pointer S body ->
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (BodyHasBraces globals S body).
+Proof.
+  introv OKS OKg OKbody. unfolds BodyHasBraces. computeR.
+  cutR isLanguage_result. lets (?&(I&_)): (rm P). substs. cases_if.
+  - forwards~ [EN|EL]: (rm I); substs.
+    + forwards~ T: R_NilValue_may_have_types OKg. fold read_globals in T. computeR.
+    + computeR.
   - simpl. autos~.
 Qed.
 
@@ -124,7 +162,17 @@ Lemma do_while_result : forall S call op args rho,
 Proof.
   introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
   cutR Rf_checkArityCall_result. substs. computeR.
-  skip. (* TODO *)
+  unfolds list_cdrval. unfold_shape_pointer_one S cdr. computeR. fold read_globals.
+  cutR BodyHasBraces_result; try solve_premises_smart. substs.
+  unfolds begincontext.
+  match goal with |- context [ state_with_context _ ?cptr' ] => sets_eq cptr: cptr' end.
+  sets_eq S': (state_with_context S cptr). computeR. cutR safe_state.
+  - cases_if as C; fold_bool; rew_refl in C.
+    + skip. (* TODO: while. *)
+    + computeR. skip. (* TODO: endcontext. *)
+  - skip. (* TODO: lacks hypothesis about [runs_set_longjump]. *)
+  - skip. (* TODO: Something is wrong here… *)
+  Optimize Proof.
 Qed.
 
 (** * Lemmae about Rinit.v **)
@@ -211,6 +259,7 @@ Proof.
          applys state_equiv_sym. applys state_equiv_trans E2 E3.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
+  Optimize Proof.
 Qed.
 
 End Parameterised.
