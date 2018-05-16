@@ -380,17 +380,20 @@ Definition do_isvector S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_substitute" in
+    (** argument matching **)
     let%success argList := matchArgs globals runs S do_substitute_do_substitute_formals  args call using S in
 
     read%list argList_car, argList_cdr, _ := argList using S in
     read%list argList_cdr_car, _, _ := argList_cdr using S in
     let%success env :=
+        (** set up the environment for substitution **)
         ifb argList_cdr_car = R_MissingArg then
             result_success S rho
         else  
             eval globals runs S argList_cdr_car rho
     using S in 
-    let%success env := 
+    let%success env :=
+        (** For historical reasons, don't substitute in R_GlobalEnv **)
         ifb env = R_GlobalEnv then
             result_success S (R_NilValue : SEXP)
         else
@@ -400,7 +403,7 @@ Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
                 NewEnvironment globals runs S R_NilValue env_vecToPairList R_BaseEnv
         else ifb env_type = ListSxp then
             let%success env_duplicate := duplicate globals runs S env using S in
-            NewEnvironment globals runs S (R_NilValue : SEXP) env_duplicate (R_BaseEnv : SEXP)
+            NewEnvironment globals runs S R_NilValue env_duplicate R_BaseEnv
         else
             result_success S env
     using S in

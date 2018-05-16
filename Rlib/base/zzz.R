@@ -159,14 +159,14 @@ assign("untracemem", function(x) NULL, envir = .ArgsEnv)
     env <- new.env(hash = TRUE, parent = emptyenv())
     ## those with different arglists are overridden below
     for(f in .S3PrimitiveGenerics) {
-        fx <- function(x) {}
+        fx <- function(x) {NULL}
         body(fx) <- substitute(UseMethod(ff), list(ff=f))
         environment(fx) <- .BaseNamespaceEnv
         assign(f, fx, envir = env)
     }
     ## now add the group generics
     ## round, signif, log, trunc are handled below
-    fx <- function(x) {}
+    fx <- function(x) {NULL}
     for(f in c("abs", "sign", "sqrt", "floor", "ceiling",
                "exp", "expm1", "log1p", "log10", "log2",
                "cos", "sin", "tan", "acos", "asin", "atan", "cosh", "sinh",
@@ -180,7 +180,7 @@ assign("untracemem", function(x) NULL, envir = .ArgsEnv)
     }
 
     ## ! is unary and handled below
-    fx <- function(e1, e2) {}
+    fx <- function(e1, e2) {NULL}
     for(f in c("+", "-", "*", "/", "^", "%%", "%/%", "&", "|",
                "==", "!=", "<", "<=", ">=", ">")) {
         body(fx) <- substitute(UseMethod(ff), list(ff=f))
@@ -189,14 +189,14 @@ assign("untracemem", function(x) NULL, envir = .ArgsEnv)
     }
 
     for(f in c("all", "any", "sum", "prod", "max", "min", "range")) {
-        fx <- function(..., na.rm = FALSE) {}
+        fx <- function(..., na.rm = FALSE) {NULL}
         body(fx) <- substitute(UseMethod(ff), list(ff=f))
         environment(fx) <- .BaseNamespaceEnv
         assign(f, fx, envir = env)
     }
 
     for(f in c("Arg", "Conj", "Im", "Mod", "Re")) {
-        fx <- function(z) {}
+        fx <- function(z) {NULL}
         body(fx) <- substitute(UseMethod(ff), list(ff=f))
         environment(fx) <- .BaseNamespaceEnv
         assign(f, fx, envir = env)
