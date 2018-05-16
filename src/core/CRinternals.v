@@ -82,6 +82,12 @@ Definition ATTRIB S x :=
   read%defined x_ := x using S in
   result_success S (attrib x_).
 
+(** We suppose that [COMPUTE_REFCNT_VALUES] is not defined. **)
+Definition REFCNT S (x : SEXP) :=
+  result_success S 0.
+Definition TRACKREFS S (x : SEXP) :=
+  result_success S false.
+
 Definition NAMED S x :=
   add%stack "NAMED" in
   read%defined x_ := x using S in

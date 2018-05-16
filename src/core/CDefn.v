@@ -55,6 +55,12 @@ Definition SET_SPECIAL_SYMBOL S x v :=
   map%gp x with @write_nbit 16 SPECIAL_SYMBOL_BIT ltac:(nbits_ok) v using S in
   result_skip S.
 
+Definition SET_NO_SPECIAL_SYMBOLS S x :=
+  SET_SPECIAL_SYMBOL S x true.
+
+Definition UNSET_NO_SPECIAL_SYMBOLS S x :=
+  SET_SPECIAL_SYMBOL S x false.
+
 Definition ACTIVE_BINDING_BIT := 15.
 
 Definition IS_ACTIVE_BINDING S symbol :=
