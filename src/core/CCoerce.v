@@ -307,17 +307,10 @@ Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
     
     do%success xptr := xnew
     for i from 0 to len - 1 do
-                                              
-        let%success x_named := NAMED S x using S in                                     
+                                                                                 
         let%success x_i := VECTOR_ELT S x i using S in
-        let%success x_i_named := NAMED S x_i using S in
-      
-        run%success
-        ifb x_named > x_i_named then
-            set%named x_i := x_named using S in
-            result_skip S
-        else result_skip S
-        using S in     
+        let%success x_named := NAMED S x using S in                      
+        run%success RAISE_NAMED S x_i x_named using S in
                
         set%car xptr := x_i using S in
         
