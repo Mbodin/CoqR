@@ -1043,6 +1043,7 @@ Definition substitute S (lang rho : SEXP) : result SEXP :=
                            while let%success t_type := TYPEOF S t using S in
                                  result_success S (decide (t_type = PromSxp)) do PREXPR globals S t
                            using S, runs in
+                           (** make sure code will not be modified: **)
                            set%named t := named_plural using S in
                            result_success S t
                        else ifb t_type = DotSxp then
@@ -1064,18 +1065,24 @@ Definition substituteList (S : state) (el rho : SEXP) :=
     else
         do%success (el, p, res) := (el, R_NilValue : SEXP, R_NilValue : SEXP)
         whileb el <> R_NilValue do
+            (**
+               walk along the pairlist, substituting elements.
+	       res is the result
+	       p is the current last element
+	       h is the element currently being processed
+           **)
             let%success h :=  
             read%list el_car, el_cdr, el_tag := el using S in
 
             ifb el_car = R_DotsSymbol then
                 let%success h :=
                 ifb rho = R_NilValue then
-                    result_success S (R_UnboundValue : SEXP)
+                    result_success S (R_UnboundValue : SEXP) (** so there is no substitution below **)
                 else
                     findVarInFrame3 globals runs S rho el_car true
                 using S in
                 ifb h = R_UnboundValue then
-                    LCONS globals S (R_DotsSymbol : SEXP) (R_NilValue : SEXP)
+                    LCONS globals S R_DotsSymbol R_NilValue
                 else ifb h = R_NilValue \/ h = R_MissingArg then
                     result_success S (R_NilValue : SEXP)
                 else
@@ -1106,6 +1113,7 @@ Definition substituteList (S : state) (el rho : SEXP) :=
                     set%cdr p := h using S in
                     result_success S res
                 using S in
+                (** now set 'p': dots might have expanded to a list of length > 1 **)
                 do%success h := h
                 while read%list _, h_cdr, _ := h using S in
                     result_success S (decide (h_cdr <> R_NilValue))
