@@ -56,9 +56,11 @@ Definition SET_SPECIAL_SYMBOL S x v :=
   result_skip S.
 
 Definition SET_NO_SPECIAL_SYMBOLS S x :=
+  add%stack "SET_NO_SPECIAL_SYMBOLS" in
   SET_SPECIAL_SYMBOL S x true.
 
 Definition UNSET_NO_SPECIAL_SYMBOLS S x :=
+  add%stack "UNSET_NO_SPECIAL_SYMBOLS" in
   SET_SPECIAL_SYMBOL S x false.
 
 Definition ACTIVE_BINDING_BIT := 15.

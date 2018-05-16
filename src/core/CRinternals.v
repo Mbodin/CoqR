@@ -84,8 +84,11 @@ Definition ATTRIB S x :=
 
 (** We suppose that [COMPUTE_REFCNT_VALUES] is not defined. **)
 Definition REFCNT S (x : SEXP) :=
+  add%stack "REFCNT" in
   result_success S 0.
+
 Definition TRACKREFS S (x : SEXP) :=
+  add%stack "TRACKREFS" in
   result_success S false.
 
 Definition NAMED S x :=
