@@ -82,6 +82,40 @@ Definition ATTRIB S x :=
   read%defined x_ := x using S in
   result_success S (attrib x_).
 
+(** We suppose that [COMPUTE_REFCNT_VALUES] is not defined. **)
+
+Definition REFCNT S (x : SEXP) :=
+  add%stack "REFCNT" in
+  result_success S 0.
+
+Definition TRACKREFS S (x : SEXP) :=
+  add%stack "TRACKREFS" in
+  result_success S false.
+
+Definition SET_REFCNT S (x : SEXP) (v : bool) :=
+  add%stack "SET_REFCNT" in
+  result_skip S.
+
+Definition SET_TRACKREFS S (x : SEXP) (v : bool) :=
+  add%stack "SET_TRACKREFS" in
+  result_skip S.
+
+Definition DECREMENT_REFCNT S (x : SEXP) :=
+  add%stack "DECREMENT_REFCNT" in
+  result_skip S.
+
+Definition INCREMENT_REFCNT S (x : SEXP) :=
+  add%stack "INCREMENT_REFCNT" in
+  result_skip S.
+
+Definition ENABLE_REFCNT S x :=
+  add%stack "ENABLE_REFCNT" in
+  SET_TRACKREFS S x true.
+
+Definition DISABLE_REFCNT S x :=
+  add%stack "DISABLE_REFCNT" in
+  SET_TRACKREFS S x false.
+
 Definition NAMED S x :=
   add%stack "NAMED" in
   read%defined x_ := x using S in

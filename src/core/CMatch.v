@@ -262,5 +262,22 @@ Definition matchArgs S formals supplied (call : SEXP) :=
     run%success matchArgs_check S supplied using S in
     result_success S actuals.
 
+
+Definition matchArgs_RC S formals supplied call :=
+  add%stack "matchArgs_RC" in
+  let%success args := matchArgs S formals supplied call using S in
+  fold%success
+  along args
+  as a, _, a_list do
+    let%success a_track := TRACKREFS S a using S in
+    if negb a_track then
+      run%success ENABLE_REFCNT S a using S in
+      run%success INCREMENT_REFCNT S (list_carval a_list) using S in
+      run%success INCREMENT_REFCNT S (list_cdrval a_list) using S in
+      result_skip S
+    else result_skip S
+  using S, runs, globals in
+  result_success S args.
+
 End Parameterised.
 

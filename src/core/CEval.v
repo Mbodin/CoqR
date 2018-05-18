@@ -189,40 +189,45 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
   run%success endcontext globals runs S cntxt using S in
   result_success S (context_returnValue cntxt).
 
-Definition applyClosure S (call op arglist rho suppliedvars : SEXP)
-    : result SEXP :=
+Definition applyClosure S (call op arglist rho suppliedvars : SEXP) : result SEXP :=
   add%stack "applyClosure" in
-  let%success rho_type := TYPEOF S rho using S in
-  ifb rho_type <> EnvSxp then
-    result_error S "‘rho’ must be an environment."
+  ifb rho = NULL then
+    result_error S "‘rho’ can’t be C NULL."
   else
-    read%clo op_, op_clo := op using S in
-    let formals := clo_formals op_clo in
-    let savedrho := clo_env op_clo in
-    let%success actuals := matchArgs globals runs S formals arglist call using S in
-    let%success newrho := NewEnvironment globals runs S formals actuals savedrho using S in
-    fold%success a := actuals
-    along formals
-    as f_car, f_tag do
-      read%list a_car, a_cdr, _ := a using S in
-      ifb a_car = R_MissingArg /\ f_car <> R_MissingArg then
-        let%success newprom := mkPromise globals S f_car newrho using S in
-        set%car a := newprom using S in
-        run%success SET_MISSING S a 2 ltac:(nbits_ok) using S in
-        result_success S a_cdr
-      else result_success S a_cdr using S, runs, globals in
-    run%success
-      ifb suppliedvars <> R_NilValue then
-         addMissingVarsToNewEnv globals runs S newrho suppliedvars
-       else result_skip S using S in
-    if%success R_envHasNoSpecialSymbols globals runs S newrho using S then
-      run%success SET_SPECIAL_SYMBOL S newrho false using S in
-      result_skip S in
-    R_execClosure S call newrho
-      (ifb context_callflag (R_GlobalContext S) = Ctxt_Generic then
-         context_sysparent (R_GlobalContext S)
-       else rho)
-      rho arglist op.
+    let%success rho_env := isEnvironment S rho using S in
+    if negb rho_env then
+      result_error S "‘rho’ must be an environment."
+    else
+      read%clo op_, op_clo := op using S in
+      let formals := clo_formals op_clo in
+      let savedrho := clo_env op_clo in
+      let%success actuals := matchArgs_RC globals runs S formals arglist call using S in
+      let%success newrho := NewEnvironment globals runs S formals actuals savedrho using S in
+      fold%success a := actuals
+      along formals
+      as f_car, f_tag do
+        read%list a_car, a_cdr, _ := a using S in
+        run%success
+          ifb a_car = R_MissingArg /\ f_car <> R_MissingArg then
+            let%success newprom := mkPromise globals S f_car newrho using S in
+            set%car a := newprom using S in
+            run%success SET_MISSING S a 2 ltac:(nbits_ok) using S in
+            result_skip S
+          else result_skip S using S in
+        result_success S a_cdr using S, runs, globals in
+      run%success
+        ifb suppliedvars <> R_NilValue then
+           addMissingVarsToNewEnv globals runs S newrho suppliedvars
+         else result_skip S using S in
+      if%success R_envHasNoSpecialSymbols globals runs S newrho using S then
+        SET_NO_SPECIAL_SYMBOLS S newrho in
+      let%success val :=
+        R_execClosure S call newrho
+          (ifb context_callflag (R_GlobalContext S) = Ctxt_Generic then
+             context_sysparent (R_GlobalContext S)
+           else rho)
+          rho arglist op using S in
+      result_success S val.
 
 Definition promiseArgs S (el rho : SEXP) : result SEXP :=
   add%stack "promiseArgs" in
