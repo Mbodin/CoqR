@@ -30,7 +30,9 @@ clean: Makefile.coq clean_interp clean_random
 	${AT}rm -f Makefile.coq
 
 Makefile.coq: _CoqProject Makefile
-	${AT}coq_makefile -f _CoqProject | sed 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' > Makefile.coq
+	${AT}coq_makefile -f _CoqProject \
+		| sed 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' \
+		> Makefile.coq
 
 _CoqProject: ;
 
@@ -43,10 +45,14 @@ clean_all: clean clean_tlc
 	${AT}rm Rlib/bootstrapping.state || true
 
 tlc:
-	${AT}cd lib/tlc ; make ; cd ../..
+	${AT}cd lib/tlc ; \
+		make ; \
+		cd ../..
 
 clean_tlc:
-	${AT}cd lib/tlc ; make clean ; cd ../..
+	${AT}cd lib/tlc ; \
+		make clean ; \
+		cd ../..
 
 all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping.state
 
@@ -60,7 +66,9 @@ src/initial.state: src/runR.native
 	${AT}src/runR.native -non-interactive -final-state $@ > /dev/null
 
 Rlib/bootstrapping.state: src/initial.state Rlib/bootstrapping.R
-	${AT}cat Rlib/bootstrapping.R | src/runR.native -initial-state $< -final-state $@ > /dev/null
+	${AT}cat Rlib/bootstrapping.R \
+		| src/runR.native -initial-state $< -final-state $@ \
+		> /dev/null
 
 clean_interp:
 	${AT}rm src/runR.native || true
@@ -85,11 +93,15 @@ src/extract.mli: src/Extraction.vo
 	${AT}mv extract.mli $@ 2> /dev/null || true
 
 src/runR.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
-	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
+	${AT}cd src ; \
+		ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; \
+		cd ..
 
 # Debug mode
 src/runR.d.byte: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
-	${AT}cd src ; ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; cd ..
+	${AT}cd src ; \
+		ocamlbuild -pkg extlib -use-menhir -menhir "menhir --explain" runR.d.byte ; \
+		cd ..
 
 random: gen/gen.native
 	${AT}mkdir gen/tests || true
@@ -111,9 +123,15 @@ bisect/%: src/%
 		   $< > $@
 
 bisect/runR.native: bisect/extract.ml bisect/extract.mli ${subst src/,bisect/,${OCAMLFILES}} bisect/funlist.ml
-	${AT}cd bisect ; ocamlbuild -pkg bisect -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
+	${AT}cd bisect ; \
+		ocamlbuild -use-ocamlfind -tag "package(bisect)" -tag "syntax(camlp4o)" -tag "syntax(bisect pp)" \
+		-pkg extlib -use-menhir -menhir "menhir --explain" -tag "optimize(3)" runR.native ; \
+		cd ..
 
 report:
-	${AT}bisect-report -html report bisect*.out
+	${AT}rm -R bisect/report || true
+	${AT}cd bisect/_build ;\
+		bisect-report -html ../report ../../bisect*.out ; \
+		cd ../..
 	${AT}rm bisect*.out
 

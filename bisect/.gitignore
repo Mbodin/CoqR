@@ -4,6 +4,7 @@
 *.mll
 
 _build
+report
 
 bisect*.out
 
