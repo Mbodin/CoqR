@@ -115,6 +115,8 @@ clean_random:
 	${AT}rm -Rf gen/_build || true
 	${AT}rm -Rf gen/tests/*.R || true
 
+all_bisect: bisect/runR.native bisect/initial.state Rlib/bootstrapping_bisect.state
+
 bisect/%: src/%
 	${AT}sed \
 		   -e 's/ Result_impossible_stack/(*BISECT-IGNORE*) Result_impossible_stack/g' \
@@ -139,7 +141,7 @@ bisect/initial.state: bisect/runR.native
 
 Rlib/bootstrapping_bisect.state: bisect/initial.state Rlib/bootstrapping.R
 	${AT}cat Rlib/bootstrapping.R \
-		| src/runR.native -initial-state $< -final-state $@ \
+		| bisect/runR.native -initial-state $< -final-state $@ \
 		> /dev/null
 
 report:
@@ -148,4 +150,3 @@ report:
 		bisect-report -html ../report ../../bisect*.out ; \
 		cd ../..
 	${AT}rm bisect*.out
-
