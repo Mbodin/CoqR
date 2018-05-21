@@ -36,7 +36,7 @@ _CoqProject: ;
 
 Makefile: ;
 
-.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run random clean_random
+.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run random clean_random report
 
 clean_all: clean clean_tlc
 	${AT}rm src/initial.state || true
@@ -66,8 +66,8 @@ clean_interp:
 	${AT}rm src/runR.native || true
 	${AT}rm src/runR.d.byte || true
 	${AT}rm -Rf src/_build || true
-	${AT}rm -f extract.ml{,i} || true
-	${AT}rm -f src/extract.ml{,i} || true
+	${AT}rm -f extract{,Bisect}.ml{,i} || true
+	${AT}rm -f src/extract{,Bisect}.ml{,i} || true
 	${AT}rm -f src/funlist.ml || true
 	${AT}# If there if a file src/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
 
@@ -101,4 +101,25 @@ clean_random:
 	${AT}rm gen/gen.native || true
 	${AT}rm -Rf gen/_build || true
 	${AT}rm -Rf gen/tests/*.R || true
+
+#%Bisect.ml: %.ml
+#	${AT}sed \
+#		   -e 's/ Result_impossible_stack/(*BISECT-IGNORE*) Result_impossible_stack/g' \
+#		   -e 's/ result_impossible/(*BISECT-IGNORE*) result_impossible/g' \
+#		   -e 's/(result_impossible/((*BISECT-IGNORE*) result_impossible/g' \
+#		   -e 's/\(Extract\|Print\|Hooks\|Lexer\|Parser\|ParserUtils\)/&Bisect/g' \
+#		   $< > $@
+
+#%Bisect.mli: %.mli
+#	${AT}sed \
+#		   -e 's/\(Extract\|Print\|Hooks\|Lexer\|Parser\|ParserUtils\)/&Bisect/g' \
+#		   $< > $@
+
+#src/runRBisect.native: src/extractBisect.ml src/extractBisect.mli ${OCAMLFILES:.ml=Bisect.ml} src/funlistBisect.ml
+src/runRBisect.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
+	${AT}cd src ; ocamlbuild -pkg bisect -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runRBisect.native ; cd ..
+
+report:
+	${AT}bisect-report -html report bisect*.out
+	${AT}rm bisect*.out
 
