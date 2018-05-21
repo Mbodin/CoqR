@@ -69,6 +69,7 @@ clean_interp:
 	${AT}rm -f extract{,Bisect}.ml{,i} || true
 	${AT}rm -f src/extract{,Bisect}.ml{,i} || true
 	${AT}rm -f src/funlist.ml || true
+	${AT}rm -f bisect/*.ml{,i,y,l} || true
 	${AT}# If there if a file src/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
 
 src/funlist.ml: src/extract.mli src/gen-funlist.pl
@@ -102,22 +103,15 @@ clean_random:
 	${AT}rm -Rf gen/_build || true
 	${AT}rm -Rf gen/tests/*.R || true
 
-#%Bisect.ml: %.ml
-#	${AT}sed \
-#		   -e 's/ Result_impossible_stack/(*BISECT-IGNORE*) Result_impossible_stack/g' \
-#		   -e 's/ result_impossible/(*BISECT-IGNORE*) result_impossible/g' \
-#		   -e 's/(result_impossible/((*BISECT-IGNORE*) result_impossible/g' \
-#		   -e 's/\(Extract\|Print\|Hooks\|Lexer\|Parser\|ParserUtils\)/&Bisect/g' \
-#		   $< > $@
+bisect/%: src/%
+	${AT}sed \
+		   -e 's/ Result_impossible_stack/(*BISECT-IGNORE*) Result_impossible_stack/g' \
+		   -e 's/ result_impossible/(*BISECT-IGNORE*) result_impossible/g' \
+		   -e 's/(result_impossible/((*BISECT-IGNORE*) result_impossible/g' \
+		   $< > $@
 
-#%Bisect.mli: %.mli
-#	${AT}sed \
-#		   -e 's/\(Extract\|Print\|Hooks\|Lexer\|Parser\|ParserUtils\)/&Bisect/g' \
-#		   $< > $@
-
-#src/runRBisect.native: src/extractBisect.ml src/extractBisect.mli ${OCAMLFILES:.ml=Bisect.ml} src/funlistBisect.ml
-src/runRBisect.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
-	${AT}cd src ; ocamlbuild -pkg bisect -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runRBisect.native ; cd ..
+bisect/runR.native: bisect/extract.ml bisect/extract.mli ${subst src/,bisect/,${OCAMLFILES}} bisect/funlist.ml
+	${AT}cd bisect ; ocamlbuild -pkg bisect -pkg extlib -use-menhir -menhir "menhir --explain" -tag 'optimize(3)' runR.native ; cd ..
 
 report:
 	${AT}bisect-report -html report bisect*.out

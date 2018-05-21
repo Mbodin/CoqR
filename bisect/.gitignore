@@ -1,0 +1,14 @@
+*.ml
+*.mli
+*.mly
+*.mll
+
+_build
+
+bisect*.out
+
+*.native
+*.byte
+
+*.state
+
