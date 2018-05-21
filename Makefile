@@ -38,7 +38,7 @@ _CoqProject: ;
 
 Makefile: ;
 
-.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run random clean_random report
+.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run run_bisect random clean_random report
 
 clean_all: clean clean_tlc
 	${AT}rm src/initial.state || true
@@ -77,7 +77,7 @@ clean_interp:
 	${AT}rm -f extract{,Bisect}.ml{,i} || true
 	${AT}rm -f src/extract{,Bisect}.ml{,i} || true
 	${AT}rm -f src/funlist.ml || true
-	${AT}rm -f bisect/*.ml{,i,y,l} || true
+	${AT}ls bisect/*.ml{,i,y,l} | grep -v myocamlbuild.ml | xargs rm || true
 	${AT}# If there if a file src/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
 
 src/funlist.ml: src/extract.mli src/gen-funlist.pl
@@ -127,6 +127,20 @@ bisect/runR.native: bisect/extract.ml bisect/extract.mli ${subst src/,bisect/,${
 		ocamlbuild -use-ocamlfind -tag "package(bisect)" -tag "syntax(camlp4o)" -tag "syntax(bisect pp)" \
 		-pkg extlib -use-menhir -menhir "menhir --explain" -tag "optimize(3)" runR.native ; \
 		cd ..
+
+# Runs the program.
+run_bisect: bisect/runR.native bisect/initial.state
+	${AT}bisect/runR.native -initial-state bisect/initial.state
+
+# Precomputes the initial state.
+bisect/initial.state: bisect/runR.native
+	${AT}# Note: the following command may take some time to execute.
+	${AT}bisect/runR.native -non-interactive -final-state $@ > /dev/null
+
+Rlib/bootstrapping_bisect.state: bisect/initial.state Rlib/bootstrapping.R
+	${AT}cat Rlib/bootstrapping.R \
+		| src/runR.native -initial-state $< -final-state $@ \
+		> /dev/null
 
 report:
 	${AT}rm -R bisect/report || true
