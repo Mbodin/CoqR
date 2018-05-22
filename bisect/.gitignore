@@ -1,0 +1,15 @@
+*.ml
+*.mli
+*.mly
+*.mll
+
+_build
+report
+
+bisect*.out
+
+*.native
+*.byte
+
+*.state
+
