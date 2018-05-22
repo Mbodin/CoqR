@@ -2,6 +2,9 @@
 extract.ml
 extract.mli
 
+*Bisect.ml
+*Bisect.mli
+
 funlist.ml
 
 _build

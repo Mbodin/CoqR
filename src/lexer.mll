@@ -31,13 +31,13 @@
 let digit = ['0'-'9']
 let sign = ['+' '-']
 let floating_point =
-  ((digit+ '.'? digit*) | (digit* '.'? digit+))
+  ((digit+ '.'? digit* ) | (digit* '.'? digit+))
   (['e' 'E'] sign? digit+)?
 let octal_digit = ['0'-'7']
 let hexadecimal_digit = ['0'-'9' 'a'-'f' 'A'-'F']
 let hexadecimal =
   ("0x" | "0X") hexadecimal_digit*
-  (('.' hexadecimal_digit*)? ['p' 'P'] sign? digit+)?
+  (('.' hexadecimal_digit* )? ['p' 'P'] sign? digit+)?
 let reg_numeric = (floating_point | hexadecimal)
 let reg_integer = (reg_numeric as value) 'L'
 let reg_imaginary = (reg_numeric as value) 'i'
@@ -55,7 +55,7 @@ let reg_identifier =
   (** For simplicity, we do not deal with locales. **)
   "." | (
     ('.' ['_' '.' 'a'-'z' 'A'-'Z'] | ['a'-'z' 'A'-'Z'])
-    ['_' '.' 'a'-'z' 'A'-'Z' '0'-'9']*)
+    ['_' '.' 'a'-'z' 'A'-'Z' '0'-'9']* )
 
 let reserved_keywords =
   "if" | "else" | "repeat" | "while" | "function" | "for" | "in" | "next" | "break"
@@ -179,7 +179,7 @@ rule lex = parse
   | eof                             { END_OF_INPUT }
 
 and new_line_if_case = parse
-  | ('#' [^ '\n']*)? '\n'   { new_line_if_case lexbuf }
+  | ('#' [^ '\n']* )? '\n'  { new_line_if_case lexbuf }
   | space+                  { new_line_if_case lexbuf }
   | "}"                     { wifpop () ; contextp_pop () ; RBRACE }
   | ")"                     { wifpop () ; contextp_pop () ; RPAR }
