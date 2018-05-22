@@ -90,3 +90,10 @@ NaN ()
 "1" ()
 "" ()
 
+f <- { function () 1 + 1 } ; f ; f ()
+f <- { function () break + 1 } ; f ; f ()
+f <- eval (parse (text = "{ function () 1 + 1 }")) ; f ; f ()
+f <- eval (parse (text = "{ function () break + 1 }")) ; f ; f ()
+f <- eval (parse (text = "{ function () 1\n + 1 }")) ; f ; f ()
+f <- eval (parse (text = "{ function () break\n + 1 }")) ; f ; f ()
+
