@@ -397,10 +397,10 @@ Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
         ifb env = R_GlobalEnv then
             result_success S (R_NilValue : SEXP)
         else
-            let%success env_type := TYPEOF S env using S in
-            ifb env_type = VecSxp then
-                let%success env_vecToPairList := VectorToPairList globals runs S env using S in
-                NewEnvironment globals runs S R_NilValue env_vecToPairList R_BaseEnv
+        let%success env_type := TYPEOF S env using S in
+        ifb env_type = VecSxp then
+            let%success env_vecToPairList := VectorToPairList globals runs S env using S in
+            NewEnvironment globals runs S R_NilValue env_vecToPairList R_BaseEnv
         else ifb env_type = ListSxp then
             let%success env_duplicate := duplicate globals runs S env using S in
             NewEnvironment globals runs S R_NilValue env_duplicate R_BaseEnv
