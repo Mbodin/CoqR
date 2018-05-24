@@ -418,5 +418,15 @@ Definition do_substitute S (call op args rho : SEXP) : result SEXP :=
         result_success S s_car
 .
 
+Definition do_quote S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_quote" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    run%success Rf_check1arg globals S args call "x" using S in
+    read%list args_car, _, _ := args using S in
+    let val := args_car in
+        set%named val := named_plural using S in
+        result_success S val
+.
+
 End Parameters.
 
