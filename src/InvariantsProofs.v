@@ -47,6 +47,25 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
       P_error P_longjump (expr S a)) ->
   result_prop P_success P_error P_longjump (runs_while_loop runs S a expr stat).
 
+Lemma while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
+    S (a : A) (expr stat : _ -> A -> _),
+  P_success S a ->
+  (forall S a,
+    P_success S a ->
+    result_prop (fun S (b : bool) =>
+        P_success S a
+        /\ (b -> result_prop P_success P_error P_longjump (stat S a)))
+      P_error P_longjump (expr S a)) ->
+  result_prop P_success P_error P_longjump (while_loop runs S a expr stat).
+Proof.
+  introv OKa OKexpr. unfolds while_loop. computeR.
+  forwards Rexpr: OKexpr OKa. destruct expr eqn: E; autos~.
+  lets (OKS'&OKstat): (rm Rexpr). computeR. cases_if.
+  - destruct stat eqn: E'; autos~. computeR.
+    applys~ runs_while_loop_result OKstat.
+  - apply~ OKS'.
+Qed.
+
 
 (** * Lemmae about Rcore.v **)
 
@@ -94,27 +113,65 @@ Qed.
 
 Lemma R_length_result : forall S s,
   safe_state S ->
+  safe_globals S globals ->
   safe_pointer S s ->
   result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
     (R_length globals runs S s).
 Proof.
-  introv OKS OKs. unfolds R_length. computeR.
+  introv OKS OKg OKs. unfolds R_length. computeR.
   forwards Ts: bound_may_have_types S s.
   { solve_premises_smart. }
   unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
     [ apply Ts
     | lets (E&C): (rm P); substs; simpl; autos~ ]); computeR.
-  - skip. (* TODO: dealing with whileb. *)
-  - skip. (* TODO: dealing with whileb. *)
-  - skip. (* TODO: dealing with whileb. *)
+  - cutR (fun S' (si : _ * nat) =>
+      let (s, i) := si in
+        S' = S /\ safe_pointer S s
+        /\ may_have_types S ([NilSxp; ListSxp]) s).
+    + apply~ while_loop_result.
+      * splits~; solve_premises_smart.
+      * introv. destruct a. introv (?&OKs'&Ts').
+        substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
+        explode_list Ts'.
+        -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
+        -- computeR. simpls. splits~; solve_premises_smart.
+    + destruct a. lets (?&OKs'&Ts'): (rm P). substs. simpl. reflexivity.
+  - cutR (fun S' (si : _ * nat) =>
+      let (s, i) := si in
+        S' = S /\ safe_pointer S s
+        /\ may_have_types S ([NilSxp; ListSxp; LangSxp]) s).
+    + apply~ while_loop_result.
+      * splits~; solve_premises_smart.
+      * introv. destruct a. introv (?&OKs'&Ts').
+        substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
+        explode_list Ts'.
+        -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
+        -- computeR. simpls. splits~; solve_premises_smart.
+        -- computeR. simpls. splits~; solve_premises_smart.
+    + destruct a. lets (?&OKs'&Ts'): (rm P). substs. simpl. reflexivity.
+  - cutR (fun S' (si : _ * nat) =>
+      let (s, i) := si in
+        S' = S /\ safe_pointer S s
+        /\ may_have_types S ([NilSxp; ListSxp; DotSxp]) s).
+    + apply~ while_loop_result.
+      * splits~; solve_premises_smart.
+      * introv. destruct a. introv (?&OKs'&Ts').
+        substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
+        explode_list Ts'.
+        -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
+        -- computeR. simpls. splits~; solve_premises_smart.
+        -- computeR. simpls. splits~; solve_premises_smart.
+    + destruct a. lets (?&OKs'&Ts'): (rm P). substs. simpl. reflexivity.
   - destruct s0_; tryfalse; simpl; autos~.
   Optimize Proof.
 Qed.
+
 
 (** * Lemmae about Rfeatures.v **)
 
 Lemma Rf_checkArityCall_result : forall S op args call,
   safe_state S ->
+  safe_globals S globals ->
   safe_pointer S op ->
   may_have_types S ([SpecialSxp; BuiltinSxp]) op ->
   safe_pointer S args ->
@@ -122,7 +179,7 @@ Lemma Rf_checkArityCall_result : forall S op args call,
   result_prop (fun S' _ => S' = S) safe_state (fun _ _ _ => False)
     (Rf_checkArityCall globals runs S op args call).
 Proof.
-  introv OKS OKop Top OKargs OKcall. unfolds Rf_checkArityCall. computeR.
+  introv OKS OKg OKop Top OKargs OKcall. unfolds Rf_checkArityCall. computeR.
   cutR PRIMARITY_result. substs.
   cutR R_length_result. substs. cases_if.
   - computeR. cutR PRIMINTERNAL_result.
@@ -146,6 +203,9 @@ Proof.
   - simpl. autos~.
 Qed.
 
+(* This lemmae is about [do_while_result], which can call arbitrary R code.
+  We leave this proof for when the whole of our interpreter will have been
+  proven holding our invariants. (*
 Lemma do_while_result : forall S call op args rho,
   safe_state S ->
   safe_globals S globals ->
@@ -174,6 +234,8 @@ Proof.
   - skip. (* TODO: Something is wrong here… *)
   Optimize Proof.
 Qed.
+*) *)
+
 
 (** * Lemmae about Rinit.v **)
 
@@ -278,12 +340,12 @@ Lemma runs_while_loop_result : forall n globals
       P_error P_longjump (expr S a)) ->
   result_prop P_success P_error P_longjump (runs_while_loop (runs n globals) S a expr stat).
 Proof.
-  introv OKS OKexpr. rewrite runs_proj_while_loop_eq.
-  gen S a. induction n; introv OKS.
+  introv OKa OKexpr. rewrite runs_proj_while_loop_eq.
+  gen S a. induction n; introv OKa.
   - simpls~.
-  - simpl. computeR. forwards Rexpr: OKexpr OKS. destruct expr eqn: E; autos~.
-    lets (OKS'&OKstat): (rm Rexpr). computeR. cases_if.
+  - simpl. computeR. forwards Rexpr: OKexpr OKa. destruct expr eqn: E; autos~.
+    lets (OKa'&OKstat): (rm Rexpr). computeR. cases_if.
     + destruct stat eqn: E'; autos~. computeR. apply~ IHn. apply~ OKstat.
-    + apply~ OKS'.
+    + apply~ OKa'.
 Qed.
 

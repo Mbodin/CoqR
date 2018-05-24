@@ -319,7 +319,6 @@ The files in the =src/= folder are under the GPL license version 2.
 See the file =COPYING= for more informations.
 As this license is the same than R’s license, as well as most programs about R,
 it seemed the best to help development.
-If you want to contribute to this project, consider the file reading
-=CODE_OF_CONDUCT.org=.  Some suggestions for future directions can be found in
-the file =CONTRIBUTING.org=.
+If you want to contribute to this project, consider reading the file =CODE_OF_CONDUCT.org=.
+Some suggestions for future directions can be found in the file =CONTRIBUTING.org=.
 

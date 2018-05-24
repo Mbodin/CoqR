@@ -146,6 +146,7 @@ Rlib/bootstrapping_bisect.state: bisect/initial.state Rlib/bootstrapping.R
 
 report:
 	${AT}rm -R bisect/report || true
+	${AT}mkdir bisect/report || true
 	${AT}cd bisect/_build ;\
 		bisect-report -html ../report ../../bisect*.out ; \
 		cd ../..

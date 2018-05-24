@@ -1,0 +1,17 @@
+# @line
+# Tests about explicit conversions.
+is.null (1) ; is.null (NULL) ; is.null ("1") ; is.null (1L) ; is.null (NA) ; is.null (NaN) ; is.null (Inf) ; is.null (x = -1) ; is.null ("x" = -1) ; is.null (y = -1)
+is.logical (1) ; is.logical (NULL) ; is.logical ("1") ; is.logical (1L) ; is.logical (NA) ; is.logical (NaN) ; is.logical (Inf) ; is.logical (x = -1) ; is.logical ("x" = -1) ; is.logical (y = -1)
+is.integer (1) ; is.integer (NULL) ; is.integer ("1") ; is.integer (1L) ; is.integer (NA) ; is.integer (NaN) ; is.integer (Inf) ; is.integer (x = -1) ; is.integer ("x" = -1) ; is.integer (y = -1)
+is.double (1) ; is.double (NULL) ; is.double ("1") ; is.double (1L) ; is.double (NA) ; is.double (NaN) ; is.double (Inf) ; is.double (5i) ; is.double (1 + 3i) ; is.double (x = -1) ; is.double ("x" = -1) ; is.double (y = -1)
+is.complex (1) ; is.complex (NULL) ; is.complex ("1") ; is.complex (1L) ; is.complex (NA) ; is.complex (NaN) ; is.complex (Inf) ; is.complex (5i) ; is.complex (1 + 3i) ; is.complex (x = -1) ; is.complex ("x" = -1) ; is.complex (y = -1)
+is.character (1) ; is.character (NULL) ; is.character ("1") ; is.character (1L) ; is.character (NA) ; is.character (NaN) ; is.character (Inf) ; is.character (x = -1) ; is.character ("x" = -1) ; is.character (y = -1)
+is.numeric (1) ; is.numeric (NULL) ; is.numeric ("1") ; is.numeric (1L) ; is.numeric (NA) ; is.numeric (NaN) ; is.numeric (Inf) ; is.numeric (5i) ; is.numeric (1 + 3i) ; is.numeric (x = -1) ; is.numeric ("x" = -1) ; is.numeric (y = -1)
+is.atomic (1) ; is.atomic (NULL) ; is.atomic ("1") ; is.atomic (1L) ; is.atomic (NA) ; is.atomic (NaN) ; is.atomic (Inf) ; is.atomic (5i) ; is.atomic (1 + 3i) ; is.atomic (x = -1) ; is.atomic ("x" = -1) ; is.atomic (y = -1)
+is.recursive (1) ; is.recursive (NULL) ; is.recursive ("1") ; is.recursive (1L) ; is.recursive (NA) ; is.recursive (NaN) ; is.recursive (Inf) ; is.recursive (5i) ; is.recursive (1 + 3i) ; is.recursive (x = -1) ; is.recursive ("x" = -1) ; is.recursive (y = -1)
+is.array (1) ; is.array (NULL) ; is.array ("1") ; is.array (1L) ; is.array (NA) ; is.array (NaN) ; is.array (Inf) ; is.array (5i) ; is.array (1 + 3i) ; is.array (x = -1) ; is.array ("x" = -1) ; is.array (y = -1)
+is.vector <- function (x, mode = "any") .Internal (is.vector (x, mode)) ; is.vector (1) ; is.vector (NULL) ; is.vector ("1") ; is.vector (1L) ; is.vector (NA) ; is.vector (NaN) ; is.vector (Inf) ; is.vector (5i) ; is.vector (1 + 3i) ; is.vector (x = -1) ; is.vector ("x" = -1) ; is.vector (y = -1)
+is.single (1) ; is.single (NULL) ; is.single ("1") ; is.single (1L) ; is.single (NA) ; is.single (NaN) ; is.single (Inf) ; is.single (5i) ; is.single (1 + 3i) ; is.single (x = -1) ; is.single ("x" = -1) ; is.single (y = -1)
+is.raw (1) ; is.raw (NULL) ; is.raw ("1") ; is.raw (1L) ; is.raw (NA) ; is.raw (NaN) ; is.raw (Inf) ; is.raw (5i) ; is.raw (1 + 3i) ; is.raw (x = -1) ; is.raw ("x" = -1) ; is.raw (y = -1)
+is.na (1) ; is.na (NULL) ; is.na ("1") ; is.na (1L) ; is.na (NA) ; is.na (NA_character_) ; is.na (NA_complex_) ; is.na (NA_real_) ; is.na (NA_integer_) ; is.na (NaN) ; is.na (Inf) ; is.na (x = -1) ; is.na ("x" = -1) ; is.na (y = -1)
+
