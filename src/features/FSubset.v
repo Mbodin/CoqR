@@ -332,7 +332,7 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
         let (S, ans) := allocList globals S ax_len in
         run%success
           ifb ax_len > 0 then
-            map%pointer ans with set_type LangSxp using S in
+            set%type ans := LangSxp using S in
             fold%success i := 0
             along ans
             as px, _, _ do

@@ -109,7 +109,7 @@ Definition allocVector S type (length : nat) :=
       ifb length = 0 then result_success S (R_NilValue : SEXP)
       else
         let (S, s) := allocList globals S length in
-        map%pointer s with set_type LangSxp using S in
+        set%type s := LangSxp using S in
         result_success S s
     | ListSxp =>
       let (S, s) := allocList globals S length in
@@ -374,7 +374,7 @@ Definition SET_SCALAR_DVAL S x v :=
 Definition lcons S car cdr :=
   add%stack "lcons" in
   let (S, e) := CONS globals S car cdr in
-  map%pointer e with set_type LangSxp using S in
+  set%type e := LangSxp using S in
   result_success S e.
 
 Definition LCONS := lcons.

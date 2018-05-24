@@ -903,9 +903,9 @@ Definition math1 S sa f (lcall : SEXP) :=
         else result_skip S
       else result_skip S using S in
     (* A warning has been formalised out here. *)
-    read%defined sa_ := sa using S in
+    let%success sa_attrib := ATTRIB S sa using S in
     run%success
-      ifb sa <> sy /\ attrib sa_ <> R_NilValue then
+      ifb sa <> sy /\ sa_attrib <> R_NilValue then
         SHALLOW_DUPLICATE_ATTRIB globals runs S sy sa
       else result_skip S using S in
     result_success S sy.

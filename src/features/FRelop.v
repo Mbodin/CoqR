@@ -207,9 +207,9 @@ Definition do_relop_dflt S (call op x y : SEXP) : result SEXP :=
   let%success ny := xlength globals runs S y using S in
   let%success typex := TYPEOF S x using S in
   let%success typey := TYPEOF S y using S in
-  read%defined x_ := x using S in
-  read%defined y_ := y using S in
-  ifb attrib x_ = R_NilValue /\ attrib y_ = R_NilValue
+  let%success x_attrib := ATTRIB S x using S in
+  let%success y_attrib := ATTRIB S y using S in
+  ifb x_attrib = R_NilValue /\ y_attrib = R_NilValue
       /\ (typex = RealSxp \/ typex = IntSxp)
       /\ (typey = RealSxp \/ typey = IntSxp)
       /\ nx > 0 /\ ny > 0 /\ (nx = 1 \/ ny = 1) then
@@ -396,10 +396,10 @@ Definition do_relop S (call op args env : SEXP) : result SEXP :=
    else R_length globals runs S args using S in
   let arg1 := args_car in
   let arg2 := args_cdr_car in
-  read%defined arg1_ := arg1 using S in
-  read%defined arg2_ := arg1 using S in
+  let%success arg1_attrib := ATTRIB S arg1 using S in
+  let%success arg2_attrib := ATTRIB S arg1 using S in
   run%exit
-    ifb attrib arg1_ <> R_NilValue \/ attrib arg2_ <> R_NilValue then
+    ifb arg1_attrib <> R_NilValue \/ arg2_attrib <> R_NilValue then
       if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
         result_rreturn S ans
       else result_rskip S

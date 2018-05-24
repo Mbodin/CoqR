@@ -186,12 +186,12 @@ Definition duplicate1 S s deep :=
       result_rsuccess S t
     | LangSxp =>
       let%success t := duplicate_list S s deep using S in
-      map%pointer s with set_type LangSxp using S in
+      set%type s := LangSxp using S in
       run%success DUPLICATE_ATTRIB S t s deep using S in
       result_rsuccess S t
     | DotSxp =>
       let%success t := duplicate_list S s deep using S in
-      map%pointer s with set_type DotSxp using S in
+      set%type s := DotSxp using S in
       run%success DUPLICATE_ATTRIB S t s deep using S in
       result_rsuccess S t
     | CharSxp =>
@@ -315,10 +315,11 @@ Definition shallow_duplicate S s :=
   placed here to solve a circular file dependency. **)
 Definition SHALLOW_DUPLICATE_ATTRIB S vto vfrom :=
   add%stack "SHALLOW_DUPLICATE_ATTRIB" in
-  read%defined vfrom_ := vfrom using S in
-  let%success vfrom_attrib := shallow_duplicate S (attrib vfrom_) using S in
+  let%success vfrom_attrib := ATTRIB S vfrom using S in
+  let%success vfrom_attrib := shallow_duplicate S vfrom_attrib using S in
   run%success SET_ATTRIB S vto vfrom_attrib using S in
-  map%pointer vto with set_obj (obj vfrom_) using S in
+  let%success vfrom_obj := OBJECT S vfrom using S in
+  map%pointer vto with set_obj vfrom_obj using S in
   run%success
     if%success IS_S4_OBJECT S vfrom using S then
       SET_S4_OBJECT S vto
@@ -375,24 +376,25 @@ Definition R_cycle_detected S s child :=
     end
   else
     run%exit
-      read%defined child_ := child using S in
-      ifb attrib child_ <> R_NilValue then
-        if%success runs_R_cycle_detected runs S s (attrib child_) using S then
+      let%success child_attrib := ATTRIB S child using S in
+      ifb child_attrib <> R_NilValue then
+        if%success runs_R_cycle_detected runs S s child_attrib using S then
           result_rreturn S true
         else result_rskip S
       else result_rskip S using S in
     if%success isPairList S child using S then
       fold%return
       along child
-      as el, el_, el_list do
+      as el, _, el_list do
         let%success r :=
           runs_R_cycle_detected runs S s (list_carval el_list) using S in
         ifb s = el \/ r then
           result_rreturn S true
         else
+          let%success el_attrib := ATTRIB S el using S in
           let%success r :=
-            runs_R_cycle_detected runs S s (attrib el_) using S in
-          ifb attrib el_ <> R_NilValue /\ r then
+            runs_R_cycle_detected runs S s el_attrib using S in
+          ifb el_attrib <> R_NilValue /\ r then
             result_rreturn S true
           else result_rskip S
       using S, runs, globals in

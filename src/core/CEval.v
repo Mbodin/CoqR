@@ -123,7 +123,7 @@ Definition replaceCall S vfun val args rhs :=
     result_success S ptmp_cdr using S, runs, globals in
   set%car ptmp := rhs using S in
   set%tag ptmp := R_valueSym using S in
-  map%pointer tmp with set_type LangSxp using S in
+  set%type tmp := LangSxp using S in
   result_success S tmp.
 
 Definition assignCall S op symbol vfun val args rhs :=
@@ -580,96 +580,100 @@ Definition eval S (e rho : SEXP) :=
     set%named e := named_plural using S in
     result_success S e
   | _ =>
-    let%success rho_type := TYPEOF S rho using S in
-    ifb rho_type <> EnvSxp then
-      result_error S "‘rho’ must be an environment."
+    ifb rho = NULL then
+      result_error S "‘rho’ cannot be C NULL."
     else
-      match e_type with
-      | BcodeSxp =>
-        unimplemented_function "bcEval"
-      | SymSxp =>
-        ifb e = R_DotsSymbol then
-          result_error S "‘...’ used in an incorrect context."
-        else
-          let%success tmp :=
-            if%success DDVAL S e using S then
-              ddfindVar S e rho
-            else
-              findVar globals runs S e rho using S in
-          ifb tmp = R_UnboundValue then
-            let%success e_name := PRINTNAME S e using S in
-            (** Originally, it was [EncodeChar] instead of [CHAR]. **)
-            let%success e_str := CHAR S e_name using S in
-            result_error S ("Object not found “" ++ e_str ++ "”.")
+      let%success rho_env := isEnvironment S rho using S in
+      if negb rho_env then
+        result_error S "‘rho’ must be an environment."
+      else
+        let%success e_type := TYPEOF S e using S in
+        match e_type with
+        | BcodeSxp =>
+          unimplemented_function "bcEval"
+        | SymSxp =>
+          ifb e = R_DotsSymbol then
+            result_error S "‘...’ used in an incorrect context."
           else
-            let%success ddval := DDVAL S e using S in
-            ifb tmp = R_MissingArg /\ ~ ddval then
-              result_error S "Argument is missing, with no default."
+            let%success tmp :=
+              if%success DDVAL S e using S then
+                ddfindVar S e rho
+              else
+                findVar globals runs S e rho using S in
+            ifb tmp = R_UnboundValue then
+              let%success e_name := PRINTNAME S e using S in
+              (** Originally, it was [EncodeChar] instead of [CHAR]. **)
+              let%success e_str := CHAR S e_name using S in
+              result_error S ("Object not found “" ++ e_str ++ "”.")
             else
-              let%success tmp_type := TYPEOF S tmp using S in
-              ifb tmp_type = PromSxp then
-                read%prom _, tmp_prom := tmp using S in
-                let%success tmp :=
-                  ifb prom_value tmp_prom = R_UnboundValue then
-                    forcePromise S tmp
-                  else result_success S (prom_value tmp_prom) using S in
-                set%named tmp := named_plural using S in
-                result_success S tmp
+              let%success ddval := DDVAL S e using S in
+              ifb tmp = R_MissingArg /\ ~ ddval then
+                result_error S "Argument is missing, with no default."
               else
                 let%success tmp_type := TYPEOF S tmp using S in
-                let%success tmp_named := NAMED S tmp using S in
-                run%success
-                  ifb tmp_type <> NilSxp /\ tmp_named = named_temporary then
-                    set%named tmp := named_unique using S in
-                    result_skip S
-                  else result_skip S using S in
-                result_success S tmp
-      | PromSxp =>
-        run%success
+                ifb tmp_type = PromSxp then
+                  read%prom _, tmp_prom := tmp using S in
+                  let%success tmp :=
+                    ifb prom_value tmp_prom = R_UnboundValue then
+                      forcePromise S tmp
+                    else result_success S (prom_value tmp_prom) using S in
+                  set%named tmp := named_plural using S in
+                  result_success S tmp
+                else
+                  let%success tmp_type := TYPEOF S tmp using S in
+                  let%success tmp_named := NAMED S tmp using S in
+                  run%success
+                    ifb tmp_type <> NilSxp /\ tmp_named = named_temporary then
+                      set%named tmp := named_unique using S in
+                      result_skip S
+                    else result_skip S using S in
+                  result_success S tmp
+        | PromSxp =>
+          run%success
+            read%prom _, e_prom := e using S in
+            ifb prom_value e_prom = R_UnboundValue then
+              run%success forcePromise S e using S in
+              result_skip S
+            else result_skip S using S in
           read%prom _, e_prom := e using S in
-          ifb prom_value e_prom = R_UnboundValue then
-            run%success forcePromise S e using S in
-            result_skip S
-          else result_skip S using S in
-        read%prom _, e_prom := e using S in
-        result_success S (prom_value e_prom)
-      | LangSxp =>
-        read%list e_car, e_cdr, _ := e using S in
-        let%success e_car_type := TYPEOF S e_car using S in
-        let%success op :=
-          ifb e_car_type = SymSxp then
-            let%success ecall :=
-              ifb context_callflag (R_GlobalContext S) = Ctxt_CCode then
-                result_success S (context_call (R_GlobalContext S))
-              else result_success S e using S in
-            findFun3 globals runs S e_car rho ecall
-          else runs_eval runs S e_car rho using S in
-        let%success op_type := TYPEOF S op using S in
-        match op_type with
-        | SpecialSxp =>
-          let%success f := PRIMFUN S op using S in
-          f S e op e_cdr rho
-        | BuiltinSxp =>
-          let%success tmp := evalList S e_cdr rho e 0 using S in
-          let%success infos := PPINFO S op using S in
-          ifb PPinfo_kind infos = PP_FOREIGN then
-            let%success cntxt :=
-              begincontext globals S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+          result_success S (prom_value e_prom)
+        | LangSxp =>
+          read%list e_car, e_cdr, _ := e using S in
+          let%success e_car_type := TYPEOF S e_car using S in
+          let%success op :=
+            ifb e_car_type = SymSxp then
+              let%success ecall :=
+                ifb context_callflag (R_GlobalContext S) = Ctxt_CCode then
+                  result_success S (context_call (R_GlobalContext S))
+                else result_success S e using S in
+              findFun3 globals runs S e_car rho ecall
+            else runs_eval runs S e_car rho using S in
+          let%success op_type := TYPEOF S op using S in
+          match op_type with
+          | SpecialSxp =>
             let%success f := PRIMFUN S op using S in
-            let%success tmp := f S e op tmp rho using S in
-            run%success endcontext globals runs S cntxt using S in
-            result_success S tmp
-          else
-            let%success f := PRIMFUN S op using S in
-            f S e op tmp rho
-        | CloSxp =>
-          let%success tmp := promiseArgs S e_cdr rho using S in
-          applyClosure S e op tmp rho R_NilValue
-        | _ => result_error S "Attempt to apply non-function."
+            f S e op e_cdr rho
+          | BuiltinSxp =>
+            let%success tmp := evalList S e_cdr rho e 0 using S in
+            let%success infos := PPINFO S op using S in
+            ifb PPinfo_kind infos = PP_FOREIGN then
+              let%success cntxt :=
+                begincontext globals S Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+              let%success f := PRIMFUN S op using S in
+              let%success tmp := f S e op tmp rho using S in
+              run%success endcontext globals runs S cntxt using S in
+              result_success S tmp
+            else
+              let%success f := PRIMFUN S op using S in
+              f S e op tmp rho
+          | CloSxp =>
+            let%success tmp := promiseArgs S e_cdr rho using S in
+            applyClosure S e op tmp rho R_NilValue
+          | _ => result_error S "Attempt to apply non-function."
+          end
+        | DotSxp => result_error S "‘...’ used in an incorrect context"
+        | _ => result_error S "Type unimplemented in the R source code."
         end
-      | DotSxp => result_error S "‘...’ used in an incorrect context"
-      | _ => result_error S "Type unimplemented in the R source code."
-      end
   end.
 
 Definition evalseq S expr rho (forcelocal : bool) tmploc :=

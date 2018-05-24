@@ -63,7 +63,7 @@ Definition xxdefun S fname formals body :=
 
 Definition xxexprlist S a1 a2 :=
   add%stack "xxexprlist" in
-  map%pointer a2 with set_type LangSxp using S in
+  set%type a2 := LangSxp using S in
   set%car a2 := a1 using S in
   result_success S a2.
 
@@ -83,10 +83,9 @@ Definition xxexprlist2 S exprlist expr :=
 Definition xxfuncall S expr args :=
   add%stack "xxfuncall" in
   let%success expr :=
-    read%defined expr_ := expr using S in
-    ifb type expr_ = StrSxp then
-      let%success expr_ := STRING_ELT S expr 0 using S in
-      installTrChar globals runs S expr_
+    if%success isString S expr using S then
+      let%success expr_0 := STRING_ELT S expr 0 using S in
+      installTrChar globals runs S expr_0
     else result_success S expr using S in
   read%list _, args_cdr, _ := args using S in
   read%list args_cdr_car, _, args_cdr_tag := args_cdr using S in

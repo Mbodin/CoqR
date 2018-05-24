@@ -201,7 +201,7 @@ Definition matchArgs_dots S dots supplied :=
       result_success S i using S, runs, globals in
   ifb i <> 0 then
     let (S, a) := allocList globals S i in
-    map%pointer a with set_type DotSxp using S in
+    set%type a := DotSxp using S in
     fold%success f := a
     along supplied
     as _, b_, b_list do

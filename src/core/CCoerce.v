@@ -131,8 +131,8 @@ Definition asLogical S x :=
     ifb len < 1 then
       result_success S NA_LOGICAL
     else
-      read%defined x_ := x using S in
-      match type x_ with
+      let%success x_type := TYPEOF S x using S in
+      match x_type with
       | LglSxp => LOGICAL_ELT S x 0
       | IntSxp =>
         let%success i := INTEGER_ELT S x 0 using S in
