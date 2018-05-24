@@ -18,4 +18,5 @@ complex (0) ; typeof (complex (0))
 raw (0) ; typeof (raw (0))
 
 typeof2 <- function (x) .Internal (typeof (x)) ; typeof == typeof2
+typeof2 <- function (x) .Internal (typeof (x)) ; typeof (1) == typeof2 (1) ; typeof (1L) == typeof2 (1L) ; typeof (NA) == typeof2 (NA) ; typeof (Inf) == typeof2 (Inf) ; typeof (c) == typeof2 (c) ; typeof (TRUE) == typeof2 (TRUE) ; typeof ("a") == typeof2 ("a")
 

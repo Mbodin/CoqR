@@ -150,4 +150,5 @@ report:
 	${AT}cd bisect/_build ;\
 		bisect-report -html ../report ../../bisect*.out ; \
 		cd ../..
-	${AT}rm bisect*.out
+	${AT}mv bisect*.out bisect/report/
+
