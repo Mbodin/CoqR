@@ -328,6 +328,12 @@ Proof.
     + left~.
 Qed.
 
+Lemma safe_pointer_rewrite_paco2 : paco2 safe_pointer_gen bot2 = safe_pointer.
+Proof. reflexivity. Qed.
+
+Lemma safe_pointer_rewrite_upaco2 : upaco2 safe_pointer_gen bot2 = safe_pointer.
+Proof. extens. intros S p. iff~ I. inverts I as I; autos~. inverts I. Qed.
+
 Definition safe_SExpRec := safe_SExpRec_gen safe_pointer.
 Definition safe_header := safe_header_gen safe_pointer.
 

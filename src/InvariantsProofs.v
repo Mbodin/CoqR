@@ -166,6 +166,22 @@ Proof.
   Optimize Proof.
 Qed.
 
+Lemma NewEnvironment_result : forall S namelist valuelist rho,
+  safe_state S ->
+  safe_globals S globals ->
+  safe_pointer S namelist ->
+  may_have_types S ([NilSxp; ListSxp]) namelist ->
+  safe_pointer S valuelist ->
+  may_have_types S ([NilSxp; ListSxp]) valuelist ->
+  safe_pointer S rho ->
+  result_prop (fun S' newrho =>
+      conserve_old_binding S S' (* This first part may be false, actually. *)
+      /\ safe_pointer S newrho)
+    (fun _ => False) (fun _ _ _ => False)
+    (NewEnvironment globals runs S namelist valuelist rho).
+Proof.
+Qed.
+
 
 (** * Lemmae about Rfeatures.v **)
 
@@ -321,6 +337,68 @@ Proof.
          applys state_equiv_sym. applys state_equiv_trans E2 E3.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
+  Optimize Proof.
+Qed.
+
+Lemma InitMemory_result : forall S,
+  safe_state S ->
+  safe_globals S globals ->
+  result_prop (fun S (res : _ * _ * _) =>
+    let '(TrueValue, FalseValue, LogicalNAValue) := res in
+    safe_state S
+    /\ safe_pointer S TrueValue
+    /\ safe_pointer S FalseValue
+    /\ safe_pointer S LogicalNAValue)
+    (fun _ => False) (fun _ _ _ => False) (InitMemory globals S).
+Proof.
+  introv OKS OKg. unfolds InitMemory. unfolds mkTrue, mkFalse, alloc_vector_lgl.
+  computeR. simpl. splits~.
+  - pfold. constructors.
+    + (** pointer_bound **)
+      solve_premises_smart.
+    + (** no_null_pointer_along_path_step **)
+      destruct s; introv NE M; unfolds in M; rewrite E in M; simpl in M; inverts M.
+      solve_premises_smart.
+    + (** safe_pointer_along_path_step **)
+      destruct s; introv M D'; unfolds in M; rewrite E in M; simpl in M; inverts~ M.
+      left. pfold. solve_premises_smart.
+    + (** safe_SExpRec_read **)
+      introv E'. rewrite E in E'. inverts E'. solve_premises_smart.
+  - pfold. constructors.
+    + (** pointer_bound **)
+      solve_premises_smart.
+    + (** no_null_pointer_along_path_step **)
+      destruct s; introv NE M; unfolds in M; rewrite E0 in M; simpl in M; inverts M.
+      solve_premises_smart.
+    + (** safe_pointer_along_path_step **)
+      destruct s; introv M D'; unfolds in M; rewrite E0 in M; simpl in M; inverts~ M.
+      left. pfold. solve_premises_smart.
+    + (** safe_SExpRec_read **)
+      introv E'. rewrite E0 in E'. inverts E'. solve_premises_smart.
+  - pfold. constructors.
+    + (** pointer_bound **)
+      solve_premises_smart.
+    + (** no_null_pointer_along_path_step **)
+      destruct s; introv NE M; unfolds in M; rewrite E1 in M; simpl in M; inverts M.
+      solve_premises_smart.
+    + (** safe_pointer_along_path_step **)
+      destruct s; introv M D'; unfolds in M; rewrite E1 in M; simpl in M; inverts~ M.
+      left. pfold. solve_premises_smart.
+    + (** safe_SExpRec_read **)
+      introv E'. rewrite E1 in E'. inverts E'. solve_premises_smart.
+  Optimize Proof.
+Qed.
+
+Lemma InitBaseEnv_result : forall S,
+  safe_state S ->
+  result_prop (fun S (res : _ * _) =>
+    let (EmptyEnv, BaseEnv) := res in
+    safe_state S
+    /\ safe_pointer S EmptyEnv
+    /\ safe_pointer S BaseEnv)
+    (fun _ => False) (fun _ _ _ => False) (InitBaseEnv globals runs S).
+Proof.
+  introv OKS. unfolds InitBaseEnv. computeR.
   Optimize Proof.
 Qed.
 
