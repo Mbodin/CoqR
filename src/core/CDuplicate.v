@@ -186,12 +186,12 @@ Definition duplicate1 S s deep :=
       result_rsuccess S t
     | LangSxp =>
       let%success t := duplicate_list S s deep using S in
-      set%type s := LangSxp using S in
+      set%type t := LangSxp using S in
       run%success DUPLICATE_ATTRIB S t s deep using S in
       result_rsuccess S t
     | DotSxp =>
       let%success t := duplicate_list S s deep using S in
-      set%type s := DotSxp using S in
+      set%type t := DotSxp using S in
       run%success DUPLICATE_ATTRIB S t s deep using S in
       result_rsuccess S t
     | CharSxp =>
