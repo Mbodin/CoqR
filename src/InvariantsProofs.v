@@ -166,20 +166,63 @@ Proof.
   Optimize Proof.
 Qed.
 
+(** For now, we only provide this simplified version.
+  A more general version would accept the types [NilSxp] and [ListSxp]
+  for the arguments [namelist] and [valuelist]. **) (* FIXME: Is it easy to generalize? *)
 Lemma NewEnvironment_result : forall S namelist valuelist rho,
   safe_state S ->
   safe_globals S globals ->
   safe_pointer S namelist ->
-  may_have_types S ([NilSxp; ListSxp]) namelist ->
+  may_have_types S ([NilSxp]) namelist ->
   safe_pointer S valuelist ->
-  may_have_types S ([NilSxp; ListSxp]) valuelist ->
+  may_have_types S ([NilSxp]) valuelist ->
   safe_pointer S rho ->
+  may_have_types S ([NilSxp; EnvSxp]) rho ->
   result_prop (fun S' newrho =>
-      conserve_old_binding S S' (* This first part may be false, actually. *)
-      /\ safe_pointer S newrho)
+      conserve_old_binding S S'
+      /\ safe_state S'
+      /\ safe_pointer S' newrho
+      /\ may_have_types S' ([EnvSxp]) newrho)
     (fun _ => False) (fun _ _ _ => False)
     (NewEnvironment globals runs S namelist valuelist rho).
 Proof.
+  introv OKS OKg OKnamelist Tnamelist OKvaluelist Tvaluelist OKrho Trho.
+  asserts OKenv: (safe_SExpRec S (make_SExpRec_env R_NilValue valuelist rho)).
+  { unfolds @id. constructors.
+    - (** SExpType_corresponds_to_datatype **)
+      simpl. constructors; solve_premises_smart.
+    - (** SExpRec_header **)
+      constructors; simpl.
+      + (** safe_attrib **)
+        applys~ globals_not_NULL_safe. solve_premises_smart.
+      + (** attrib_list **)
+        apply~ list_type_nil. apply~ OKg. }
+  unfolds NewEnvironment. computeR.
+  asserts OKS0: (safe_state S0).
+  { applys~ alloc_SExp_safe_state OKS ES1. solve_premises_smart. }
+  cutR (fun S' => S' = S0).
+  - unfolds while_loop. simplifyR. cases_if as D'.
+    + fold_bool. rew_refl in D'. lets (D'1&D'2): (rm D'). false D'1.
+      applys~ only_one_nil S0; solve_premises_smart.
+    + reflexivity.
+  - destruct a. simpl. substs. splits~; try solve_premises_smart. pfold. constructors.
+    + (** pointer_bound **)
+      solve_premises_smart.
+    + (** no_null_pointer_along_path_step **)
+      destruct s; introv NE M; unfolds in M; rewrite E in M; simpl in M; inverts M as M.
+      * destruct s; inverts M; try solve_premises_smart.
+        destruct s; simpl; solve_premises_smart.
+      * destruct s; inverts M; try solve_premises_smart.
+        destruct s; simpl; solve_premises_smart.
+    + (** safe_pointer_along_path_step **)
+      destruct s; introv M D'; unfolds in M; rewrite E in M; simpl in M; inverts M as M.
+      * destruct s; inverts M; try solve_premises_smart.
+        destruct s; simpl; solve_premises_smart.
+      * destruct s; inverts M; try solve_premises_smart.
+        destruct s; simpl; solve_premises_smart.
+    + (** safe_SExpRec_read **)
+      introv E'. rewrite E in E'. inverts E'. solve_premises_smart.
+  Optimize Proof.
 Qed.
 
 
@@ -221,7 +264,7 @@ Qed.
 
 (* This lemmae is about [do_while_result], which can call arbitrary R code.
   We leave this proof for when the whole of our interpreter will have been
-  proven holding our invariants. (*
+  proven holding our invariants. (* FIXME
 Lemma do_while_result : forall S call op args rho,
   safe_state S ->
   safe_globals S globals ->
@@ -391,6 +434,7 @@ Qed.
 
 Lemma InitBaseEnv_result : forall S,
   safe_state S ->
+  safe_globals S globals ->
   result_prop (fun S (res : _ * _) =>
     let (EmptyEnv, BaseEnv) := res in
     safe_state S
@@ -398,7 +442,12 @@ Lemma InitBaseEnv_result : forall S,
     /\ safe_pointer S BaseEnv)
     (fun _ => False) (fun _ _ _ => False) (InitBaseEnv globals runs S).
 Proof.
-  introv OKS. unfolds InitBaseEnv. computeR.
+  introv OKS OKg. unfolds InitBaseEnv. computeR.
+  cutR NewEnvironment_result; try solve_premises_smart.
+  lets (C&OKS0&OKrho&Trho): (rm P). transition_conserve S S0.
+  cutR NewEnvironment_result; try solve_premises_smart.
+  lets (C'&OKS1&OKrho'&Trho'): (rm P). transition_conserve S0 S1.
+  simpl. splits~.
   Optimize Proof.
 Qed.
 

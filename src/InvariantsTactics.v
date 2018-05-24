@@ -2015,8 +2015,7 @@ Ltac transition_conserve S S' :=
           try first [ generate_safe_pointer S p | generate_safe_SExpRec S p_ ];
           (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let A' := fresh A in
-          asserts A': (alloc_SExp S0 p_ = id (S, p));
-          [ apply* A |];
+          asserts A': (alloc_SExp S0 p_ = id (S, p)); [ apply* A |];
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
@@ -2026,8 +2025,7 @@ Ltac transition_conserve S S' :=
           try first [ generate_safe_pointer S' p | generate_safe_SExpRec S' p_ ];
           (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let A' := fresh A in
-          asserts A': (alloc_SExp S p_ = id (S', p));
-          [ apply* A |];
+          asserts A': (alloc_SExp S p_ = id (S', p)); [ apply* A |];
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
@@ -2069,15 +2067,21 @@ Ltac transition_conserve S S' :=
           forwards E': conserve_old_binding_list_head_safe C (rm E);
           rename E' into E
         | OKp : safe_pointer S ?p |- _ =>
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
+          let OKpold := fresh OKp "_old" in
+          asserts OKpold: (id safe_pointer S p); [ apply* OKp |];
           let OKp' := fresh OKp in
           forwards OKp': conserve_old_binding_safe_pointer C (rm OKp);
           rename OKp' into OKp
-        | OKp : safe_pointer_gen _ S ?p |- _ =>
+        | OKp : safe_pointer_gen ?sp S ?p |- _ =>
           let OKp' := fresh OKp in
           ((forwards* OKp': conserve_old_binding_safe_pointer_aux C (rm OKp); [idtac])
            || solve [ forwards* OKp': conserve_old_binding_safe_pointer_aux C OKp ]);
           rename OKp' into OKp
         | OKp_ : safe_SExpRec S ?p_ |- _ =>
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
+          let OKp_old := fresh OKp_ "_old" in
+          asserts OKp_old: (id safe_SExpRec S p_); [ apply* OKp_ |];
           let OKp_' := fresh OKp_ in
           forwards OKp_': conserve_old_binding_safe_SExpRec C (rm OKp_);
           rename OKp_' into OKp_

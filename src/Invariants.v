@@ -183,8 +183,8 @@ Inductive safe_SExpRec_type S : SExpType -> SExpRec -> Prop :=
       may_have_types S ([EnvSxp]) env ->
       safe_SExpRec_type S CloSxp (make_NonVector_SExpRec header (make_CloSxp_struct formals body env))
   | SExpType_corresponds_to_data_EnvSxp : forall header frame enclos,
-      may_have_types S ([ListSxp]) frame ->
-      may_have_types S ([EnvSxp]) enclos ->
+      may_have_types S ([NilSxp; ListSxp]) frame ->
+      may_have_types S ([NilSxp ; EnvSxp]) enclos ->
       safe_SExpRec_type S EnvSxp (make_NonVector_SExpRec header (make_EnvSxp_struct frame enclos))
   | SExpType_corresponds_to_data_PromSxp : forall header value expr env,
       may_have_types S all_storable_SExpTypes value ->
