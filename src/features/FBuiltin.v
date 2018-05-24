@@ -38,6 +38,21 @@ Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
 
+
+Definition do_body S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_body" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, _, _ := args using S in
+    let%success args_car_type := TYPEOF S args_car using S in
+    ifb args_car_type = CloSxp then
+        let%success b := BODY_EXPR globals S args_car using S in
+        let%success args_car_named := NAMED S args_car using S in
+        set%named b := args_car_named using S in
+        result_success S b
+    else
+        (** A warning message has been left out **)
+        result_success S (R_NilValue : SEXP).
+
 Definition do_makelist S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_makelist" in
   fold%success (n, havenames) := (0, false)

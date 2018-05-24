@@ -205,5 +205,14 @@ Definition PREXPR S e :=
   add%stack "PREXPR" in
   R_PromiseExpr S e.
 
+Definition R_ClosureExpr S p :=
+  add%stack "R_ClosureExpr" in
+  read%clo _, p_clo := p using S in
+  bytecodeExpr S (clo_body p_clo).
+
+Definition BODY_EXPR S e :=
+  add%stack "BODY_EXPR" in
+  R_ClosureExpr S e.
+
 End Parameterised.
 
