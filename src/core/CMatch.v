@@ -73,9 +73,10 @@ Definition pmatch S (formal tag : SEXP) exact : result bool :=
   (and thus provided in any order), or can be ‘...’.
   The algorithm presented in this function is thus crucial to understand
   the semantics of function calls in R.
-  It is furthermore rather complicated.
-  This is a large function and is divided into all its three passes for
-  readability purposes. **)
+  It is furthermore rather complicated. **)
+
+  (** As it is a large function, it has been divided into all its three
+  passes for readability purposes. **)
 
 (** The function makes use of some bits from the general purpose pool
   to mark some arguments as being used or missing. **)
@@ -87,27 +88,35 @@ Definition set_argused (used : nat) I :=
   set_gp (nat_to_nbits used I).
 Arguments set_argused : clear implicits.
 
+(** First pass: matching exact matches. **)
 Definition matchArgs_first S formals actuals supplied : result (list nat) :=
   add%stack "matchArgs_first" in
+  (** The [fargused] array has been inlined and implemented as a Coq list.
+    As such, we build it step by step, the current step being [fargusedi],
+    which starts as [0], mimicking the [memset].
+    At the end of the step, it is added to the previous [fargused] list.
+    This way of building [fargused] builds it backwards compared to the C,
+    and we have to revert it at the end of the execution. **)
   fold%success (a, fargusedrev) := (actuals, nil)
   along formals
-  as _, f_tag do
-    let%success f_tag_sym_name := PRINTNAME S f_tag using S in
-    let%success ftag_name := CHAR S f_tag_sym_name using S in
+  as _, ftag do
+    let fargusedi := 0 in
+    let%success ftag_sym_name := PRINTNAME S ftag using S in
+    let%success ftag_name := CHAR S ftag_sym_name using S in
     let%success fargusedi :=
-      ifb f_tag <> R_DotsSymbol /\ f_tag <> R_NilValue then
-        fold%let fargusedi := 0
+      ifb ftag <> R_DotsSymbol /\ ftag <> R_NilValue then
+        fold%let fargusedi := fargusedi
         along supplied
         as b, b_, b_list do
-          let b_tag := list_tagval b_list in
-          ifb b_tag <> R_NilValue then
-            let%success b_tag_sym_name := PRINTNAME S b_tag using S in
-            let%success btag_name := CHAR S b_tag_sym_name using S in
+          let btag := list_tagval b_list in
+          ifb btag <> R_NilValue then
+            let%success btag_sym_name := PRINTNAME S btag using S in
+            let%success btag_name := CHAR S btag_sym_name using S in
             ifb ftag_name = btag_name then
               ifb fargusedi = 2 then
                 result_error S "Formal argument matched by multiple actual arguments."
               else ifb argused b_ = 2 then
-                result_error S "Actual argument matches several formal arguments."
+                result_error S "Actual argument matches multiple formal arguments."
               else
                 set%car a := list_carval b_list using S in
                 run%success
@@ -118,13 +127,19 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
                 result_success S 2
             else result_success S fargusedi
           else result_success S fargusedi using S, runs, globals
-      else result_success S 0 using S in
+      else result_success S fargusedi using S in
     read%list _, a_cdr, _ := a using S in
     result_success S (a_cdr, fargusedi :: fargusedrev) using S, runs, globals in
   result_success S (List.rev fargusedrev).
 
+(** Second pass: matching partial matches. **)
 Definition matchArgs_second S actuals formals supplied fargused :=
   add%stack "matchArgs_second" in
+  (** Similarly than in the previous function, [fargused] is a Coq list.
+     Along the R list formals, we pop it out to get the current element
+     [fargusedi].  As the list [fargused] has been defined from the same
+     [formals] list, it is not possible for it to have a different size.
+     We check its size during and after the loop. **)
   fold%success (a, fargused, dots, seendots) :=
     (actuals, fargused, R_NilValue : SEXP, false)
   along formals
@@ -163,8 +178,11 @@ Definition matchArgs_second S actuals formals supplied fargused :=
       read%list _, a_cdr, _ := a using S in
       result_success S (a_cdr, fargused, dots, seendots)
     end using S, runs, globals in
-  result_success S dots.
+  ifb fargused <> nil then
+    result_impossible S "The list/array “fargused” is bigger than it should be."
+  else result_success S dots.
 
+(** Third pass: matching based on order. **)
 Definition matchArgs_third S (formals actuals supplied : SEXP) :=
   add%stack "matchArgs_third" in
   do%success (f, a, b, seendots) := (formals, actuals, supplied, false)
@@ -189,6 +207,8 @@ Definition matchArgs_third S (formals actuals supplied : SEXP) :=
         result_success S (f_cdr, a_cdr, b_cdr, seendots) using S, runs in
   result_skip S.
 
+(** In the case there is a ‘...’ in the code, then all non-matching
+  arguments are associated to it. **)
 Definition matchArgs_dots S dots supplied :=
   add%stack "matchArgs_dots" in
   run%success SET_MISSING S dots 0 ltac:(nbits_ok) using S in
@@ -215,6 +235,8 @@ Definition matchArgs_dots S dots supplied :=
     result_skip S
   else result_skip S.
 
+(** In the case there is no ‘...’ in the code, then there should
+  be no unmatched argument left. **)
 Definition matchArgs_check S supplied :=
   add%stack "matchArgs_check" in
   fold%success (unused, last) := (R_NilValue : SEXP, R_NilValue : SEXP)
@@ -247,20 +269,26 @@ Definition matchArgs S formals supplied (call : SEXP) :=
     let (S, actuals) := CONS_NR globals S R_MissingArg actuals in
     run%success SET_MISSING S actuals 1 ltac:(nbits_ok) using S in
     result_success S (actuals, 1 + argi) using S, runs, globals in
+  (** A call to [memset] has been inlined here.
+     See the definition of [matchArgs_first] for more details. **)
   fold%success
   along supplied
   as b, _ do
     map%pointer b with set_argused 0 ltac:(nbits_ok) using S in
     result_skip S using S, runs, globals in
+  (** First pass: matching exact matches. **)
   let%success fargused := matchArgs_first S formals actuals supplied using S in
+  (** Second pass: matching partial matches. **)
   let%success dots := matchArgs_second S actuals formals supplied fargused using S in
+  (** Third pass: matching based on order. **)
   run%success matchArgs_third S formals actuals supplied using S in
-  ifb dots <> R_NilValue then
-    run%success matchArgs_dots S dots supplied using S in
-    result_success S actuals
-  else
-    run%success matchArgs_check S supplied using S in
-    result_success S actuals.
+  (** Last stage: checking that all arguments are used. **)
+  run%success
+    ifb dots <> R_NilValue then
+      matchArgs_dots S dots supplied
+    else
+      matchArgs_check S supplied using S in
+  result_success S actuals.
 
 
 Definition matchArgs_RC S formals supplied call :=
