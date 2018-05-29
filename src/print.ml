@@ -120,7 +120,8 @@ let _ =
     prerr_endline "Warning: some Coq global variables have not been associated a string in OCaml."
 
 let all_global_variables_state =
-  [ (r_SymbolTable, "R_SymbolTable") ]
+  [ (r_SymbolTable, "R_SymbolTable") ;
+    (r_ReturnedValue, "R_ReturnedValue") ]
 
 let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
   let l =
@@ -661,7 +662,8 @@ let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
         )
     ) all_global_variables ;
   if not !diff then print_endline "No difference found in constant global variables." ;
-  if global_Type2Table g1 <> global_Type2Table g2 then print_endline "Difference found in the global Type2Table array." ;
+  if ArrayList.to_list (global_Type2Table g1) <> ArrayList.to_list (global_Type2Table g2) then
+    print_endline "Difference found in the global Type2Table array." ;
   diff := false ;
   List.iter (fun (proj, str) ->
       let v1 = proj s1 in
