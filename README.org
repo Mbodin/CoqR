@@ -107,6 +107,10 @@ We can now clone the project.
 #+END_SRC
 
 We need to compile TLC, a Coq library used thorough the project.
+Although in theory one could install TLC by another way,
+we strongly encourage to use the version of the submodule:
+the project has only been tested with this version.
+The following line will compile the expected version of TLC.
 #+BEGIN_SRC bash
     make tlc
 #+END_SRC

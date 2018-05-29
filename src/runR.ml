@@ -60,6 +60,9 @@ let trace = Hooks.trace
 let initial_state = ref ""
 let final_state = ref ""
 
+let state1 = ref ""
+let state2 = ref ""
+
 
 (** * Generating List of Options **)
 
@@ -204,19 +207,21 @@ let sort_commands =
 
 let _ =
     let arguments = ref [] in
+    let additional_arguments = [
+        ("-non-interactive", Arg.Clear interactive, "Non-interactive mode.") ;
+        ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state.") ;
+        ("-show-state-initial", Arg.Set show_state_initial, "Prints the state at the beginning of the execution.") ;
+        ("-compare-states", Arg.Tuple [Arg.Set_string state1 ; Arg.Set_string state2], "Load the two given files as states and compare them, then exit the program.") ;
+      ] in
     let all_arguments =
       sort_commands (
-        ("-non-interactive", Arg.Clear interactive, "Non-interactive mode.") ::
-        ("-initial-state", Arg.Set_string initial_state, "Load a state from an external file and uses it as initial state.") ::
         ("-expert-mode", Arg.Unit (fun _ -> prerr_endline "This program is already in expert mode."), text_expert "-" ^ " (current)") ::
-        ("-show-state-initial", Arg.Set show_state_initial, "Prints the state at the beginning of the execution") ::
+        additional_arguments @
         make_options true "-" "default") in
     let simple_arguments =
       sort_commands (
-        ("-non-interactive", Arg.Clear interactive, "") ::
-        ("-initial-state", Arg.Set_string initial_state, "") ::
         ("-expert-mode", Arg.Unit (fun _ -> arguments := all_arguments), text_expert "-") ::
-        ("-show-state-initial", Arg.Set show_state_initial, "") ::
+        List.map (fun (c, f, _) -> (c, f, "")) additional_arguments @
         make_options false "-" "default") in
     arguments := simple_arguments ;
     Arg.parse_dynamic arguments
@@ -239,6 +244,11 @@ type type_s_globals = Extract.state * Extract.globals
 
 let expert_mode = ref false
 
+let load_state file =
+  if !verbose then print_endline ("Reading state from " ^ file ^ "…") ;
+  let inchannel = open_in_bin file in
+  (Marshal.from_channel inchannel : type_s_globals)
+
 let output_state s globals str =
   let outchannel = open_out_bin str in
   Marshal.to_channel outchannel ((s, globals) : type_s_globals) [Marshal.Closures]
@@ -249,15 +259,13 @@ let exiting_function s globals =
     output_state s globals !final_state) ;
   if !verbose then print_endline "End of program execution."
 
-let _ =
+let startR _ =
   let initialising_function =
     if !initial_state = "" then (
       if !verbose then print_endline "Initialising…" ;
       Extract.setup_Rmainloop !max_steps Extract.empty_state
     ) else (
-      if !verbose then print_endline ("Reading state from " ^ !initial_state ^ "…") ;
-      let inchannel = open_in_bin !initial_state in
-      let (s, globals) = (Marshal.from_channel inchannel : type_s_globals) in
+      let (s, globals) = load_state !initial_state in
       Extract.Result_success (s, globals)) in
   Print.print_defined !verbose !print_stack initialising_function Extract.empty_state (fun s globals ->
     if !show_state_initial then
@@ -419,4 +427,16 @@ let _ =
           loop s in
       if !interactive then loop s
       else exiting_function s globals)
+
+let _ =
+  if !state1 <> "" || !state2 <> "" then (
+    if !state1 = "" || !state2 = "" then
+      prerr_endline "Expecting two files, but only one given."
+    else (
+      let s1 = load_state !state1 in
+      let s2 = load_state !state2 in
+      Print.compare_states !verbose (expr_options ()) !readable_pointers s1 s2 ;
+      print_endline "Done"
+    )
+  ) else startR ()
 
