@@ -406,6 +406,11 @@ Lemma bound_read : forall (S : state) p,
   exists p_, read_SExp S p = Some p_.
 Proof. introv (p_&E&_). exists* p_. Qed.
 
+Lemma alloc_SExp_bound : forall S S' e e_,
+  alloc_SExp S e_ = (S', e) ->
+  bound S' e.
+Proof. introv E. applys~ read_bound. applys~ alloc_read_SExp_Some E. Qed.
+
 Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
   alloc_SExp S e_ = (S', e) ->
   conserve_old_binding S S'.
@@ -705,29 +710,38 @@ Proof.
     + applys~ conserve_old_binding_list_type C E.
 Qed.
 
-Lemma conserve_old_binding_safe_pointer : forall S S' p,
+Lemma conserve_old_binding_safe_pointer_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p,
   conserve_old_binding S S' ->
-  safe_pointer S p ->
-  safe_pointer S' p.
+  (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
+  safe_pointer_gen safe_pointer1 S p ->
+  safe_pointer_gen safe_pointer2 S' p.
 Proof.
-  pcofix IH. introv C OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
+  introv C CSafe OKp. constructors.
   - (** pointer_bound **)
     applys conserve_old_binding_bound C. applys~ pointer_bound OKp.
   - (** no_null_pointer_along_path_step **)
     introv NPE E. applys~ no_null_pointer_along_path_step OKp NPE.
     applys~ conserve_old_binding_move_along_path_step_inv C OKp.
   - (** safe_pointer_along_path_step **)
-    introv E D. right. applys IH C. forwards E': conserve_old_binding_move_along_path_step_inv C E.
-    + applys~ pointer_bound OKp.
-    + applys~ safe_pointer_along_path_step E'.
+    introv E D. apply CSafe. applys~ OKp. applys~ conserve_old_binding_move_along_path_step_inv C E.
+    applys~ pointer_bound OKp.
   - (** safe_SExpRec_read **)
     introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
     + forwards E': conserve_old_binding_read C E.
       rewrite E' in R. inverts~ R.
       applys~ conserve_old_binding_safe_SExpRec_aux C.
-      * introv OKp0. right. applys~ IH C OKp0.
+      * introv OKp0. apply CSafe. applys~ OKp0.
       * applys~ safe_SExpRec_read OKp E.
     + false. forwards~ (?&E'): bound_read (pointer_bound OKp). rewrite E' in E. inverts E.
+Qed.
+
+Lemma conserve_old_binding_safe_pointer : forall S S' p,
+  conserve_old_binding S S' ->
+  safe_pointer S p ->
+  safe_pointer S' p.
+Proof.
+  pcofix IH. introv C OKp. pfold. rewrite safe_pointer_rewrite in OKp.
+  applys* conserve_old_binding_safe_pointer_aux C OKp.
 Qed.
 
 Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
@@ -978,5 +992,35 @@ Proof.
   forwards~ OKp_: safe_SExpRec_read OKp E. apply SExpType_corresponds_to_datatype in OKp_.
   exists p_. splits~. applys~ safe_SExpRec_type_VectorPointer T OKp_.
 Qed.
+
+Lemma make_SExpRec_char_safe : forall S attrib array,
+  safe_pointer S attrib ->
+  list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) attrib ->
+  safe_SExpRec S (make_SExpRec_char attrib array).
+Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
+
+Lemma make_SExpRec_lgl_safe : forall S attrib array,
+  safe_pointer S attrib ->
+  list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) attrib ->
+  safe_SExpRec S (make_SExpRec_lgl attrib array).
+Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
+
+Lemma make_SExpRec_int_safe : forall S attrib array,
+  safe_pointer S attrib ->
+  list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) attrib ->
+  safe_SExpRec S (make_SExpRec_int attrib array).
+Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
+
+Lemma make_SExpRec_real_safe : forall S attrib array,
+  safe_pointer S attrib ->
+  list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) attrib ->
+  safe_SExpRec S (make_SExpRec_real attrib array).
+Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
+
+Lemma make_SExpRec_cplx_safe : forall S attrib array,
+  safe_pointer S attrib ->
+  list_type S ([ListSxp]) all_storable_SExpTypes ([CharSxp]) attrib ->
+  safe_SExpRec S (make_SExpRec_cplx attrib array).
+Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
 
 Optimize Heap.

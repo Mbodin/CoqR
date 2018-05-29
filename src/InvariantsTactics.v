@@ -504,11 +504,6 @@ Ltac get_bound S p cont :=
     let B' := fresh B in
     forwards B': bound_such_that_bound B;
     cont B'
-  | R : read_SExp S p = Some _ |- _ =>
-    let p' := fresh1 p in
-    let B := fresh "B" p' in
-    forwards B: read_bound R;
-    cont B
   | OKp : safe_pointer_gen _ S p |- _ =>
     let p' := fresh1 p in
     let B := fresh "B" p' in
@@ -520,6 +515,16 @@ Ltac get_bound S p cont :=
     let B := fresh "B" p' in
     forwards B: pointer_bound OKp;
     cont B
+  | R : read_SExp S p = Some _ |- _ =>
+    let p' := fresh1 p in
+    let B := fresh "B" p' in
+    forwards B: read_bound R;
+    cont B
+  | A : alloc_SExp _ p = (S, _) |- _ =>
+    let p' := fresh1 p in
+    let B := fresh "B" p' in
+    forwards B: alloc_SExp_bound A;
+    cont B
   end.
 
 Ltac get_bound_no_S p cont :=
@@ -529,11 +534,6 @@ Ltac get_bound_no_S p cont :=
     let B' := fresh B in
     forwards B': bound_such_that_bound B;
     cont B'
-  | R : read_SExp _ p = Some _ |- _ =>
-    let p' := fresh1 p in
-    let B := fresh "B" p' in
-    forwards B: read_bound R;
-    cont B
   | OKp : safe_pointer_gen _ _ p |- _ =>
     let p' := fresh1 p in
     let B := fresh "B" p' in
@@ -544,6 +544,16 @@ Ltac get_bound_no_S p cont :=
     let p' := fresh1 p in
     let B := fresh "B" p' in
     forwards B: pointer_bound OKp;
+    cont B
+  | R : read_SExp _ p = Some _ |- _ =>
+    let p' := fresh1 p in
+    let B := fresh "B" p' in
+    forwards B: read_bound R;
+    cont B
+  | A : alloc_SExp _ p = (_, _) |- _ =>
+    let p' := fresh1 p in
+    let B := fresh "B" p' in
+    forwards B: alloc_SExp_bound A;
     cont B
   end.
 
@@ -831,6 +841,19 @@ Ltac get_safe_pointer_base S p cont :=
        end ]
   end.
 
+(** Tactics to simplify [safe_pointer]. **)
+Ltac rewrite_safe_pointer :=
+  repeat first [
+      rewrite safe_pointer_rewrite_paco2
+    | rewrite safe_pointer_rewrite_upaco2
+    | rewrite <- safe_pointer_rewrite ].
+
+Ltac rewrite_safe_pointer_in H :=
+  repeat first [
+      rewrite safe_pointer_rewrite_paco2 in H
+    | rewrite safe_pointer_rewrite_upaco2 in H
+    | rewrite <- safe_pointer_rewrite in H ].
+
 
 (** ** [safe_header] **)
 
@@ -865,7 +888,9 @@ Ltac get_safe_SExpRec S e_ cont :=
   lazymatch goal with
   | H : safe_SExpRec S e_ |- _ => cont H
   | H : safe_SExpRec_gen safe_pointer S e_ |- _ => cont H
-  | H : safe_SExpRec_gen (upaco2 safe_pointer_gen bot2) S e_ |- _ => cont H
+  | H : safe_SExpRec_gen (upaco2 safe_pointer_gen bot2) S e_ |- _ =>
+    try rewrite safe_pointer_rewrite_upaco2 in H;
+    cont H
   | P : read_SExp (state_memory S) ?e = Some e_ |- _ =>
     get_safe_pointer_base S e ltac:(fun H =>
       let e_' := fresh1 e_ in
@@ -901,6 +926,9 @@ Ltac get_safe_SExpRec S e_ cont :=
                 get_may_have_types S a ltac:(fun M =>
                   applys~ may_have_types_weaken M; solve_incl)
               end
+            | |- safe_pointer S ?p =>
+              get_safe_pointer_base S p ltac:(fun OKp => apply p)
+            | |- _ => solve [ constructors* ]
             end
           | (** SExpRec_header **)
             get_safe_header S (get_SExpRecHeader e_) ltac:(fun OKh => apply OKh) ]
@@ -908,6 +936,19 @@ Ltac get_safe_SExpRec S e_ cont :=
       | lazymatch goal with
         | H : safe_SExpRec_gen _ S e_ |- _ => cont H
         end ]
+  end.
+
+(** Ensures that there exists an hypothesis of the form
+  [safe_SExpRec S p_] or [safe_pointer_gen _ S p_] in the goal. **)
+Ltac generate_safe_SExpRec S p_ :=
+  lazymatch goal with
+  | OKp_ : safe_SExpRec S p_ |- _ => idtac
+  | OKp_ : safe_SExpRec_gen _ S p_ |- _ => idtac
+  | _ =>
+    get_safe_SExpRec S p_ ltac:(fun OKp_ =>
+      let p_' := fresh1 p_ in
+      let OKp_' := fresh "OK" p_' in
+      lets OKp_': (rm OKp_))
   end.
 
 (** The following tactic is similar to [get_safe_SExpRec], but ensures
@@ -1075,6 +1116,19 @@ Ltac get_safe_pointer S p cont :=
           introv I A; repeat inverts I as I;
           prove_no_null_pointer_exceptions_path_suffix_simple A ]
     | cont OKp ]
+  end.
+
+(** Ensures that there exists an hypothesis of the form
+  [safe_pointer S p] or [safe_pointer_gen _ S p] in the goal. **)
+Ltac generate_safe_pointer S p :=
+  lazymatch goal with
+  | OKp : safe_pointer S p |- _ => idtac
+  | OKp : safe_pointer_gen _ S p |- _ => idtac
+  | _ =>
+    get_safe_pointer S p ltac:(fun OKp =>
+      let p' := fresh1 p in
+      let OKp' := fresh "OK" p' in
+      lets OKp': (rm OKp))
   end.
 
 (** The following tactic is similar to [get_safe_pointer], but ensures
@@ -1852,6 +1906,16 @@ Ltac prove_types_different :=
   It should do a decent job in most of the cases.
   It either solves the goal, or fail. **)
 Ltac solve_premises_smart :=
+  let apply_or_rewrite OK :=
+    solve [
+        apply OK
+      | rewrite_safe_pointer;
+        first [
+            apply OK
+          | let OK' := fresh1 OK in
+            lets OK': OK;
+            rewrite_safe_pointer_in OK';
+            apply OK' ] ] in
   lazymatch goal with
   | |- safe_state ?S =>
     get_safe_state S ltac:(fun OKS => apply OKS)
@@ -1859,16 +1923,19 @@ Ltac solve_premises_smart :=
     get_safe_globals S globals ltac:(fun OKg => apply OKg)
   | |- safe_pointer ?S ?e =>
     get_safe_pointer S e ltac:(fun OKe => apply OKe)
-  | |- safe_pointer_gen safe_pointer ?S ?e =>
-    get_safe_pointer S e ltac:(fun OKe => rewrite <- safe_pointer_rewrite; apply OKe)
-  | |- safe_SExpRec_gen _ ?S ?e_ =>
-    get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
+  | |- safe_pointer_gen _ ?S ?e =>
+    get_safe_pointer S e ltac:(fun OKe =>
+      apply_or_rewrite OKe)
   | |- safe_SExpRec ?S ?e_ =>
     get_safe_SExpRec S e_ ltac:(fun OKe_ => apply OKe_)
-  | |- safe_header_gen _ ?S ?h =>
-    get_safe_header S h ltac:(fun OKh => apply OKh)
+  | |- safe_SExpRec_gen _ ?S ?e_ =>
+    get_safe_SExpRec S e_ ltac:(fun OKe_ =>
+      apply_or_rewrite OKe_)
   | |- safe_header ?S ?h =>
     get_safe_header S h ltac:(fun OKh => apply OKh)
+  | |- safe_header_gen _ ?S ?h =>
+    get_safe_header S h ltac:(fun OKh =>
+      apply_or_rewrite OKh)
   | |- _ <> _ => prove_locations_different || prove_types_different
   | _ => prove_no_null_pointer_exceptions || solve_premises_lemmae
   end.
@@ -1945,18 +2012,20 @@ Ltac transition_conserve S S' :=
       | repeat lazymatch goal with
         | A : alloc_SExp ?S0 ?p_ = (S, ?p) |- _ =>
           try update_safe_props_from_alloc A S0 S p_;
+          try first [ generate_safe_pointer S p | generate_safe_SExpRec S p_ ];
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let A' := fresh A in
-          asserts A': (alloc_SExp S0 p_ = id (S, p));
-          [ apply* A |]; (** Saving a copy that won’t match. **)
+          asserts A': (alloc_SExp S0 p_ = id (S, p)); [ apply* A |];
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
           forwards E: alloc_read_SExp_eq (rm A)
         | A : alloc_SExp ?S ?p_ = (S', ?p) |- _ =>
           try update_safe_props_from_alloc A S S' p_;
+          try first [ generate_safe_pointer S' p | generate_safe_SExpRec S' p_ ];
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let A' := fresh A in
-          asserts A': (alloc_SExp S p_ = id (S', p));
-          [ apply* A |]; (** Saving a copy that won’t match. **)
+          asserts A': (alloc_SExp S p_ = id (S', p)); [ apply* A |];
           let F := fresh "F" in
           forwards F: alloc_read_SExp_fresh A;
           let E := fresh "E" in
@@ -1998,9 +2067,29 @@ Ltac transition_conserve S S' :=
           forwards E': conserve_old_binding_list_head_safe C (rm E);
           rename E' into E
         | OKp : safe_pointer S ?p |- _ =>
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
+          let OKpold := fresh OKp "_old" in
+          asserts OKpold: (id safe_pointer S p); [ apply* OKp |];
           let OKp' := fresh OKp in
           forwards OKp': conserve_old_binding_safe_pointer C (rm OKp);
           rename OKp' into OKp
+        | OKp : safe_pointer_gen ?sp S ?p |- _ =>
+          let OKp' := fresh OKp in
+          ((forwards* OKp': conserve_old_binding_safe_pointer_aux C (rm OKp); [idtac])
+           || solve [ forwards* OKp': conserve_old_binding_safe_pointer_aux C OKp ]);
+          rename OKp' into OKp
+        | OKp_ : safe_SExpRec S ?p_ |- _ =>
+          (** Saving a copy that won’t match, to avoid looping without loosing information. **)
+          let OKp_old := fresh OKp_ "_old" in
+          asserts OKp_old: (id safe_SExpRec S p_); [ apply* OKp_ |];
+          let OKp_' := fresh OKp_ in
+          forwards OKp_': conserve_old_binding_safe_SExpRec C (rm OKp_);
+          rename OKp_' into OKp_
+        | OKp_ : safe_SExpRec_gen _ S ?p_ |- _ =>
+          let OKp_' := fresh OKp_ in
+          ((forwards* OKp_': conserve_old_binding_safe_pointer_aux C (rm OKp_); [idtac])
+           || solve [ forwards* OKp_': conserve_old_binding_safe_pointer_aux C OKp_ ]);
+          rename OKp_' into OKp_
         | G : safe_globals S ?globals |- _ =>
           let G' := fresh G in
           forwards G': conserve_old_binding_safe_globals C (rm G);
@@ -2014,13 +2103,14 @@ Ltac transition_write_SExp S S' :=
   prepare_proofs_that_locations_are_different;
   let find_write cont :=
     lazymatch goal with
-    | W : write_SExp S ?p ?p_ = Some S' |- _ => cont W
+    | W : write_SExp S ?p ?p_ = Some S' |- _ => cont W p p_
     | E : Some S' = write_SExp S ?p ?p_ |- _ =>
       let W := fresh E in
       lets W: E; symmetry in W; try clear E;
-      cont W
+      cont W p p_
     end in
-  find_write ltac:(fun W =>
+  find_write ltac:(fun W p p_ =>
+    try first [ generate_safe_pointer S' p | generate_safe_SExpRec S' p_ ];
     let R := fresh "E" in
     forwards~ R: read_write_SExp_eq W;
     repeat match goal with

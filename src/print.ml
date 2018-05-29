@@ -646,3 +646,74 @@ let print_and_continue verbose pr_stack
         print_endline ("Result: " ^ pr 8 g s r)
       else print_endline (pr 0 g s r))) cont
 
+(** A function to compare states in a human-readable way. **)
+let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
+  if verbose then print_endline "Comparing states…" ;
+  let diff = ref false in
+  List.iter (fun (var, str) ->
+      let v1 = read_globals g1 var in
+      let v2 = read_globals g2 var in
+      if v1 <> v2 then (
+          diff := true ;
+          print_endline ("Difference found in the value of " ^ str ^ ".") ;
+          print_endline (indent_no_break 2 ^ "First state: " ^ print_raw_pointer v1) ;
+          print_endline (indent_no_break 2 ^ "Second state: " ^ print_raw_pointer v2)
+        )
+    ) all_global_variables ;
+  if not !diff then print_endline "No difference found in constant global variables." ;
+  if global_Type2Table g1 <> global_Type2Table g2 then print_endline "Difference found in the global Type2Table array." ;
+  diff := false ;
+  List.iter (fun (proj, str) ->
+      let v1 = proj s1 in
+      let v2 = proj s2 in
+      if v1 <> v2 then (
+          diff := true ;
+          print_endline ("Difference found in the value of " ^ str ^ ".") ;
+          print_endline (indent_no_break 2 ^ "First state: " ^ print_raw_pointer v1) ;
+          print_endline (indent_no_break 2 ^ "Second state: " ^ print_raw_pointer v2)
+        )
+    ) all_global_variables_state ;
+  if not !diff then print_endline "No difference found in non-constant global variables." ;
+  diff := false ;
+  let m1 = state_memory s1 in
+  let m2 = state_memory s2 in
+  let first_fresh_location str m =
+    print_endline ("First fresh location in the " ^ str ^ " state: " ^ string_of_int (stream_head (state_fresh_locations m))) in
+  first_fresh_location "first" m1 ;
+  first_fresh_location "first" m2 ;
+  let m1 = heap_to_list (state_heap_SExp m1) in
+  let m2 = heap_to_list (state_heap_SExp m2) in
+  let print_cell i e =
+    print_endline (indent_no_break 2 ^ print_memory_cell_expr 2 s2 g2 expr_options readable i e) in
+  let new_cell i e =
+    print_endline ("New cell " ^ string_of_int i ^ ":") ;
+    print_cell i e in
+  let removed_cell i e =
+    print_endline ("Removed cell " ^ string_of_int i ^ ":") ;
+    print_cell i e in
+  let rec iter2 = function
+    | ([], []) -> ()
+    | ([], (i, e) :: l2) ->
+      new_cell i e ;
+      iter2 ([], l2)
+    | ((i, e) :: l1, []) ->
+      removed_cell i e ;
+      iter2 (l1, [])
+    | ((i1, e1) :: l1, (i2, e2) :: l2) ->
+      if i1 = i2 then (
+        if e1 <> e2 then (
+          print_endline ("Cell number " ^ string_of_int i1 ^ " changed:") ;
+          print_cell i1 e1 ;
+          print_cell i2 e2
+        ) ;
+        iter2 (l1, l2)
+      ) else if i1 < i2 then (
+        removed_cell i1 e1 ;
+        iter2 (l1, (i2, e2) :: l2)
+      ) else (* i2 < i1 *) (
+        new_cell i2 e2 ;
+        iter2 ((i1, e1) :: l1, l2)
+      )
+  in
+  iter2 (m1, m2)
+

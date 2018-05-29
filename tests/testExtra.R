@@ -10,14 +10,18 @@
 'if' <- function (x) -x ; if (1) 2 else 3
 "(" <- function (x) 2 * x ; (2)
 '(' <- function () 1 ; (2)
-"{" <- function (x) 2 * x ; {2}
+({ "(" <- function (x) 2 * x ; 3 })
+'{' <- function (x) 2 * x ; {2}
+{ "{" <- function (x) 2 * x ; 3 } ; { 5 ; 7 }
 '<-' <- function (x, y) x + y ; 1 <- 2 ; 3 -> 4 ; 5 <- 6 -> 7
 "<<-" <- function (x, y) x + y ; 1 <<- 2 ; 3 ->> 4 ; 5 <<- 6 ->> 7
-'function' <- function (x, y, z) y ; function (x) 2
 "+" <- function (x, y) x - y ; 1 + 2
 '1' <- 2 ; "1L" <- 2L ; 1 ; 1L
 "1" <- function (x) x ; 1 (2)
 "NULL" <- 1 ; NULL ; NULL <- 1
+'function' <- function (x, y, z) y ; function (x) 2 ; function (x) 2 + x
+"function" <- function (x, y, z) x ; function (x) 2 + x ; function () 2 + x ; function (x = 1, y) 2 + x ; function (x = 1, y, x) 2 + x
+'function' <- function (x, y, z) z ; function (x) 2 + x ; .Internal (typeof (function (x) x + 1)) ; .Internal (typeof (function () NULL))
 
 # Tests about randomness.
 runif ()
