@@ -647,6 +647,24 @@ let print_and_continue verbose pr_stack
         print_endline ("Result: " ^ pr 8 g s r)
       else print_endline (pr 0 g s r))) cont
 
+
+let vector_SExpRec_diff e1 e2 =
+  vector_SExpRec_header e1 <> vector_SExpRec_header e2 ||
+    let v1 = vector_SExpRec_vecsxp e1 in
+    let v2 = vector_SExpRec_vecsxp e2 in
+    vecSxp_length v1 <> vecSxp_length v2 ||
+    vecSxp_truelength v1 <> vecSxp_truelength v2 ||
+    ArrayList.to_list (vecSxp_data v1) <> ArrayList.to_list (vecSxp_data v2)
+
+let sExpRec_diff = function
+  | (SExpRec_NonVector e1, SExpRec_NonVector e2) -> e1 <> e2
+  | (SExpRec_VectorChar e1, SExpRec_VectorChar e2) -> vector_SExpRec_diff e1 e2
+  | (SExpRec_VectorInteger e1, SExpRec_VectorInteger e2) -> vector_SExpRec_diff e1 e2
+  | (SExpRec_VectorComplex e1, SExpRec_VectorComplex e2) -> vector_SExpRec_diff e1 e2
+  | (SExpRec_VectorReal e1, SExpRec_VectorReal e2) -> vector_SExpRec_diff e1 e2
+  | (SExpRec_VectorPointer e1, SExpRec_VectorPointer e2) -> vector_SExpRec_diff e1 e2
+  | _ -> true
+
 (** A function to compare states in a human-readable way. **)
 let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
   if verbose then print_endline "Comparing states…" ;
@@ -682,7 +700,7 @@ let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
   let first_fresh_location str m =
     print_endline ("First fresh location in the " ^ str ^ " state: " ^ string_of_int (stream_head (state_fresh_locations m))) in
   first_fresh_location "first" m1 ;
-  first_fresh_location "first" m2 ;
+  first_fresh_location "second" m2 ;
   let m1 = heap_to_list (state_heap_SExp m1) in
   let m2 = heap_to_list (state_heap_SExp m2) in
   let print_cell i e =
@@ -703,7 +721,7 @@ let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
       iter2 (l1, [])
     | ((i1, e1) :: l1, (i2, e2) :: l2) ->
       if i1 = i2 then (
-        if e1 <> e2 then (
+        if sExpRec_diff (e1, e2) then (
           print_endline ("Cell number " ^ string_of_int i1 ^ " changed:") ;
           print_cell i1 e1 ;
           print_cell i2 e2
