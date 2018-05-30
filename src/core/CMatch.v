@@ -273,7 +273,7 @@ Definition matchArgs S formals supplied (call : SEXP) :=
      See the definition of [matchArgs_first] for more details. **)
   fold%success
   along supplied
-  as b, _ do
+  as b, _, _ do
     map%pointer b with set_argused 0 ltac:(nbits_ok) using S in
     result_skip S using S, runs, globals in
   (** First pass: matching exact matches. **)

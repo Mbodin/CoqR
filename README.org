@@ -134,7 +134,7 @@ As-is, this program should run more or less similarly to R
 It accepts a large number of argument to customize its output,
 which are (briefly) described by the following invocation:
 #+BEGIN_SRC bash
-    src/runR.native -help
+    src/runR.native -expert-mode -help
 #+END_SRC
 
 Initialising the program can take some time.
@@ -148,6 +148,19 @@ A faster-to-load version is available with the following invocation.
 The first =make= command also created a =html/= folder,
 with an arguably more readable version of the files and their documentations.
 See for instance the table of contents in =html/toc.html=.
+
+The Bisect tool is a coverage tool for OCaml.
+The following invocation uses it in the context of this R interpreter.
+#+BEGIN_SRC bash
+    make run_bisect
+#+END_SRC
+This will generate =bisect.out= files during the computation.
+To translate these files into a readable report, run the following command.
+This will create some files in the =bisect/= folder,
+and in particular =bisect/index.html= providing a coverage report.
+#+BEGIN_SRC bash
+    make report
+#+END_SRC
 
 
 * Files Description

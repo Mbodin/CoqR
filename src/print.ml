@@ -722,7 +722,7 @@ let compare_states verbose expr_options readable (s1, g1) (s2, g2) =
     | ((i1, e1) :: l1, (i2, e2) :: l2) ->
       if i1 = i2 then (
         if sExpRec_diff (e1, e2) then (
-          print_endline ("Cell number " ^ string_of_int i1 ^ " changed:") ;
+          print_endline ("Cell " ^ string_of_int i1 ^ " changed:") ;
           print_cell i1 e1 ;
           print_cell i2 e2
         ) ;
