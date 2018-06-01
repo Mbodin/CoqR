@@ -28,6 +28,17 @@ NA && NA
 1 && "b"
 0 && "b"
 
+"T" && 1
+"True" && "b"
+1 && "TRUE"
+0 && "true"
+"F" && 1
+"False" && "b"
+1 && "FALSE"
+0 && "false"
+"NA" && NA
+
+
 #### || ####
 
 TRUE || TRUE
@@ -56,6 +67,15 @@ NA || NA
 1 || "b"
 0 || "b"
 
+"T" || 1
+"True" || "b"
+1 || "TRUE"
+0 || "true"
+"F" || 1
+"False" || "b"
+1 || "FALSE"
+0 || "false"
+"NA" || NA
 
 #### Other ####
 

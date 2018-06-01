@@ -99,7 +99,8 @@ Definition matchArgs_first S formals actuals supplied : result (list nat) :=
     and we have to revert it at the end of the execution. **)
   fold%success (a, fargusedrev) := (actuals, nil)
   along formals
-  as _, ftag do
+  as _, f_tag do
+    let ftag := f_tag in
     let fargusedi := 0 in
     let%success ftag_sym_name := PRINTNAME S ftag using S in
     let%success ftag_name := CHAR S ftag_sym_name using S in
