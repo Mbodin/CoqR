@@ -139,7 +139,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "if" do_if (0)%Z eval200 (-1)%Z PP_IF PREC_FN true ;
               rdecl "while" do_while (0)%Z eval100 (2)%Z PP_WHILE PREC_FN false ;
-              rdecl "for" (dummy_function "do_for") (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
+              rdecl "for" do_for (0)%Z eval100 (3)%Z PP_FOR PREC_FN false ;
               rdecl "repeat" do_repeat (0)%Z eval100 (1)%Z PP_REPEAT PREC_FN false ;
               rdecl "break" do_break CTXT_BREAK eval0 (0)%Z PP_BREAK PREC_FN false ;
               rdecl "next" do_break CTXT_NEXT eval0 (0)%Z PP_NEXT PREC_FN false ;
@@ -513,7 +513,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "as.call" (dummy_function "do_ascall") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "as.environment" (dummy_function "do_as_environment") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "storage.mode<-" (dummy_function "do_storage_mode") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "asCharacterFactor" (dummy_function "do_asCharacterFactor") (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "asCharacterFactor" do_asCharacterFactor (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "as.vector" (dummy_function "do_asvector") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "paste" (dummy_function "do_paste") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;

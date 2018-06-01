@@ -125,6 +125,9 @@ Definition PRVALUE S p :=
   read%prom _, p_prom := p using S in
   result_success S (prom_value p_prom).
 
+Definition R_VARLOC_IS_NULL loc :=
+  decide (loc = NULL).
+
 End Parameterised.
 
 Arguments SET_PRSEEN : clear implicits.

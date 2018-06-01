@@ -1119,6 +1119,14 @@ Definition substituteList (S : state) (el rho : SEXP) :=
             result_success S (el_cdr, p, res)
         using S, runs in
     result_success S res.    
-  
+
+Definition asCharacterFactor (S : state) (x : SEXP) : result SEXP :=
+  add%stack "asCharacterfactor" in
+    let%success x_inherits := inherits2 globals runs S x "factor" using S in
+    if negb x_inherits then
+      result_error S "attempting to coerce non-factor"
+    else
+      result_not_implemented "asCharacterfactor".
+
 End Parameterised.
 

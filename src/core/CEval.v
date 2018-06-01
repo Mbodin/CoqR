@@ -717,5 +717,13 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
     result_success S r
   else result_error S "Target of assignment expands to non-language object.".
 
+Definition GET_BINDING_CELL S (symbol rho : SEXP) : result SEXP :=
+  add%stack "GET_BINDING_CELL" in
+    ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
+        result_success S (R_NilValue : SEXP)
+    else
+        let%success loc := R_findVarLocInFrame globals runs S rho symbol using S in
+        result_success S (if negb (R_VARLOC_IS_NULL loc) then loc else R_NilValue).
+        
 End Parameterised.
 

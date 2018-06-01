@@ -222,6 +222,57 @@ Definition do_set S (call op args rho : SEXP) : result SEXP :=
     | _ => result_error S "Invalid left-hand side to assignment."
     end.
 
+Definition do_for S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_for" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, args_cdr, _ := args using S in
+    let sym := args_car in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+    let val := args_cdr_car in
+    read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+    let body := args_cdr_cdr_car in
+
+    let%success sym_isSymbol := isSymbol S sym using S in
+    ifb negb sym_isSymbol then
+      result_error S "non-symbol loop variable"
+    else
+      
+    (** Omitting RDEBUG and JIT check **)
+    let%success val := eval globals runs S val rho using S in
+
+    let%success val :=
+    if%success (inherits globals runs S val "factor") using S then 
+      let%success tmp := asCharacterFactor globals runs S val using S in
+      result_success S tmp
+    using S in
+
+    let%success val_isList := isList globals S val using S in
+    let%success val_isNull := isNull S val using S in
+    let%success n :=
+    if val_isList \/ val_isNull then
+        R_length globals runs S val
+    else
+        LENGTH globals S val
+    using S in
+
+    let%success val_type := TYPEOF S val using S in
+    run%success defineVar globals runs S sym R_NilValue rho using S in
+    let%success cell := GET_BINDING_CELL globals runs S sym rho using S in
+
+    let%success body_isLanguage := isLanguage globals S body using S in
+    read%list body_car, _, _ := body using S       
+    let bgn := ifb body_isLanguage /\ body_car = R_BraceSymbol then 1 else 0 in    
+
+    (** bump up links count of sequence to avoid modification by loop code **)
+    run%success INCREMENT_LINKS S val using S in
+    (** Not protecting with index **)
+
+    let%success cntxt := begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
+    set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+    match jmp with
+    | Ctxt_Break => ...
+    | Ctxt_Next => result_not_implemented "goto for_next"
+    end
 Definition do_function S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_function" in
   let%success op :=
