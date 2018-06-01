@@ -266,62 +266,6 @@ Definition InitGlobalEnv S :=
   add%stack "InitOptions" in
   result_not_implemented.*)
 
-(** [TypeTable], from main/util.c **)
-Definition TypeTable : list (string * SExpType) := [
-    ("NULL", NilSxp) ;
-    ("symbol", SymSxp) ;
-    ("pairlist", ListSxp) ;
-    ("closure", CloSxp) ;
-    ("environment", EnvSxp) ;
-    ("promise", PromSxp) ;
-    ("language", LangSxp) ;
-    ("special", SpecialSxp) ;
-    ("builtin", BuiltinSxp) ;
-    ("char", CharSxp) ;
-    ("logical", LglSxp) ;
-    ("integer", IntSxp) ;
-    ("double", RealSxp) ;
-    ("complex", CplxSxp) ;
-    ("character", StrSxp) ;
-    ("...", DotSxp) ;
-    ("any", AnySxp) ;
-    ("expression", ExprSxp) ;
-    ("list", VecSxp) ;
-    ("externalptr", ExtptrSxp) ;
-    ("bytecode", BcodeSxp) ;
-    ("weakref", WeakrefSxp) ;
-    ("raw", RawSxp) ;
-    ("S4", S4Sxp) ;
-    ("numeric", RealSxp) ;
-    ("name", SymSxp)
-  ]%string.
-
-(** [str2type], from main/util.c **)
-Fixpoint str2type_loop s i (l : list (string * SExpType))  :=
-  match l return SExpType with
-  | nil => NilSxp
-  | (str, t) :: l' =>
-    ifb s = str then
-        t
-    else
-        str2type_loop s (i + 1)%Z l'
-end.
-
-Definition str2type (s : string) : result SExpType :=
-  str2type_loop s 0 TypeTable.
-
-(** [findTypeInTypeTable], from main/util.c **)
-Fixpoint findTypeInTypeTable_loop t i (l : list (string * SExpType)) :=
-  match l return int with
-  | nil => (-1)%Z
-  | (str, t') :: l =>
-    ifb t = t' then i
-    else findTypeInTypeTable_loop t (1 + i)%Z l
-  end.
-
-Definition findTypeInTypeTable t :=
-  findTypeInTypeTable_loop t 0 TypeTable.
-
 (** [InitTypeTables], from main/util.c **)
 Definition InitTypeTables S :=
   add%stack "InitTypeTables" in

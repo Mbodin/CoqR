@@ -56,5 +56,60 @@ Definition isspace c :=
 Definition isBlankString s :=
   decide (Forall (fun c => isspace c) (string_to_list s)).
 
+Definition TypeTable : list (string * SExpType) := [
+    ("NULL", NilSxp) ;
+    ("symbol", SymSxp) ;
+    ("pairlist", ListSxp) ;
+    ("closure", CloSxp) ;
+    ("environment", EnvSxp) ;
+    ("promise", PromSxp) ;
+    ("language", LangSxp) ;
+    ("special", SpecialSxp) ;
+    ("builtin", BuiltinSxp) ;
+    ("char", CharSxp) ;
+    ("logical", LglSxp) ;
+    ("integer", IntSxp) ;
+    ("double", RealSxp) ;
+    ("complex", CplxSxp) ;
+    ("character", StrSxp) ;
+    ("...", DotSxp) ;
+    ("any", AnySxp) ;
+    ("expression", ExprSxp) ;
+    ("list", VecSxp) ;
+    ("externalptr", ExtptrSxp) ;
+    ("bytecode", BcodeSxp) ;
+    ("weakref", WeakrefSxp) ;
+    ("raw", RawSxp) ;
+    ("S4", S4Sxp) ;
+    ("numeric", RealSxp) ;
+    ("name", SymSxp)
+  ]%string.
+
+Fixpoint str2type_loop s i (l : list (string * SExpType))  :=
+  match l return SExpType with
+  | nil =>
+    (** In the original C code, the interpreter returned [(SEXPTYPE) -1].
+     Given that [SEXPTYPE] are in C stored on 5 bits, we should thus return
+     [31], which is the number associated to the [FreeSxp] constructor. **)
+    FreeSxp
+  | (str, t) :: l' =>
+    ifb s = str then t
+    else str2type_loop s (i + 1)%Z l'
+end.
+
+Definition str2type (s : string) : SExpType :=
+  str2type_loop s 0 TypeTable.
+
+Fixpoint findTypeInTypeTable_loop t i (l : list (string * SExpType)) :=
+  match l return int with
+  | nil => (-1)%Z
+  | (str, t') :: l =>
+    ifb t = t' then i
+    else findTypeInTypeTable_loop t (1 + i)%Z l
+  end.
+
+Definition findTypeInTypeTable t : int :=
+  findTypeInTypeTable_loop t 0 TypeTable.
+
 End Parameterised.
 
