@@ -346,5 +346,69 @@ Definition do_envir S (call op args rho : SEXP) : result SEXP :=
     result_success S (context_sysparent (R_GlobalContext S))
   else getAttrib globals runs S args_car R_DotEnvSymbol.
 
+
+Definition do_makevector S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_makevector" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, args_cdr, _ := args using S in
+    read%list args_cdr_car, _, _ := args_cdr using S in
+    let%success args_cdr_car_length := R_length globals runs S args_cdr_car using S in
+    ifb args_cdr_car_length <> 1 then
+        result_error S "invalid 'length' argument"
+    else
+    let%success len := asVecSize globals S args_cdr_car using S in
+    ifb len < 0 then
+        result_error S "invalid 'length' argument"
+    else
+    let len := Z.to_nat len in
+    let%success s := coerceVector globals runs S args_car StrSxp using S in
+    let%success s_length := R_length globals runs S s using S in
+    ifb s_length <> 1 then
+        result_error S "invalid 'mode' argument"
+    else
+    let%success s_0 := STRING_ELT S s 0 using S in
+    let%success s_0_char := CHAR S s_0 using S in
+    let mode := str2type s_0_char in
+    let%success mode :=
+       ifb (** The original C code compared [mode] to [-1] of type [SEXPTYPE],
+             which is stored on 5 bits and thus equivalent to [31], that is,
+             to [FreeSxp]. **)
+           mode = FreeSxp
+           /\ s_0_char = "double"%string then
+         result_success S RealSxp
+       else result_success S mode using S in
+    let%success s :=
+    match mode with
+    | LglSxp
+    | IntSxp
+    | RealSxp
+    | CplxSxp
+    | StrSxp
+    | ExprSxp
+    | VecSxp
+    | RawSxp => allocVector globals S mode len 
+    | ListSxp =>
+      ifb (len : int) > INT_MAX then 
+        result_error S "too long for a pairlist"
+      else
+        let (S, s) := allocList globals S len in
+        result_success S s                 
+    | _ => result_error S ("vector: cannot make a vector of mode given.")
+    end using S in
+    run%success 
+    ifb mode = IntSxp \/ mode = LglSxp then
+      write%VectorInteger s := ArrayList.from_list (repeat (0 : int) len) using S in
+      result_skip S
+    else ifb mode = RealSxp then
+      write%VectorReal s := ArrayList.from_list (repeat (0 : double) len) using S in
+      result_skip S
+    else ifb mode = CplxSxp then
+      write%VectorComplex s := ArrayList.from_list (repeat (make_Rcomplex 0 0) len) using S in
+      result_skip S
+    else ifb mode = RawSxp then
+      result_not_implemented "Raw case"
+    else result_skip S using S in 
+    result_success S s.
+    
 End Parameters.
 
