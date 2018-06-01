@@ -24,6 +24,9 @@ Require Import Loops.
 Require Import CRinternals.
 Require Import CMemory.
 Require Import CRinlinedfuns.
+Require Import CRmath.
+Require Import CArithmetic.
+Require Import CCoerce.
 
 Section Parameterised.
 
@@ -37,6 +40,47 @@ Variable runs : runs_type.
 Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
+
+Definition asVecSize S (x : SEXP)  :=
+  add%stack "asVecSize" in
+    let%success x_isVectorAtomic := isVectorAtomic S x using S in
+    let%success x_LENGTH := LENGTH globals S x using S in
+    ifb x_isVectorAtomic /\ x_LENGTH >= 1 then
+        let%success x_type := TYPEOF S x using S in
+        match x_type with
+        | IntSxp => read%Integer res := x at 0 using S in
+                   ifb res = NA_INTEGER then
+                       result_error S "vector size cannot be NA"
+                   else
+                       result_success S res
+        | RealSxp => read%Real d := x at 0 using S in
+                    if ISNAN d then
+                        result_error S "vector size cannot be NA/NaN"
+                    else if negb (R_FINITE d) then
+                        result_error S "vector size cannot be infinite"
+                    else ifb d > R_XLEN_T_MAX then
+                        result_error S "vector size specified is too large"
+                    else
+                        match Double.double_to_int d with
+                        | Some v => result_success S v
+                        | None => result_impossible S "Casting double to int"
+                        end
+         | StrSxp => let%success d := asReal globals S x using S in
+                     if ISNAN d then
+                         result_error S "vector size cannot be NA/NaN"
+                     else if negb (R_FINITE d) then
+                         result_error S "vector size cannot be infinite"
+                     else ifb d > R_XLEN_T_MAX then
+                         result_error S "vector size specified is too large"
+                     else
+                        match Double.double_to_int d with
+                        | Some v => result_success S v
+                        | None => result_impossible S "Casting double to int"
+                        end
+         | _ => result_error S "invalid type for argument"
+         end                   
+    else
+        result_error S "-999 code status".
 
 Definition R_IsImportsEnv S env :=
   add%stack "R_IsImportsEnv" in

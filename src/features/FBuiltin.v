@@ -346,5 +346,59 @@ Definition do_envir S (call op args rho : SEXP) : result SEXP :=
     result_success S (context_sysparent (R_GlobalContext S))
   else getAttrib globals runs S args_car R_DotEnvSymbol.
 
+
+Definition do_makevector S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_makevector" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, args_cdr, _ := args using S in
+    read%list args_cdr_car, _, _ := args_cdr using S in
+    let%success args_cdr_car_length = R_length globals runs S args_cdr_car using S in
+    ifb args_cdr_car_length <> 1 then
+        result_error S "invalid 'length' argument"
+    else
+    let%success len := asVecSize S args_cdr_car using S in
+    ifb len < 0 then
+        result_error S "invalid 'length' argument"
+    else
+    let%success s := coerceVector globals runs S args_car StrSxp using S in
+    let%success s_length := R_length globals runs S s using S in
+    ifb s_length <> 1 then
+        result_error S "invalid 'mode' argument"
+    else
+    let%success s_0 := STRING_ELT S s 0 using S in
+    let%success s_0_char := CHAR S s_0 using S in
+    let%success mode := str2type S s_0_char using S in
+    let%success mode := ifb mode = NilSxp /\ s_0_char = "double" then
+                           result_success S RealSxp
+                       else result_success S mode
+    let%success s :=
+    match mode with
+    | LglSxp
+    | IntSxp
+    | RealSxp
+    | CplxSxp
+    | StrSxp
+    | ExprSxp
+    | VecSxp
+    | RawSxp => allocVector globals S mode len 
+    | ListSxp => if len > INT_MAX then 
+                    result_error S "too long for a pairlist"
+                else
+                    let%success (S, s) := allocList globals S len using S in
+                    result_success S s                 
+    | _ => result_error S ("vector: cannot make a vector of mode given.")
+    end using S in
+    run%success 
+    ifb mode = IntSxp \/ mode = LglSxp then
+        (** Memzero **)
+    else ifb mode = RealSxp then
+        (** Memzero **)
+    else ifb mode = CplxSxp then
+        (** Memzero **)
+    else ifb mode = RawSxp then
+        (** Memzero **)
+    using S in 
+    result S s.
+    
 End Parameters.
 

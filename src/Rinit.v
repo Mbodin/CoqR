@@ -296,6 +296,20 @@ Definition TypeTable : list (string * SExpType) := [
     ("name", SymSxp)
   ]%string.
 
+(** [str2type], from main/util.c **)
+Fixpoint str2type_loop s i (l : list (string * SExpType))  :=
+  match l return SExpType with
+  | nil => NilSxp
+  | (str, t) :: l' =>
+    ifb s = str then
+        t
+    else
+        str2type_loop s (i + 1)%Z l'
+end.
+
+Definition str2type (s : string) : result SExpType :=
+  str2type_loop s 0 TypeTable.
+
 (** [findTypeInTypeTable], from main/util.c **)
 Fixpoint findTypeInTypeTable_loop t i (l : list (string * SExpType)) :=
   match l return int with
