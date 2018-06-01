@@ -425,7 +425,7 @@ Definition do_eval S (call op args rho : SEXP) : result SEXP :=
         begincontext globals S Ctxt_Return (context_call (R_GlobalContext S)) env rho args op using S in
       set%longjump context_cjmpbuf cntxt as jmp using S, runs in
       let%success expr :=
-        ifb jmp <> empty_context_type then
+        ifb jmp = empty_context_type then
           eval globals runs S expr env
         else
           let expr := R_ReturnedValue S in

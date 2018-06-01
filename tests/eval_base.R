@@ -48,6 +48,8 @@ gg <- function(y) {ggg <- function() { parent.frame()}; if(y > 0) gg(y-1) else g
 eval(quote(1), environment())
 eval(quote(NULL), environment())
 eval(quote(), environment())
+eval(substitute(x))
+eval(substitute(x), list(x = 3))
 
 #### eval.parent ####
 
