@@ -60,11 +60,7 @@ Definition asVecSize S (x : SEXP)  :=
                         result_error S "vector size cannot be infinite"
                     else ifb d > R_XLEN_T_MAX then
                         result_error S "vector size specified is too large"
-                    else
-                        match Double.double_to_int d with
-                        | Some v => result_success S v
-                        | None => result_impossible S "Casting double to int"
-                        end
+                    else result_success S (Double.double_to_int_zero d)
          | StrSxp => let%success d := asReal globals S x using S in
                      if ISNAN d then
                          result_error S "vector size cannot be NA/NaN"
@@ -72,11 +68,7 @@ Definition asVecSize S (x : SEXP)  :=
                          result_error S "vector size cannot be infinite"
                      else ifb d > R_XLEN_T_MAX then
                          result_error S "vector size specified is too large"
-                     else
-                        match Double.double_to_int d with
-                        | Some v => result_success S v
-                        | None => result_impossible S "Casting double to int"
-                        end
+                     else result_success S (Double.double_to_int_zero d)
          | _ => result_error S "invalid type for argument"
          end                   
     else
