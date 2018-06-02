@@ -41,7 +41,7 @@ Definition do_asCharacterFactor S (call op args rho : SEXP) : result SEXP :=
     run%success Rf_check1arg globals S args call "x" using S in
     read%list args_car, _, _ := args using S in
     let x := args_car in
-        
+        asCharacterFactor globals runs S x 
 .
 
 Definition do_typeof S (call op args rho : SEXP) : result SEXP :=
