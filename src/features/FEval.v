@@ -401,11 +401,9 @@ Definition do_for S (call op args rho : SEXP) : result SEXP :=
         result_success S (R_NilValue : SEXP) in
                        
     set%longjump context_cjmpbuf cntxt as jmp using S, runs in
-    run%success
     ifb jmp = Ctxt_Break then for_break S
     else ifb jmp = Ctxt_Next then result_not_implemented "goto for_next"
-    else result_impossible S "wrong lonjump to do_for"
-    using S in
+    else 
     do%success val := val
     for i from 0 to n - 1 do
         let%success val :=
