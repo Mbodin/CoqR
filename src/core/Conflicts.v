@@ -214,5 +214,48 @@ Definition BODY_EXPR S e :=
   add%stack "BODY_EXPR" in
   R_ClosureExpr S e.
 
+
+(** ** attrib.c **)
+
+(** The function names of this section correspond to the function names
+  in the file main/attrib.c. **)
+
+Definition R_data_class (S : state)  (obj : SEXP)  (singleString : bool) : result SEXP :=
+  add%stack "R_data_class" in
+    result_not_implemented "R_data_class"
+.
+
+Definition R_data_class2 (S : state) (obj : SEXP) : result SEXP :=
+  add%stack "R_data_class2" in
+    result_not_implemented "R_data_class2".
+        
+(** ** objects.c **)
+
+(** The function names of this section correspond to the function names
+  in the file main/objects.c. **)
+
+Definition inherits2 S x what :=
+  add%stack "inherits2" in
+    if%success OBJECT S x using S then
+        let%success klass :=
+        if%success IS_S4_OBJECT S x using S then
+            R_data_class2 S x
+        else 
+            R_data_class S x false
+        using S in
+        let%success nclass := R_length globals runs S klass using S in
+        do%exit
+        for i from 0 to nclass - 1 do
+            let%success klass_i := STRING_ELT S klass i using S in
+            let%success klass_i_char := CHAR S klass_i using S in
+            ifb klass_i_char = what then
+                result_rreturn S true
+            else
+                result_rskip S
+        using S in
+        result_success S false
+    else
+        result_success S false.
+
 End Parameterised.
 

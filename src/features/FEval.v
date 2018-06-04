@@ -305,6 +305,21 @@ Definition BodyHasBraces S body :=
     result_success S (decide (body_car = R_BraceSymbol))
   else result_success S false.
 
+(** Omitting vpi value as REPROTECT is not used **)
+Definition ALLOC_LOOP_VAR S v val_type :=
+  add%stack "ALLOC_LOOP_VAR" in
+    let%success v_maybeShared := MAYBE_SHARED S v using S in
+    let%success v :=
+    ifb v = R_NilValue \/ v_maybeShared then
+        let%success v := allocVector globals S val_type 1 using S in
+        set%named v := named_unique using S in
+        result_success S v
+    else
+      result_success S v
+
+    using S in
+    result_success S v.
+    
 Definition do_if S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_if" in
   read%list args_car, args_cdr, _ := args using S in
@@ -348,6 +363,116 @@ Definition do_while S (call op args rho : SEXP) : result SEXP :=
   run%success endcontext globals runs S cntxt using S in
   result_success S (R_NilValue : SEXP).
 
+
+Definition do_for S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_for" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, args_cdr, _ := args using S in
+    let sym := args_car in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+    let val := args_cdr_car in
+    read%list args_cdr_cdr_car, _, _ := args_cdr_cdr using S in
+    let body := args_cdr_cdr_car in
+
+    let%success sym_isSymbol := isSymbol S sym using S in
+    ifb negb sym_isSymbol then
+      result_error S "non-symbol loop variable"
+    else
+      
+    (** Omitting RDEBUG and JIT check **)
+    let%success val := eval globals runs S val rho using S in
+
+    let%success val :=
+    let%success val_inherits := inherits globals runs S val "factor" using S in
+    ifb val_inherits then 
+      let%success tmp := asCharacterFactor globals runs S val using S in
+      result_success S tmp
+    else result_success S val
+    using S in
+    let%success val_isList := isList globals S val using S in
+    let%success val_isNull := isNull S val using S in
+    let%success n :=
+    ifb val_isList \/ val_isNull then
+        R_length globals runs S val
+    else
+        LENGTH globals S val
+    using S in
+
+    let%success val_type := TYPEOF S val using S in
+    run%success defineVar globals runs S sym R_NilValue rho using S in
+    let%success cell := GET_BINDING_CELL globals runs S sym rho using S in   
+    let%success bgn := BodyHasBraces S body using S in    
+
+    (** bump up links count of sequence to avoid modification by loop code **)
+    run%success INCREMENT_NAMED S val using S in
+    run%success INCREMENT_REFCNT S val using S in
+        
+    (** Not protecting with index **)
+    let v := R_NilValue in
+    let%success cntxt := begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
+    let for_break S :=
+        run%success endcontext globals runs S cntxt using S in
+        run%success DECREMENT_REFCNT S val using S in (** Not sure if this works for val **)
+        result_success S (R_NilValue : SEXP) in
+                       
+    set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+    ifb jmp = Ctxt_Break then for_break S
+    else ifb jmp = Ctxt_Next then result_not_implemented "goto for_next"
+    else 
+    do%success val := val
+    for i from 0 to n - 1 do
+        let%success val :=
+        match val_type with
+        | ExprSxp
+        | VecSxp => let%success val_i := VECTOR_ELT S val i using S in
+                   set%named val_i := named_plural using S in
+                   run%success defineVar globals runs S sym val_i rho using S in
+                   result_success S val
+        | ListSxp => read%list val_car, _, _ := val using S in
+                    set%named val_car := named_plural  using S in
+                    run%success defineVar globals runs S sym val_car rho using S in
+                    result_success S val_car
+        | _ => let%success v :=
+              match val_type with
+              | LglSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         read%Logical v_i := v at i using S in
+                         write%Logical v at 0 := v_i using S in
+                         result_success S v
+              | IntSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         read%Integer v_i := v at i using S in
+                         write%Integer v at 0 := v_i using S in
+                         result_success S v
+              | RealSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                          read%Real v_i := v at i using S in
+                          write%Real v at 0 := v_i using S in
+                          result_success S v
+              | CplxSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                          read%Complex v_i := v at i using S in
+                          write%Complex v at 0 := v_i using S in
+                          result_success S v
+              | StrSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         let%success v_i := STRING_ELT S val i using S in
+                         run%success SET_STRING_ELT S v 0 v_i using S in
+                         result_success S v                             
+              | RawSxp => result_not_implemented "Raw case not implemented"
+              | _ => result_error S "invalid for() loop sequence"
+              end
+              using S in
+              read%list cell_car, _, _ := cell using S in
+              run%success
+              ifb cell_car = R_UnboundValue then
+                  defineVar globals runs S sym v rho
+              else
+                  run%success SET_BINDING_VALUE globals runs S cell v using S in
+                  defineVar globals runs S sym v rho
+              using S in result_success S val
+        end
+        using S in
+        run%success eval globals runs S body rho using S in
+        result_success S val
+    using S in
+    for_break S.
+      
 Definition do_repeat S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_repeat" in
   run%success Rf_checkArityCall globals runs S op args call using S in
