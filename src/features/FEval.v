@@ -305,6 +305,21 @@ Definition BodyHasBraces S body :=
     result_success S (decide (body_car = R_BraceSymbol))
   else result_success S false.
 
+(** Omitting vpi value as REPROTECT is not used **)
+Definition ALLOC_LOOP_VAR S v val_type :=
+  add%stack "ALLOC_LOOP_VAR" in
+    let%success v_maybeShared := MAYBE_SHARED S v using S in
+    let%success v :=
+    ifb v = R_NilValue \/ v_maybeShared then
+        let%success v := allocVector globals S val_type 1 using S in
+        set%named v := named_unique using S in
+        result_success S v
+    else
+      result_success S v
+
+    using S in
+    result_success S v.
+    
 Definition do_if S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_if" in
   read%list args_car, args_cdr, _ := args using S in
@@ -393,7 +408,7 @@ Definition do_for S (call op args rho : SEXP) : result SEXP :=
     run%success INCREMENT_REFCNT S val using S in
         
     (** Not protecting with index **)
-
+    let v := R_NilValue in
     let%success cntxt := begincontext globals S Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue using S in
     let for_break S :=
         run%success endcontext globals runs S cntxt using S in
@@ -417,7 +432,40 @@ Definition do_for S (call op args rho : SEXP) : result SEXP :=
                     set%named val_car := named_plural  using S in
                     run%success defineVar globals runs S sym val_car rho using S in
                     result_success S val_car
-        | _ => result_not_implemented "default case for val type"
+        | _ => let%success v :=
+              match val_type with
+              | LglSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         read%Logical v_i := v at i using S in
+                         write%Logical v at 0 := v_i using S in
+                         result_success S v
+              | IntSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         read%Integer v_i := v at i using S in
+                         write%Integer v at 0 := v_i using S in
+                         result_success S v
+              | RealSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                          read%Real v_i := v at i using S in
+                          write%Real v at 0 := v_i using S in
+                          result_success S v
+              | CplxSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                          read%Complex v_i := v at i using S in
+                          write%Complex v at 0 := v_i using S in
+                          result_success S v
+              | StrSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
+                         let%success v_i := STRING_ELT S val i using S in
+                         run%success SET_STRING_ELT S v 0 v_i using S in
+                         result_success S v                             
+              | RawSxp => result_not_implemented "Raw case not implemented"
+              | _ => result_error S "invalid for() loop sequence"
+              end
+              using S in
+              read%list cell_car, _, _ := cell using S in
+              run%success
+              ifb cell_car = R_UnboundValue then
+                  defineVar globals runs S sym v rho
+              else
+                  run%success SET_BINDING_VALUE globals runs S cell v using S in
+                  defineVar globals runs S sym v rho
+              using S in result_success S val
         end
         using S in
         run%success eval globals runs S body rho using S in
