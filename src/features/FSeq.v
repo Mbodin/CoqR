@@ -108,5 +108,77 @@ Definition do_colon S (call op args rho : SEXP) : result SEXP :=
         result_error S "NA or NaN argument."
       else seq_colon S n1 n2 call.
 
+Definition do_rep_int S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_rep_int" in
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, args_cdr, _ := args using S in
+    let s := args_car in
+    read%list args_cdr_car, _, _ := args_cdr using S in
+    let ncopy := args_cdr_car in
+    
+    let%success ncopy_isVector := isVector ncopy using S in
+    if negb ncopy_isVector then
+        result_error S "invalid type for times (must be a vector)"
+    else
+
+    let%success s_isVector := isVector s using S in
+    ifb negb s_isVector /\ s <> R_NilValue then
+        result_error S "attempt to replicate an object of type"
+    else
+    let%success nc := xlength globals runs S ncopy using S in
+    let%success s_xlength := xlength globals runs S s using S in
+    let%success a :=
+    ifb nc = s_xlength then
+        rep2 S s ncopy
+    else
+        ifb nc <> 1 then
+            result_error S "invalid 'times' value"
+        else
+        let ns := s_xlength in
+        let%success ncopy_type := TYPEOF S ncopy using S in
+        let%success nc :=
+        ifb ncopy_type <> IntSxp then
+            let%success snc := asReal globals S ncopy using S in
+            ifb negb (R_FINITE snc) \/ snc <= (-1)%Z \/ (ns > 0 /\ snc >= R_XLEN_T_MAX + 1) then
+                result_error S "invalid 'times' value"
+            else
+                result_success S (ifb ns = 0 then 1 else snc) 
+        else
+            let%success nc := asInteger globals S ncopy using S in
+            ifb nc = NA_INTEGER \/ nc < 0 then
+                result_error S "invalid 'times' value"
+            else  
+                result_success S nc
+        using S in
+        ifb nc * ns > R_XLEN_T_MAX then
+            result_error S "invalid 'times' value"
+        else
+            rep3 S s ns (nc * ns)
+    using S in
+
+    (** Considering _S4_rep_keepClass not defined **)
+    let%success s_inherits := inherits globals runs S s "factor" using S in
+    if s_inherits then
+        let%success tmp :=
+        let%success s_inherits := inherits globals runs S s "ordered" using S in
+        if s_inherits then
+            let%success tmp := allocVector globals S StrSxp 2 using S in
+            let (S, ordered_mkChar) := mkChar globals S "ordered" in
+            run%success SET_STRING_ELT S tmp 0 ordered_mkChar using S in
+            let (S, factor_mkChar) := mkChar globals S "factor" in
+            run%success SET_STRING_ELT S tmp 1 factor_mkChar using S in
+            result_success S tmp
+        else
+            let (S, factor_mkString) := mkString globals S "factor" in
+            result_success S factor_mkString
+        using S in
+
+        run%success setAttrib globals runs S a R_ClassSymbol tmp using S in
+        let%success s_attrib := getAttrib globals runs S s R_LevelsSymbol using S in
+        run%success setAttrib globals runs S a R_LevelsSymbol s_attrib using S in
+        result_success S a
+    else
+        result_success S a.
+                
 End Parameters.
 

@@ -45,6 +45,7 @@
 ./src/core/CAttrib.v
 ./src/core/CObjects.v
 ./src/core/CArray.v
+./src/core/CSeq.v
 ./src/Rcore.v
 
 ./src/features/FErrors.v
