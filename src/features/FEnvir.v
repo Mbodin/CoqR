@@ -129,7 +129,7 @@ Definition do_assign S (call op args rho : SEXP) : result SEXP :=
       result_error S "Use of NULL environment is defunct."
     else
       let%success aenv :=
-        ifb aenv_type <> EnvSxp then
+        ifb aenv_type = EnvSxp then
           result_success S aenv
         else
           simple_as_environment globals S aenv using S in
