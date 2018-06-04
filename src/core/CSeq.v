@@ -188,4 +188,32 @@ Definition rep2 S s ncopy :=
     using S in
     result_success S a.
 
+Definition rep3 S s ns na :=
+  add%stack "rep3" in
+    
+    (** let%success s_type := TYPEOF S s using S in
+    let%success a := allocVector globals S s_type na using S in
+
+    run%success 
+    match s_type with
+    | LglSxp =>
+    | IntSxp =>
+    | RealSxp =>
+    | CplxSxp =>
+    | RawSxp =>
+    | StrSxp =>
+    | VecSxp
+    | ExprSxp =>
+    | _ => result_error S "UNIMPLEMENTED TYPE"
+    end
+    using S in
+    result_success S a. **)
+    
+    result_not_implemented "rep3".
+
+
+
+
+
+    
 End Parameterised.
