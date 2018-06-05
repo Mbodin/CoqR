@@ -6,6 +6,7 @@ pipeline {
         sh 'eval `opam config env`'
         sh 'make tlc'
         sh 'make'
+        sh "chmod a+x ${env.WORKSPACE}/src/runR.native"
 	sh "chmod 755 ${env.WORKSPACE}/base_setup.sh && ${env.WORKSPACE}/base_setup.sh ${env.WORKSPACE}"
       }
     }
