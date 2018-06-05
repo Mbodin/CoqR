@@ -35,6 +35,19 @@ Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
 
+Definition isMatrix S s :=
+  add%stack "isMatrix" in
+    if%success isVector S s using S then
+        let%success t := getAttrib globals runs S s R_DimSymbol using S in
+        let%success t_type := TYPEOF S t using S in
+        let%success t_length := LENGTH globals S t using S in
+        ifb t_type = IntSxp /\ t_length = 2 then
+            result_success S true
+        else
+            result_success S false
+    else
+        result_success S false.
+
 Definition do_asCharacterFactor S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_asCharacterfactor" in
     run%success Rf_checkArityCall globals runs S op args call using S in
@@ -73,32 +86,32 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
     else result_rskip S using S in
   let%success ans := allocVector globals S LglSxp 1 using S in
   run%success
-    ifb op_val = NilSxp then
+    ifb op_val = NilSxp then  (* is.null *)
       let%success isn := isNull S args_car using S in
       write%Logical ans at 0 := isn using S in
       result_skip S
-    else ifb op_val = LglSxp then
+    else ifb op_val = LglSxp then  (* is.logical *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = LglSxp) using S in
       result_skip S
-    else ifb op_val = IntSxp then
+    else ifb op_val = IntSxp then  (* is.integer *)
       let%success t := TYPEOF S args_car using S in
       let%success inh := inherits globals runs S args_car "factor" using S in
       write%Logical ans at 0 := decide (t = IntSxp /\ ~ inh) using S in
       result_skip S
-    else ifb op_val = RealSxp then
+    else ifb op_val = RealSxp then  (* is.double *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = RealSxp) using S in
       result_skip S
-    else ifb op_val = CplxSxp then
+    else ifb op_val = CplxSxp then  (* is.complex *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = CplxSxp) using S in
       result_skip S
-    else ifb op_val = StrSxp then
+    else ifb op_val = StrSxp then  (* is.character *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = StrSxp) using S in
       result_skip S
-    else ifb op_val = SymSxp then
+    else ifb op_val = SymSxp then  (* is.symbol === is.name *)
       let%success s4 := IS_S4_OBJECT S args_car using S in
       let%success t := TYPEOF S args_car using S in
       ifb s4 /\ t = S4Sxp then
@@ -106,7 +119,7 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
       else
         write%Logical ans at 0 := decide (t = SymSxp) using S in
         result_skip S
-    else ifb op_val = EnvSxp then
+    else ifb op_val = EnvSxp then  (* is.environment *)
       let%success s4 := IS_S4_OBJECT S args_car using S in
       let%success t := TYPEOF S args_car using S in
       ifb s4 /\ t = S4Sxp then
@@ -114,42 +127,44 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
       else
         write%Logical ans at 0 := decide (t = EnvSxp) using S in
         result_skip S
-    else ifb op_val = VecSxp then
+    else ifb op_val = VecSxp then  (* is.list *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = VecSxp \/ t = ListSxp) using S in
       result_skip S
-    else ifb op_val = ListSxp then
+    else ifb op_val = ListSxp then  (* is.pairlist *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = ListSxp \/ t = NilSxp) using S in
       result_skip S
-    else ifb op_val = ExprSxp then
+    else ifb op_val = ExprSxp then  (* is.expression *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = ExprSxp) using S in
       result_skip S
-    else ifb op_val = RawSxp then
+    else ifb op_val = RawSxp then  (* is.raw *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = RawSxp) using S in
       result_skip S
-    else ifb op_val = 50 then
+    else ifb op_val = 50 then  (* is.object *)
       let%success obj := OBJECT S args_car using S in
       write%Logical ans at 0 := obj using S in
       result_skip S
-    else ifb op_val = 51 then
+    else ifb op_val = 51 then  (* isS4 *)
       let%success s4 := IS_S4_OBJECT S args_car using S in
       write%Logical ans at 0 := s4 using S in
       result_skip S
-    else ifb op_val = 100 then
+    else ifb op_val = 100 then  (* is.numeric *)
       let%success isn := isNumeric globals runs S args_car using S in
       let%success isl := isLogical S args_car using S in
       write%Logical ans at 0 := decide (isn /\ ~ isl) using S in
       result_skip S
-    else ifb op_val = 101 then
-      result_not_implemented "is.matrix."
-    else ifb op_val = 102 then
+    else ifb op_val = 101 then  (* is.matrix *)
+      let%success args_car_isMatrix := isMatrix S args_car using S in
+      write%Logical ans at 0 := args_car_isMatrix using S in
+      result_skip S 
+    else ifb op_val = 102 then  (* is.array *)
       let%success ia := isArray globals runs S args_car using S in
       write%Logical ans at 0 := ia using S in
       result_skip S
-    else ifb op_val = 200 then
+    else ifb op_val = 200 then  (* is.atomic *)
       let%success t := TYPEOF S args_car using S in
       match t with
         | NilSxp
@@ -166,7 +181,7 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
           write%Logical ans at 0 := false using S in
           result_skip S
       end
-    else ifb op_val = 201 then
+    else ifb op_val = 201 then  (* is.recursive *)
       let%success t := TYPEOF S args_car using S in
       match t with
         | VecSxp
@@ -186,17 +201,19 @@ Definition do_is S (call op args rho : SEXP) : result SEXP :=
           write%Logical ans at 0 := false using S in
           result_skip S
       end
-    else ifb op_val = 300 then
+    else ifb op_val = 300 then  (* is.call *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = LangSxp) using S in
       result_skip S
-    else ifb op_val = 301 then
+    else ifb op_val = 301 then  (* is.language *)
       let%success t := TYPEOF S args_car using S in
       write%Logical ans at 0 := decide (t = SymSxp \/ t = LangSxp \/ t = ExprSxp) using S in
       result_skip S
-    else ifb op_val = 302 then
-      result_not_implemented "is.function."
-    else ifb op_val = 999 then
+    else ifb op_val = 302 then  (* is.function *)
+      let%success args_car_isFunction := isFunction S args_car using S in
+      write%Logical ans at 0 := args_car_isFunction using S in
+      result_skip S    
+    else ifb op_val = 999 then  (* is.single *)
       result_error S "Unimplemented type single."
     else result_error S "Unimplemented predicate." using S in
   result_success S ans.
