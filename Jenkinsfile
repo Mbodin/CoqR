@@ -25,6 +25,7 @@ pipeline {
   }
   environment {
     COQ_INTERP = "${env.WORKSPACE}"
+    COQR_INITIAL_STATE = "${env.WORKSPACE}/Rlib/bootstrapping.state"
     RSCRIPT = 'R'
   }
 }
