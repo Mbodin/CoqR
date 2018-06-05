@@ -45,12 +45,14 @@ Definition do_logic S (call op args env : SEXP) : result SEXP :=
     let attr1 := decide (arg1_attrib <> R_NilValue) in
     let%success args_cdr_car_attrib := ATTRIB S args_cdr_car using S in
 
+    run%exit
     ifb attr1 \/ args_cdr_car_attrib <> R_NilValue then
         if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
             result_rreturn S ans
         else
             result_rskip S
-    else
+        
+    else result_rskip S using S in
     run%success Rf_checkArityCall globals runs S op args call using S in
 
     ifb args_cdr = R_NilValue then   (* one argument <==> !(arg1) *)
