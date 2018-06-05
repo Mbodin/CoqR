@@ -283,6 +283,11 @@ Definition isInteger S s :=
   let%success inh := inherits S s "factor" using S in
   result_success S (decide (s_type = IntSxp /\ ~ inh)).
 
+Definition isFunction S s :=
+  add%stack "isFunction" in
+    let%success s_type := TYPEOF S s using S in
+    result_success S (decide (s_type = CloSxp \/ s_type = BuiltinSxp \/ s_type = SpecialSxp)).
+
 Definition isList S s :=
   add%stack "isList" in
   let%success s_type := TYPEOF S s using S in
