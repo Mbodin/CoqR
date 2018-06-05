@@ -20,6 +20,7 @@
 
 Set Implicit Arguments.
 Require Import Rcore.
+Require Import FUtil.
 
 
 Section Parameters.
@@ -35,6 +36,32 @@ Local Coercion Pos.to_nat : positive >-> nat.
 
 Local Coercion int_to_double : Z >-> double.
 
+Definition do_logic S (call op args env : SEXP) : result SEXP :=
+  add%stack "do_logic" in
+    read%list args_car, args_cdr, _ := args using S in
+    read%list args_cdr_car, _, _ := args_cdr using S in
+    let arg1 := args_car in
+    let%success arg1_attrib := ATTRIB S arg1 using S in
+    let attr1 := decide (arg1_attrib <> R_NilValue) in
+    let%success args_cdr_car_attrib := ATTRIB S args_cdr_car using S in
+
+    ifb attr1 \/ args_cdr_car_attrib <> R_NilValue then
+        if%defined ans := DispatchGroup globals runs S "Ops" call op args env using S then
+            result_rreturn S ans
+        else
+            result_rskip S
+    else
+    run%success Rf_checkArityCall globals runs S op args call using S in
+
+    ifb args_cdr = R_NilValue then   (* one argument <==> !(arg1) *)
+      let%success arg1_isScalar := IS_SCALAR S arg1 LglSxp using S in
+      ifb not attr1 /\ arg1_isScalar then
+        let%success v := SCALAR_LVAL S arg1 using S in
+        result_success S (ScalarLogical globals (ifb v = NA_LOGICAL then v else 0))
+      else
+        lunary S call op arg1   
+    else
+        lbinary globals runs S call op args.
 
 Definition do_logic2 S (call op args env : SEXP)  :=
   add%stack "do_logic2" in
