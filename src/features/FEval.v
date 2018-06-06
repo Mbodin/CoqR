@@ -435,24 +435,24 @@ Definition do_for S (call op args rho : SEXP) : result SEXP :=
         | _ => let%success v :=
               match val_type with
               | LglSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         read%Logical v_i := v at i using S in
-                         write%Logical v at 0 := v_i using S in
+                         read%Logical val_i := val at i using S in
+                         write%Logical v at 0 := val_i using S in
                          result_success S v
               | IntSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         read%Integer v_i := v at i using S in
-                         write%Integer v at 0 := v_i using S in
+                         read%Integer val_i := val at i using S in
+                         write%Integer v at 0 := val_i using S in
                          result_success S v
               | RealSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                          read%Real v_i := v at i using S in
-                          write%Real v at 0 := v_i using S in
+                          read%Real val_i := val at i using S in
+                          write%Real v at 0 := val_i using S in
                           result_success S v
               | CplxSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                          read%Complex v_i := v at i using S in
-                          write%Complex v at 0 := v_i using S in
+                          read%Complex val_i := val at i using S in
+                          write%Complex v at 0 := val_i using S in
                           result_success S v
               | StrSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         let%success v_i := STRING_ELT S val i using S in
-                         run%success SET_STRING_ELT S v 0 v_i using S in
+                         let%success val_i := STRING_ELT S val i using S in
+                         run%success SET_STRING_ELT S v 0 val_i using S in
                          result_success S v                             
               | RawSxp => result_not_implemented "Raw case not implemented"
               | _ => result_error S "invalid for() loop sequence"
