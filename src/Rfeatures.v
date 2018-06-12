@@ -43,6 +43,7 @@ Require Export FRelop.
 Require Export FArray.
 Require Export FNames.
 Require Export FLogic.
+Require Export FPaste.
 
 (** * Closing the Loop **)
 
@@ -516,7 +517,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "asCharacterFactor" do_asCharacterFactor (0)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
 
               rdecl "as.vector" (dummy_function "do_asvector") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "paste" (dummy_function "do_paste") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "paste" do_paste (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "paste0" (dummy_function "do_paste") (1)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "file.path" (dummy_function "do_filepath") (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "format" (dummy_function "do_format") (0)%Z eval11 (9)%Z PP_FUNCALL PREC_FN false ;

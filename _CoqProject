@@ -68,6 +68,7 @@
 ./src/features/FArray.v
 ./src/features/FNames.v
 ./src/features/FLogic.v
+./src/features/FPaste.v
 ./src/Rfeatures.v
 
 ./src/Rinit.v
