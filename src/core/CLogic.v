@@ -125,6 +125,7 @@ Definition lunary S (call op arg : SEXP) : result SEXP :=
      using S in
      result_success S x.
 
+(* logical binary : "&" or "|" *)
 Definition lbinary S (call op args : SEXP) :=
   add%stack "lbinary" in
     read%list args_car, args_cdr, _ := args using S in
@@ -141,7 +142,7 @@ Definition lbinary S (call op args : SEXP) :=
     let%success y_isNumber := isNumber globals runs S y using S in
 
     (* Omitting raw type check due to empty body in if *)
-    ifb negb x_isNull \/ x_isNumber \/ negb y_isNull \/ y_isNumber then
+    ifb ~ (x_isNull \/ x_isNumber) \/ ~ (y_isNull \/ y_isNumber) then
         result_error S "operations are possible only for numeric, logical or complex types"
     else
     let%success nx := xlength globals runs S x using S in
