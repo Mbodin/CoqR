@@ -51,13 +51,70 @@ Definition isRaw S x :=
     let%success x_type := TYPEOF S x using S in
     result_success S (decide (x_type = RawSxp)).
 
-Definition binaryLogic (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition binaryLogic S code (s1 s2 : SEXP) : result SEXP :=
   add%stack "binaryLogic" in
-    result_not_implemented "binaryLogic".
+    let%success n1 := XLENGTH S s1 using S in
+    let%success n2 := XLENGTH S s2 using S in
+    let n := ifb n1 > n2 then n1 else n2 in
+    ifb n1 = 0 \/ n2 = 0 then
+        allocVector globals S LglSxp 0
+    else
 
-Definition binaryLogic2 (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+    let%success ans := allocVector globals S LglSxp n using S in
+    run%success
+    match code with
+    | 1 => (* & : AND *)
+      do%success (i1, i2) := (0, 0)
+      for i from 0 to n - 1 do
+          read%Logical x1 := s1 at i1 using S in
+          read%Logical x2 := s2 at i2 using S in
+          run%success
+          ifb x1 = 0 \/ x2 = 0 then 
+              write%Logical ans at i := 0 using S in
+              result_skip S
+          else ifb x1 = NA_LOGICAL \/ x2 = NA_LOGICAL then
+              write%Logical ans at i := NA_LOGICAL using S in
+              result_skip S
+          else
+              write%Logical ans at i := 1 using S in
+              result_skip S                            
+          using S in
+          result_success S (ifb (i1 + 1) = n1 then 0 else (i1 + 1), ifb (i2 + 1) = n2 then 0 else (i2 + 1))
+      using S in result_skip S    
+    | 2 => (* | : OR *)
+      do%success (i1, i2) := (0, 0)
+      for i from 0 to n - 1 do
+          read%Logical x1 := s1 at i1 using S in
+          read%Logical x2 := s2 at i2 using S in
+          run%success
+          ifb (x1 <> NA_LOGICAL /\ x1 <> 0) \/ (x2 <> NA_LOGICAL /\ x2 <> 0) then 
+              write%Logical ans at i := 1 using S in
+              result_skip S
+          else ifb x1 = 0 /\ x2 = 0 then
+              write%Logical ans at i := 0 using S in
+              result_skip S
+          else
+              write%Logical ans at i := NA_LOGICAL using S in
+              result_skip S
+          using S in
+          result_success S (ifb (i1 + 1) = n1 then 0 else (i1 + 1), ifb (i2 + 1) = n2 then 0 else (i2 + 1))
+      using S in result_skip S
+      | 3 => result_error S "Unary operator '!' called with two arguments"
+      | _ => result_impossible S "binaryLogic with wrong code"
+    end
+    using S in
+    result_success S ans.
+
+
+Definition binaryLogic2 S (code : int) (s1 s2 : SEXP) : result SEXP :=
   add%stack "binaryLogic2" in
-    result_not_implemented "binaryLogic2".
+    let%success n1 := XLENGTH S s1 using S in
+    let%success n2 := XLENGTH S s2 using S in
+    let n := ifb n1 > n2 then n1 else n2 in
+    ifb n1 = 0 \/ n2 = 0 then
+        allocVector globals S RawSxp 0
+    else
+        result_not_implemented "Raw vector read".
 
 Definition lunary S (call op arg : SEXP) : result SEXP :=
   add%stack "lunary" in
@@ -241,7 +298,7 @@ Definition lbinary S (call op args : SEXP) :=
             using S in
 
             let%success op_primval := PRIMVAL runs S op using S in
-            binaryLogic S op_primval x y
+            binaryLogic S (Z.to_nat op_primval) x y
     else
         allocVector globals S (ifb x_isRaw /\ y_isRaw then RawSxp else LglSxp) 0
     using S in
