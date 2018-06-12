@@ -27,6 +27,8 @@ Require Import Conflicts.
 Require Import CAttrib.
 Require Import CEval.
 Require Import CCoerce.
+Require Import CDuplicate.
+Require Import CRmath.
 
 
 Section Parameterised.
@@ -40,6 +42,9 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
+Local Coercion Pos.to_nat : positive >-> nat.
+
+Local Coercion int_to_double : Z >-> double.
 
 Definition isRaw S x :=
   add%stack "isRaw" in
@@ -54,9 +59,71 @@ Definition binaryLogic2 (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
   add%stack "binaryLogic2" in
     result_not_implemented "binaryLogic2".
 
-Definition lunary (S : state) (call op args : SEXP) : result SEXP :=
+Definition lunary S (call op arg : SEXP) : result SEXP :=
   add%stack "lunary" in
-    result_not_implemented "lunary".
+    let%success len := XLENGTH S arg using S in
+    let%success arg_isLogical := isLogical S arg using S in
+    let%success arg_isNumber := isNumber globals runs S arg using S in
+    let%success arg_isRaw := isRaw S arg using S in
+    
+    run%exit
+    ifb negb arg_isLogical /\ negb arg_isNumber /\ negb arg_isRaw then
+        ifb len = 0 then
+            let%success alloc := allocVector globals S LglSxp 0 using S in
+            result_rreturn S alloc
+        else
+            result_error S "invalid argument type"
+    else
+        result_rskip S
+    using S in
+
+    let%success x :=
+    ifb arg_isLogical \/ arg_isRaw then
+        shallow_duplicate globals runs S arg 
+    else
+        let%success x := allocVector globals S (if arg_isRaw then RawSxp else LglSxp) len using S in
+        let%success names := getAttrib globals runs S arg R_NamesSymbol using S in
+        let%success dim := getAttrib globals runs S arg R_DimSymbol using S in
+        let%success dimnames := getAttrib globals runs S arg R_DimNamesSymbol using S in
+        let%success x :=
+        ifb names <> R_NilValue then setAttrib globals runs S x R_NamesSymbol names else result_success S x using S in
+        let%success x :=
+        ifb dim <> R_NilValue then setAttrib globals runs S x R_DimSymbol dim else result_success S x using S in
+        let%success x :=
+        ifb dimnames <> R_NilValue then setAttrib globals runs S x R_DimNamesSymbol dimnames else result_success S x using S in
+        result_success S x
+
+     using S in
+     let%success arg_type := TYPEOF S arg using S in
+     run%success
+     match arg_type with
+     | LglSxp => do%success
+                  for i from 0 to len - 1 do
+                      read%Logical arg_i := arg at i using S in
+                      write%Logical x at i := ifb arg_i = NA_LOGICAL then NA_LOGICAL else decide (arg_i = 0)
+                      using S in result_skip S                                                                
+                using S in                                                                
+                result_skip S                              
+     | IntSxp =>  do%success
+                  for i from 0 to len - 1 do
+                      read%Integer arg_i := arg at i using S in
+                      write%Logical x at i := ifb arg_i = NA_INTEGER then NA_LOGICAL else decide (arg_i = 0)
+                      using S in result_skip S
+                 using S in                                                                
+                 result_skip S
+     | RealSxp => do%success
+                  for i from 0 to len - 1 do
+                      read%Real arg_i := arg at i using S in
+                      write%Logical x at i := ifb ISNAN arg_i then NA_LOGICAL else decide (arg_i = 0%Z)
+                      using S in result_skip S
+                 using S in                                                                
+                 result_skip S
+     | CplxSxp => result_not_implemented "complex case" 
+     | RawSxp => result_not_implemented "raw case"
+     | _ => result_error S "UNIMPLEMENTED TYPE 'lunary'"
+     end
+     using S in
+     result_success S x.
 
 Definition lbinary S (call op args : SEXP) :=
   add%stack "lbinary" in

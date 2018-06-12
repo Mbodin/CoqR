@@ -61,7 +61,7 @@ Definition do_logic S (call op args env : SEXP) : result SEXP :=
         let%success v := SCALAR_LVAL S arg1 using S in
         result_success S (ScalarLogical globals (ifb v = NA_LOGICAL then v else 0))
       else
-        lunary S call op arg1   
+        lunary globals runs S call op arg1   
     else
         lbinary globals runs S call op args.
 
