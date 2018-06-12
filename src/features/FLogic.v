@@ -58,11 +58,12 @@ Definition do_logic S (call op args env : SEXP) : result SEXP :=
     ifb args_cdr = R_NilValue then   (* one argument <==> !(arg1) *)
       let%success arg1_isScalar := IS_SCALAR S arg1 LglSxp using S in
       ifb not attr1 /\ arg1_isScalar then
-        let%success v := SCALAR_LVAL S arg1 using S in
-        result_success S (ScalarLogical globals (ifb v = NA_LOGICAL then v else 0))
+          read%Logical v := arg1 at 0 using S in
+          result_success S (ScalarLogical globals (ifb v = NA_LOGICAL then v else
+                               ifb v = 0 then 1 else 0))
       else
-        lunary globals runs S call op arg1   
-    else
+          lunary globals runs S call op arg1   
+    else (* two arguments *)
         lbinary globals runs S call op args.
 
 Definition do_logic2 S (call op args env : SEXP)  :=
