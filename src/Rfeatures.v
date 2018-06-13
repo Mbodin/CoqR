@@ -217,9 +217,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "<=" do_relop LEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
               rdecl ">=" do_relop GEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
               rdecl ">" do_relop GTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl "&" (dummy_function "do_logic") (1)%Z eval1 (2)%Z PP_BINARY PREC_AND false ;
-              rdecl "|" (dummy_function "do_logic") (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
-              rdecl "!" (dummy_function "do_logic") (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;
+              rdecl "&" do_logic (1)%Z eval1 (2)%Z PP_BINARY PREC_AND false ;
+              rdecl "|" do_logic (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
+              rdecl "!" do_logic (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;
 
               rdecl "&&" do_logic2 (1)%Z eval0 (2)%Z PP_BINARY PREC_AND false ;
               rdecl "||" do_logic2 (2)%Z eval0 (2)%Z PP_BINARY PREC_OR false ;

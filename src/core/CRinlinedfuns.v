@@ -174,8 +174,8 @@ Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
 
 Definition XLENGTH_EX S x :=
   add%stack "XLENGTH_EX" in
-  read%defined x_ := x using S in
-  if alt x_ then ALTREP_LENGTH S x
+  let%success x_altrep := ALTREP S x using S in
+  if x_altrep then ALTREP_LENGTH S x
   else STDVEC_LENGTH S x.
 
 Definition XLENGTH := XLENGTH_EX.
