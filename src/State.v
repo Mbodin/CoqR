@@ -502,7 +502,7 @@ Qed.
 
 (** Contexts are defined in the file main/context.c of R source code. **)
 
-Definition context_type := nbits 7.
+Definition context_type := nbits 8.
 
 Definition CTXT_TOPLEVEL := 0.
 Definition CTXT_NEXT := 1.
@@ -515,18 +515,20 @@ Definition CTXT_BROWSER := 16.
 Definition CTXT_GENERIC := 20.
 Definition CTXT_RESTART := 32.
 Definition CTXT_BUILTIN := 64.
+Definition CTXT_UNWIND := 128.
 
-Definition Ctxt_TopLevel : context_type := @nat_to_nbits 7 CTXT_TOPLEVEL ltac:(nbits_ok).
-Definition Ctxt_Next : context_type := @nat_to_nbits 7 CTXT_NEXT ltac:(nbits_ok).
-Definition Ctxt_Break : context_type := @nat_to_nbits 7 CTXT_BREAK ltac:(nbits_ok).
-Definition Ctxt_Loop : context_type := @nat_to_nbits 7 CTXT_LOOP ltac:(nbits_ok).
-Definition Ctxt_Function : context_type := @nat_to_nbits 7 CTXT_FUNCTION ltac:(nbits_ok).
-Definition Ctxt_CCode : context_type := @nat_to_nbits 7 CTXT_CCODE ltac:(nbits_ok).
-Definition Ctxt_Return : context_type := @nat_to_nbits 7 CTXT_RETURN ltac:(nbits_ok).
-Definition Ctxt_Browser : context_type := @nat_to_nbits 7 CTXT_BROWSER ltac:(nbits_ok).
-Definition Ctxt_Generic : context_type := @nat_to_nbits 7 CTXT_GENERIC ltac:(nbits_ok).
-Definition Ctxt_Restart : context_type := @nat_to_nbits 7 CTXT_RESTART ltac:(nbits_ok).
-Definition Ctxt_Builtin : context_type := @nat_to_nbits 7 CTXT_BUILTIN ltac:(nbits_ok).
+Definition Ctxt_TopLevel : context_type := @nat_to_nbits 8 CTXT_TOPLEVEL ltac:(nbits_ok).
+Definition Ctxt_Next : context_type := @nat_to_nbits 8 CTXT_NEXT ltac:(nbits_ok).
+Definition Ctxt_Break : context_type := @nat_to_nbits 8 CTXT_BREAK ltac:(nbits_ok).
+Definition Ctxt_Loop : context_type := @nat_to_nbits 8 CTXT_LOOP ltac:(nbits_ok).
+Definition Ctxt_Function : context_type := @nat_to_nbits 8 CTXT_FUNCTION ltac:(nbits_ok).
+Definition Ctxt_CCode : context_type := @nat_to_nbits 8 CTXT_CCODE ltac:(nbits_ok).
+Definition Ctxt_Return : context_type := @nat_to_nbits 8 CTXT_RETURN ltac:(nbits_ok).
+Definition Ctxt_Browser : context_type := @nat_to_nbits 8 CTXT_BROWSER ltac:(nbits_ok).
+Definition Ctxt_Generic : context_type := @nat_to_nbits 8 CTXT_GENERIC ltac:(nbits_ok).
+Definition Ctxt_Restart : context_type := @nat_to_nbits 8 CTXT_RESTART ltac:(nbits_ok).
+Definition Ctxt_Builtin : context_type := @nat_to_nbits 8 CTXT_BUILTIN ltac:(nbits_ok).
+Definition Ctxt_Unwind : context_type := @nat_to_nbits 8 CTXT_UNWIND ltac:(nbits_ok).
 
 Definition empty_context_type := Ctxt_TopLevel.
 

@@ -175,7 +175,10 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
   set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   let%success cntxt_returnValue :=
     ifb jmp <> empty_context_type then
-      ifb context_jumptarget cntxt = None then
+      if match context_jumptarget cntxt with
+         | None => true
+         | Some _ => false
+         end then
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
           let S := state_with_context S cntxt in

@@ -57,10 +57,13 @@ Definition begincontext S flags syscall env sysp promargs callfun :=
   result_success S cptr.
 
 Fixpoint first_jump_target_loop S c cptr mask :=
-  ifb c = cptr then
+  (** In the original program, the pointers [c] and [cptr] are directly compared.
+    We here used the unique [cjmpbuf] to model this comparison. **)
+  ifb context_cjmpbuf c = context_cjmpbuf cptr then
     result_success S cptr
   else
-    ifb context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue then
+    ifb (context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue)
+        \/ context_callflag c = Ctxt_Unwind then
       let c := context_with_jumptarget c (Some cptr) in
       let c := context_with_jumpmask c mask in
       result_success S c
@@ -75,7 +78,9 @@ Definition first_jump_target S cptr mask :=
   first_jump_target_loop S (R_GlobalContext S) cptr mask.
 
 Fixpoint R_run_onexits_loop S c cptr :=
-  ifb c = cptr then
+  (** In the original program, the pointers [c] and [cptr] are directly compared.
+    We here used the unique [cjmpbuf] to model this comparison. **)
+  ifb context_cjmpbuf c = context_cjmpbuf cptr then
     result_skip S
   else
     run%success
@@ -97,7 +102,10 @@ Fixpoint R_run_onexits_loop S c cptr :=
         result_skip S
       else result_skip S using S in
     run%success
-      ifb R_ExitContext S = Some c then
+      if match R_ExitContext S with
+         | None => false
+         | Some ce => decide (context_cjmpbuf ce = context_cjmpbuf c)
+         end then
         let S := update_R_ExitContext S None in
         result_skip S
       else result_skip S using S in
@@ -146,7 +154,10 @@ Definition endcontext S cptr :=
       result_skip S
     else result_skip S using S in
   run%success
-    ifb R_ExitContext S = Some cptr then
+    if match R_ExitContext S with
+       | None => false
+       | Some ce => decide (context_cjmpbuf ce = context_cjmpbuf cptr)
+       end then
       let S := update_R_ExitContext S None in
       result_skip S
     else result_skip S using S in
