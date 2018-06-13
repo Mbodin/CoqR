@@ -182,6 +182,26 @@ Definition lunary S (call op arg : SEXP) : result SEXP :=
      using S in
      result_success S x.
 
+
+
+Definition tsConform S x y :=
+  add%stack "tsConform" in
+    let%success x := getAttrib globals runs S x R_TspSymbol using S in
+    let%success y := getAttrib globals runs S y R_TspSymbol using S in
+
+    ifb x <> R_NilValue /\ y <> R_NilValue then
+        let%success x_type := TYPEOF S x using S in
+        let%success y_type := TYPEOF S y using S in
+        ifb x_type = RealSxp /\ y_type = RealSxp then
+            read%Real x_0 := x at 0 using S in
+            read%Real x_1 := x at 1 using S in
+            read%Real x_2 := x at 2 using S in
+            result_success S (decide (x_0 = x_0 /\ x_1 = x_1 /\ x_2 = x_2))
+        else
+            result_success S false
+    else
+        result_success S false.
+
 (* logical binary : "&" or "|" *)
 Definition lbinary S (call op args : SEXP) :=
   add%stack "lbinary" in
@@ -245,6 +265,10 @@ Definition lbinary S (call op args : SEXP) :=
     let%success (klass, tsp) :=
     ifb xts \/ yts then
         ifb xts /\ yts then
+            let%success x_y_tsConform := tsConform S x y using S in
+            if negb x_y_tsConform then
+                result_error S "non-conformable time series"
+            else
             let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
             let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
             result_success S (klass, tsp)
@@ -255,12 +279,12 @@ Definition lbinary S (call op args : SEXP) :=
                 let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
                 let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
                 result_success S (klass, tsp)
-        else
+        else (*(yts)*)
             ifb ny < nx then
                 result_error S "TS vector mismatch"
             else                        
-                let%success tsp := getAttrib globals runs S x R_TspSymbol using S in
-                let%success klass := getAttrib globals runs S x R_ClassSymbol using S in
+                let%success tsp := getAttrib globals runs S y R_TspSymbol using S in
+                let%success klass := getAttrib globals runs S y R_ClassSymbol using S in
                 result_success S (klass, tsp)
     else  
         result_success S (NULL, NULL)
@@ -299,8 +323,8 @@ Definition lbinary S (call op args : SEXP) :=
 
             let%success op_primval := PRIMVAL runs S op using S in
             binaryLogic S (Z.to_nat op_primval) x y
-    else
-        allocVector globals S (ifb x_isRaw /\ y_isRaw then RawSxp else LglSxp) 0
+    else  (* nx == 0 || ny == 0 *)
+        allocVector globals S LglSxp 0
     using S in
 
     let%success x := 
@@ -317,15 +341,29 @@ Definition lbinary S (call op args : SEXP) :=
             result_success S x
     else
         let%success x_xlength := XLENGTH S x using S in
-        let%success xnames_xlength := XLENGTH S xnames using S in
-        ifb xnames <> R_NilValue /\ x_xlength = xnames_xlength then
-            run%success setAttrib globals runs S x R_NamesSymbol xnames using S in
-            result_success S x
-        else
-            let%success ynames_xlength := XLENGTH S ynames using S in
-            ifb ynames <> R_NilValue /\ x_xlength = ynames_xlength then
+        ifb xnames <> R_NilValue then
+            let%success xnames_xlength := XLENGTH S xnames using S in
+            ifb x_xlength = xnames_xlength then
                 run%success setAttrib globals runs S x R_NamesSymbol xnames using S in
                 result_success S x
+            else
+                ifb ynames <> R_NilValue then  
+                    let%success ynames_xlength := XLENGTH S ynames using S in
+                    ifb x_xlength = ynames_xlength then
+                        run%success setAttrib globals runs S x R_NamesSymbol ynames using S in
+                        result_success S x
+                    else
+                        result_success S x
+                else
+                    result_success S x
+        else
+            ifb ynames <> R_NilValue then  
+                let%success ynames_xlength := XLENGTH S ynames using S in
+                ifb x_xlength = ynames_xlength then
+                    run%success setAttrib globals runs S x R_NamesSymbol ynames using S in
+                    result_success S x
+                else
+                    result_success S x
             else
                 result_success S x
     using S in
