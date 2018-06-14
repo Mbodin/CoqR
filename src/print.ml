@@ -123,7 +123,7 @@ let all_global_variables_state =
   [ (r_SymbolTable, "R_SymbolTable") ;
     (r_ReturnedValue, "R_ReturnedValue") ]
 
-let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
+let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, (b8, ())))))))) =
   let l =
     let switch b str = if b then [str] else [] in
     List.concat (
@@ -137,6 +137,7 @@ let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
         :: switch (b3 && b5) "Ctxt_Generic"
         :: switch b6 "Ctxt_Restart"
         :: switch b7 "Ctxt_Builtin"
+        :: switch b8 "Ctxt_Unwind"
         :: []
       ) in
   if l = [] then "Ctxt_TopLevel"
