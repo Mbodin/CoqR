@@ -56,6 +56,7 @@ Require Export CAttrib.
 Require Export CObjects.
 Require Export CArray.
 Require Export CLogic.
+Require Export CSubscript.
 Require Export CSubassign.
 
 (** Evaluates the expression in the global environment. **)

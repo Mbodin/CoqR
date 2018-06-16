@@ -46,6 +46,7 @@
 ./src/core/CObjects.v
 ./src/core/CArray.v
 ./src/core/CLogic.v
+./src/core/CSubscript.v
 ./src/core/CSubassign.v
 ./src/Rcore.v
 
