@@ -43,6 +43,7 @@ Require Export FRelop.
 Require Export FArray.
 Require Export FNames.
 Require Export FLogic.
+Require Export FSubassign.
 
 (** * Closing the Loop **)
 
@@ -156,7 +157,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "[[" (dummy_function "do_subset2") (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "$" do_subset3 (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "@" (dummy_function "do_AT") (0)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
-              rdecl "[<-" (dummy_function "do_subassign") (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
+              rdecl "[<-" do_subassign (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "[[<-" (dummy_function "do_subassign2") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "$<-" (dummy_function "do_subassign3") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "switch" (dummy_function "do_switch") (0)%Z eval200 (-1)%Z PP_FUNCALL PREC_FN false ;
