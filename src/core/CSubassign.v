@@ -1,6 +1,6 @@
 (** Core.CArithmetic.
   The function names in this file correspond to the function names
-  in the file main/arithmetic.c. **)
+  in the file main/subassign.c. **)
 
 (* Copyright © 2018 Martin Bodin
 
@@ -27,6 +27,8 @@ Require Import CArithmetic.
 Require Import CAttrib.
 Require Import CDuplicate.
 Require Import Conflicts.
+Require Import CSubscript.
+Require Import CCoerce.
 
 Section Parameterised.
 
@@ -69,6 +71,161 @@ Definition ncols S s :=
       result_success S (r : int)
          else result_error S "Object is not a matrix.".
 
+
+Definition SubassignTypeFix S (x y : SEXP) (stretch level : int) (call rho : SEXP) :=
+  add%stack "SubassignTypeFix" in
+    let redo_which := true in
+    let%success x_type := TYPEOF S x using S in
+    let%success y_type := TYPEOF S y using S in
+    let which := 100 * (SExpType_to_nat x_type) + (SExpType_to_nat y_type) in
+    let%success x_is_object := OBJECT S x using S in
+    let%success (which, x, y, redo_which) :=
+    match which with
+    | 1000	(* logical    <- null       *)
+    | 1300	(* integer    <- null       *)
+    | 1400	(* real	      <- null       *)
+    | 1500	(* complex    <- null       *)
+    | 1600	(* character  <- null       *)
+    | 1900  (* vector     <- null       *)
+    | 2000  (* expression <- null       *)
+    | 2400	(* raw        <- null       *)
+
+    | 1010	(* logical    <- logical    *)
+    | 1310	(* integer    <- logical    *)
+    | 1410	(* real	      <- logical    *)
+    | 1510	(* complex    <- logical    *)
+    | 1313	(* integer    <- integer    *)
+    | 1413	(* real	      <- integer    *)
+    | 1513	(* complex    <- integer    *)
+    | 1414	(* real	      <- real	    *)
+    | 1514	(* complex    <- real	    *)
+    | 1515	(* complex    <- complex    *)
+    | 1616	(* character  <- character  *)
+    | 1919  (* vector     <- vector     *)
+    | 2020	(* expression <- expression *)
+    | 2424 =>	(* raw        <- raw        *)
+      result_success S (which, x, y, false)
+    | 1013 =>	(* logical    <- integer    *)
+      let%success x := coerceVector globals runs S x IntSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 1014	(* logical    <- real	    *)
+    | 1314 =>	(* integer    <- real	    *)
+      let%success x := coerceVector globals runs S x RealSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 1015	(* logical    <- complex    *)
+    | 1315	(* integer    <- complex    *)
+    | 1415 =>	(* real	      <- complex    *)
+      let%success x := coerceVector globals runs S x CplxSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 1610	(* character  <- logical    *)
+    | 1613	(* character  <- integer    *)
+    | 1614	(* character  <- real	    *)
+    | 1615 =>	(* character  <- complex    *)
+      let%success y := coerceVector globals runs S x StrSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 1016	(* logical    <- character  *)
+    | 1316	(* integer    <- character  *)
+    | 1416	(* real	      <- character  *)
+    | 1516 =>	(* complex    <- character  *)
+       let%success x := coerceVector globals runs S x StrSxp using S in
+       result_success S (which, x, y, redo_which)
+
+    | 1901  (* vector     <- symbol   *)
+    | 1902	(* vector     <- pairlist *)
+    | 1904  (* vector     <- environment   *)
+    | 1905  (* vector     <- promise   *)
+    | 1906  (* vector     <- language   *)
+    | 1910  (* vector     <- logical    *)
+    | 1913  (* vector     <- integer    *)
+    | 1914  (* vector     <- real       *)
+    | 1915  (* vector     <- complex    *)
+    | 1916  (* vector     <- character  *)
+    | 1920  (* vector     <- expression  *)
+    | 1921  (* vector     <- bytecode   *)
+    | 1922  (* vector     <- external pointer *)
+    | 1923  (* vector     <- weak reference *)
+    | 1924  (* vector     <- raw *)
+    | 1903 | 1907 | 1908 | 1999 => (* functions *)
+
+       ifb level = 1 then
+       (* Coerce the RHS into a list *)
+           let%success y := coerceVector globals runs S x VecSxp using S in
+           result_success S (which, x, y, redo_which)
+       else
+       (* Nothing to do here: duplicate when used (if needed) *)
+	   result_success S (which, x, y, false)
+	
+    | 1925 => (* vector <- S4 *)
+      result_not_implemented "1924 case (vector <- S4)"
+	
+    | 1019  (* logical    <- vector     *)
+    | 1319  (* integer    <- vector     *)
+    | 1419  (* real       <- vector     *)
+    | 1519  (* complex    <- vector     *)
+    | 1619  (* character  <- vector     *)
+    | 2419 =>  (* raw        <- vector     *)
+      let%success x := coerceVector globals runs S x VecSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 1020  (* logical    <- expression *)
+    | 1320  (* integer    <- expression *)
+    | 1420  (* real       <- expression *)
+    | 1520  (* complex    <- expression *)
+    | 1620  (* character  <- expression *)
+    | 2420 =>  (* raw        <- expression *)
+      let%success x := coerceVector globals runs S x ExprSxp using S in
+      result_success S (which, x, y, redo_which)
+
+    | 2001	(* expression <- symbol	    *)
+    | 2002  (* expression <- pairlist   *)
+    | 2006	(* expression <- language   *)
+    | 2010	(* expression <- logical    *)
+    | 2013	(* expression <- integer    *)
+    | 2014	(* expression <- real	    *)
+    | 2015	(* expression <- complex    *)
+    | 2016	(* expression <- character  *)
+    | 2019 => (* expression <- vector     *)
+
+      ifb level = 1 then
+       (* Coerce the RHS into a list *)
+           let%success y := coerceVector globals runs S x VecSxp using S in
+           result_success S (which, x, y, redo_which)
+       else
+       (* Nothing to do here: duplicate when used (if needed) *)
+	   result_success S (which, x, y, false)
+
+    | 2025 => (* expression <- S4 *)
+      result_not_implemented "case 2025 (expression <- S4)"
+
+    | 1025 (* logical   <- S4 *)
+    | 1325 (* integer   <- S4 *)
+    | 1425 (* real      <- S4 *)
+    | 1525 (* complex   <- S4 *)
+    | 1625 (* character <- S4 *)
+    | 2425 => (* raw       <- S4 *)
+      result_not_implemented "case 2425 (raw <- S4)"
+
+    | _ => result_error S "incompatible types in subassignment type fix"
+    end
+    using S in
+    let%success x :=
+    ifb stretch <> 0 then
+        unimplemented_function "EnlargeVector"
+    else result_success S x using S in
+    run%success SET_OBJECT S x x_is_object using S in
+
+    if redo_which then
+        let%success x_type := TYPEOF S x using S in
+        let%success y_type := TYPEOF S y using S in 
+	result_success S (100 * (SExpType_to_nat x_type) + (SExpType_to_nat y_type), x, y)
+    else
+	result_success S (which, x, y) .
+
+
 Definition SubAssignArgs S (args : SEXP) :=
   add%stack "SubAssignArgs" in
     read%list args_car, args_cdr, _ := args using S in
@@ -82,18 +239,18 @@ Definition SubAssignArgs S (args : SEXP) :=
     else
         let nsubs := 1 in
         let s := args_cdr in
-        do%success (p, nsubs) := (args_cdr, nsubs) 
+        do%success (p, nsubs) := (args_cdr, nsubs)
         while read%list _, p_cdr, _ := p using S in
               read%list _, p_cdr_cdr, _ := p_cdr using S in
               result_success S (decide (p_cdr_cdr <> R_NilValue))
         do
             read%list _, p_cdr, _ := p using S in
             result_success S (p_cdr, nsubs + 1)
-        using S, runs in                                                   
+        using S, runs in
         read%list _, p_cdr, _ := p using S in
-        read%list p_cdr_car, _, _ := p_cdr using S in                                  
+        read%list p_cdr_car, _, _ := p_cdr using S in
         let y := p_cdr_car in
-        set%cdr p := R_NilValue using S in                            
+        set%cdr p := R_NilValue using S in
         result_success S (nsubs, x, s, y).
 
 Definition VectorAssign S (call rho x s y : SEXP) :=
@@ -132,22 +289,22 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
                             result_rskip S
                     else
                         result_rskip S
-                else   
+                else
                     result_rskip S
         else
             result_rskip S
     else
         result_rskip S
-    using S in 
-    
+    using S in
+
     let%success x_isNull := isNull S x using S in
     let%success y_isNull := isNull S y using S in
     ifb x_isNull /\ y_isNull then
         result_success S (R_NilValue : SEXP)
     else
-                       
 
-    (* Check to see if we have special matrix subscripting.   
+
+    (* Check to see if we have special matrix subscripting.
        If so, we manufacture a real subscript vector. *)
 
     let%success s :=
@@ -155,7 +312,7 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
         let%success dim := getAttrib globals runs S x R_DimSymbol using S in
         let%success s_isMatrix := isMatrix globals runs S s using S in
         let%success x_isArray := isArray globals runs S x using S in
-        
+
         ifb s_isMatrix /\ x_isArray then
           let%success s_ncols := ncols S s using S in
           let%success dim_length := R_length globals runs S dim using S in
@@ -173,12 +330,12 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
               let%success s_isReal := isReal S s using S in
               ifb s_isInteger \/ s_isReal then
                   unimplemented_function "mat2indsub"
-                
+
               else
                   result_success S s
           else
               result_success S s
-            
+
         else
             result_success S s
     else
@@ -186,7 +343,21 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
     using S in
 
     let stretch := 1 in
-    unimplemented_function "makeSubscript".
+    let%success (indx, stretch) := makeSubscript globals runs S x s R_NilValue using S in
+    let%success n := xlength using S in
+    let%success y_xlength := xlength using S in
+    run%success
+    ifb then
+
+    else
+        result_skip S
+    using S in
+
+    let%success (which, x, y) := SubassignTypeFix
+
+
+
+.
 
 Definition MatrixAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
   add%stack "MatrixAssign" in

@@ -61,16 +61,14 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
 Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subassign_dflt" in
     let%success (nsubs, x, subs, y) := SubAssignArgs globals runs S args using S in
-    fold%success s := subs
-    along subs as _, _, s_list do
-        let idx := list_carval s_list in
-        run%success
+    fold%success
+    along subs as _, _, subs_list do
+        let idx := list_carval subs_list in
+        
         ifb x = idx then
            MARK_NOT_MUTABLE S x
         else
             result_skip S
-        using S in
-        result_success S (list_cdrval s_list)
     using S, runs, globals in
 
     read%list args_car, _, _ := args using S in
