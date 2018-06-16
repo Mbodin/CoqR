@@ -60,15 +60,17 @@ Definition R_DispatchOrEvalSP S call op generic args rho :=
 
 Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subassign_dflt" in
-    let%success (nsubs, x, subs, y) := SubAssignArgs S args using S in
+    let%success (nsubs, x, subs, y) := SubAssignArgs globals runs S args using S in
     fold%success s := subs
     along subs as _, _, s_list do
         let idx := list_carval s_list in
-        
+        run%success
         ifb x = idx then
            MARK_NOT_MUTABLE S x
         else
             result_skip S
+        using S in
+        result_success S (list_cdrval s_list)
     using S, runs, globals in
 
     read%list args_car, _, _ := args using S in
@@ -89,7 +91,7 @@ Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
     let%exit (x, oldtype) :=
     ifb x_type = ListSxp \/ x_type = LangSxp then
         let%success x := PairToVectorList S x using S in
-        result_rsuccess S (x, x_type)
+        result_rsuccess S (x, SExpType_to_nat x_type)
     else
         let%success x_xlength := xlength globals runs S x using S in
         ifb x_xlength = 0 then
@@ -120,9 +122,9 @@ Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
     | VecSxp
     | RawSxp =>
       match nsubs with
-      | 0 => VectorAssign S call rho x R_MissingArg y 
+      | 0 => VectorAssign globals runs S call rho x R_MissingArg y 
       | 1 => read%list subs_car, _, _ := subs using S in
-            VectorAssign S call rho x subs_car y
+            VectorAssign globals runs S call rho x subs_car y
       | 2 => MatrixAssign S call rho x subs y
       | _ => ArrayAssign S call rho x subs y
       end
@@ -134,7 +136,7 @@ Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
     ifb oldtype = LangSxp then
         let%success x_length := R_length globals runs S x using S in
         ifb x_length <> 0 then
-            let%success x := VectorToPairList gobals runs S x using S in
+            let%success x := VectorToPairList globals runs S x using S in
             set%type x := LangSxp using S in
             result_success S x
         else
@@ -153,7 +155,7 @@ Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
     using S in
     result_success S x.
 
-Definition do_subassign S (call op args rho) : result SEXP :=
+Definition do_subassign S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subassign" in
     let%success (disp, ans) := R_DispatchOrEvalSP S call op "[<-" args rho using S in
     if disp then

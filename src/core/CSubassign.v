@@ -192,4 +192,8 @@ Definition MatrixAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
   add%stack "MatrixAssign" in
     result_not_implemented "MatrixAssign".
 
+Definition ArrayAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
+  add%stack "ArrayAssign" in
+    result_not_implemented "ArrayAssign".
+
 End Parameterised.
