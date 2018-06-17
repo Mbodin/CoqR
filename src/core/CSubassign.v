@@ -29,6 +29,7 @@ Require Import CDuplicate.
 Require Import Conflicts.
 Require Import CSubscript.
 Require Import CCoerce.
+Require Import CMemory.
 
 Section Parameterised.
 
@@ -158,10 +159,10 @@ Definition SubassignTypeFix S (x y : SEXP) (stretch level : int) (call rho : SEX
        else
        (* Nothing to do here: duplicate when used (if needed) *)
 	   result_success S (which, x, y, false)
-	
+
     | 1925 => (* vector <- S4 *)
       result_not_implemented "1924 case (vector <- S4)"
-	
+
     | 1019  (* logical    <- vector     *)
     | 1319  (* integer    <- vector     *)
     | 1419  (* real       <- vector     *)
@@ -220,7 +221,7 @@ Definition SubassignTypeFix S (x y : SEXP) (stretch level : int) (call rho : SEX
 
     if redo_which then
         let%success x_type := TYPEOF S x using S in
-        let%success y_type := TYPEOF S y using S in 
+        let%success y_type := TYPEOF S y using S in
 	result_success S (100 * (SExpType_to_nat x_type) + (SExpType_to_nat y_type), x, y)
     else
 	result_success S (which, x, y) .
@@ -253,6 +254,48 @@ Definition SubAssignArgs S (args : SEXP) :=
         set%cdr p := R_NilValue using S in
         result_success S (nsubs, x, s, y).
 
+Definition R_SHORT_LEN_MAX := INT_MAX.
+
+Definition gi S indx i :=
+  add%stack "gi" in
+    let%success indx_type := TYPEOF S indx using S in
+    ifb indx_type = RealSxp then
+        let%success d := REAL_ELT S indx i using S in
+        ifb negb (R_FINITE d) \/ d < -R_SHORT_LEN_MAX \/ d > R_SHORT_LEN_MAX then
+            result_success S NA_INTEGER
+        else
+            result_success S (Double.double_to_int_zero d)
+    else
+        let%success indx_i := INTEGER_ELT S indx i using S in
+        result_success S indx_i.
+
+
+Definition VECTOR_ASSIGN_LOOP S indx n ny (CODE : state -> nat -> nat -> result unit) :=
+  add%stack "VECTOR_ASSIGN_LOOP" in
+    let%success indx_type := TYPEOF S indx using S in
+    ifb indx_type = IntSxp then
+        do%let iny := 0
+        for i from 0 to n - 1 do
+            read%Integer ii := indx at i using S in
+            ifb ii = NA_INTEGER then
+                result_success S (ifb (iny + 1 = ny) then 0 else iny)
+            else
+            let ii := Z.to_nat ii - 1 in
+            run%success CODE S iny ii using S in
+            result_success S (ifb (iny + 1 = ny) then 0 else iny)
+        using S
+    else
+        do%let iny := 0
+        for i from 0 to n - 1 do
+            let%success ii := gi S indx i using S in
+            ifb ii = NA_INTEGER then
+                result_success S (ifb (iny + 1 = ny) then 0 else iny)
+            else
+            let ii := Z.to_nat ii - 1 in
+            run%success CODE S iny ii using S in
+            result_success S (ifb (iny + 1 = ny) then 0 else iny)
+        using S.
+
 Definition VectorAssign S (call rho x s y : SEXP) :=
   add%stack "VectorAssign" in
     (* try for quick return for simple scalar case *)
@@ -278,9 +321,9 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
                 let%success s_isScalar := IS_SCALAR S s RealSxp using S in
                 if s_isScalar then
                     let%success dval := SCALAR_DVAL S s using S in
-                    let%success x_xlength := XLENGTH S x using S in
                     if R_FINITE dval then
                         let ival := dval in
+                        let%success x_xlength := XLENGTH S x using S in
                         ifb 1%Z <= Double.double_to_int_zero ival /\ ival <= x_xlength then
                             let%success y_dval := SCALAR_DVAL S y using S in
                             write%Real x at (Z.to_nat(Double.double_to_int_zero ival) - 1) := y_dval using S in
@@ -344,20 +387,183 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
 
     let stretch := 1 in
     let%success (indx, stretch) := makeSubscript globals runs S x s R_NilValue using S in
-    let%success n := xlength using S in
-    let%success y_xlength := xlength using S in
+    let%success n := xlength globals runs S indx  using S in
+    let%success y_xlength := xlength globals runs S y using S in
     run%success
-    ifb then
-
+    ifb y_xlength > 1 then
+        do%success
+        for i from 0 to n - 1 do
+            let%success indx_gi := gi S indx i using S in
+            ifb indx_gi = NA_INTEGER then
+                result_error S "NAs are not allowed in subscripted assignments"
+            else
+                result_skip S
+        using S in result_skip S
     else
         result_skip S
     using S in
 
-    let%success (which, x, y) := SubassignTypeFix
+    (* Here we make sure that the LHS has
+       been coerced into a form which can
+       accept elements from the RHS. *)
+    let%success (which, x, y) := SubassignTypeFix S x y stretch 1 call rho using S in
+    (* which = 100 * TYPEOF(x) + TYPEOF(y) *)
+    ifb n = 0 then
+        result_success S x
+    else
+    let%success ny := xlength globals runs S y using S in
+    let%success nx := xlength globals runs S x using S in
+
+    run%success
+    let%success x_type := TYPEOF S x using S in
+    ifb (x_type <> VecSxp /\ x_type <> ExprSxp) \/ y <> R_NilValue then
+        ifb n > 0 /\ ny = 0 then
+            result_error S "replacement has length zero"
+        else
+            (* Omitting warning *)
+            result_skip S
+    else result_skip S
+    using S in
+
+    let%success y :=
+    ifb x = y then
+        shallow_duplicate globals runs S y
+    else result_success S y
+    using S in
+
+    run%success
+    match which with
+    | 1010 	(* logical   <- logical	  *)
+    | 1310 	(* integer   <- logical	  *)
+    (* case 1013:  logical   <- integer	  *)
+    | 1313 =>	(* integer   <- integer	  *)
+      run%success
+      let code S iny ii :=
+          let%success y_iny := INTEGER_ELT S y iny using S in  
+          write%Integer x at ii := y_iny using S in result_skip S
+      in
+      VECTOR_ASSIGN_LOOP S indx n ny code
+      using S in result_skip S
+    | 1410 	(* real	     <- logical	  *)
+    | 1413 =>	(* real	     <- integer	  *)
+      run%success
+      let code S iny ii :=
+          let%success iy := INTEGER_ELT S y iny using S in
+          ifb iy = NA_INTEGER then
+              write%Real x at ii := NA_REAL using S in result_skip S          
+          else    
+              write%Real x at ii := iy using S in result_skip S   
+      in
+      VECTOR_ASSIGN_LOOP S indx n ny code
+      using S in result_skip S
+    (* case 1014:  logical   <- real	  *)
+    (* case 1314:  integer   <- real	  *)
+    | 1414 =>	(* real	     <- real	  *)
+      run%success
+      let code S iny ii :=
+          let%success y_iny := REAL_ELT S y iny using S in
+          write%Real x at ii := y_iny using S in result_skip S   
+      in
+      VECTOR_ASSIGN_LOOP S indx n ny code
+      using S in result_skip S
+     
+
+    | 1510	(* complex   <- logical	  *)
+    | 1513 =>	(* complex   <- integer	  *)
+      result_not_implemented "case 1513 (complex <- integer)"
 
 
+    | 1514 =>	(* complex   <- real	  *)
+      result_not_implemented "case 1514 (complex <- real)"
+    (* case 1015:  logical   <- complex	  *)
+    (* case 1315:  integer   <- complex	  *)
+    (* case 1415:  real	     <- complex	  *)
+    | 1515 => 	(* complex   <- complex	  *)
+      result_not_implemented "case 1515 (complex <- complex)"
+    | 1610 	(* character <- logical	  *)
+    | 1613 	(* character <- integer	  *)
+    | 1614 	(* character <- real	  *)
+    | 1615 	(* character <- complex	  *)
+    | 1616 =>	(* character <- character *)
+    (* case 1016:  logical   <- character *)
+    (* case 1316:  integer   <- character *)
+    (* case 1416:  real	     <- character *)
+    (* case 1516:  complex   <- character *)
+      result_not_implemented "case 1616 (character <- character)"
 
-.
+    (* case 1019:  logial     <- vector   *)
+    (* case 1319:  integer    <- vector   *)
+    (* case 1419:  real       <- vector   *)
+    (* case 1519:  complex    <- vector   *)
+    (* case 1619:  character  <- vector   *)
+
+    (* case 1910:  vector     <- logical    *)
+    (* case 1913:  vector     <- integer    *)
+    (* case 1914:  vector     <- real       *)
+    (* case 1915:  vector     <- complex    *)
+    (* case 1916:  vector     <- character  *)
+
+    | 1919 =>  (* vector     <- vector     *)
+      result_not_implemented "case 1919 (vector <- vector)"
+
+    (* case 2001: *)
+    (* case 2006:  expression <- language   *)
+    (* case 2010:  expression <- logical    *)
+    (* case 2013:  expression <- integer    *)
+    (* case 2014:  expression <- real	    *)
+    (* case 2015:  expression <- complex    *)
+    (* case 2016:  expression <- character  *)
+    | 2019 	(* expression <- vector, needed if we have promoted a
+		   RHS  to a list *)
+    | 2020 =>	(* expression <- expression *)
+      result_not_implemented "case 2020 (expression <- expression)"
+    | 1900   (* vector     <- null       *)
+    | 2000 =>  (* expression <- null       *)
+      result_not_implemented "case 2000 (expression <- null)"
+    | 2424 =>	(* raw   <- raw	  *)
+      result_not_implemented "case 2424 (raw <- raw)"
+    | _ => result_skip S
+
+    end
+    using S in
+
+    let%success newnames := getAttrib globals runs S indx R_UseNamesSymbol using S in
+    run%success
+    ifb newnames <> R_NilValue then
+        let%success oldnames := getAttrib globals runs S x R_NamesSymbol using S in
+        ifb oldnames <> R_NilValue then
+            do%success
+            for i from 0 to n - 1 do
+                let%success newnames_i := VECTOR_ELT S newnames i using S in
+                ifb newnames_i <> R_NilValue then
+                    let%success ii := gi S indx i using S in
+                    ifb ii = NA_INTEGER then
+                        result_skip S
+                    else
+                        SET_STRING_ELT S oldnames (Z.to_nat ii) newnames_i
+                else result_skip S
+            using S in result_skip S
+        else
+            let%success oldnames := allocVector globals S StrSxp nx using S in
+            do%success
+            for i from 0 to nx - 1 do
+                SET_STRING_ELT S oldnames i R_BlankString
+            using S in
+
+            do%success
+            for i from 0 to n - 1 do
+                let%success newnames_i := VECTOR_ELT S newnames i using S in
+                ifb newnames_i <> R_NilValue then
+                    let%success ii := gi S indx i using S in
+                    ifb ii = NA_INTEGER then result_skip S
+                    else
+                    let ii := (Z.to_nat ii) - 1 in
+                    SET_STRING_ELT S oldnames (Z.to_nat ii) newnames_i
+                 else
+                     result_skip S
+            using S in result_skip S
+    else result_skip S
+    using S in result_success S x.
 
 Definition MatrixAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
   add%stack "MatrixAssign" in
