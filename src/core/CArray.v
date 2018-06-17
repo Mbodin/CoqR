@@ -21,7 +21,9 @@
 Set Implicit Arguments.
 Require Import Double.
 Require Import Loops.
+Require Import CRinternals.
 Require Import CRinlinedfuns.
+Require Import CMemory.
 Require Import CAttrib.
 Require Import CDuplicate.
 
@@ -37,6 +39,14 @@ Variable runs : runs_type.
 Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
+
+Definition GetRowNames S dimnames :=
+  add%stack "GetRowNames" in
+    let%success dimnames_type := TYPEOF S dimnames using S in
+    ifb dimnames_type = VecSxp then
+        VECTOR_ELT S dimnames 0 
+    else
+        result_success S (R_NilValue : SEXP).
 
 Definition allocArray S mode dims :=
   add%stack "allocArray" in

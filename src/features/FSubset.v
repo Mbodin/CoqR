@@ -243,7 +243,43 @@ Definition VectorSubset S (x s call : SEXP) :=
           else result_success S s
         else result_success S s
       else result_success S s using S in
-    unimplemented_function "makeSubscript".
+    let%success (indx, stretch) := makeSubscript globals runs S x s call using S in
+    
+    let%success mode := TYPEOF S x using S in
+    let%success result := ExtractSubset S x indx call using S in
+    run%success
+    ifb mode = VecSxp \/ mode = ExprSxp then
+      set%named result := named_plural using S in result_skip S
+    else result_skip S
+    using S in  
+
+    let%success result :=
+    ifb result <> R_NilValue then
+      let%success result :=
+      ifb attrib <> R_NilValue then
+        let%success nattrib := ExtractSubset S attrib indx call using S in
+        setAttrib globals runs S result R_NamesSymbol nattrib  
+      else
+        let%success x_isArray := isArray globals runs S x using S in
+        let%success x_attrib := getAttrib globals runs S x R_DimNamesSymbol using S in
+        let%success x_attrib_length := R_length S x_attrib using S in
+        let attrib := x_attrib in
+        let%success attrib := ifb attrib <> R_NilValue then GetRowNames S attrib else result_success S R_NilValue using S in
+        ifb x_isArray /\ x_attrib_length = 1 /\ attrib <> R_NilValue then
+          let%success nattrib := ExtractSubset S attrib indx call using S in
+          setAttrib globals runs S result R_NamesSymbol nattrib  
+        else
+          result_success S result
+      using S in
+      let%success attrib := getAttrib globals runs S x R_SrcrefSymbol using S in
+      let%success attrib_type := TYPEOF S attrib using S in
+      ifb attrib <> R_NilValue /\ attrib_type = VecSxp then
+         let%success nattrib := ExtractSubset S attrib indx call using S in
+         setAttrib globals runs S result R_SrcrefSymbol nattrib 
+      else
+        result_success S result
+    using S in
+  result_success S result.
 
 Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in
