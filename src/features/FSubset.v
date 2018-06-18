@@ -125,6 +125,100 @@ Definition ExtractDropArg S el :=
     result_success S true
   else result_success S (decide (drop <> 0)).
 
+
+(** Slightly modified version of EXTRACT_SUBSET_LOOP in src/subset.c **)
+
+Definition EXTRACT_SUBSET_LOOP S (result x : SEXP) indx n nx STDCODE NACODE :=
+  add%stack "EXTRACT_SUBSET_LOOP" in
+    let%success indx_type := TYPEOF S indx using S in
+    ifb indx_type = IntSxp then
+        do%success
+        for i from 0 to n - 1 do   
+            read%Integer ii := indx at i using S in                  
+            ifb 0%Z < ii /\ ii <= nx then
+                let ii := Z.to_nat ii - 1 in
+                STDCODE S result x i ii
+            else (* out of bounds or NA *)
+                NACODE S result (Z.to_nat ii)
+        using S in result_skip S
+    else
+        do%success
+        for i from 0 to n - 1 do
+            read%Real di := indx at i using S in
+            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
+            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
+                STDCODE S result x i (Z.to_nat ii)
+            else
+                NACODE S result (Z.to_nat ii)
+        using S in result_skip S.
+              
+Definition ExtractSubset S (x indx call : SEXP) :=
+  add%stack "ExtractSubset" in
+    ifb x = R_NilValue then
+        result_success S x
+    else
+
+    let%success x_altrep := ALTREP S x using S in
+    if x_altrep then
+        unimplemented_function "ALTVEC_EXTRACT_SUBSET"
+    else
+
+    let%success n := XLENGTH S indx using S in
+    let%success nx := xlength globals runs S x using S in
+    let%success mode := TYPEOF S x using S in
+
+    let%success result := allocVector globals S mode n using S in
+    run%success
+    match mode with
+    | LglSxp =>
+      let STDCODE S result x i ii :=
+          let%success x_ii := LOGICAL_ELT S x ii using S in
+          write%Logical result at i := x_ii using S in result_skip S
+      in
+      let NACODE S result i :=
+          write%Logical result at i := NA_INTEGER using S in result_skip S
+      in  
+      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+                            
+    | IntSxp =>
+      let STDCODE S result x i ii :=
+          let%success x_ii := INTEGER_ELT S x ii using S in
+          write%Integer result at i := x_ii using S in result_skip S
+      in
+      let NACODE S result i :=
+          write%Integer result at i := NA_INTEGER using S in result_skip S
+      in  
+      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+
+    | RealSxp =>
+      let STDCODE S result x i ii :=
+          let%success x_ii := REAL_ELT S x ii using S in
+          write%Real result at i := x_ii using S in result_skip S
+      in
+      let NACODE S result i :=
+          write%Real result at i := NA_REAL using S in result_skip S
+      in  
+      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+    | CplxSxp => result_not_implemented "Complex case"
+    | StrSxp =>
+      let STDCODE S result x i ii :=
+          let%success x_ii := STRING_ELT S x ii using S in
+          SET_STRING_ELT S result i x_ii
+      in
+      let NACODE S result i :=
+          SET_STRING_ELT S result i NA_STRING
+      in  
+      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+    | VecSxp
+    | ExprSxp => result_not_implemented "Expr case"
+    | RawSxp => result_not_implemented "raw case"
+    | ListSxp => result_impossible S "cannot happen: pairlists are coerced to lists"
+    | LangSxp => result_impossible S "cannot happen: LANGSXPs are coerced to lists"
+    | _ => result_error S "wrong type to extract"
+    end
+    using S in
+    result_success S result.
+
 Definition VectorSubset S (x s call : SEXP) :=
   add%stack "VectorSubset" in
   ifb s = R_MissingArg then
@@ -149,7 +243,43 @@ Definition VectorSubset S (x s call : SEXP) :=
           else result_success S s
         else result_success S s
       else result_success S s using S in
-    unimplemented_function "makeSubscript".
+    let%success (indx, stretch) := makeSubscript globals runs S x s call using S in
+    
+    let%success mode := TYPEOF S x using S in
+    let%success result := ExtractSubset S x indx call using S in
+    run%success
+    ifb mode = VecSxp \/ mode = ExprSxp then
+      set%named result := named_plural using S in result_skip S
+    else result_skip S
+    using S in  
+
+    let%success result :=
+    ifb result <> R_NilValue then
+      let%success result :=
+      ifb attrib <> R_NilValue then
+        let%success nattrib := ExtractSubset S attrib indx call using S in
+        setAttrib globals runs S result R_NamesSymbol nattrib  
+      else
+        let%success x_isArray := isArray globals runs S x using S in
+        let%success x_attrib := getAttrib globals runs S x R_DimNamesSymbol using S in
+        let%success x_attrib_length := R_length S x_attrib using S in
+        let attrib := x_attrib in
+        let%success attrib := ifb attrib <> R_NilValue then GetRowNames S attrib else result_success S R_NilValue using S in
+        ifb x_isArray /\ x_attrib_length = 1 /\ attrib <> R_NilValue then
+          let%success nattrib := ExtractSubset S attrib indx call using S in
+          setAttrib globals runs S result R_NamesSymbol nattrib  
+        else
+          result_success S result
+      using S in
+      let%success attrib := getAttrib globals runs S x R_SrcrefSymbol using S in
+      let%success attrib_type := TYPEOF S attrib using S in
+      ifb attrib <> R_NilValue /\ attrib_type = VecSxp then
+         let%success nattrib := ExtractSubset S attrib indx call using S in
+         setAttrib globals runs S result R_SrcrefSymbol nattrib 
+      else
+        result_success S result
+    using S in
+  result_success S result.
 
 Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in

@@ -81,7 +81,7 @@ Definition SubassignTypeFix S (x y : SEXP) (stretch level : int) (call rho : SEX
     let which := 100 * (SExpType_to_nat x_type) + (SExpType_to_nat y_type) in
     let%success x_is_object := OBJECT S x using S in
     let%success (which, x, y, redo_which) :=
-    match which with
+    match which : int with
     | 1000	(* logical    <- null       *)
     | 1300	(* integer    <- null       *)
     | 1400	(* real	      <- null       *)
@@ -211,7 +211,7 @@ Definition SubassignTypeFix S (x y : SEXP) (stretch level : int) (call rho : SEX
       result_not_implemented "case 2425 (raw <- S4)"
 
     | _ => result_error S "incompatible types in subassignment type fix"
-    end
+    end%Z
     using S in
     let%success x :=
     ifb stretch <> 0 then
@@ -386,7 +386,7 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
     using S in
 
     let stretch := 1 in
-    let%success (indx, stretch) := makeSubscript globals runs S x s R_NilValue using S in
+    let%success (indx, stretch) := makeSubscript globals runs S x s stretch R_NilValue using S in
     let%success n := xlength globals runs S indx  using S in
     let%success y_xlength := xlength globals runs S y using S in
     run%success
@@ -432,7 +432,7 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
     using S in
 
     run%success
-    match which with
+    match which : int with
     | 1010 	(* logical   <- logical	  *)
     | 1310 	(* integer   <- logical	  *)
     (* case 1013:  logical   <- integer	  *)
@@ -524,7 +524,7 @@ Definition VectorAssign S (call rho x s y : SEXP) :=
       result_not_implemented "case 2424 (raw <- raw)"
     | _ => result_skip S
 
-    end
+    end%Z
     using S in
 
     let%success newnames := getAttrib globals runs S indx R_UseNamesSymbol using S in

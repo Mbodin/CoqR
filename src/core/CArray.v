@@ -21,7 +21,9 @@
 Set Implicit Arguments.
 Require Import Double.
 Require Import Loops.
+Require Import CRinternals.
 Require Import CRinlinedfuns.
+Require Import CMemory.
 Require Import CAttrib.
 Require Import CDuplicate.
 
@@ -48,8 +50,17 @@ Definition allocMatrix S mode nrow ncol :=
     write%Integer t at 0 := nrow using S in
     write%Integer t at 1 := ncol using S in
     run%success setAttrib globals runs S s R_DimSymbol t using S in
-    result_success S s.                             
-                     
+    result_success S s.
+
+
+Definition GetRowNames S dimnames :=
+  add%stack "GetRowNames" in
+    let%success dimnames_type := TYPEOF S dimnames using S in
+    ifb dimnames_type = VecSxp then
+        VECTOR_ELT S dimnames 0
+    else
+        result_success S (R_NilValue : SEXP).
+
 Definition allocArray S mode dims :=
   add%stack "allocArray" in
   let%success dims_len := LENGTH globals S dims using S in
@@ -67,4 +78,3 @@ Definition allocArray S mode dims :=
   result_success S array.
 
 End Parameterised.
-
