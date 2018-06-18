@@ -37,7 +37,19 @@ Variable runs : runs_type.
 Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
-
+Definition allocMatrix S mode nrow ncol :=
+  add%stack "allocMatrix" in
+    ifb nrow < 0 \/ ncol < 0 then
+        result_error S "negative extents to matrix"
+    else
+    let n := nrow * ncol in
+    let%success s := allocVector globals S mode n using S in
+    let%success t := allocVector globals S IntSxp 2 using S in
+    write%Integer t at 0 := nrow using S in
+    write%Integer t at 1 := ncol using S in
+    run%success setAttrib globals runs S s R_DimSymbol t using S in
+    result_success S s.                             
+                     
 Definition allocArray S mode dims :=
   add%stack "allocArray" in
   let%success dims_len := LENGTH globals S dims using S in

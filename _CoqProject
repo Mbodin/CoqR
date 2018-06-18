@@ -46,6 +46,8 @@
 ./src/core/CObjects.v
 ./src/core/CArray.v
 ./src/core/CLogic.v
+./src/core/CSubscript.v
+./src/core/CSubassign.v
 ./src/Rcore.v
 
 ./src/features/FErrors.v
@@ -69,6 +71,7 @@
 ./src/features/FArray.v
 ./src/features/FNames.v
 ./src/features/FLogic.v
+./src/features/FSubassign.v
 ./src/Rfeatures.v
 
 ./src/Rinit.v
