@@ -79,5 +79,24 @@ Definition ncols S s :=
       result_success S (r : int)
     else result_error S "Object is not a matrix.".
 
+Definition nrows S s :=
+  add%stack "nrows" in
+    let%success s_isVector := isVector S s using S in
+    let%success s_isList := isList globals S s using S in
+
+    ifb s_isVector \/ s_isList then
+        let%success t := getAttrib globals runs S s R_DimSymbol using S in
+        ifb t = R_NilValue then
+            LENGTH globals S s 
+        else
+            read%Integer t_0 := t at 0 using S in
+            result_success S (Z.to_nat t_0)
+    else
+        let%success s_isFrame := isFrame globals runs S s using S in
+        if s_isFrame then
+            result_not_implemented "isFrame(s)"
+        else
+            result_error S "object is not a matrix".
+
 End Parameters.
 

@@ -257,7 +257,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "vector" do_makevector (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "complex" (dummy_function "do_complex") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "matrix" (dummy_function "do_matrix") (0)%Z eval11 (7)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "matrix" do_matrix (0)%Z eval11 (7)%Z PP_FUNCALL PREC_FN false ;
               rdecl "array" (dummy_function "do_array") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "diag" (dummy_function "do_diag") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "backsolve" (dummy_function "do_backsolve") (0)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false ;
