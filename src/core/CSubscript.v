@@ -47,7 +47,7 @@ Definition logicalSubscript (S : state) (s : SEXP) (ns nx : nat) (stretch : nat)
   add%stack "logicalSubscript" in
     result_not_implemented "logicalSubscript".
 
-Definition realSubscript S s (ns nx stretch : nat) call  :=
+Definition realSubscript S s (ns nx stretch : nat) call :=
   add%stack "realSubscript" in
     let isna := false in
     let canstretch := decide (stretch > 0) in
@@ -76,8 +76,8 @@ Definition realSubscript S s (ns nx stretch : nat) call  :=
     using S in
 
     run%exit 
-    ifb min < 0%Z then
-        ifb max = 0%Z /\ negb isna then
+    ifb min < 0 then
+        ifb max = 0 /\ ~ isna then
             let stretch := 0%Z in
             let%success indx := allocVector globals S LglSxp (Z.to_nat nx) using S in 
             do%success for i from 0 to nx - 1 do write%Logical indx at i := 1 using S in result_skip S
@@ -93,7 +93,7 @@ Definition realSubscript S s (ns nx stretch : nat) call  :=
             using S in
 
             let%success s := logicalSubscript S indx nx nx (Z.to_nat stretch) call using S in
-            result_rreturn S (s : SEXP, stretch : int)
+            result_rreturn S (s : SEXP, stretch)
         else
             result_error S "only 0's may be mixed with negative subscripts"
     else
@@ -135,12 +135,12 @@ Definition realSubscript S s (ns nx stretch : nat) call  :=
             using S in                       
             result_success S indx 
         using S in
-        result_rreturn S (indx : SEXP, Double.double_to_int_zero stretch : int) 
+        result_rsuccess S (indx : SEXP, Double.double_to_int_zero stretch) 
     using S in
-    result_success S (R_NilValue : SEXP, Double.double_to_int_zero stretch : int).
+    result_success S (R_NilValue : SEXP, Double.double_to_int_zero stretch).
 
 
-Definition makeSubscript S (x s call : SEXP)  :=
+Definition makeSubscript S x s stretch (call : SEXP)  :=
   add%stack "makeSubscript" in
     let%success x_isVector := isVector S x using S in
     let%success x_isList := isList globals S x using S in
@@ -158,7 +158,7 @@ Definition makeSubscript S (x s call : SEXP)  :=
     if s_isScalar then
         let%success i := SCALAR_IVAL S s using S in
         ifb 0%Z < i /\ i <= nx then
-            result_rreturn S (s, 0)
+            result_rreturn S (s, 0 : int)
         else
             result_rskip S
     else
@@ -166,7 +166,7 @@ Definition makeSubscript S (x s call : SEXP)  :=
         if s_isScalar then
             let%success di := SCALAR_DVAL S s using S in
             ifb 1%Z <= (Double.double_to_int_zero di) /\ di <= nx then
-                result_rreturn S (s, 0)
+                result_rreturn S (s, 0 : int)
         else
             result_rskip S
         else result_rskip S
@@ -179,7 +179,7 @@ Definition makeSubscript S (x s call : SEXP)  :=
     match s_type with
     | NilSxp =>
       let%success ans := allocVector globals S IntSxp 0 using S in
-      result_success S (ans, 0)
+      result_success S (ans, 0 : int)
     | LglSxp => unimplemented_function "logicalSubscript"  
     | IntSxp => unimplemented_function "integerSubscript"
     | RealSxp => realSubscript S s ns nx stretch call
@@ -190,7 +190,7 @@ Definition makeSubscript S (x s call : SEXP)  :=
       ifb s = R_MissingArg then
           unimplemented_function "nullSubscript"
       else
-          result_success S (ans, 0)
+          result_success S (ans, 0 : int)
     | _ => result_error S "invalid subscript type"
     end
     using S in
