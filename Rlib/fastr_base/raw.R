@@ -16,5 +16,3 @@
 #  A copy of the GNU General Public License is available at
 #  https://www.R-project.org/Licenses/
 raw <- function(length = 0L) .Internal(vector("raw", length))
-
-as.raw <- function(x) .Internal(as.raw(x))
