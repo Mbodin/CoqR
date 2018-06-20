@@ -322,6 +322,14 @@ Definition do_substitute_init S :=
   let%success env := install globals runs S "env" using S in
   allocFormalsList2 globals S expr env.
 
+(** The initialisation of [do_usemethod_do_usemethod_formals], done in
+  C in [do_usemethod], from main/objects.c **)
+Definition do_usemethod_init S :=
+  add%stack "do_usemethod_init" in
+  let%success generic := install globals runs S "generic" using S in
+  let%success object := install globals runs S "object" using S in
+  allocFormalsList2 globals S generic object.
+
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
 Definition init_R_Toplevel S :=
@@ -431,6 +439,9 @@ Definition setup_Rmainloop max_step S : result Globals :=
   let%success do_substitute_formals :=
     do_substitute_init globals (runs max_step globals) S using S in
   let globals := {{ globals with [ decl do_substitute_do_substitute_formals do_substitute_formals ] }} in
+  let%success do_usemethod_formals :=
+    do_usemethod_init globals (runs max_step globals) S using S in
+  let globals := {{ globals with [ decl do_usemethod_do_usemethod_formals do_usemethod_formals ] }} in
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
   result_success S globals.
 
