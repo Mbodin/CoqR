@@ -1,3 +1,7 @@
+# as.R
+as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
+
+# vector.R
 
 vector <- function(mode = "logical", length = 0L) .Internal(vector(mode, length))
 logical <- function(length = 0L) .Internal(vector("logical", length))
@@ -22,6 +26,8 @@ single <- function(length = 0L)
     structure(vector("double", length), Csingle=TRUE)
 
 
+# structure.R
+
 structure <- function (.Data, ...)
 {
     if(is.null(.Data))
@@ -43,6 +49,7 @@ structure <- function (.Data, ...)
     .Data
 }
 
+# New-Internal.R
 do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 {
     if (!is.list(args))
@@ -52,6 +59,102 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
     .Internal(do.call(what, args, envir))
 }
 
+typeof <- function(x) .Internal(typeof(x))
+
+# apply.R
+apply <- function(X, MARGIN, FUN, ...)
+{
+    FUN <- match.fun(FUN)
+
+    ## Ensure that X is an array object
+    dl <- length(dim(X))
+    if(!dl) stop("dim(X) must have a positive length")
+    if(is.object(X))
+	X <- if(dl == 2L) as.matrix(X) else as.array(X)
+    ## now record dim as coercion can change it
+    ## (e.g. when a data frame contains a matrix).
+    d <- dim(X)
+    dn <- dimnames(X)
+    ds <- seq_len(dl)
+
+    ## Extract the margins and associated dimnames
+
+    if (is.character(MARGIN)) {
+        if(is.null(dnn <- names(dn))) # names(NULL) is NULL
+           stop("'X' must have named dimnames")
+        MARGIN <- match(MARGIN, dnn)
+        if (anyNA(MARGIN))
+            stop("not all elements of 'MARGIN' are names of dimensions")
+    }
+    s.call <- ds[-MARGIN]
+    s.ans  <- ds[MARGIN]
+    d.call <- d[-MARGIN]
+    d.ans <- d[MARGIN]
+    dn.call <- dn[-MARGIN]
+    dn.ans <- dn[MARGIN]
+    ## dimnames(X) <- NULL
+
+    ## do the calls
+
+    d2 <- prod(d.ans)
+    if(d2 == 0L) {
+        ## arrays with some 0 extents: return ``empty result'' trying
+        ## to use proper mode and dimension:
+        ## The following is still a bit `hackish': use non-empty X
+        newX <- array(vector(typeof(X), 1L), dim = c(prod(d.call), 1L))
+        ans <- forceAndCall(1, FUN, if(length(d.call) < 2L) newX[,1] else
+                   array(newX[, 1L], d.call, dn.call), ...)
+        return(if(is.null(ans)) ans else if(length(d.ans) < 2L) ans[1L][-1L]  else array(ans, d.ans, dn.ans))
+    }
+    ## else
+    newX <- aperm(X, c(s.call, s.ans))
+    dim(newX) <- c(prod(d.call), d2)
+    ans <- vector("list", d2)
+    if(length(d.call) < 2L) {# vector
+        if (length(dn.call)) dimnames(newX) <- c(dn.call, list(NULL))
+        for(i in 1L:d2) {
+            tmp <- forceAndCall(1, FUN, newX[,i], ...)
+            if(!is.null(tmp)) ans[[i]] <- tmp
+        }
+    } else {
+       for(i in 1L:d2) {
+           tmp <- forceAndCall(1, FUN, array(newX[,i], d.call, dn.call), ...)
+           if(!is.null(tmp)) ans[[i]] <- tmp
+        }
+    }
+    ## answer dims and dimnames
+
+    ans.list <- is.recursive(ans[[1L]])
+    l.ans <- length(ans[[1L]])
+
+    ans.names <- names(ans[[1L]])
+    if(!ans.list)
+	ans.list <- any(lengths(ans) != l.ans)
+    if(!ans.list && length(ans.names)) {
+        all.same <- vapply(ans, function(x) identical(names(x), ans.names), NA)
+        if (!all(all.same)) ans.names <- NULL
+    }
+    len.a <- if(ans.list) d2 else length(ans <- unlist(ans, recursive = FALSE))
+    if(length(MARGIN) == 1L && len.a == d2) {
+	names(ans) <- if(length(dn.ans[[1L]])) dn.ans[[1L]] # else NULL
+	ans
+    } else if(len.a == d2) {
+	    array(ans, d.ans, dn.ans)
+    } else if(len.a && len.a %% d2 == 0L) {
+        if(is.null(dn.ans)) dn.ans <- vector(mode="list", length(d.ans))
+	dn1 <- list(ans.names)
+	if(length(dn.call) && !is.null(n1 <- names(dn <- dn.call[1])) &&
+	   nzchar(n1) && length(ans.names) == length(dn[[1]]))
+	    names(dn1) <- n1
+	dn.ans <- c(dn1, dn.ans)
+	array(ans, c(len.a %/% d2, d.ans),
+	      if(!is.null(names(dn.ans)) || !all(vapply(dn.ans, is.null, NA)))
+		  dn.ans)
+    } else	ans
+}
+
+
+# lapply.R
 lapply <- function (X, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -64,6 +167,7 @@ lapply <- function (X, FUN, ...)
     .Internal(lapply(X, FUN))
 }
 
+# match.fun.R
 match.fun <- function (FUN, descend = TRUE)
 {
     if ( is.function(FUN) )
@@ -87,6 +191,7 @@ match.fun <- function (FUN, descend = TRUE)
 }
 
 
+# eval.R
 .GlobalEnv <- environment()
 parent.frame <- function(n = 1) .Internal(parent.frame(n))
 
@@ -236,7 +341,7 @@ cbind <- function(..., deparse.level = 1)
 }
 
 
-
+# matrix.R
 matrix <- function(data=NA, nrow=1, ncol=1, byrow=FALSE, dimnames=NULL)
 {
     ## avoid copying to strip attributes in simple cases
@@ -356,6 +461,7 @@ t.data.frame <- function(x)
     NextMethod("t")
 }
 
+# colSums.R
 
 colSums <- function(x, na.rm = FALSE, dims = 1L)
 {
@@ -437,7 +543,7 @@ rowMeans <- function(x, na.rm = FALSE, dims = 1L)
     z
 }
 
-
+# det.R
 det <- function(x, ...)
 {
     z <- determinant(x, logarithm = TRUE, ...)
@@ -446,4 +552,280 @@ det <- function(x, ...)
 
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
+# duplicated.R
+
 duplicated <- function(x, incomparables = FALSE, ...) UseMethod("duplicated")
+unique <- function(x, incomparables = FALSE, ...) UseMethod("unique")
+
+
+# unlist.R
+unlist <- function(x, recursive=TRUE, use.names=TRUE)
+{
+    if(.Internal(islistfactor(x, recursive))) {
+        lv <- unique(.Internal(unlist(lapply(x, levels), recursive, FALSE)))
+        nm <- if(use.names) names(.Internal(unlist(x, recursive, use.names)))
+        res <- .Internal(unlist(lapply(x, as.character), recursive, FALSE))
+        res <- match(res, lv)
+        ## we cannot make this ordered as level set may have been changed
+        structure(res, levels=lv, names=nm, class="factor")
+    } else .Internal(unlist(x, recursive, use.names))
+}
+
+# sapply.R
+
+vapply <- function(X, FUN, FUN.VALUE, ...,  USE.NAMES = TRUE)
+{
+    FUN <- match.fun(FUN)
+    if(!is.vector(X) || is.object(X)) X <- as.list(X)
+    .Internal(vapply(X, FUN, FUN.VALUE, USE.NAMES))
+}
+
+
+# which.R
+
+which <- function(x, arr.ind = FALSE, useNames = TRUE)
+{
+    wh <- .Internal(which(x))
+    if (arr.ind && !is.null(d <- dim(x)))
+	arrayInd(wh, d, dimnames(x), useNames=useNames) else wh
+}
+which.min <- function(x) .Internal(which.min(x))
+which.max <- function(x) .Internal(which.max(x))
+
+# character.R
+tolower <- function(x)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(tolower(x))
+}
+toupper <- function(x)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(toupper(x))
+}
+
+
+# withVisible.R
+withVisible <- function(x) .Internal(withVisible(x))
+
+
+# stop.R
+warning <- function(..., call. = TRUE, immediate. = FALSE,
+                    noBreaks. = FALSE, domain = NULL)
+{
+    args <- list(...)
+    if (length(args) == 1L && inherits(args[[1L]], "condition")) {
+        cond <- args[[1L]]
+        if(nargs() > 1L)
+            cat(gettext("additional arguments ignored in warning()"),
+                "\n", sep = "", file = stderr())
+        message <- conditionMessage(cond)
+        call <- conditionCall(cond)
+        withRestarts({
+                .Internal(.signalCondition(cond, message, call))
+                .Internal(.dfltWarn(message, call))
+            }, muffleWarning = function() NULL) #**** allow simpler form??
+        invisible(message)
+    } else        .Internal(warning(call., immediate., noBreaks.,
+                          .makeMessage(..., domain = domain)))
+}
+
+
+# tabulate.R
+tabulate <- function(bin, nbins = max(1L, bin, na.rm = TRUE))
+{
+    if(!is.numeric(bin) && !is.factor(bin))
+	stop("'bin' must be numeric or a factor")
+    ## avoid a copy for factors, since as.integer strips attributes
+    if (typeof(bin) != "integer") bin <- as.integer(bin)
+    if (nbins > .Machine$integer.max)
+        stop("attempt to make a table with >= 2^31 elements")
+    nbins <- as.integer(nbins)
+    if (is.na(nbins)) stop(gettextf("invalid value of %s", "'nbins'"), domain=NA)
+    .Internal(tabulate(bin, nbins))
+}
+
+# options.R
+getOption <- function(x, default = NULL)
+{
+    ## To avoid always performing the %in%,
+    ## we use the original code if default is not specified.
+    ## if(missing(default)) return(options(x)[[1L]])
+    if(missing(default) || x %in% names(options())) {
+	.Internal(getOption(x))
+    } else default
+}
+
+# dataframe.R
+data.frame <-
+    function(..., row.names = NULL, check.rows = FALSE, check.names = TRUE,
+	     fix.empty.names = TRUE,
+             stringsAsFactors = default.stringsAsFactors())
+{
+    data.row.names <-
+	if(check.rows && is.null(row.names)) {
+	    function(current, new, i) {
+		if(is.character(current)) new <- as.character(new)
+		if(is.character(new)) current <- as.character(current)
+		if(anyDuplicated(new))
+		    return(current)
+		if(is.null(current))
+		    return(new)
+		if(all(current == new) || all(current == ""))
+		    return(new)
+		stop(gettextf(
+		    "mismatch of row names in arguments of 'data.frame\', item %d", i),
+		    domain = NA)
+	    }
+    } else function(current, new, i) {
+	    if(is.null(current)) {
+		if(anyDuplicated(new)) {
+		    warning(gettextf(
+                        "some row.names duplicated: %s --> row.names NOT used",
+                        paste(which(duplicated(new)), collapse=",")),
+                        domain = NA)
+		    current
+		} else new
+	    } else current
+	}
+    object <- as.list(substitute(list(...)))[-1L]
+    mirn <- missing(row.names) # record before possibly changing
+    mrn <- is.null(row.names) # missing or NULL
+    x <- list(...)
+    n <- length(x)
+    if(n < 1L) {
+        if(!mrn) {
+            if(is.object(row.names) || !is.integer(row.names))
+                row.names <- as.character(row.names)
+            if(anyNA(row.names))
+                stop("row names contain missing values")
+            if(anyDuplicated(row.names))
+                stop(gettextf("duplicate row.names: %s",
+                              paste(unique(row.names[duplicated(row.names)]),
+                                    collapse = ", ")),
+                     domain = NA)
+        } else row.names <- integer()
+	return(structure(list(), names = character(),
+                         row.names = row.names,
+			 class = "data.frame"))
+    }
+    vnames <- names(x)
+    if(length(vnames) != n)
+	vnames <- character(n)
+    no.vn <- !nzchar(vnames)
+    vlist <- vnames <- as.list(vnames)
+    nrows <- ncols <- integer(n)
+    for(i in seq_len(n)) {
+        ## do it this way until all as.data.frame methods have been updated
+	xi <- if(is.character(x[[i]]) || is.list(x[[i]])) {
+		  as.data.frame(x[[i]], optional = TRUE,
+				stringsAsFactors = stringsAsFactors)
+    } else as.data.frame(x[[i]], optional = TRUE)
+
+        nrows[i] <- .row_names_info(xi) # signed for now
+	ncols[i] <- length(xi)
+	namesi <- names(xi)
+	if(ncols[i] > 1L) {
+	    if(length(namesi) == 0L) namesi <- seq_len(ncols[i])
+	    vnames[[i]] <- if(no.vn[i]) namesi else paste(vnames[[i]], namesi, sep=".")
+	} else if(length(namesi)) {
+	    vnames[[i]] <- namesi
+	} else if (fix.empty.names && no.vn[[i]]) {
+	    tmpname <- deparse(object[[i]], nlines = 1L)[1L]
+	    if(substr(tmpname, 1L, 2L) == "I(") { ## from 'I(*)', only keep '*':
+		ntmpn <- nchar(tmpname, "c")
+		if(substr(tmpname, ntmpn, ntmpn) == ")")
+		    tmpname <- substr(tmpname, 3L, ntmpn - 1L)
+	    }
+	    vnames[[i]] <- tmpname
+	} ## else vnames[[i]] are not changed
+	if(mirn && nrows[i] > 0L) {
+            rowsi <- attr(xi, "row.names")
+            ## Avoid all-blank names
+            if(any(nzchar(rowsi)))
+                row.names <- data.row.names(row.names, rowsi, i)
+        }
+        nrows[i] <- abs(nrows[i])
+	vlist[[i]] <- xi
+    }
+    nr <- max(nrows)
+    for(i in seq_len(n)[nrows < nr]) {
+	xi <- vlist[[i]]
+	if(nrows[i] > 0L && (nr %% nrows[i] == 0L)) {
+            ## make some attempt to recycle column i
+            xi <- unclass(xi) # avoid data-frame methods
+            fixed <- TRUE
+            for(j in seq_along(xi)) {
+                xi1 <- xi[[j]]
+                if(is.vector(xi1) || is.factor(xi1)) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else if(is.character(xi1) && inherits(xi1, "AsIs")) {
+                    xi[[j]] <- structure(rep(xi1, length.out = nr),
+                                         class = class(xi1))
+                } else if(inherits(xi1, "Date") || inherits(xi1, "POSIXct")) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else {
+                    fixed <- FALSE
+                    break
+                }
+            }
+            if (fixed) {
+                vlist[[i]] <- xi
+                next
+            }
+        }
+        stop(gettextf("arguments imply differing number of rows: %s",
+                      paste(unique(nrows), collapse = ", ")),
+             domain = NA)
+    }
+    value <- unlist(vlist, recursive=FALSE, use.names=FALSE)
+    ## unlist() drops i-th component if it has 0 columns
+    vnames <- unlist(vnames[ncols > 0L])
+    if(fix.empty.names && any(noname <- !nzchar(vnames)))
+	vnames[noname] <- paste0("Var.", seq_along(vnames))[noname]
+    if(check.names) {
+	if(fix.empty.names) {
+	    vnames <- make.names(vnames, unique=TRUE)
+    } else { ## do not fix ""
+	    nz <- nzchar(vnames)
+	    vnames[nz] <- make.names(vnames[nz], unique=TRUE)
+	}
+    }
+    names(value) <- vnames
+    if(!mrn) { # non-null row.names arg was supplied
+        if(length(row.names) == 1L && nr != 1L) {  # one of the variables
+            if(is.character(row.names))
+                row.names <- match(row.names, vnames, 0L)
+            if(length(row.names) != 1L ||
+               row.names < 1L || row.names > length(vnames))
+                stop("'row.names' should specify one of the variables")
+            i <- row.names
+            row.names <- value[[i]]
+            value <- value[ - i]
+        } else if ( !is.null(row.names) && length(row.names) != nr )
+            stop("row names supplied are of the wrong length")
+    } else if( !is.null(row.names) && length(row.names) != nr ) {
+        warning("row names were found from a short variable and have been discarded")
+        row.names <- NULL
+    }
+    if(is.null(row.names)) {
+        row.names <- .set_row_names(nr) #seq_len(nr)
+    }else {
+        if(is.object(row.names) || !is.integer(row.names))
+            row.names <- as.character(row.names)
+        if(anyNA(row.names))
+            stop("row names contain missing values")
+        if(anyDuplicated(row.names))
+            stop(gettextf("duplicate row.names: %s",
+                          paste(unique(row.names[duplicated(row.names)]),
+                                collapse = ", ")),
+                 domain = NA)
+    }
+    attr(value, "row.names") <- row.names
+    attr(value, "class") <- "data.frame"
+    value
+}
+
+
+# raw.R
+raw <- function(length = 0L) .Internal(vector("raw", length))
