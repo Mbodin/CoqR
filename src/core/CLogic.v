@@ -118,22 +118,16 @@ Definition binaryLogic2 S (code : int) (s1 s2 : SEXP) : result SEXP :=
 
 Definition lunary S (call op arg : SEXP) : result SEXP :=
   add%stack "lunary" in
-    let%success len := XLENGTH S arg using S in
+    
     let%success arg_isLogical := isLogical S arg using S in
     let%success arg_isNumber := isNumber globals runs S arg using S in
     let%success arg_isRaw := isRaw S arg using S in
     
-    run%exit
-    ifb negb arg_isLogical /\ negb arg_isNumber /\ negb arg_isRaw then
-        ifb len = 0 then
-            let%success alloc := allocVector globals S LglSxp 0 using S in
-            result_rreturn S alloc
-        else
-            result_error S "invalid argument type"
+    ifb ~ arg_isLogical /\ ~ arg_isNumber /\ ~ arg_isRaw then  
+        result_error S "invalid argument type"
     else
-        result_rskip S
-    using S in
 
+    let%success len := XLENGTH S arg using S in
     let%success x :=
     ifb arg_isLogical \/ arg_isRaw then
         shallow_duplicate globals runs S arg 
