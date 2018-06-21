@@ -115,6 +115,7 @@ Inductive GlobalVariable :=
   | do_attr_do_attr_formals
   | do_attrgets_do_attrgets_formals
   | do_substitute_do_substitute_formals
+  | do_usemethod_do_usemethod_formals
   .
 
 Definition all_GlobalVariables : list GlobalVariable.
