@@ -146,33 +146,6 @@ Definition ExtractDropArg S el :=
     result_success S true
   else result_success S (decide (drop <> 0)).
 
-
-(** Slightly modified version of EXTRACT_SUBSET_LOOP in src/subset.c **)
-
-Definition EXTRACT_SUBSET_LOOP S (result x  indx : SEXP) n nx STDCODE NACODE :=
-  add%stack "EXTRACT_SUBSET_LOOP" in
-    let%success indx_type := TYPEOF S indx using S in
-    ifb indx_type = IntSxp then
-        run%success INTEGER_RO S indx using S in
-        do%success
-        for i from 0 to n - 1 do   
-            read%Integer ii := indx at i using S in                  
-            ifb 0%Z < ii /\ ii <= nx then
-                let ii := Z.to_nat ii - 1 in
-                STDCODE S result x i ii
-            else (* out of bounds or NA *)
-                NACODE S result (Z.to_nat ii)
-        using S in result_skip S
-    else
-        do%success
-        for i from 0 to n - 1 do
-            read%Real di := indx at i using S in
-            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
-            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
-                STDCODE S result x i (Z.to_nat ii)
-            else
-                NACODE S result (Z.to_nat ii)
-        using S in result_skip S.
               
 Definition ExtractSubset S (x indx call : SEXP) :=
   add%stack "ExtractSubset" in
@@ -192,24 +165,56 @@ Definition ExtractSubset S (x indx call : SEXP) :=
     run%success
     match mode with
     | LglSxp =>
-      let STDCODE S result x i ii :=
-          let%success x_ii := LOGICAL_ELT S x ii using S in
-          write%Logical result at i := x_ii using S in result_skip S
-      in
-      let NACODE S result i :=
-          write%Logical result at i := NA_INTEGER using S in result_skip S
-      in  
-      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+      let%success indx_type := TYPEOF S indx using S in
+      ifb indx_type = IntSxp then
+        run%success INTEGER_RO S indx using S in
+        do%success
+        for i from 0 to n - 1 do   
+            read%Integer ii := indx at i using S in                  
+            ifb 0%Z < ii /\ ii <= nx then
+                let ii := Z.to_nat ii - 1 in
+                let%success x_ii := LOGICAL_ELT S x ii using S in
+                write%Logical result at i := x_ii using S in result_skip S
+            else (* out of bounds or NA *)
+                write%Logical result at i := NA_INTEGER using S in result_skip S
+        using S in result_skip S
+      else
+        do%success
+        for i from 0 to n - 1 do
+            read%Real di := indx at i using S in
+            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
+            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
+                let%success x_ii := LOGICAL_ELT S x (Z.to_nat ii) using S in
+                write%Logical result at i := x_ii using S in result_skip S
+            else
+                write%Logical result at i := NA_INTEGER using S in result_skip S
+        using S in result_skip S
                             
     | IntSxp =>
-      let STDCODE S result x i ii :=
-          let%success x_ii := INTEGER_ELT S x ii using S in
-          write%Integer result at i := x_ii using S in result_skip S
-      in
-      let NACODE S result i :=
-          write%Integer result at i := NA_INTEGER using S in result_skip S
-      in  
-      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+      let%success indx_type := TYPEOF S indx using S in
+      ifb indx_type = IntSxp then
+        run%success INTEGER_RO S indx using S in
+        do%success
+        for i from 0 to n - 1 do   
+            read%Integer ii := indx at i using S in                  
+            ifb 0%Z < ii /\ ii <= nx then
+                let ii := Z.to_nat ii - 1 in
+                let%success x_ii := INTEGER_ELT S x ii using S in
+                write%Integer result at i := x_ii using S in result_skip S
+            else (* out of bounds or NA *)
+                write%Integer result at i := NA_INTEGER using S in result_skip S
+        using S in result_skip S
+      else
+        do%success
+        for i from 0 to n - 1 do
+            read%Real di := indx at i using S in
+            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
+            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
+                let%success x_ii := INTEGER_ELT S x (Z.to_nat ii) using S in
+                write%Integer result at i := x_ii using S in result_skip S
+            else
+                write%Integer result at i := NA_INTEGER using S in result_skip S
+        using S in result_skip S
 
     | RealSxp =>
       let%success indx_type := TYPEOF S indx using S in
@@ -239,14 +244,31 @@ Definition ExtractSubset S (x indx call : SEXP) :=
      
     | CplxSxp => result_not_implemented "Complex case"
     | StrSxp =>
-      let STDCODE S result x i ii :=
-          let%success x_ii := STRING_ELT S x ii using S in
-          SET_STRING_ELT S result i x_ii
-      in
-      let NACODE S result i :=
-          SET_STRING_ELT S result i NA_STRING
-      in  
-      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+      let%success indx_type := TYPEOF S indx using S in
+      ifb indx_type = IntSxp then
+        run%success INTEGER_RO S indx using S in
+        do%success
+        for i from 0 to n - 1 do   
+            read%Integer ii := indx at i using S in                  
+            ifb 0%Z < ii /\ ii <= nx then
+                let ii := Z.to_nat ii - 1 in
+                let%success x_ii := STRING_ELT S x ii using S in
+                SET_STRING_ELT S result i x_ii
+            else (* out of bounds or NA *)
+                SET_STRING_ELT S result i NA_STRING
+        using S in result_skip S
+      else
+        do%success
+        for i from 0 to n - 1 do
+            read%Real di := indx at i using S in
+            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
+            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
+                let%success x_ii := STRING_ELT S x (Z.to_nat ii) using S in
+                SET_STRING_ELT S result i x_ii
+            else
+                SET_STRING_ELT S result i NA_STRING
+        using S in result_skip S
+      
     | VecSxp
     | ExprSxp => result_not_implemented "Expr case"
     | RawSxp => result_not_implemented "raw case"
