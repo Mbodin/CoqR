@@ -447,3 +447,339 @@ det <- function(x, ...)
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
 duplicated <- function(x, incomparables = FALSE, ...) UseMethod("duplicated")
+
+order <- function(..., na.last = TRUE, decreasing = FALSE,
+                  method = c("auto", "shell", "radix"))
+{
+    z <- list(...)
+
+    method <- match.arg(method)
+    if (method == "auto") {
+        useRadix <- all(vapply(z, function(x) {
+            (is.numeric(x) || is.factor(x) || is.logical(x)) &&
+                is.integer(length(x))
+        }, logical(1L)))
+        method <- if (useRadix) "radix" else "shell"
+    }
+
+    if(any(unlist(lapply(z, is.object)))) {
+        z <- lapply(z, function(x) if(is.object(x)) as.vector(xtfrm(x)) else x)
+        if(method == "radix" || !is.na(na.last))
+            return(do.call("order", c(z, na.last = na.last,
+                                      decreasing = decreasing,
+                                      method = method)))
+    } else if(method != "radix" && !is.na(na.last)) {
+        return(.Internal(order(na.last, decreasing, ...)))
+    }
+
+    if (method == "radix") {
+        decreasing <- rep_len(as.logical(decreasing), length(z))
+        return(.Internal(radixsort(na.last, decreasing, FALSE, TRUE, ...)))
+    }
+
+    ## na.last = NA case: remove nas
+    if(any(diff((l.z <- lengths(z)) != 0L)))
+        stop("argument lengths differ")
+    na <- vapply(z, is.na, rep.int(NA, l.z[1L]))
+    ok <- if(is.matrix(na)) rowSums(na) == 0L else !any(na)
+    if(all(!ok)) return(integer())
+    z[[1L]][!ok] <- NA
+    ans <- do.call("order", c(z, decreasing = decreasing))
+    ans[ok[ans]]
+}
+
+match.arg <- function (arg, choices, several.ok = FALSE)
+{
+    if (missing(choices)) {
+	formal.args <- formals(sys.function(sys.parent()))
+	choices <- eval(formal.args[[as.character(substitute(arg))]])
+    }
+    if (is.null(arg)) return(choices[1L])
+    else if(!is.character(arg))
+	stop("'arg' must be NULL or a character vector")
+    if (!several.ok) { # most important (default) case:
+        ## the arg can be the whole of choices as a default argument.
+        if(identical(arg, choices)) return(arg[1L])
+        if(length(arg) > 1L) stop("'arg' must be of length 1")
+    } else if(length(arg) == 0L) stop("'arg' must be of length >= 1")
+
+    ## handle each element of arg separately
+    i <- pmatch(arg, choices, nomatch = 0L, duplicates.ok = TRUE)
+    if (all(i == 0L))
+	stop(gettextf("'arg' should be one of %s",
+                      paste(dQuote(choices), collapse = ", ")),
+             domain = NA)
+    i <- i[i > 0L]
+    if (!several.ok && length(i) > 1)
+        stop("there is more than one match in 'match.arg'")
+    choices[i]
+}
+
+vapply <- function(X, FUN, FUN.VALUE, ...,  USE.NAMES = TRUE)
+{
+   FUN <- match.fun(FUN)
+   if(!is.vector(X) || is.object(X)) X <- as.list(X)
+   .Internal(vapply(X, FUN, FUN.VALUE, USE.NAMES))
+}
+
+# pmax.R
+pmax <- function (..., na.rm = FALSE)
+{
+    elts <- list(...)
+    if(length(elts) == 0L) stop("no arguments")
+    if(all(vapply(elts, function(x) is.atomic(x) && !is.object(x), NA))) { # incl. NULL
+	mmm <- .Internal(pmax(na.rm, ...))
+	mostattributes(mmm) <- attributes(elts[[1L]])
+    } else {
+	mmm <- elts[[1L]] ## attr(mmm, "dim") <- NULL  # dim<- would drop names
+	has.na <- FALSE
+        as <- methods::as
+        asL <- function(x) if(isS4(x)) as(x, "logical") else x
+	for (each in elts[-1L]) {
+	    ## attr(each, "dim") <- NULL ## FIXME: deal with d.fr.s !
+	    l1 <- length(each); l2 <- length(mmm)
+	    if(l2 && (l2 < l1 || !l1)) {
+		if (l1 %% l2)
+		    warning("an argument will be fractionally recycled")
+		mmm <- rep(mmm, length.out = l1)
+	    } else if(l1 && (l1 < l2 || !l2)) {
+		if (l2 %% l1)
+		    warning("an argument will be fractionally recycled")
+		each <- rep(each, length.out = l2)
+	    }
+	    na.m <- is.na(mmm)
+	    na.e <- is.na(each)
+	    if(has.na || (has.na <- any(na.m) || any(na.e))) {
+		if(any(na.m <- asL(na.m))) mmm [na.m] <- each[na.m]
+		if(any(na.e <- asL(na.e))) each[na.e] <- mmm [na.e]
+	    }
+	    nS4 <- !isS4(mmm)
+	    if(isS4(change <- mmm < each) && (nS4 || !isS4(each))) # e.g., keep sparse 'each'
+		change <- as(change, "logical")# not as.vector(): kills the d.fr. case
+	    change <- change & !is.na(change)
+	    mmm[change] <- each[change]
+	    if (has.na && !na.rm) mmm[na.m | na.e] <- NA
+	    if(nS4) mostattributes(mmm) <- attributes(elts[[1L]])
+	}
+    }
+    mmm
+}
+
+pmin <- function (..., na.rm = FALSE)
+{
+    elts <- list(...)
+    if(length(elts) == 0L) stop("no arguments")
+    if(all(vapply(elts, function(x) is.atomic(x) && !is.object(x), NA))) { # incl. NULL
+	mmm <- .Internal(pmin(na.rm, ...))
+	mostattributes(mmm) <- attributes(elts[[1L]])
+    } else {
+	mmm <- elts[[1L]] ## attr(mmm, "dim") <- NULL  # dim<- would drop names
+	has.na <- FALSE
+        as <- methods::as
+        asL <- function(x) if(isS4(x)) as(x, "logical") else x
+	for (each in elts[-1L]) {
+	    ## attr(each, "dim") <- NULL ## FIXME: deal with d.fr.s !
+	    l1 <- length(each); l2 <- length(mmm)
+	    if(l2 && (l2 < l1 || !l1)) {
+		if (l1 %% l2)
+		    warning("an argument will be fractionally recycled")
+		mmm <- rep(mmm, length.out = l1)
+	    } else if(l1 && (l1 < l2 || !l2)) {
+		if (l2 %% l1)
+		    warning("an argument will be fractionally recycled")
+		each <- rep(each, length.out = l2)
+	    }
+	    na.m <- is.na(mmm)
+	    na.e <- is.na(each)
+	    if(has.na || (has.na <- any(na.m) || any(na.e))) {
+		if(any(na.m <- asL(na.m))) mmm [na.m] <- each[na.m]
+		if(any(na.e <- asL(na.e))) each[na.e] <- mmm [na.e]
+	    }
+	    nS4 <- !isS4(mmm)
+	    if(isS4(change <- mmm > each) && (nS4 || !isS4(each))) # e.g., keep sparse 'each'
+		change <- as(change, "logical")# not as.vector(): kills the d.fr. case
+	    change <- change & !is.na(change)
+	    mmm[change] <- each[change]
+	    if (has.na && !na.rm) mmm[na.m | na.e] <- NA
+	    if(nS4) mostattributes(mmm) <- attributes(elts[[1L]])
+	}
+    }
+    mmm
+}
+
+
+# paste.R
+paste <- function (..., sep = " ", collapse = NULL)
+    .Internal(paste(list(...), sep, collapse))
+
+
+# parse.R
+parse <- function(file = "", n = NULL, text = NULL, prompt = "?",
+		  keep.source = getOption("keep.source"),
+                  srcfile = NULL, encoding = "unknown")
+{
+    keep.source <- isTRUE(keep.source)
+    if(!is.null(text)) {
+    	if (length(text) == 0L) return(expression())
+	if (missing(srcfile)) {
+	    srcfile <- "<text>"
+	    if (keep.source)
+	       srcfile <- srcfilecopy(srcfile, text)
+	}
+	file <- stdin()
+    } else {
+	if(is.character(file)) {
+            if(file == "") {
+            	file <- stdin()
+            	if (missing(srcfile))
+            	    srcfile <- "<stdin>"
+            } else {
+		filename <- file
+		file <- file(filename, "r")
+            	if (missing(srcfile))
+            	    srcfile <- filename
+            	if (keep.source) {
+		    text <- readLines(file, warn = FALSE)
+		    if (!length(text)) text <- ""
+            	    close(file)
+            	    file <- stdin()
+        	    srcfile <-
+                        srcfilecopy(filename, text, file.mtime(filename),
+                                    isFile = TRUE)
+                } else on.exit(close(file))
+	    }
+	}
+    }
+    .Internal(parse(file, n, text, prompt, srcfile, encoding))
+}
+
+
+nchar <- function(x, type = "chars", allowNA = FALSE, keepNA = NA)
+    .Internal(nchar(x, type, allowNA, keepNA))
+
+
+# print.R
+print <- function(x, ...) UseMethod("print")
+
+
+ngettext <- function(n, msg1, msg2, domain = NULL)
+    .Internal(ngettext(n, msg1, msg2, domain))
+
+
+# qr.R
+qr <- function(x, ...) UseMethod("qr")
+
+# options.R
+options <- function(...)
+    .Internal(options(...))
+
+# match.R
+
+match <- function(x, table, nomatch = NA_integer_, incomparables = NULL)
+    .Internal(match(x, table, nomatch, incomparables))
+
+pmatch <- function(x, table, nomatch = NA_integer_, duplicates.ok = FALSE)
+    .Internal(pmatch(as.character(x), as.character(table), nomatch,
+                     duplicates.ok))
+
+`%in%`  <- function(x, table) match(x, table, nomatch = 0L) > 0L
+
+assign <-
+    function (x, value, pos = -1, envir = as.environment(pos),
+              inherits = FALSE, immediate = TRUE)
+    .Internal(assign(x, value, envir, inherits))
+
+
+# as.R
+as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
+
+as.symbol <- function(x) .Internal(as.vector(x, "symbol"))
+
+# get.R
+get <-
+    function (x, pos = -1L, envir = as.environment(pos), mode = "any",
+              inherits = TRUE)
+    .Internal(get(x, envir, mode, inherits))
+
+ls <- objects <-
+    function (name, pos = -1L, envir = as.environment(pos), all.names = FALSE,
+              pattern, sorted = TRUE)
+{
+    if (!missing(name)) {
+        pos <- tryCatch(name, error = function(e)e)
+        if(inherits(pos, "error")) {
+            name <- substitute(name)
+            if (!is.character(name))
+                name <- deparse(name)
+            warning(gettextf("%s converted to character string", sQuote(name)),
+                    domain = NA)
+            pos <- name
+        }
+    }
+    all.names <- .Internal(ls(envir, all.names, sorted))
+    if (!missing(pattern)) {
+        if ((ll <- length(grep("[", pattern, fixed = TRUE))) &&
+             ll != length(grep("]", pattern, fixed = TRUE))) {
+            if (pattern == "[") {
+                pattern <- "\\["
+                warning("replaced regular expression pattern '[' by  '\\\\['")
+            } else if (length(grep("[^\\\\]\\[<-", pattern))) {
+                pattern <- sub("\\[<-", "\\\\\\[<-", pattern)
+                warning("replaced '[<-' by '\\\\[<-' in regular expression pattern")
+            }
+        }
+        grep(pattern, all.names, value = TRUE)
+    } else all.names
+}
+
+
+# mode.R
+
+mode <- function(x) {
+    if(is.expression(x)) return("expression")
+    if(is.call(x))
+	return(switch(deparse(x[[1L]])[1L],
+		      "(" = "(",
+		      ## otherwise
+		      "call"))
+    if(is.name(x)) "name" else
+    switch(tx <- typeof(x),
+	   double =, integer = "numeric", # 'real=' dropped, 2000/Jan/14
+	   closure =, builtin =, special = "function",
+	   ## otherwise
+	   tx)
+}
+
+
+# raw.R
+packBits <- function(x, type=c("raw", "integer"))
+{
+    type <- match.arg(type)
+    .Internal(packBits(x, type))
+}
+
+
+# pairlist.R
+
+as.pairlist <- function(x) .Internal(as.vector(x, "pairlist"))
+pairlist <- function(...) as.pairlist(list(...))
+
+# files.R
+
+path.expand <- function(path)
+    .Internal(path.expand(path))
+
+
+# New-Internal.R
+typeof <- function(x) .Internal(typeof(x))
+
+
+# locales.R
+Sys.setlocale <- function(category = "LC_ALL", locale = "")
+{
+    category <- match(category, c("LC_ALL", "LC_COLLATE", "LC_CTYPE",
+                                  "LC_MONETARY", "LC_NUMERIC", "LC_TIME",
+                                  "LC_MESSAGES", "LC_PAPER", "LC_MEASUREMENT"))
+    if(is.na(category)) stop("invalid 'category' argument")
+    .Internal(Sys.setlocale(category, locale))
+}
