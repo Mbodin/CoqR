@@ -1,0 +1,6 @@
+(df <- D(expression(x^2*sin(x)), "x"));df(0)
+(df <- D(quote(x^2*sin(x)), "x"));df(0)
+g<-quote(x^2);(df <- D(g, "x"));df(0)
+(df <- D(1, "x"));df(0)
+x<-1;(df <- D(x, "x"));df(0)
+D(expression(), 'a')

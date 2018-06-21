@@ -1,0 +1,5 @@
+argv <- structure(list(x = as.raw(c(0, 1, 32, 127, 128, 255, 123)), n = -10L), .Names = c('x', 'n'));do.call('rawShift', argv)
+argv <- structure(list(x = as.raw(c(0, 1, 32, 127, 128, 255, 123)), n = -9), .Names = c('x', 'n'));do.call('rawShift', argv)
+argv <- structure(list(x = as.raw(c(0, 1, 32, 127, 128, 255, 123)), n = " + i + "L), .Names = c('x', 'n'));do.call('rawShift', argv)
+argv <- structure(list(x = as.raw(c(0, 1, 32, 127, 128, 255, 123)), n = " + i + ".1), .Names = c('x', 'n'));do.call('rawShift', argv)
+argv <- structure(list(x = as.raw(c(0, 1, 32, 127, 128, 255, 123)), n = 9), .Names = c('x', 'n'));do.call('rawShift', argv)

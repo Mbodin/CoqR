@@ -1,0 +1,5 @@
+new.env()
+new.env(1,,2)
+new.env(logical(),new.env(),1000)
+parent.env(new.env())
+e <- new.env(); e; parent.env(new.env(TRUE, e))

@@ -1,0 +1,6 @@
+argv <- list(function (x, y) {    c(x, y)}); .Internal(body(argv[[1]]))
+argv <- list(function (object) TRUE); .Internal(body(argv[[1]]))
+argv <- list(function (from, strict = TRUE) from); .Internal(body(argv[[1]]))
+argv <- list(.Primitive('/')); .Internal(body(argv[[1]]))
+argv <- list(structure(list(c0 = structure(integer(0), .Label = character(0), class = 'factor')), .Names = 'c0', row.names = character(0), class = 'data.frame')); .Internal(body(argv[[1]]))
+argv <- list(structure(numeric(0), .Dim = c(0L, 0L))); .Internal(body(argv[[1]]))

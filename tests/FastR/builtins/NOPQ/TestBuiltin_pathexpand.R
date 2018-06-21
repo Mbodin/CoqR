@@ -1,0 +1,7 @@
+argv <- list('/tmp/RtmptPgrXI/Pkgs/pkgA'); .Internal(path.expand(argv[[1]]))
+argv <- list(c('/home/lzhao/hg/r-instrumented/tests/compiler.Rcheck', '/home/lzhao/R/x86_64-unknown-linux-gnu-library/3.0')); .Internal(path.expand(argv[[1]]))
+argv <- list(character(0)); .Internal(path.expand(argv[[1]]))
+argv <- structure(list(path = '/tmp/RtmpagC9oa/Pkgs/exNSS4'),     .Names = 'path');do.call('path.expand', argv)
+path.expand('.'); wd <- getwd(); tryCatch({ setwd('/tmp'); path.expand('.') }, finally = { setwd(wd) })
+path.expand(NULL)
+path.expand(42)
