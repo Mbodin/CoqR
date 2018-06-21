@@ -52,27 +52,27 @@ if (' TRUE') 2L else c (FALSE, TRUE)
 if ("") 1 else NULL
 if ('1') NULL else NA
 if ("0") NULL else ""
-if (c (TRUE, FALSE)) NULL else 1L
-if (c (TRUE, TRUE)) "a" else x
-if (c (FALSE, FALSE)) x else 'a'
-if (c (FALSE, TRUE)) (function () x) else 2L
+# if (c (TRUE, FALSE)) NULL else 1L
+# if (c (TRUE, TRUE)) "a" else x
+# if (c (FALSE, FALSE)) x else 'a'
+# if (c (FALSE, TRUE)) (function () x) else 2L
 if (logical (0)) 1 else 42
-if (c ('TRUE', "ab")) NULL else NA
-if (c ("T", "T")) "a" else NA
-if (c ('FALSE', '')) x else NA
-if (c ("F", 'TRUE')) (function () x) else NA
+# if (c ('TRUE', "ab")) NULL else NA
+# if (c ("T", "T")) "a" else NA
+# if (c ('FALSE', '')) x else NA
+# if (c ("F", 'TRUE')) (function () x) else NA
 if (character (0)) 1 else NA
 if (integer (0)) NA else NULL
-if (complex (0)) 0 else NULL
+# if (complex (0)) 0 else NULL
 if (0) 1L else NULL
 if (1) NA else NULL
 if (0L) '1' else NULL
 if (1L) 1L else NULL
-if (1+0i) 1i else NA
-if (1+1i) 1i else NULL
-if (0+0i) 1i else 1
+# if (1+0i) 1i else NA
+#if (1+1i) 1i else NULL
+#if (0+0i) 1i else 1
 if (0i) 1 else 1i
-if (0+1i) 1i else 1L
+#if (0+1i) 1i else 1L
 if (1:3) NA else NULL
 if (function () TRUE) (function () FALSE) else NA
 if (.Internal) 1 else ""
@@ -95,4 +95,3 @@ if ("NULL") 1 else NaN
 if ('NA') NA else Inf
 if (" ") NaN else NULL
 if ("#") NA else NaN
-

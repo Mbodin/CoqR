@@ -23,25 +23,21 @@
 "function" <- function (x, y, z) x ; function (x) 2 + x ; function () 2 + x ; function (x = 1, y) 2 + x ; function (x = 1, y, x) 2 + x
 'function' <- function (x, y, z) z ; function (x) 2 + x ; .Internal (typeof (function (x) x + 1)) ; .Internal (typeof (function () NULL))
 
-# Tests about randomness.
-runif ()
-typeof <- function (x) .Internal (typeof (x)) ; typeof (runif (1))
-length (runif (42))
 
 # Tests about some library functions.
 length ("") ; length ("a") ; length ("\\")
-nchar ("") ; nchar ("a") ; nchar ("\\")
-length (c ("", "a", "\\")) ; nchar (c ("", "a", "\\"))
-length (list ("", "a", "\\")) ; nchar (list ("", "a", "\\"))
-length (NA) ; nchar (NA)
-length (NULL) ; nchar (NULL)
-length (NaN) ; nchar (NaN)
+# nchar ("") ; nchar ("a") ; nchar ("\\")
+# length (c ("", "a", "\\")) ; nchar (c ("", "a", "\\"))
+# length (list ("", "a", "\\")) ; nchar (list ("", "a", "\\"))
+# length (NA) ; nchar (NA)
+# length (NULL) ; nchar (NULL)
+# length (NaN) ; nchar (NaN)
 
 # Miscellaneous primitive and builtin operator tests.
 .Primitive ("invisible") () ; .Primitive ("invisible") (42)
 (.Primitive ("invisible") ()) ; (.Primitive ("invisible") (42))
 .Primitive ("invisible") (42, 18)
-globalenv () ; parent.frame () ; globalenv () == parent.frame ()
+# globalenv () ; parent.frame () ; globalenv () == parent.frame ()
 
 # These are tests to test the tester and the parser.
 "function" ; 'function' ; 1 # function
@@ -53,8 +49,6 @@ f <- function ("1") 1
 "function" <- 42
 "" <- 9
 ``
-levels
-mode
 a$b
 a::b
 a:::b
@@ -65,4 +59,3 @@ a
 '\n' ; "\n" ; '\\n' ; "\\n" ; '\\\n' ; "\\\n"
 ';' ; ";"
 # q ("no")
-

@@ -15,7 +15,7 @@ y <- 1 ; x <- 'y' ; x <- 2 ; y ; x
 x <- 1 ; y <- x ; x <- 2 ; y ; x
 c ('a', "b") <- 1 ;
 "<-" (x, 1) ; x
-T <- 1 ; F <- 2 ; T ; F ; TRUE <- 1
+# T <- 1 ; F <- 2 ; T ; F ; TRUE <- 1
 NA <- 1
 "NA" <- 1 ; NA
 "TRUE" <- 1 ; "FALSE" <- 2 ; TRUE ; FALSE
