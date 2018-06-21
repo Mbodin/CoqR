@@ -38,6 +38,27 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
+Definition CHKZLN S x :=
+  add%stack "CHKZLN" in
+    let%success x_length := STDVEC_LENGTH S x using S in
+    let%success x_type := TYPEOF S x using S in
+    ifb x_length = 0 /\ x_type <> CharSxp then
+        result_error S "attempting to read/write elements of a zero-length vector"
+    else
+        result_skip S.
+
+(* Slightly modified version of INTEGER_RO. It just checks types and length 
+   of vector and returns the vector itself, instead of returning the vector 
+   data. Therefore, after checking, one should do 'read%Integer' directly on 
+   the vector *)
+Definition INTEGER_RO S x :=
+  add%stack "INTEGER_RO" in
+    let%success x_type := TYPEOF S x using S in
+    ifb x_type <> IntSxp /\ x_type <> LglSxp then
+        result_error S "INTEGER can only be applied to an integer"
+    else
+    CHKZLN S x.
+                     
 Definition pstrmatch S (target input : SEXP) slen :=
   add%stack "pstrmatch" in
   ifb target = R_NilValue then
@@ -128,10 +149,11 @@ Definition ExtractDropArg S el :=
 
 (** Slightly modified version of EXTRACT_SUBSET_LOOP in src/subset.c **)
 
-Definition EXTRACT_SUBSET_LOOP S (result x : SEXP) indx n nx STDCODE NACODE :=
+Definition EXTRACT_SUBSET_LOOP S (result x  indx : SEXP) n nx STDCODE NACODE :=
   add%stack "EXTRACT_SUBSET_LOOP" in
     let%success indx_type := TYPEOF S indx using S in
     ifb indx_type = IntSxp then
+        run%success INTEGER_RO S indx using S in
         do%success
         for i from 0 to n - 1 do   
             read%Integer ii := indx at i using S in                  
@@ -158,8 +180,7 @@ Definition ExtractSubset S (x indx call : SEXP) :=
         result_success S x
     else
 
-    let%success x_altrep := ALTREP S x using S in
-    if x_altrep then
+    if%success ALTREP S x using S then
         unimplemented_function "ALTVEC_EXTRACT_SUBSET"
     else
 
@@ -191,14 +212,31 @@ Definition ExtractSubset S (x indx call : SEXP) :=
       EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
 
     | RealSxp =>
-      let STDCODE S result x i ii :=
-          let%success x_ii := REAL_ELT S x ii using S in
-          write%Real result at i := x_ii using S in result_skip S
-      in
-      let NACODE S result i :=
-          write%Real result at i := NA_REAL using S in result_skip S
-      in  
-      EXTRACT_SUBSET_LOOP S result x indx n nx STDCODE NACODE
+      let%success indx_type := TYPEOF S indx using S in
+      ifb indx_type = IntSxp then
+        run%success INTEGER_RO S indx using S in
+        do%success
+        for i from 0 to n - 1 do   
+            read%Integer ii := indx at i using S in                  
+            ifb 0%Z < ii /\ ii <= nx then
+                let ii := Z.to_nat ii - 1 in
+                let%success x_ii := REAL_ELT S x ii using S in
+                write%Real result at i := x_ii using S in result_skip S
+            else (* out of bounds or NA *)
+                write%Real result at i := NA_REAL using S in result_skip S
+        using S in result_skip S
+    else
+        do%success
+        for i from 0 to n - 1 do
+            read%Real di := indx at i using S in
+            let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
+            ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
+                let%success x_ii := REAL_ELT S x (Z.to_nat ii) using S in
+                write%Real result at i := x_ii using S in result_skip S
+            else
+                 write%Real result at i := NA_REAL using S in result_skip S
+        using S in result_skip S
+     
     | CplxSxp => result_not_implemented "Complex case"
     | StrSxp =>
       let STDCODE S result x i ii :=
@@ -226,6 +264,10 @@ Definition VectorSubset S (x s call : SEXP) :=
     duplicate globals runs S x
   else
     let%success attrib := getAttrib globals runs S x R_DimSymbol using S in
+
+    (* Check to see if we have special matrix subscripting. */
+    /* If we do, make a real subscript vector and protect it. *)
+
     let%success s :=
       let%success s_mat := isMatrix globals runs S s using S in
       let%success x_arr := isArray globals runs S x using S in
@@ -244,7 +286,13 @@ Definition VectorSubset S (x s call : SEXP) :=
           else result_success S s
         else result_success S s
       else result_success S s using S in
+
+    (* Convert to a vector of integer subscripts */
+    /* in the range 1:length(x). *)
+
     let%success (indx, stretch) := makeSubscript globals runs S x s stretch call using S in
+
+    (* Allocate the result. *)
     
     let%success mode := TYPEOF S x using S in
     let%success result := ExtractSubset S x indx call using S in
@@ -422,6 +470,10 @@ Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
           result_success S (1 + i) using S, runs, globals in
         result_success S ax
       else result_error S "Object is not subsettable." using S in
+
+    (* This is the actual subsetting code. */
+    /* The separation of arrays and matrices is purely an optimization. *)
+
     let%success ans :=
       ifb nsubs < 2 then
         let%success dim := getAttrib globals runs S x R_DimSymbol using S in

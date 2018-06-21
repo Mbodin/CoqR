@@ -103,7 +103,7 @@ Definition realSubscript S s (ns nx stretch : nat) call :=
         for i from 0 to ns - 1 do
             read%Real ds := s at i using S in
             let int_ok := ifb R_FINITE ds /\ ds > INT_MAX then false else int_ok in
-            let cnt := ifb negb (R_FINITE ds) \/ ds%Z <> 0 then cnt + 1 else cnt in
+            let cnt := ifb ~ (R_FINITE ds) \/ ds%Z <> 0 then cnt + 1 else cnt in
             result_success S (int_ok, cnt)
         using S in
 
@@ -126,7 +126,7 @@ Definition realSubscript S s (ns nx stretch : nat) call :=
             do%success cnt := 0
             for i from 0 to ns - 1 do
                 read%Real ds := s at i using S in                   
-                ifb negb (R_FINITE ds) \/ ds%Z <> 0 then                   
+                ifb ~ (R_FINITE ds) \/ ds%Z <> 0 then                   
                     write%Real indx at cnt := ds using S in
                     result_success S (cnt + 1)
                 else
