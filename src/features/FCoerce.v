@@ -453,5 +453,99 @@ Definition do_quote S (call op args rho : SEXP) : result SEXP :=
         result_success S val
 .
 
+Definition CLEAR_ATTRIB S x :=
+  add%stack "CLEAR_ATTRIB" in
+    let%success x_attrib := ATTRIB S x using S in
+  
+    ifb x_attrib <> R_NilValue then
+        run%success SET_ATTRIB S x R_NilValue using S in
+        if%success OBJECT S x using S then
+            SET_OBJECT S x false 
+        in
+        if%success IS_S4_OBJECT S x using S then
+            UNSET_S4_OBJECT S x
+        in result_skip S
+    else
+        result_skip S.
+
+Definition ascommon S (call u : SEXP) type :=
+  add%stack "ascommon" in
+    ifb type = CloSxp then
+        unimplemented_function "asFunction"
+    else
+      let%success u_isVector := isVector S u using S in
+      let%success u_isList := isList globals S u using S in
+      let%success u_isLanguage := isLanguage globals S u using S in
+      let%success u_isSymbol := isSymbol S u using S in
+      ifb u_isVector \/ u_isList \/ u_isLanguage \/ (u_isSymbol /\ type = ExprSxp) then
+          let%success v :=
+          let%success u_type := TYPEOF S u using S in
+          ifb type <> AnySxp /\ u_type <> type then
+              coerceVector globals runs S u type 
+          else
+              result_success S u
+          using S in
+          
+          let%success u_type := TYPEOF S u using S in
+          run%success
+          ifb type = ListSxp /\ ~ (u_type = LangSxp \/ u_type = ListSxp \/ u_type = ExprSxp \/ u_type = VecSxp) then
+              let%success v_mbr := MAYBE_REFERENCED S v using S in 
+              let%success v := if v_mbr then shallow_duplicate globals runs S v else result_success S v using S in
+              CLEAR_ATTRIB S v
+          else result_skip S
+          using S in
+          result_success S v
+      else ifb u_isSymbol /\ type = StrSxp then
+          let%success u_printname := PRINTNAME S u using S in
+          ScalarString globals S u_printname
+      else ifb u_isSymbol /\ type = SymSxp then
+          result_success S u
+      else ifb u_isSymbol /\ type = VecSxp then
+          let%success v := allocVector globals S VecSxp 1 using S in
+          run%success SET_VECTOR_ELT S v 0 u using S in
+          result_success S v
+      else result_error S "Coercing error".
+        
+Definition do_asatomic S (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_asatomic" in
+    let type := StrSxp in
+    let%success op0 := PRIMVAL runs S op using S in
+    
+    run%success Rf_check1arg globals S args call "x" using S in
+
+    let%success (name, type) :=    
+    match op0 : int with
+    | 0 => result_success S ("as.character"%string, type)
+    | 1 => result_success S ("as.integer"%string, IntSxp)
+    | 2 => result_success S ("as.double"%string, RealSxp)
+    | 3 => result_success S ("as.complex"%string, CplxSxp)
+    | 4 => result_success S ("as.logical"%string, LglSxp)
+    | 5 => result_success S ("as.raw"%string, RawSxp)
+    | _ => result_impossible S "invalid operand"
+    end%Z
+    using S in
+    let%success (disp, ans) := DispatchOrEval globals runs S call op name args rho false true using S in
+    if disp then
+        result_success S ans
+    else
+      
+    run%success Rf_checkArityCall globals runs S op args call using S in
+    read%list args_car, _, _ := args using S in
+    let x := args_car in
+    let%success x_type := TYPEOF S x using S in
+    ifb x_type = type then
+        let%success x_attrib := ATTRIB S x using S in
+        ifb x_attrib = R_NilValue then 
+            result_success S x
+        else                   
+            let%success ans := if%success MAYBE_REFERENCED S x using S then duplicate globals runs S x else result_success S x
+            using S in         
+            run%success CLEAR_ATTRIB S ans using S in
+            result_success S ans
+    else
+    let%success ans := ascommon S call args_car type using S in
+    run%success CLEAR_ATTRIB S ans using S in
+    result_success S ans.
+      
 End Parameters.
 
