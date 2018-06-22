@@ -708,7 +708,7 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
 
         let%success xnames := getAttrib globals runs S x R_NamesSymbol using S in
         let%success x_xlength := xlength globals runs S x using S in
-        let%success offset := get1index S thesub xnames x_xlength pok (ifb len > 1 then (len - 1) else (-1)%Z) call using S in
+        let%success offset := get1index globals runs S thesub xnames x_xlength pok (ifb len > 1 then (len - 1) else (-1)%Z) call using S in
 
         ifb offset < 0 \/ offset >= x_xlength then
             (* a bold attempt to get the same behaviour for $ and [[ *)
@@ -736,7 +736,7 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
             read%list subs_car, subs_cdr, _ := subs using S in
             let%success dimnames_i := ifb i < ndn then VECTOR_ELT S dimnames i else result_success S (R_NilValue : SEXP) using S in
             read%Integer indx_i := indx at i using S in
-            let%success get1indx := get1index S subs_car dimnames_i indx_i pok (-1)%Z call using S in
+            let%success get1indx := get1index globals runs S subs_car dimnames_i indx_i pok (-1)%Z call using S in
             write%Integer indx at i := get1indx using S in
             read%Integer dims_i := dims at i using S in
             ifb get1indx < 0 \/ get1indx >= dims_i then
