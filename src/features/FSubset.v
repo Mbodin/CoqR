@@ -610,8 +610,7 @@ Definition do_subset S (call op args rho : SEXP) : result SEXP :=
 
 Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset2_dflt" in
-    let drop := 1 in
-    run%success ExtractDropArg S args drop using S in
+    let%success drop := ExtractDropArg S args using S in
     
     let%success exact := ExtractExactArg S args using S in
     let pok :=
@@ -655,7 +654,7 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
         read%list subs_car, _, _ := subs using S in
         let%success subs_car_isString := isString S subs_car using S in
         let%success subs_car_length := R_length globals runs S subs_car using S in
-        ifb nsubs <> (-1)%Z \/ ~subs_car_isString \/ subs_car_length <> 1 then
+        ifb nsubs <> 1 \/ ~subs_car_isString \/ subs_car_length <> 1 then
             result_error S "wrong arguments for subsetting an environment"
         else
         let%success subs_car_0 := STRING_ELT S subs_car 0 using S in
@@ -684,15 +683,15 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
 
     (* back to the regular program *)
     let%success x_isVector := isVector S x using S in
-    let%success x_isList := isList S x using S in
-    let%success x_isLanguage := isLanguage S x using S in
+    let%success x_isList := isList globals S x using S in
+    let%success x_isLanguage := isLanguage globals S x using S in
     ifb ~(x_isVector \/ x_isList \/ x_isLanguage) then
         result_error S "object of this type is not subsettable"
     else 
 
     let%success named_x := NAMED S x using S in
 
-    let%success offset :=
+    let%exit offset :=
     ifb nsubs = 1 then   (* vector indexing *)
         read%list subs_car, _, _ := subs using S in
         let thesub := subs_car in
@@ -707,23 +706,22 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
         else result_success S x
         using S in
 
-        let%success xnames := getAttribglobals runs S x R_NamesSymbol using S in
+        let%success xnames := getAttrib globals runs S x R_NamesSymbol using S in
         let%success x_xlength := xlength globals runs S x using S in
-        let%success offset := get1index S thesub xnames pok (ifb len > 1 then (len - 1%Z) else (-1)%Z) call using S in
+        let%success offset := get1index S thesub xnames x_xlength pok (ifb len > 1 then (len - 1) else (-1)%Z) call using S in
 
-        run%exit
         ifb offset < 0 \/ offset >= x_xlength then
             (* a bold attempt to get the same behaviour for $ and [[ *)
             let%success x_isNewList := isNewList globals S x using S in
             let%success x_isExpression := isExpression S x using S in
-            let%success x_isList := isList S x using S in
-            let%success x_isLanguage := isLanguage S x using  S in
+            let%success x_isList := isList globals S x using S in
+            let%success x_isLanguage := isLanguage globals S x using  S in
             ifb offset < 0 /\ (x_isNewList \/ x_isExpression \/ x_isList \/ x_isLanguage) then
                 result_rreturn S (R_NilValue : SEXP)
             else
                 result_error S "subscript out of bounds"
-        else result_rskip S
-        using S in result_success S offset                  
+        else result_rsuccess S (Z.to_nat offset)
+                         
     else   (* matrix indexing *)
       (* Here we use the fact that: */
       /* CAR(R_NilValue) = R_NilValue */
@@ -736,7 +734,7 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
         do%success subs := subs
         for i from 0 to nsubs - 1 do
             read%list subs_car, subs_cdr, _ := subs using S in
-            let%success dimnames_i := ifb i < ndn then VECTOR_ELT S dimnames i else result_success S R_NilValue using S in
+            let%success dimnames_i := ifb i < ndn then VECTOR_ELT S dimnames i else result_success S (R_NilValue : SEXP) using S in
             read%Integer indx_i := indx at i using S in
             let%success get1indx := get1index S subs_car dimnames_i indx_i pok (-1)%Z call using S in
             write%Integer indx at i := get1indx using S in
@@ -752,9 +750,9 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
         for i from 0 to nsubs - 2 do
             read%Integer indx_i := indx at ((nsubs - 1) - i) using S in                      
             read%Integer dims_i_1 := dims at ((nsubs - 1) - i - 1) using S in
-            result_success S (offset + indx_i) * dims_i_1 
+            result_success S ((offset + (Z.to_nat indx_i)) * (Z.to_nat dims_i_1))
         using S in
-        result_success S offset
+        result_rsuccess S offset
     using S in
 
     let%success ans :=
