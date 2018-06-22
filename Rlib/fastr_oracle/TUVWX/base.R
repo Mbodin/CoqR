@@ -1,5 +1,6 @@
 # as.R
 as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
+as.list <- function(x,...) UseMethod("as.list")
 
 # vector.R
 
@@ -656,6 +657,10 @@ getOption <- function(x, default = NULL)
     } else default
 }
 
+options <- function(...)
+    .Internal(options(...))
+
+
 # dataframe.R
 data.frame <-
     function(..., row.names = NULL, check.rows = FALSE, check.names = TRUE,
@@ -829,3 +834,67 @@ data.frame <-
 
 # raw.R
 raw <- function(length = 0L) .Internal(vector("raw", length))
+
+
+# is.R
+is.vector <- function(x, mode="any") .Internal(is.vector(x,mode))
+
+
+# pairlist.R
+
+as.pairlist <- function(x) .Internal(as.vector(x, "pairlist"))
+pairlist <- function(...) as.pairlist(list(...))
+
+
+# message.R
+.makeMessage <- function(..., domain = NULL, appendLF = FALSE)
+ {
+    args <- list(...)
+    msg <- if(length(args)) {
+        args <- lapply(list(...), as.character)
+        if(is.null(domain) || !is.na(domain))
+            args <- .Internal(gettext(domain, unlist(args)))
+        paste(args, collapse = "")
+    } else ""
+    if(appendLF) paste0(msg, "\n") else msg
+}
+
+
+# factor.R
+
+factor <- function(x = character(), levels, labels = levels,
+                   exclude = NA, ordered = is.ordered(x), nmax = NA)
+{
+    if(is.null(x)) x <- character()
+    nx <- names(x)
+    if (missing(levels)) {
+	y <- unique(x, nmax = nmax)
+	ind <- sort.list(y) # or possibly order(x) which is more (too ?) tolerant
+	levels <- unique(as.character(y)[ind])
+    }
+    force(ordered) # check if original x is an ordered factor
+    if(!is.character(x))
+	x <- as.character(x)
+    ## levels could be a long vectors, but match will not handle that.
+    levels <- levels[is.na(match(levels, exclude))]
+    f <- match(x, levels)
+    if(!is.null(nx))
+	names(f) <- nx
+    nl <- length(labels)
+    nL <- length(levels)
+    if(!any(nl == c(1L, nL)))
+	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
+	     domain = NA)
+    levels(f) <- ## nl == nL or 1
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
+    class(f) <- c(if(ordered) "ordered", "factor")
+    f
+}
+
+# seq.R
+seq <- function(...) UseMethod("seq")
+
+
+# utils/str.R
+
+str <- function(object, ...) UseMethod("str")
