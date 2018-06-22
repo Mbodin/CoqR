@@ -23,7 +23,7 @@ echo "Activating virtualenv"
 source $COQR_TEST_PATH/venv/bin/activate
 
 echo "Running tests"
-./compare/run_all.py tests/FastR/builtins/$1 -s -t '$title' -d
+./compare/run_all.py tests/FastR/builtins/$1 -s -t 'FastR Test' -d
 
 echo "Deactivating virtualenv"
 source $COQR_TEST_PATH/venv/bin/deactivate
