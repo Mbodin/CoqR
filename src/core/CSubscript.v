@@ -43,6 +43,16 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
+Definition get1index (S : state) (s names : SEXP) (len pok pos : int) (call : SEXP) : result int :=
+  add%stack "get1index" in
+    result_not_implemented "get1index".
+                           
+
+Definition vectorIndex (S : state) (x thesub : SEXP) (start stop pok : int) (call : SEXP) (dup : bool) : result SEXP :=
+  add%stack "vectorIndex" in
+    result_not_implemented "vectorIndex".
+
+  
 Definition logicalSubscript (S : state) (s : SEXP) (ns nx : nat) (stretch : nat) (call : SEXP) : result SEXP :=
   add%stack "logicalSubscript" in
     result_not_implemented "logicalSubscript".

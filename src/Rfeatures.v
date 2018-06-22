@@ -152,9 +152,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "{" do_begin (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
               rdecl "(" do_paren (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
               rdecl ".subset" do_subset_dflt (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl ".subset2" do_subset2_dflt (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "[" do_subset (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
-              rdecl "[[" (dummy_function "do_subset2") (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
+              rdecl "[[" do_subset2 (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "$" do_subset3 (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "@" (dummy_function "do_AT") (0)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "[<-" do_subassign (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
