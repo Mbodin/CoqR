@@ -147,22 +147,25 @@ Definition ExtractDropArg S el :=
   else result_success S (decide (drop <> 0)).
 
 
-(* Extracts and, if present, removes the 'exact' argument from the
+(* Modified version, warnings are not implemented, therefore using true and false
+   Extracts and, if present, removes the 'exact' argument from the
    argument list.  An integer code giving the desired exact matching
    behavior is returned:
-       0  not exact
-       1  exact
-      -1  not exact, but warn when partial matching is used
+       false  not exact
+       true  exact
  *)
 Definition ExtractExactArg S args :=
   add%stack "ExtractExactArg" in
     let%success argval := ExtractArg S args R_ExactSymbol using S in 
     let%success argval_isNull := isNull S argval using S in
     if argval_isNull then
-        result_success S 1%Z
+        result_success S true
     else
     let%success exact := asLogical globals S argval using S in
-    result_success S (ifb exact = NA_LOGICAL then (-1)%Z else exact).
+    ifb exact = NA_LOGICAL then
+        result_success S false
+    else
+        result_success S (decide (exact <> 0)).
 
 
     
@@ -375,6 +378,7 @@ Definition VectorSubset S (x s call : SEXP) :=
       result_success S result
     using S in
   result_success S result.
+
 
 Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in
@@ -613,12 +617,8 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
     let%success drop := ExtractDropArg S args using S in
     
     let%success exact := ExtractExactArg S args using S in
-    let pok :=
-    ifb exact = (-1)%Z then
-        exact 
-    else
-        ifb exact = 0 then 1 else 0
-    in
+    let pok := decide (exact <> false) in
+    
     read%list args_car, args_cdr, _ := args using S in
     let x := args_car in
 
@@ -752,18 +752,24 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
             read%Integer dims_i_1 := dims at ((nsubs - 1) - i - 1) using S in
             result_success S ((offset + (Z.to_nat indx_i)) * (Z.to_nat dims_i_1))
         using S in
-        result_rsuccess S offset
+        read%Integer indx_0 := indx at 0 using S in
+        result_rsuccess S (offset + (Z.to_nat indx_0))
     using S in
 
     let%success ans :=
     let%success x_isPairList := isPairList S x using S in
+    let%success x_isVectorList := isVectorList S x using S in
     if x_isPairList then 
         let%success x_offset := nthcdr globals runs S x offset using S in
         read%list x_offset_car, _, _ := x_offset using S in
         let ans := x_offset_car in
         run%success RAISE_NAMED S ans named_x using S in
         result_success S ans
-    else
+    else if x_isVectorList then
+        let%success ans := VECTOR_ELT S x offset using S in 
+        run%success RAISE_NAMED S ans named_x using S in 
+        result_success S ans
+    else                   
         let%success x_type := TYPEOF S x using S in
         let%success ans := allocVector globals S x_type 1 using S in
         match x_type with

@@ -71,10 +71,8 @@ Definition get1index (S : state) (s names : SEXP) (len pok pos : int) (call : SE
        len is the length of the object or dimension, with names its (dim)names.
        pos is len-1 or -1 for [[, -1 for [[<-
            -1 means use the only element of length-1 s.
-       pok : is "partial ok" ?
-	   if pok is -1, warn if partial matching occurs, but allow.
+       pok : is "partial ok" ? - Not using it - Originally used for warnings
     *)
-    let pok := ifb pok = (-1)%Z then 1%Z else pok in
 
     run%success
     let%success s_length := R_length globals runs S s using S in
@@ -185,7 +183,7 @@ Definition get1index (S : state) (s names : SEXP) (len pok pos : int) (call : SE
     using S in
     result_success S indx.          
       
-Definition vectorIndex (S : state) (x thesub : SEXP) (start stop pok : int) (call : SEXP) (dup : bool) : result SEXP :=
+Definition vectorIndex (S : state) (x thesub : SEXP) (start stop : int) (pok : bool) (call : SEXP) (dup : bool) : result SEXP :=
   add%stack "vectorIndex" in
     result_not_implemented "vectorIndex".
 
