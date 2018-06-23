@@ -504,13 +504,13 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "cummax" (dummy_function "do_cum") (3)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "cummin" (dummy_function "do_cum") (4)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "as.character" (dummy_function "do_asatomic") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.integer" (dummy_function "do_asatomic") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.double" (dummy_function "do_asatomic") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.numeric" (dummy_function "do_asatomic") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.complex" (dummy_function "do_asatomic") (3)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.logical" (dummy_function "do_asatomic") (4)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.raw" (dummy_function "do_asatomic") (5)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.character" do_asatomic (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.integer" do_asatomic (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.double" do_asatomic (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.numeric"do_asatomic (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.complex" do_asatomic (3)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.logical" do_asatomic (4)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.raw" do_asatomic (5)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "as.call" (dummy_function "do_ascall") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "as.environment" (dummy_function "do_as_environment") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "storage.mode<-" (dummy_function "do_storage_mode") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_FN false ;
