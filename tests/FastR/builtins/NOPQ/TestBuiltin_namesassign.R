@@ -14,9 +14,9 @@ argv <- list(structure(list(A = 0:10, B = 10:20, `NA` = 20:30), .Names = c('A', 
 argv <- list(structure(list(surname = structure(c(5L, 6L, 4L, 3L, 3L, 1L, 2L), .Label = c('McNeil', 'R Core', 'Ripley', 'Tierney', 'Tukey', 'Venables'), class = 'factor'), title = structure(c(2L, 5L, 4L, 6L, 7L, 3L, 1L), .Label = c('An Introduction to R', 'Exploratory Data Analysis', 'Interactive Data Analysis', 'LISP-STAT', 'Modern Applied Statistics ...', 'Spatial Statistics', 'Stochastic Simulation'), class = 'factor'), other.author = structure(c(NA, 1L, NA, NA, NA, NA, 2L), .Label = c('Ripley', 'Venables & Smith'), class = 'factor')), .Names = c('surname', 'title', 'other.author'), row.names = c(NA, -7L), class = 'data.frame'), value = c('surname', 'title', 'other.author'));`names<-`(argv[[1]],argv[[2]]);
 argv <- list(structure(1:3, .Names = c('foo', 'bar', 'baz')), value = c('foo', 'bar', 'baz'));`names<-`(argv[[1]],argv[[2]]);
 argv <- list(structure(c(1+1i, 1.2+10i), .Names = c('a', 'b')), value = c('a', 'b'));`names<-`(argv[[1]],argv[[2]]);
-argv <- list(structure(c(67L, 34L), .Dim = 2L, .Dimnames = list(c(''actual'', 'virtual')), class = 'table'), value = c(''actual'', 'virtual'));`names<-`(argv[[1]],argv[[2]]);
+argv <- list(structure(c(67L, 34L), .Dim = 2L, .Dimnames = list(c('\'actual\'', 'virtual')), class = 'table'), value = c('\'actual\'', 'virtual'));`names<-`(argv[[1]],argv[[2]]);
 { x <- c(1,2) ; names(x) <- c("hello", "hi"); names(x) } 
-{ x <- 1:2 ; names(x) <- c("hello", "hi"); names(x) } 
+{ x <- 1:2 ; names(x) <- c("hello", "hi"); names(x) }
 { x<-c(1, 2); attr(x, "names")<-c("a", "b"); x }
 { x<-c(1, 2); attr(x, "names")<-c("a", "b"); names(x)<-NULL; attributes(x) }
 { x<-c(1, 2); names(x)<-c("a", "b"); attr(x, "names")<-NULL; x }
