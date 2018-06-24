@@ -898,3 +898,34 @@ seq <- function(...) UseMethod("seq")
 # utils/str.R
 
 str <- function(object, ...) UseMethod("str")
+
+# factor.R
+
+factor <- function(x = character(), levels, labels = levels,
+                   exclude = NA, ordered = is.ordered(x), nmax = NA)
+{
+    if(is.null(x)) x <- character()
+    nx <- names(x)
+    if (missing(levels)) {
+	y <- unique(x, nmax = nmax)
+	ind <- sort.list(y) # or possibly order(x) which is more (too ?) tolerant
+	levels <- unique(as.character(y)[ind])
+    }
+    force(ordered) # check if original x is an ordered factor
+    if(!is.character(x))
+	x <- as.character(x)
+    ## levels could be a long vectors, but match will not handle that.
+    levels <- levels[is.na(match(levels, exclude))]
+    f <- match(x, levels)
+    if(!is.null(nx))
+	names(f) <- nx
+    nl <- length(labels)
+    nL <- length(levels)
+    if(!any(nl == c(1L, nL)))
+	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
+	     domain = NA)
+    levels(f) <- ## nl == nL or 1
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
+    class(f) <- c(if(ordered) "ordered", "factor")
+    f
+}
