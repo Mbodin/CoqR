@@ -6,4 +6,4 @@ argv <- list(structure(list(usr = c(-4.82721591443179, -1.44459960821772, -4.827
 argv <- list(structure(list(`character(0)` = structure(integer(0), .Label = character(0), class = 'factor')), .Names = 'character(0)', row.names = character(0), class = 'data.frame'));is.character(argv[[1]]);
 argv <- list(structure(3.14159265358979, class = structure('3.14159265358979', class = 'testit')));is.character(argv[[1]]);
 argv <- list(structure(c(238L, 154L, 73L), .Dim = c(3L, 1L), .Dimnames = list(c('red', 'green', 'blue'), NULL)));is.character(argv[[1]]);
-argv <- list(''class' is a reserved slot name and cannot be redefined');do.call('is.character', argv)
+argv <- list('\'class\' is a reserved slot name and cannot be redefined');do.call('is.character', argv)

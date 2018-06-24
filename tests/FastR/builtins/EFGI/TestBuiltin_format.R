@@ -45,7 +45,7 @@ argv <- list(c(TRUE, FALSE, TRUE, FALSE, FALSE, FALSE), FALSE, NULL, 0L, NULL, 3
 argv <- list(3.141, FALSE, NULL, 13L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
 argv <- list(c(Inf, -Inf), FALSE, NULL, 0L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
 argv <- list(structure(c(2, NA), .Names = c('N:P:K', 'Residuals')), FALSE, 5L, 0L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
-argv <- list(structure('def'gh', class = 'AsIs'), FALSE, NULL, 0L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
+argv <- list(structure('def\'gh', class = 'AsIs'), FALSE, NULL, 0L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
 argv <- list(structure(4:9, .Dim = c(3L, 2L), .Dimnames = list(NULL, c('a', 'b'))), FALSE, NULL, 0L, NULL, 3L, FALSE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
 argv <- list(c(NA, NA, NA, NA, NA, 'Ripley', 'Venables & Smith'), FALSE, NULL, 0L, NULL, 3L, FALSE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
 argv <- list(1e-11, FALSE, NULL, 0L, NULL, 3L, TRUE, NA, "."); .Internal(format(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]], argv[[7]], argv[[8]], argv[[9]]))
