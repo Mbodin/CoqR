@@ -1,4 +1,4 @@
-
+# vector.R
 vector <- function(mode = "logical", length = 0L) .Internal(vector(mode, length))
 logical <- function(length = 0L) .Internal(vector("logical", length))
 character <- function(length = 0L) .Internal(vector("character", length))
@@ -21,7 +21,7 @@ complex <- function(length.out = 0L,
 single <- function(length = 0L)
     structure(vector("double", length), Csingle=TRUE)
 
-
+# structure.R
 structure <- function (.Data, ...)
 {
     if(is.null(.Data))
@@ -43,6 +43,44 @@ structure <- function (.Data, ...)
     .Data
 }
 
+# New-Internal.R
+
+try <- function(expr, silent = FALSE,
+                outFile = getOption("try.outFile", default = stderr())) {
+    tryCatch(expr, error = function(e) {
+        call <- conditionCall(e)
+        if (! is.null(call)) {
+            ## Patch up the call to produce nicer result for testing as
+            ## try(stop(...)).  This will need adjusting if the
+            ## implementation of tryCatch changes.
+            ## Use identical() since call[[1L]] can be non-atomic.
+            if (identical(call[[1L]], quote(doTryCatch)))
+                call <- sys.call(-4L)
+            dcall <- deparse(call)[1L]
+            prefix <- paste("Error in", dcall, ": ")
+            LONG <- 75L # to match value in errors.c
+            msg <- conditionMessage(e)
+            sm <- strsplit(msg, "\n")[[1L]]
+            w <- 14L + nchar(dcall, type="w") + nchar(sm[1L], type="w")
+            ## this could be NA if any of this is invalid in a MBCS
+            if(is.na(w))
+                w <-  14L + nchar(dcall, type="b") + nchar(sm[1L], type="b")
+            if (w > LONG)
+                prefix <- paste0(prefix, "\n  ")
+        }
+        else prefix <- "Error : "
+        msg <- paste0(prefix, conditionMessage(e), "\n")
+        ## Store the error message for legacy uses of try() with
+        ## geterrmessage().
+        .Internal(seterrmessage(msg[1L]))
+        if (! silent && identical(getOption("show.error.messages"), TRUE)) {
+            cat(msg, file = outFile)
+            .Internal(printDeferredWarnings())
+        }
+        invisible(structure(msg, class = "try-error", condition = e))
+    })
+}
+
 do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 {
     if (!is.list(args))
@@ -52,6 +90,44 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
     .Internal(do.call(what, args, envir))
 }
 
+
+rbind <- function(..., deparse.level = 1)
+    .Internal(rbind(deparse.level, ...))
+
+
+.deparseOpts <- function(control) {
+    opts <- pmatch(as.character(control),
+                   ## the exact order of these is determined by the integer codes in
+                   ## ../../../include/Defn.h
+                   c("all",
+                     "keepInteger", "quoteExpressions", "showAttributes",
+                     "useSource", "warnIncomplete", "delayPromises",
+                     "keepNA", "S_compatible", "hexNumeric", "digits17"))
+    if (anyNA(opts))
+        stop(sprintf(ngettext(as.integer(sum(is.na(opts))),
+                              "deparse option %s is not recognized",
+                              "deparse options %s are not recognized"),
+                     paste(sQuote(control[is.na(opts)]), collapse=", ")),
+             call. = FALSE, domain = NA)
+    if (any(opts == 1L))
+        opts <- unique(c(opts[opts != 1L], 2L,3L,4L,5L,6L,8L)) # not (7,9:11)
+    if(10L %in% opts && 11L %in% opts)
+        stop('"hexNumeric" and "digits17" are mutually exclusive')
+    return(sum(2^(opts-2)))
+}
+
+deparse <-
+    function(expr, width.cutoff = 60L,
+	     backtick = mode(expr) %in% c("call", "expression", "(", "function"),
+	     control = c("keepInteger", "showAttributes", "keepNA"),
+             nlines = -1L)
+    .Internal(deparse(expr, width.cutoff, backtick,
+                      .deparseOpts(control), nlines))
+
+
+sprintf <- function(fmt, ...) .Internal(sprintf(fmt, ...))
+
+# lapply.R
 lapply <- function (X, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -64,6 +140,7 @@ lapply <- function (X, FUN, ...)
     .Internal(lapply(X, FUN))
 }
 
+# match.fun.R
 match.fun <- function (FUN, descend = TRUE)
 {
     if ( is.function(FUN) )
@@ -86,6 +163,7 @@ match.fun <- function (FUN, descend = TRUE)
     return(FUN)
 }
 
+# eval.R
 
 .GlobalEnv <- environment()
 parent.frame <- function(n = 1) .Internal(parent.frame(n))
@@ -123,7 +201,7 @@ Recall <- function(...) .Internal(Recall(...))
 
 with <- function(data, expr, ...) UseMethod("with")
 
-
+# cat.R
 cat <- function(..., file = "", sep = " ", fill = FALSE,
                 labels = NULL, append = FALSE)
 {
@@ -139,7 +217,7 @@ cat <- function(..., file = "", sep = " ", fill = FALSE,
     .Internal(cat(list(...), file, sep, fill, labels, append))
 }
 
-
+# cbind.R
 cbind <- function(..., deparse.level = 1)
 {
     has.dl <- !missing(deparse.level)
@@ -236,7 +314,7 @@ cbind <- function(..., deparse.level = 1)
 }
 
 
-
+# matrix.R
 matrix <- function(data=NA, nrow=1, ncol=1, byrow=FALSE, dimnames=NULL)
 {
     ## avoid copying to strip attributes in simple cases
@@ -356,7 +434,7 @@ t.data.frame <- function(x)
     NextMethod("t")
 }
 
-
+# colSums.R
 colSums <- function(x, na.rm = FALSE, dims = 1L)
 {
     if(is.data.frame(x)) x <- as.matrix(x)
@@ -437,7 +515,7 @@ rowMeans <- function(x, na.rm = FALSE, dims = 1L)
     z
 }
 
-
+# det.R
 det <- function(x, ...)
 {
     z <- determinant(x, logarithm = TRUE, ...)
@@ -446,4 +524,397 @@ det <- function(x, ...)
 
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
-duplicated <- function(x, incomparables = FALSE, ...) UseMethod("duplicated")
+
+# serialize.R
+
+serialize <-
+    function(object, connection, ascii = FALSE, xdr = TRUE,
+             version = NULL, refhook = NULL)
+{
+    if (!is.null(connection)) {
+        if (!inherits(connection, "connection"))
+            stop("'connection' must be a connection")
+        if (missing(ascii)) ascii <- summary(connection)$text == "text"
+    }
+    if (!ascii && inherits(connection, "sockconn")) {
+        .Internal(serializeb(object, connection, xdr, version, refhook))
+    } else {
+	type <- if(is.na(ascii)) 2L else if(ascii) 1L else if(!xdr) 3L else 0L
+        .Internal(serialize(object, connection, type, version, refhook))
+    }
+}
+
+unserialize <- function(connection, refhook = NULL)
+{
+    if (typeof(connection) != "raw" &&
+        !is.character(connection) &&
+        !inherits(connection, "connection"))
+        stop("'connection' must be a connection")
+    .Internal(unserialize(connection, refhook))
+}
+
+# options.r
+
+options <- function(...)
+    .Internal(options(...))
+
+# RNG.R
+set.seed <- function(seed, kind = NULL, normal.kind = NULL)
+{
+    kinds <- c("Wichmann-Hill", "Marsaglia-Multicarry", "Super-Duper",
+               "Mersenne-Twister", "Knuth-TAOCP", "user-supplied",
+               "Knuth-TAOCP-2002", "L'Ecuyer-CMRG", "default")
+    n.kinds <- c("Buggy Kinderman-Ramage", "Ahrens-Dieter", "Box-Muller",
+                 "user-supplied", "Inversion", "Kinderman-Ramage",
+		 "default")
+    if(length(kind) ) {
+	if(!is.character(kind) || length(kind) > 1L)
+	    stop("'kind' must be a character string of length 1 (RNG to be used).")
+	if(is.na(i.knd <- pmatch(kind, kinds) - 1L))
+	    stop(gettextf("'%s' is not a valid abbreviation of an RNG", kind),
+                 domain = NA)
+        if(i.knd == length(kinds) - 1L) i.knd <- -1L
+    } else i.knd <- NULL
+
+    if(!is.null(normal.kind)) {
+	if(!is.character(normal.kind) || length(normal.kind) != 1L)
+	    stop("'normal.kind' must be a character string of length 1")
+        normal.kind <- pmatch(normal.kind, n.kinds) - 1L
+        if(is.na(normal.kind))
+	    stop(gettextf("'%s' is not a valid choice", normal.kind),
+                 domain = NA)
+	if (normal.kind == 0L)
+            stop("buggy version of Kinderman-Ramage generator is not allowed",
+                 domain = NA)
+         if(normal.kind == length(n.kinds) - 1L) normal.kind <- -1L
+    }
+    .Internal(set.seed(seed, i.knd, normal.kind))
+}
+
+
+# sys.R
+
+sys.call <- function(which = 0L)
+    .Internal(sys.call(which))
+
+sys.calls <- function()
+    .Internal(sys.calls())
+
+sys.parents <- function()
+    .Internal(sys.parents())
+
+sys.nframe <- function()
+    .Internal(sys.nframe())
+
+
+
+# rep.R
+rep.int <- function(x, times) .Internal(rep.int(x, times))
+
+# rank.R
+rank <- function(x, na.last = TRUE,
+		 ties.method = c("average", "first", "last", "random", "max", "min"))
+{
+    nas <- is.na(x)
+    nm <- names(x)
+    ties.method <- match.arg(ties.method)
+    ## To preserve past behaviour
+    if(is.factor(x)) x <- as.integer(x)
+    x <- x[!nas]
+    ## we pass length(x) to allow
+    y <- switch(ties.method,
+		"average" = , "min" = , "max" =
+		.Internal(rank(x, length(x), ties.method)),
+		"first" = sort.list(sort.list(x)),
+		"last"  = ## == rev(sort.list(sort.list(rev(x)))) :
+		    sort.list(rev.default(sort.list(x, decreasing=TRUE))),
+		"random" = sort.list(order(x, stats::runif(sum(!nas)))))
+    ## the internal code has ranks in [1, length(y)]
+    if(!is.na(na.last) && any(nas)) {
+	yy <- NA
+	NAkeep <- (na.last == "keep")
+	if(NAkeep || na.last) {
+	    yy[!nas] <- y
+	    if(!NAkeep) yy[nas] <- (length(y) + 1L) : length(yy)
+	} else {
+	    len <- sum(nas)
+	    yy[!nas] <- y + len
+	    yy[nas] <- seq_len(len)
+	}
+	y <- yy
+	names(y) <- nm
+    } else names(y) <- nm[!nas]
+    y
+}
+
+
+# dput.R
+dput <-
+    function(x, file = "",
+             control = c("keepNA", "keepInteger", "showAttributes"))
+{
+    if(is.character(file))
+        if(nzchar(file)) {
+            file <- file(file, "wt")
+            on.exit(close(file))
+        } else file <- stdout()
+    opts <- .deparseOpts(control)
+    ## FIXME: this should happen in C {deparse2() in ../../../main/deparse.c}
+    ##        but we are missing a C-level slotNames()
+    ## Fails e.g. if an S3 list-like object has S4 components
+    if(isS4(x)) {
+	clx <- class(x)
+	cat('new("', clx,'"\n', file = file, sep = "")
+	for(n in methods::.slotNames(clx)) {
+	    cat("    ,", n, "= ", file = file)
+	    dput(methods::slot(x, n), file = file, control = control)
+	}
+	cat(")\n", file = file)
+	invisible()
+    }
+    else .Internal(dput(x, file, opts))
+}
+
+# conditions.R
+tryCatch <- function(expr, ..., finally) {
+    tryCatchList <- function(expr, names, parentenv, handlers) {
+	nh <- length(names)
+	if (nh > 1L) {
+	    tryCatchOne(tryCatchList(expr, names[-nh], parentenv,
+                                     handlers[-nh]),
+			names[nh], parentenv, handlers[[nh]])
+    } else if (nh == 1L) {
+	    tryCatchOne(expr, names, parentenv, handlers[[1L]])
+    } else expr
+    }
+    tryCatchOne <- function(expr, name, parentenv, handler) {
+	doTryCatch <- function(expr, name, parentenv, handler) {
+	    .Internal(.addCondHands(name, list(handler), parentenv,
+				    environment(), FALSE))
+	    expr
+	}
+	value <- doTryCatch(return(expr), name, parentenv, handler)
+	# The return in the call above will exit withOneRestart unless
+	# the handler is invoked; we only get to this point if the handler
+	# is invoked.  If we get here then the handler will have been
+	# popped off the internal handler stack.
+	if (is.null(value[[1L]])) {
+	    # a simple error; message is stored internally
+	    # and call is in result; this defers all allocs until
+	    # after the jump
+	    msg <- .Internal(geterrmessage())
+	    call <- value[[2L]]
+	    cond <- simpleError(msg, call)
+	} else cond <- value[[1L]]
+	value[[3L]](cond)
+    }
+    if (! missing(finally))
+        on.exit(finally)
+    handlers <- list(...)
+    classes <- names(handlers)
+    parentenv <- parent.frame()
+    if (length(classes) != length(handlers))
+        stop("bad handler specification")
+    tryCatchList(expr, classes, parentenv, handlers)
+}
+
+# print.R
+print <- function(x, ...) UseMethod("print")
+
+# getenv.R
+Sys.getenv <- function(x = NULL, unset = "", names = NA)
+{
+    if (is.null(x)) {
+        ## This presumes that '=' does not appear as part of the name
+        ## of an environment variable.  That used to happen on Windows.
+	x <- strsplit(.Internal(Sys.getenv(character(), "")), "=", fixed=TRUE)
+	v <- n <- character(LEN <- length(x))
+	for (i in 1L:LEN) {
+	    n[i] <- x[[i]][1L]
+	    v[i] <- paste(x[[i]][-1L], collapse = "=")
+	}
+	if (identical(names, FALSE)) {
+	    v[sort.list(n)]
+	} else { # with names
+	    v <- structure(v, names = n)
+	    structure(class = "Dlist", # with nice print method
+		      v[sort.list(n)])
+	}
+    } else {
+        v <- .Internal(Sys.getenv(as.character(x), as.character(unset)))
+	if (isTRUE(names) || (length(x) > 1L && !identical(names, FALSE))) structure(v, names = x) else v
+    }
+}
+
+Sys.setenv <- function(...)
+{
+    x <- list(...)
+    nm <- names(x)
+    if(is.null(nm) || "" %in% nm)
+        stop("all arguments must be named")
+    .Internal(Sys.setenv(nm, as.character(unlist(x))))
+}
+
+# character.R
+strrep <-
+function(x, times)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(strrep(x, as.integer(times)))
+}
+startsWith <- function(x, prefix) .Internal(startsWith(x, prefix))
+
+endsWith   <- function(x, suffix) .Internal(endsWith  (x, suffix))
+
+# raw.R
+rawToBits <- function(x) .Internal(rawToBits(x))
+
+# sets.R
+setdiff <- function(x, y)
+{
+    x <- as.vector(x)
+    y <- as.vector(y)
+    unique(if(length(x) || length(y)) x[match(x, y, 0L) == 0L] else x)
+}
+
+# grep.R
+regexpr <-
+function(pattern, text, ignore.case = FALSE, perl = FALSE,
+         fixed = FALSE, useBytes = FALSE)
+{
+    if (!is.character(text)) text <- as.character(text)
+    .Internal(regexpr(as.character(pattern), text,
+                      ignore.case, perl, fixed, useBytes))
+}
+
+# bindenv.R
+makeActiveBinding <- function(sym, fun, env) {
+    if (is.character(sym)) sym <- as.name(sym)
+    .Internal(makeActiveBinding(sym, fun, env))
+}
+
+# duplicated.R
+unique <- function(x, incomparables = FALSE, ...) UseMethod("unique")
+
+
+# mode.R
+storage.mode <- function(x)
+    switch(tx <- typeof(x),
+	   closure = , builtin = , special = "function",
+	   ## otherwise
+	   tx)
+
+# rm.R
+
+rm <-
+    function (..., list = character(), pos = -1, envir = as.environment(pos),
+              inherits = FALSE)
+{
+    dots <- match.call(expand.dots=FALSE)$...
+    if(length(dots) &&
+       !all(vapply(dots, function(x) is.symbol(x) || is.character(x), NA, USE.NAMES=FALSE)))
+       stop("... must contain names or character strings")
+    names <- vapply(dots, as.character, "")
+    if (length(names) == 0L) names <- character()
+    list <- .Primitive("c")(list, names)
+    .Internal(remove(list, envir, inherits))
+}
+
+remove <- rm
+
+# connections.R
+readChar <- function(con, nchars, useBytes = FALSE)
+{
+    if(is.character(con)) {
+        con <- file(con, "rb")
+        on.exit(close(con))
+    }
+    .Internal(readChar(con, as.integer(nchars), useBytes))
+}
+
+
+# strwrap.R
+strtrim <- function(x, width)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(strtrim(x, width))
+}
+
+# sample.R
+sample <- function(x, size, replace = FALSE, prob = NULL)
+{
+    if(length(x) == 1L && is.numeric(x) && is.finite(x) && x >= 1) {
+	if(missing(size)) size <- x
+	sample.int(x, size, replace, prob)
+    } else {
+	if(missing(size)) size <- length(x)
+	x[sample.int(length(x), size, replace, prob)]
+    }
+}
+
+# sweep.R
+sweep <- function(x, MARGIN, STATS, FUN = "-", check.margin = TRUE, ...)
+{
+    FUN <- match.fun(FUN)
+    dims <- dim(x)
+    if (check.margin) {
+        dimmargin <- dims[MARGIN]
+        dimstats <- dim(STATS)
+        lstats <- length(STATS)
+        if (lstats > prod(dimmargin)) {
+            warning("STATS is longer than the extent of 'dim(x)[MARGIN]'")
+        } else if (is.null(dimstats)) { # STATS is a vector
+            cumDim <- c(1L, cumprod(dimmargin))
+            upper <- min(cumDim[cumDim >= lstats])
+            lower <- max(cumDim[cumDim <= lstats])
+            if (lstats && (upper %% lstats != 0L || lstats %% lower != 0L))
+                warning("STATS does not recycle exactly across MARGIN")
+        } else {
+            dimmargin <- dimmargin[dimmargin > 1L]
+            dimstats <- dimstats[dimstats > 1L]
+            if (length(dimstats) != length(dimmargin) ||
+                any(dimstats != dimmargin))
+                warning("length(STATS) or dim(STATS) do not match dim(x)[MARGIN]")
+        }
+    }
+    perm <- c(MARGIN, seq_along(dims)[ - MARGIN])
+    FUN(x, aperm(array(STATS, dims[perm]), order(perm)), ...)
+}
+
+# factor.R
+factor <- function(x = character(), levels, labels = levels,
+                   exclude = NA, ordered = is.ordered(x), nmax = NA)
+{
+    if(is.null(x)) x <- character()
+    nx <- names(x)
+    if (missing(levels)) {
+	y <- unique(x, nmax = nmax)
+	ind <- sort.list(y) # or possibly order(x) which is more (too ?) tolerant
+	levels <- unique(as.character(y)[ind])
+    }
+    force(ordered) # check if original x is an ordered factor
+    if(!is.character(x))
+	x <- as.character(x)
+    ## levels could be a long vectors, but match will not handle that.
+    levels <- levels[is.na(match(levels, exclude))]
+    f <- match(x, levels)
+    if(!is.null(nx))
+	names(f) <- nx
+    nl <- length(labels)
+    nL <- length(levels)
+    if(!any(nl == c(1L, nL)))
+	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
+	     domain = NA)
+    levels(f) <- ## nl == nL or 1
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
+    class(f) <- c(if(ordered) "ordered", "factor")
+    f
+}
+
+# split.R
+split <- function(x, f, drop = FALSE, ...) UseMethod("split")
+
+# delay.R
+delayedAssign <-
+    function(x, value, eval.env=parent.frame(1), assign.env=parent.frame(1))
+    .Internal(delayedAssign(x, substitute(value), eval.env, assign.env))

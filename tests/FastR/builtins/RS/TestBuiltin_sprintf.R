@@ -1,21 +1,19 @@
 argv <- list('%s is not TRUE', 'identical(fxy, c(1, 2, 3))'); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%1.0f', 3.14159265358979); .Internal(sprintf(argv[[1]], argv[[2]]))
-argv <- list('min 3-char string '%3s'', c('a', 'ABC', 'and an even longer one')); .Internal(sprintf(argv[[1]], argv[[2]]))
-argv <- list('min 10-char string '%10s'', c('a', 'ABC', 'and an even longer one')); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%o', integer(0)); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%*s', 1, ''); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]]))
 argv <- list('p,L,S = (%2d,%2d,%2d): ', TRUE, TRUE, FALSE); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]], argv[[4]]))
 argv <- list('p,L,S = (%2d,%2d,%2d): ', TRUE, FALSE, NA); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]], argv[[4]]))
 argv <- list('plot_%02g', 1L); .Internal(sprintf(argv[[1]], argv[[2]]))
-argv <- list('tools:::.createExdotR('%s', '%s', silent = TRUE, use_gct = %s, addTiming = %s)', structure('KernSmooth', .Names = 'Package'), '/home/lzhao/hg/r-instrumented/library/KernSmooth', FALSE, FALSE); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]]))
+argv <- list('tools:::.createExdotR(\'%s\', \'%s\', silent = TRUE, use_gct = %s, addTiming = %s)', structure('KernSmooth', .Names = 'Package'), '/home/lzhao/hg/r-instrumented/library/KernSmooth', FALSE, FALSE); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]]))
 argv <- list('%.0f%% said yes (out of a sample of size %.0f)', 66.666, 3); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]]))
 argv <- list('%1$d %1$x %1$X', 0:15); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%03o', 1:255); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%d y value <= 0 omitted from logarithmic plot', 1L); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%o', 1:255); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%s-class.Rd', structure('foo', .Names = 'foo')); .Internal(sprintf(argv[[1]], argv[[2]]))
-argv <- list('checkRd: (%d) %s', -3, 'evalSource.Rd:157: Unnecessary braces at ‘{'sourceEnvironment'}’'); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]]))
-argv <- list('tools:::check_compiled_code('%s')', '/home/lzhao/hg/r-instrumented/library/foreign'); .Internal(sprintf(argv[[1]], argv[[2]]))
+argv <- list('checkRd: (%d) %s\', -3, \'evalSource.Rd:157: Unnecessary braces at ‘{\'sourceEnvironment\'}’'); .Internal(sprintf(argv[[1]], argv[[2]], argv[[3]]))
+argv <- list('tools:::check_compiled_code(\'%s\')', '/home/lzhao/hg/r-instrumented/library/foreign'); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%5g', structure(c(18, 18, 0, 14, 4, 12, 12, 0, 4, 8, 26, 23, 3, 18, 5, 8, 5, 3, 0, 5, 21, 0, 21, 0, 0), .Dim = c(5L, 5L), .Dimnames = list(NULL, c('', '', '', '', '')))); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- list('%G', 3.14159265358979e-06); .Internal(sprintf(argv[[1]], argv[[2]]))
 argv <- structure(list(fmt = '%9.4g', 12345.6789), .Names = c('fmt',     ''));do.call('sprintf', argv)
@@ -58,8 +56,5 @@ argv <- structure(list(fmt = '%9.4g', 12345.6789), .Names = c('fmt',     ''));do
 { sprintf(c('hello %d %s', 'world %d %s'), list(2, 'x')) }
 { sprintf('limited to %d part%s due to %.0f', 3L, 3.3) }
 { sprintf('limited to %d part%s due to %.0f', 3L, 'a', 3L) }
-{ sprintf('%s', %0) }", new String[]{"1L", "2", "2.2", "TRUE
-{ sprintf('%d', %0) }", new String[]{"1L", "2", "2.2", "TRUE
-{ sprintf('%f', %0) }", new String[]{"1L", "2", "2.2", "TRUE
 sprintf('%02d', as.integer(NA))
 { sprintf('%s', as.raw(1)) }

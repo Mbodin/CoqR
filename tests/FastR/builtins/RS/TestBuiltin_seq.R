@@ -1,5 +1,5 @@
 
-{ d <- as.Date(1, origin = "1970-01-01"); %0(d, by=1, length.out=4) }
+
 NA_real_", "Inf", "NaN", "NA_integer_
 c(5,2)
 
