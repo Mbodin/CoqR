@@ -1,4 +1,4 @@
-
+# apply.R
 apply <- function(X, MARGIN, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -90,7 +90,7 @@ apply <- function(X, MARGIN, FUN, ...)
     } else	ans
 }
 
-
+# det.R
 det <- function(x, ...)
 {
     z <- determinant(x, logarithm = TRUE, ...)
@@ -99,7 +99,7 @@ det <- function(x, ...)
 
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
-
+# bessel.R
 besselI <- function(x, nu, expon.scaled = FALSE)
 {
     ## Oddly, this is passed as a double to fit Math3 semantics
@@ -113,12 +113,14 @@ besselJ <- function(x, nu) .Internal(besselJ(x,nu))
 besselY <- function(x, nu) .Internal(besselY(x,nu))
 
 
+# assign.R
 assign <-
     function (x, value, pos = -1, envir = as.environment(pos),
               inherits = FALSE, immediate = TRUE)
     .Internal(assign(x, value, envir, inherits))
 
 
+# as.R
 as.single <- function(x,...) UseMethod("as.single")
 as.single.default <- function(x,...)
     structure(.Internal(as.vector(x,"double")), Csingle=TRUE)
@@ -345,12 +347,14 @@ all.equal.POSIXt <- function(target, current, ..., tolerance = 1e-3, scale)
     all.equal.numeric(target, current, ..., tolerance = tolerance, scale = 1)
 }
 
-
+# formals.R
 formals <- function(fun = sys.function(sys.parent())) {
     if(is.character(fun))
 	fun <- get(fun, mode = "function", envir = parent.frame())
     .Internal(formals(fun))
 }
+
+alist <- function (...) as.list(sys.call())[-1L]
 
 body <- function(fun = sys.function(sys.parent())) {
     if(is.character(fun))
@@ -358,7 +362,7 @@ body <- function(fun = sys.function(sys.parent())) {
     .Internal(body(fun))
 }
 
-
+# mode.R
 mode <- function(x) {
     if(is.expression(x)) return("expression")
     if(is.call(x))
@@ -413,6 +417,8 @@ try <- function(expr, silent = FALSE,
 
 comment <- function(x) .Internal(comment(x))
 `comment<-` <- function(x, value) .Internal("comment<-"(x, value))
+
+# New-Internal.R
 
 logb <- function(x, base=exp(1)) if(missing(base)) log(x) else log(x, base)
 
@@ -572,10 +578,12 @@ lengths <- function(x, use.names=TRUE) .Internal(lengths(x, use.names))
 ## base has no S4 generics
 .noGenerics <- TRUE
 
+
+# constants.R
 pi <- 4*atan(1)
 
 
-
+# eval.R
 .GlobalEnv <- environment()
 parent.frame <- function(n = 1) .Internal(parent.frame(n))
 
@@ -647,9 +655,14 @@ within.list <- function(data, expr, ...)
 
 force <- function(x) x
 
+
+# cut.R
 cut <- function(x, ...) UseMethod("cut")
 
+.bincode <- function(x, breaks, right = TRUE, include.lowest = FALSE)
+    .Internal(bincode(x, breaks, right, include.lowest))
 
+# lapply.R
 lapply <- function (X, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -673,6 +686,8 @@ rapply <-
     if(how == "unlist") unlist(res, recursive = TRUE) else res
 }
 
+
+# matrix.R
 
 matrix <- function(data=NA, nrow=1, ncol=1, byrow=FALSE, dimnames=NULL)
 {
@@ -717,6 +732,8 @@ as.pairlist <- function(x) .Internal(as.vector(x, "pairlist"))
 pairlist <- function(...) as.pairlist(list(...))
 
 
+# sort.R
+
 order <- function(..., na.last = TRUE, decreasing = FALSE,
                   method = c("auto", "shell", "radix"))
 {
@@ -757,8 +774,11 @@ order <- function(..., na.last = TRUE, decreasing = FALSE,
     ans[ok[ans]]
 }
 
+# rep.R
+
 rep.int <- function(x, times) .Internal(rep.int(x, times))
 
+# grep.R
 
 grep <-
 function(pattern, x, ignore.case = FALSE, perl = FALSE,
@@ -802,6 +822,7 @@ function(pattern, x, max.distance = 0.1, costs = NULL,
 }
 
 
+# vector.R
 
 vector <- function(mode = "logical", length = 0L) .Internal(vector(mode, length))
 logical <- function(length = 0L) .Internal(vector("logical", length))
@@ -826,6 +847,8 @@ single <- function(length = 0L)
     structure(vector("double", length), Csingle=TRUE)
 
 
+# structure.R
+
 structure <- function (.Data, ...)
 {
     if(is.null(.Data))
@@ -847,6 +870,7 @@ structure <- function (.Data, ...)
     .Data
 }
 
+# match.fun.R
 match.fun <- function (FUN, descend = TRUE)
 {
     if ( is.function(FUN) )
@@ -868,3 +892,416 @@ match.fun <- function (FUN, descend = TRUE)
     }
     return(FUN)
 }
+
+# duplicated.R
+
+anyDuplicated <- function(x, incomparables = FALSE, ...)
+    UseMethod("anyDuplicated")
+
+# allnames.R
+
+all.names <- function(expr, functions = TRUE, max.names = -1L, unique = FALSE)
+    .Internal(all.names(expr, functions, max.names, unique))
+
+
+# attach.R
+
+attach <- function(what, pos = 2L, name = deparse(substitute(what)),
+                   warn.conflicts = TRUE)
+{
+    ## FIXME: ./library.R 's library() has *very* similar checkConflicts(), keep in sync
+    checkConflicts <- function(env)
+    {
+        dont.mind <- c("last.dump", "last.warning", ".Last.value",
+                       ".Random.seed", ".Last.lib", ".onDetach",
+                       ".packageName", ".noGenerics", ".required",
+                       ".no_S3_generics", ".requireCachedGenerics")
+        sp <- search()
+        for (i in seq_along(sp)) {
+            if (identical(env, as.environment(i))) {
+                db.pos <- i
+                break
+            }
+        }
+        ob <- names(as.environment(db.pos))
+        if(.isMethodsDispatchOn()) { ## {see note in library() about this}
+            these <- ob[startsWith(ob,".__T__")]
+            gen  <- gsub(".__T__(.*):([^:]+)", "\\1", these)
+            from <- gsub(".__T__(.*):([^:]+)", "\\2", these)
+            gen <- gen[from != ".GlobalEnv"]
+            ob <- ob[!(ob %in% gen)]
+        }
+        ipos <- seq_along(sp)[-c(db.pos, match(c("Autoloads", "CheckExEnv"), sp, 0L))]
+        for (i in ipos) {
+            obj.same <- match(names(as.environment(i)), ob, nomatch = 0L)
+            if (any(obj.same > 0L)) {
+                same <- ob[obj.same]
+                same <- same[!(same %in% dont.mind)]
+                Classobjs <- which(startsWith(same,".__"))
+                if(length(Classobjs)) same <- same[-Classobjs]
+                ## report only objects which are both functions or
+                ## both non-functions.
+		same.isFn <- function(where)
+		    vapply(same, exists, NA,
+			   where = where, mode = "function", inherits = FALSE)
+		same <- same[same.isFn(i) == same.isFn(db.pos)]
+                if(length(same)) {
+		    pkg <- if (sum(sp == sp[i]) > 1L) # 'pos = *' needs no translation
+			sprintf("%s (pos = %d)", sp[i], i) else sp[i]
+		    message(.maskedMsg(sort(same), pkg, by = i < db.pos),
+                            domain = NA)
+		}
+            }
+        }
+    }
+
+    if(pos == 1L) {
+        warning("*** 'pos=1' is not possible; setting 'pos=2' for now.\n",
+                "*** Note that 'pos=1' will give an error in the future")
+        pos <- 2L
+    }
+    if (is.character(what) && (length(what) == 1L)){
+        if (!file.exists(what))
+            stop(gettextf("file '%s' not found", what), domain = NA)
+        if(missing(name)) name <- paste0("file:", what)
+        value <- .Internal(attach(NULL, pos, name))
+        load(what, envir = as.environment(pos))
+    } else value <- .Internal(attach(what, pos, name))
+    if(warn.conflicts &&
+       !exists(".conflicts.OK", envir = value, inherits = FALSE)) {
+        checkConflicts(value)
+    }
+    if (length(names(value)) && .isMethodsDispatchOn() )
+        methods::cacheMetaData(value, TRUE)
+    invisible(value)
+}
+
+
+detach <- function(name, pos = 2L, unload = FALSE, character.only = FALSE,
+                   force = FALSE)
+{
+    if(!missing(name)) {
+	if(!character.only) name <- substitute(name)
+	pos <-
+	    if(is.numeric(name)) name else {
+                if (!is.character(name)) name <- deparse(name)
+                match(name, search())
+            }
+	if(is.na(pos)) stop("invalid 'name' argument")
+    }
+
+    packageName <- search()[[pos]]
+
+    ## we need to treat packages differently from other objects, so get those
+    ## out of the way now
+    if (!startsWith(packageName, "package:"))
+        return(invisible(.Internal(detach(pos))))
+
+    ## From here down we are detaching a package.
+    pkgname <- .rmpkg(packageName)
+    for(pkg in search()[-1L]) {
+	if(startsWith(pkg, "package:") &&
+           exists(".Depends", pkg, inherits = FALSE) &&
+           pkgname %in% get(".Depends", pkg, inherits = FALSE))
+            if(force) {
+                warning(gettextf("package %s is required by %s, which may no longer work correctly",
+				 sQuote(pkgname), sQuote(.rmpkg(pkg))),
+                     call. = FALSE, domain = NA)
+            } else {
+                stop(gettextf("package %s is required by %s so will not be detached",
+			      sQuote(pkgname), sQuote(.rmpkg(pkg))),
+                     call. = FALSE, domain = NA)
+            }
+    }
+    env <- as.environment(pos)
+    libpath <- attr(env, "path")
+    hook <- getHook(packageEvent(pkgname, "detach")) # might be a list
+    for(fun in rev(hook)) try(fun(pkgname, libpath))
+    ## some people, e.g. package g.data, have faked pakages without namespaces
+    ns <- .getNamespace(pkgname)
+    if(!is.null(ns) &&
+       exists(".onDetach", mode = "function", where = ns, inherits = FALSE)) {
+        .onDetach <- get(".onDetach",  mode = "function", pos = ns,
+                         inherits = FALSE)
+        if(!is.null(libpath)) {
+            res <- tryCatch(.onDetach(libpath), error = identity)
+            if (inherits(res, "error")) {
+                warning(gettextf("%s failed in %s() for '%s', details:\n  call: %s\n  error: %s",
+                                 ".onDetach", "detach", pkgname,
+                                 deparse(conditionCall(res))[1L],
+                                 conditionMessage(res)),
+                        call. = FALSE, domain = NA)
+            }
+        }
+    } else if(exists(".Last.lib", mode = "function", where = pos, inherits = FALSE)) {
+        .Last.lib <- get(".Last.lib",  mode = "function", pos = pos,
+                         inherits = FALSE)
+        if(!is.null(libpath)) {
+            res <- tryCatch(.Last.lib(libpath), error = identity)
+            if (inherits(res, "error")) {
+                warning(gettextf("%s failed in %s() for '%s', details:\n  call: %s\n  error: %s",
+                                 ".Last.lib", "detach", pkgname,
+                                 deparse(conditionCall(res))[1L],
+                                 conditionMessage(res)),
+                        call. = FALSE, domain = NA)
+            }
+        }
+    }
+    .Internal(detach(pos))
+
+    if(isNamespaceLoaded(pkgname)) {
+        ## the lazyload DB is flushed when the namespace is unloaded
+        if(unload) {
+            tryCatch(unloadNamespace(pkgname),
+                     error = function(e)
+                     warning(gettextf("%s namespace cannot be unloaded:\n  ",
+                                      sQuote(pkgname)),
+                             conditionMessage(e),
+                             call. = FALSE, domain = NA))
+        }
+    } else {
+        if(.isMethodsDispatchOn() && methods:::.hasS4MetaData(env))
+            methods::cacheMetaData(env, FALSE)
+        .Internal(lazyLoadDBflush(paste0(libpath, "/R/", pkgname, ".rdb")))
+    }
+    invisible()
+}
+
+# bitwise.R
+
+bitwNot <- function(a) .Internal(bitwiseNot(a))
+
+bitwAnd <- function(a, b) .Internal(bitwiseAnd(a, b))
+
+bitwXor <- function(a, b) .Internal(bitwiseXor(a, b))
+
+bitwShiftL <- function(a, n) .Internal(bitwiseShiftL(a, n))
+
+bitwShiftR <- function(a, n) .Internal(bitwiseShiftR(a, n))
+
+# sys.R
+
+sys.call <- function(which = 0L)
+    .Internal(sys.call(which))
+
+# dataframe.R
+
+data.frame <-
+    function(..., row.names = NULL, check.rows = FALSE, check.names = TRUE,
+	     fix.empty.names = TRUE,
+             stringsAsFactors = default.stringsAsFactors())
+{
+    data.row.names <-
+	if(check.rows && is.null(row.names)) {
+	    function(current, new, i) {
+		if(is.character(current)) new <- as.character(new)
+		if(is.character(new)) current <- as.character(current)
+		if(anyDuplicated(new))
+		    return(current)
+		if(is.null(current))
+		    return(new)
+		if(all(current == new) || all(current == ""))
+		    return(new)
+		stop(gettextf(
+		    "mismatch of row names in arguments of 'data.frame\', item %d", i),
+		    domain = NA)
+	    }
+    } else function(current, new, i) {
+	    if(is.null(current)) {
+		if(anyDuplicated(new)) {
+		    warning(gettextf(
+                        "some row.names duplicated: %s --> row.names NOT used",
+                        paste(which(duplicated(new)), collapse=",")),
+                        domain = NA)
+		    current
+		} else new
+	    } else current
+	}
+    object <- as.list(substitute(list(...)))[-1L]
+    mirn <- missing(row.names) # record before possibly changing
+    mrn <- is.null(row.names) # missing or NULL
+    x <- list(...)
+    n <- length(x)
+    if(n < 1L) {
+        if(!mrn) {
+            if(is.object(row.names) || !is.integer(row.names))
+                row.names <- as.character(row.names)
+            if(anyNA(row.names))
+                stop("row names contain missing values")
+            if(anyDuplicated(row.names))
+                stop(gettextf("duplicate row.names: %s",
+                              paste(unique(row.names[duplicated(row.names)]),
+                                    collapse = ", ")),
+                     domain = NA)
+        } else row.names <- integer()
+	return(structure(list(), names = character(),
+                         row.names = row.names,
+			 class = "data.frame"))
+    }
+    vnames <- names(x)
+    if(length(vnames) != n)
+	vnames <- character(n)
+    no.vn <- !nzchar(vnames)
+    vlist <- vnames <- as.list(vnames)
+    nrows <- ncols <- integer(n)
+    for(i in seq_len(n)) {
+        ## do it this way until all as.data.frame methods have been updated
+	xi <- if(is.character(x[[i]]) || is.list(x[[i]])) {
+		  as.data.frame(x[[i]], optional = TRUE,
+				stringsAsFactors = stringsAsFactors)
+    } else as.data.frame(x[[i]], optional = TRUE)
+
+        nrows[i] <- .row_names_info(xi) # signed for now
+	ncols[i] <- length(xi)
+	namesi <- names(xi)
+	if(ncols[i] > 1L) {
+	    if(length(namesi) == 0L) namesi <- seq_len(ncols[i])
+	    vnames[[i]] <- if(no.vn[i]) namesi else paste(vnames[[i]], namesi, sep=".")
+	} else if(length(namesi)) {
+	    vnames[[i]] <- namesi
+	} else if (fix.empty.names && no.vn[[i]]) {
+	    tmpname <- deparse(object[[i]], nlines = 1L)[1L]
+	    if(substr(tmpname, 1L, 2L) == "I(") { ## from 'I(*)', only keep '*':
+		ntmpn <- nchar(tmpname, "c")
+		if(substr(tmpname, ntmpn, ntmpn) == ")")
+		    tmpname <- substr(tmpname, 3L, ntmpn - 1L)
+	    }
+	    vnames[[i]] <- tmpname
+	} ## else vnames[[i]] are not changed
+	if(mirn && nrows[i] > 0L) {
+            rowsi <- attr(xi, "row.names")
+            ## Avoid all-blank names
+            if(any(nzchar(rowsi)))
+                row.names <- data.row.names(row.names, rowsi, i)
+        }
+        nrows[i] <- abs(nrows[i])
+	vlist[[i]] <- xi
+    }
+    nr <- max(nrows)
+    for(i in seq_len(n)[nrows < nr]) {
+	xi <- vlist[[i]]
+	if(nrows[i] > 0L && (nr %% nrows[i] == 0L)) {
+            ## make some attempt to recycle column i
+            xi <- unclass(xi) # avoid data-frame methods
+            fixed <- TRUE
+            for(j in seq_along(xi)) {
+                xi1 <- xi[[j]]
+                if(is.vector(xi1) || is.factor(xi1)) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else if(is.character(xi1) && inherits(xi1, "AsIs")) {
+                    xi[[j]] <- structure(rep(xi1, length.out = nr),
+                                         class = class(xi1))
+                } else if(inherits(xi1, "Date") || inherits(xi1, "POSIXct")) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else {
+                    fixed <- FALSE
+                    break
+                }
+            }
+            if (fixed) {
+                vlist[[i]] <- xi
+                next
+            }
+        }
+        stop(gettextf("arguments imply differing number of rows: %s",
+                      paste(unique(nrows), collapse = ", ")),
+             domain = NA)
+    }
+    value <- unlist(vlist, recursive=FALSE, use.names=FALSE)
+    ## unlist() drops i-th component if it has 0 columns
+    vnames <- unlist(vnames[ncols > 0L])
+    if(fix.empty.names && any(noname <- !nzchar(vnames)))
+	vnames[noname] <- paste0("Var.", seq_along(vnames))[noname]
+    if(check.names) {
+	if(fix.empty.names) {
+	    vnames <- make.names(vnames, unique=TRUE)
+    } else { ## do not fix ""
+	    nz <- nzchar(vnames)
+	    vnames[nz] <- make.names(vnames[nz], unique=TRUE)
+	}
+    }
+    names(value) <- vnames
+    if(!mrn) { # non-null row.names arg was supplied
+        if(length(row.names) == 1L && nr != 1L) {  # one of the variables
+            if(is.character(row.names))
+                row.names <- match(row.names, vnames, 0L)
+            if(length(row.names) != 1L ||
+               row.names < 1L || row.names > length(vnames))
+                stop("'row.names' should specify one of the variables")
+            i <- row.names
+            row.names <- value[[i]]
+            value <- value[ - i]
+        } else if ( !is.null(row.names) && length(row.names) != nr )
+            stop("row names supplied are of the wrong length")
+    } else if( !is.null(row.names) && length(row.names) != nr ) {
+        warning("row names were found from a short variable and have been discarded")
+        row.names <- NULL
+    }
+    if(is.null(row.names)) {
+        row.names <- .set_row_names(nr) #seq_len(nr)
+    }else {
+        if(is.object(row.names) || !is.integer(row.names))
+            row.names <- as.character(row.names)
+        if(anyNA(row.names))
+            stop("row names contain missing values")
+        if(anyDuplicated(row.names))
+            stop(gettextf("duplicate row.names: %s",
+                          paste(unique(row.names[duplicated(row.names)]),
+                                collapse = ", ")),
+                 domain = NA)
+    }
+    attr(value, "row.names") <- row.names
+    attr(value, "class") <- "data.frame"
+    value
+}
+
+# diff.R
+diff <- function(x, ...) UseMethod("diff")
+
+# factor.R
+factor <- function(x = character(), levels, labels = levels,
+                   exclude = NA, ordered = is.ordered(x), nmax = NA)
+{
+    if(is.null(x)) x <- character()
+    nx <- names(x)
+    if (missing(levels)) {
+	y <- unique(x, nmax = nmax)
+	ind <- sort.list(y) # or possibly order(x) which is more (too ?) tolerant
+	levels <- unique(as.character(y)[ind])
+    }
+    force(ordered) # check if original x is an ordered factor
+    if(!is.character(x))
+	x <- as.character(x)
+    ## levels could be a long vectors, but match will not handle that.
+    levels <- levels[is.na(match(levels, exclude))]
+    f <- match(x, levels)
+    if(!is.null(nx))
+	names(f) <- nx
+    nl <- length(labels)
+    nL <- length(levels)
+    if(!any(nl == c(1L, nL)))
+	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
+	     domain = NA)
+    levels(f) <- ## nl == nL or 1
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
+    class(f) <- c(if(ordered) "ordered", "factor")
+    f
+}
+
+
+
+# stats/R/models.R
+as.formula <- function(object, env = parent.frame())
+{
+    if(inherits(object, "formula"))
+        object
+    else {
+        rval <- formula(object, env = baseenv())
+        if (identical(environment(rval), baseenv()) || !missing(env))
+            environment(rval) <- env
+        rval
+    }
+}
+
+# datetime.R
+Sys.time <- function() .POSIXct(.Internal(Sys.time()))
