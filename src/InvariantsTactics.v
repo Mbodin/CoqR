@@ -461,37 +461,36 @@ Ltac get_safe_globals_no_S globals cont :=
   | H : safe_globals _ globals |- _ => cont H
   end.
 
-(** ** [list_type] **)
 
-(** There are several variants of [list_type] defined in this file.
-  These tactics will look for one of them. **)
+(** ** [safe_state] **)
 
-Ltac get_list_type S p cont :=
+Ltac get_safe_state S cont :=
   lazymatch goal with
-  | L : list_type_safe S _ _ _ p |- _ => cont L
-  | L : list_type_such_that _ _ _ S _ _ _ p |- _ => cont L
-  | L : list_type S _ _ _ p |- _ => cont L
-  end.
-
-Ltac get_list_type_no_S p cont :=
-  lazymatch goal with
-  | L : list_type_safe _ _ _ _ p |- _ => cont L
-  | L : list_type_such_that _ _ _ _ _ _ _ p |- _ => cont L
-  | L : list_type _ _ _ _ p |- _ => cont L
-  end.
-
-Ltac get_list_head S p_ cont :=
-  lazymatch goal with
-  | L : list_head_safe S _ _ _ p_ |- _ => cont L
-  | L : list_head_such_that _ _ _ S _ _ _ p_ |- _ => cont L
-  | L : list_head S _ _ _ p_ |- _ => cont L
-  end.
-
-Ltac get_list_head_no_S p_ cont :=
-  lazymatch goal with
-  | L : list_head_safe _ _ _ _ p_ |- _ => cont L
-  | L : list_head_such_that _ _ _ _ _ _ _ p_ |- _ => cont L
-  | L : list_head _ _ _ _ p_ |- _ => cont L
+  | H : safe_state S |- _ => cont H
+  | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S r, P_success S r -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
+  | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S, P_error S -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
+  | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
+    let S' := fresh1 S in
+    let R := fresh "OK" S' in
+    asserts R: (safe_state S);
+    [ let I := fresh "Impl" in
+      asserts I: (forall S n c, P_longjump S n c -> safe_state S);
+      [ solve [ autos* ] | solve [ applys* I H ] ]
+    | cont R ]
   end.
 
 
@@ -515,7 +514,7 @@ Ltac get_bound S p cont :=
     let B := fresh "B" p' in
     forwards B: pointer_bound OKp;
     cont B
-  | R : read_SExp S p = Some _ |- _ =>
+  | R : read_SExp (state_memory S) p = Some _ |- _ =>
     let p' := fresh1 p in
     let B := fresh "B" p' in
     forwards B: read_bound R;
@@ -555,6 +554,52 @@ Ltac get_bound_no_S p cont :=
     let B := fresh "B" p' in
     forwards B: alloc_SExp_bound A;
     cont B
+  end.
+
+
+(** ** [list_type] **)
+
+(** There are several variants of [list_type] defined in this file.
+  These tactics will look for one of them. **)
+
+Ltac get_list_type S p cont :=
+  lazymatch goal with
+  | L : list_type_safe S _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ S _ _ _ p |- _ => cont L
+  | L : list_type S _ _ _ p |- _ => cont L
+  | _ =>
+    match p with
+    | R_SymbolTable S =>
+      get_safe_state S ltac:(fun OKS =>
+        cont (safe_SymbolTable OKS))
+    end
+  end.
+
+Ltac get_list_type_no_S p cont :=
+  lazymatch goal with
+  | L : list_type_safe _ _ _ _ p |- _ => cont L
+  | L : list_type_such_that _ _ _ _ _ _ _ p |- _ => cont L
+  | L : list_type _ _ _ _ p |- _ => cont L
+  | _ =>
+    match p with
+    | R_SymbolTable ?S =>
+      get_safe_state S ltac:(fun OKS =>
+        cont (safe_SymbolTable OKS))
+    end
+  end.
+
+Ltac get_list_head S p_ cont :=
+  lazymatch goal with
+  | L : list_head_safe S _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ S _ _ _ p_ |- _ => cont L
+  | L : list_head S _ _ _ p_ |- _ => cont L
+  end.
+
+Ltac get_list_head_no_S p_ cont :=
+  lazymatch goal with
+  | L : list_head_safe _ _ _ _ p_ |- _ => cont L
+  | L : list_head_such_that _ _ _ _ _ _ _ p_ |- _ => cont L
+  | L : list_head _ _ _ _ p_ |- _ => cont L
   end.
 
 
@@ -724,38 +769,6 @@ Ltac get_may_have_types_no_S p cont :=
   end.
 
 
-(** ** [safe_state] **)
-
-Ltac get_safe_state S cont :=
-  lazymatch goal with
-  | H : safe_state S |- _ => cont H
-  | H : result_prop ?P_success _ _ (result_success S _) |- _ =>
-    let S' := fresh1 S in
-    let R := fresh "OK" S' in
-    asserts R: (safe_state S);
-    [ let I := fresh "Impl" in
-      asserts I: (forall S r, P_success S r -> safe_state S);
-      [ solve [ autos* ] | solve [ applys* I H ] ]
-    | cont R ]
-  | H : result_prop _ ?P_error _ (result_error S _) |- _ =>
-    let S' := fresh1 S in
-    let R := fresh "OK" S' in
-    asserts R: (safe_state S);
-    [ let I := fresh "Impl" in
-      asserts I: (forall S, P_error S -> safe_state S);
-      [ solve [ autos* ] | solve [ applys* I H ] ]
-    | cont R ]
-  | H : result_prop _ _ ?P_longjump (result_longjump S _ _) |- _ =>
-    let S' := fresh1 S in
-    let R := fresh "OK" S' in
-    asserts R: (safe_state S);
-    [ let I := fresh "Impl" in
-      asserts I: (forall S n c, P_longjump S n c -> safe_state S);
-      [ solve [ autos* ] | solve [ applys* I H ] ]
-    | cont R ]
-  end.
-
-
 (** ** Basic tactics to disprove some simple null pointer exceptions **)
 
 (** Note that a more general tactic [prove_no_null_pointer_exceptions]
@@ -782,11 +795,7 @@ Ltac prove_no_null_pointer_exceptions_path_suffix_simple A :=
   below. **)
 
 Ltac get_safe_pointer_base S p cont :=
-  lazymatch goal with
-  | H : safe_pointer S p |- _ => cont H
-  | H : safe_pointer_gen safe_pointer S p |- _ =>
-    rewrite <- safe_pointer_rewrite in H; cont H
-  | M : move_along_entry_point _ S = Some p |- _ =>
+  let move_along_entry_point_case M :=
     get_safe_state S ltac:(fun OKS =>
       let p' := fresh1 p in
       let R := fresh "OK" p' in
@@ -797,7 +806,13 @@ Ltac get_safe_pointer_base S p cont :=
           let A := fresh "A" in
           introv A;
           prove_no_null_pointer_exceptions_entry_point A ]
-      | cont R ])
+      | cont R ]) in
+  lazymatch goal with
+  | H : safe_pointer S p |- _ => cont H
+  | H : safe_pointer_gen safe_pointer S p |- _ =>
+    rewrite <- safe_pointer_rewrite in H; cont H
+  | M : move_along_entry_point _ S = Some p |- _ =>
+    move_along_entry_point_case M
   | _ =>
     first [
         let p' := fresh1 p in
@@ -817,6 +832,20 @@ Ltac get_safe_pointer_base S p cont :=
           [ get_safe_pointer_base S p' ltac:(fun OKp' =>
               applys~ safe_attrib OKp')
           | cont OKp ]
+        | R_SymbolTable S =>
+          try (
+            let L := fresh "L" in
+            get_safe_state S ltac:(fun OKS =>
+              forwards L: safe_SymbolTable OKS));
+          let M := fresh "M" in
+          asserts M: (move_along_entry_point ESymbolTable S = Some p);
+          [ reflexivity |];
+          move_along_entry_point_case M
+        | R_ReturnedValue S =>
+          let M := fresh "M" in
+          asserts M: (move_along_entry_point EReturnedValue S = Some p);
+          [ reflexivity |];
+          move_along_entry_point_case M
         end
      | get_may_have_types S p ltac:(fun M =>
          match type of M with
@@ -1447,7 +1476,7 @@ Proof. autos*. Qed.
 Ltac prove_not_NULL :=
   let aux p :=
     match goal with
-    | R : read_SExp ?S p = Some ?p' |- _ =>
+    | R : read_SExp _ p = Some ?p' |- _ =>
       intro_subst;
       rewrite read_SExp_NULL in R; solve [ inverts~ R ]
     | B : bound ?S p |- _ =>
@@ -1899,6 +1928,42 @@ Ltac prove_types_different :=
   end.
 
 
+(** * Transitions between states **)
+
+(** Tries to find a term of the form [conserve_old_bindings S S']
+  in the goal, typically from an allocation. **)
+Ltac find_conserve_old_bindings S S' cont :=
+  lazymatch goal with
+  | C : conserve_old_bindings S S' |- _ => cont C
+  | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
+    let C := fresh "C" in
+    forwards~ C: alloc_SExp_conserve_old_bindings E;
+    cont C
+  | W : write_SExp S ?e _ = Some S',
+    R : read_SExp (state_memory) S ?e = None |- _ =>
+    let C := fresh "C" in
+    forwards~ C: write_SExp_conserve_old_bindings_when_read_None R W;
+    cont C
+  | E : state_equiv S S' |- _ =>
+    let C := fresh "C" in
+    forwards~ C: state_equiv_conserve_old_bindings E;
+    cont C
+  | E : state_equiv S' S |- _ =>
+    let E' := fresh E in
+    forwards~ E': state_equiv_sym E;
+    let C := fresh "C" in
+    forwards~ C: state_equiv_conserve_old_bindings E';
+    cont C
+  | _ =>
+    match S' with
+    | S =>
+      let C := fresh "C" in
+      forwards C: conserve_old_bindings_refl S;
+      cont C
+    end
+  end.
+
+
 (** * Solving frequent patterns. **)
 
 (** This tactic wraps up most of the tactic defined in this file in a single tactic:
@@ -1936,35 +2001,14 @@ Ltac solve_premises_smart :=
   | |- safe_header_gen _ ?S ?h =>
     get_safe_header S h ltac:(fun OKh =>
       apply_or_rewrite OKh)
+  | |- conserve_old_bindings ?S ?S' =>
+    find_conserve_old_bindings S S' ltac:(fun C => apply C)
   | |- _ <> _ => prove_locations_different || prove_types_different
   | _ => prove_no_null_pointer_exceptions || solve_premises_lemmae
   end.
 
 
-(** * Transitions between states **)
-
-(** Tries to find a term of the form [conserve_old_binding S S']
-  in the goal, typically from an allocation. **)
-Ltac find_conserve_old_binding S S' cont :=
-  lazymatch goal with
-  | C : conserve_old_binding S S' |- _ => cont C
-  | E : alloc_SExp S ?p_ = (S', ?p) |- _ =>
-    let C := fresh "C" in
-    forwards~ C: alloc_SExp_conserve_old_binding E;
-    cont C
-  | E : state_equiv S S' |- _ =>
-    let C := fresh "C" in
-    forwards~ C: state_equiv_conserve_old_binding E;
-    cont C
-  | E : state_equiv S' S |- _ =>
-    let E' := fresh E in
-    forwards~ E': state_equiv_sym E;
-    let C := fresh "C" in
-    forwards~ C: state_equiv_conserve_old_binding E';
-    cont C
-  end.
-
-(** Given two states whose property [conserve_old_binding S S'] is
+(** Given two states whose property [conserve_old_bindings S S'] is
   producable by the above tactic, this tactic tries to update the
   predicates of the goal about [S] to predicates about [S']. **)
 Ltac transition_conserve S S' :=
@@ -1980,8 +2024,8 @@ Ltac transition_conserve S S' :=
         [ applys* alloc_SExp_safe_state OKS OKp_ A;
           solve [ prove_types_different ] |];
         asserts OKp_': (safe_SExpRec S' p_);
-        [ applys* conserve_old_binding_safe_SExpRec OKp_;
-          solve [ applys* alloc_SExp_conserve_old_binding A ] |])
+        [ applys* conserve_old_bindings_safe_SExpRec OKp_;
+          solve [ applys* alloc_SExp_conserve_old_bindings A ] |])
     | OKS_cond : ?cond -> safe_state S |- _ =>
       let S'' := fresh1 S' in
       let OKS' := fresh "OK" S'' in
@@ -2003,10 +2047,10 @@ Ltac transition_conserve S S' :=
           | let OKS := fresh OKS_cond in
             forwards OKS: OKS_cond H;
             get_safe_SExpRec S p_ ltac:(fun OKp_ =>
-              applys* conserve_old_binding_safe_SExpRec OKp_;
-              solve [ applys* alloc_SExp_conserve_old_binding A ]) ] |])
+              applys* conserve_old_bindings_safe_SExpRec OKp_;
+              solve [ applys* alloc_SExp_conserve_old_bindings A ]) ] |])
     end in
-  find_conserve_old_binding S S' ltac:(fun C =>
+  find_conserve_old_bindings S S' ltac:(fun C =>
     first [
         syntactically_the_same S S'
       | repeat lazymatch goal with
@@ -2032,67 +2076,67 @@ Ltac transition_conserve S S' :=
           forwards E: alloc_read_SExp_eq (rm A)
         | E : read_SExp (state_memory S) ?p = Some ?p_ |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_read C (rm E);
+          forwards E': conserve_old_bindings_read C (rm E);
           rename E' into E
         | B : bound S ?p |- _ =>
           let B' := fresh B in
-          forwards B': conserve_old_binding_bound C (rm B);
+          forwards B': conserve_old_bindings_bound C (rm B);
           rename B' into B
         | E : may_have_types S ?l ?p |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_may_have_types C (rm E);
+          forwards E': conserve_old_bindings_may_have_types C (rm E);
           rename E' into E
         | E : list_type S ?l_t ?l_car ?l_tag ?p |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_type C (rm E);
+          forwards E': conserve_old_bindings_list_type C (rm E);
           rename E' into E
         | E : list_head S ?l_t ?l_car ?l_tag ?p_ |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_head C (rm E);
+          forwards E': conserve_old_bindings_list_head C (rm E);
           rename E' into E
         | E : list_type_such_that ?Pheader ?Pcar ?Ptag S ?l_t ?l_car ?l_tag ?p |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_type C (rm E);
+          forwards E': conserve_old_bindings_list_type C (rm E);
           rename E' into E
         | E : list_head_such_that ?Pcar ?Ptag S ?l_t ?l_car ?l_tag ?p_ |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_head C (rm E);
+          forwards E': conserve_old_bindings_list_head C (rm E);
           rename E' into E
         | E : list_type_safe S ?l_t ?l_car ?l_tag ?p |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_type_safe C (rm E);
+          forwards E': conserve_old_bindings_list_type_safe C (rm E);
           rename E' into E
         | E : list_head_safe S ?l_t ?l_car ?l_tag ?p_ |- _ =>
           let E' := fresh E in
-          forwards E': conserve_old_binding_list_head_safe C (rm E);
+          forwards E': conserve_old_bindings_list_head_safe C (rm E);
           rename E' into E
         | OKp : safe_pointer S ?p |- _ =>
           (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let OKpold := fresh OKp "_old" in
           asserts OKpold: (id safe_pointer S p); [ apply* OKp |];
           let OKp' := fresh OKp in
-          forwards OKp': conserve_old_binding_safe_pointer C (rm OKp);
+          forwards OKp': conserve_old_bindings_safe_pointer C (rm OKp);
           rename OKp' into OKp
         | OKp : safe_pointer_gen ?sp S ?p |- _ =>
           let OKp' := fresh OKp in
-          ((forwards* OKp': conserve_old_binding_safe_pointer_aux C (rm OKp); [idtac])
-           || solve [ forwards* OKp': conserve_old_binding_safe_pointer_aux C OKp ]);
+          ((forwards* OKp': conserve_old_bindings_safe_pointer_aux C (rm OKp); [idtac])
+           || solve [ forwards* OKp': conserve_old_bindings_safe_pointer_aux C OKp ]);
           rename OKp' into OKp
         | OKp_ : safe_SExpRec S ?p_ |- _ =>
           (** Saving a copy that won’t match, to avoid looping without loosing information. **)
           let OKp_old := fresh OKp_ "_old" in
           asserts OKp_old: (id safe_SExpRec S p_); [ apply* OKp_ |];
           let OKp_' := fresh OKp_ in
-          forwards OKp_': conserve_old_binding_safe_SExpRec C (rm OKp_);
+          forwards OKp_': conserve_old_bindings_safe_SExpRec C (rm OKp_);
           rename OKp_' into OKp_
         | OKp_ : safe_SExpRec_gen _ S ?p_ |- _ =>
           let OKp_' := fresh OKp_ in
-          ((forwards* OKp_': conserve_old_binding_safe_pointer_aux C (rm OKp_); [idtac])
-           || solve [ forwards* OKp_': conserve_old_binding_safe_pointer_aux C OKp_ ]);
+          ((forwards* OKp_': conserve_old_bindings_safe_pointer_aux C (rm OKp_); [idtac])
+           || solve [ forwards* OKp_': conserve_old_bindings_safe_pointer_aux C OKp_ ]);
           rename OKp_' into OKp_
         | G : safe_globals S ?globals |- _ =>
           let G' := fresh G in
-          forwards G': conserve_old_binding_safe_globals C (rm G);
+          forwards G': conserve_old_bindings_safe_globals C (rm G);
           rename G' into G
         end; simplify_context ]).
 
@@ -2184,7 +2228,7 @@ Lemma CONS_safe : forall globals S S' l_car l_tag car cdr l,
   CONS globals S car cdr = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
   /\ list_type_safe S' ([ListSxp]) l_car ([NilSxp] \u l_tag) l
-  /\ conserve_old_binding S S'.
+  /\ conserve_old_bindings S S'.
 Proof.
   introv OKS OKG OKcar Lcdr Tcar Icar Itag E. unfolds in E.
   transition_conserve S S'.
@@ -2214,14 +2258,14 @@ Lemma allocList_aux_safe : forall globals S S' n l l0,
   allocList_aux globals S n l0 = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
   /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l
-  /\ conserve_old_binding S S'.
+  /\ conserve_old_bindings S S'.
 Proof.
   introv OKS OKG OKl0 L E. gen S S' l. induction n; introv OKS OKG OKl0 L E.
-  - inverts E. splits~. apply~ conserve_old_binding_refl.
+  - inverts E. splits~. apply~ conserve_old_bindings_refl.
   - simpl in E. destruct allocList_aux as [S2 p] eqn: Ep.
     forwards~ (OKS2&OKG2&OKp&Lp&C): IHn Ep.
     forwards~ (OKS'&OKG'&OKl&Ll&C'): CONS_safe Lp E; try solve_premises_smart.
-    simplify_context. splits*. applys conserve_old_binding_trans C C'.
+    simplify_context. splits*. applys conserve_old_bindings_trans C C'.
 Qed.
 
 Lemma allocList_safe : forall globals S S' n l,
@@ -2230,7 +2274,7 @@ Lemma allocList_safe : forall globals S S' n l,
   allocList globals S n = (S', l) ->
   safe_state S' /\ safe_globals S' globals /\ safe_pointer S' l
   /\ list_type_safe S' ([ListSxp]) ([NilSxp]) ([NilSxp]) l
-  /\ conserve_old_binding S S'.
+  /\ conserve_old_bindings S S'.
 Proof.
   introv OKS OKG E. unfolds in E. applys~ allocList_aux_safe E.
   - applys~ globals_not_NULL_safe OKG. applys~ globals_not_NULL OKG.
@@ -2277,8 +2321,11 @@ Ltac computeR_step :=
     define_write_SExp S p p_;
     match goal with
     | E : write_SExp S p p_ = Some ?S' |- _ =>
-      repeat rewrite E;
-      transition_write_SExp S S'
+      first [
+          find_conserve_old_bindings S S' ltac:(fun _ =>
+            transition_conserve S S')
+        | repeat rewrite E;
+          transition_write_SExp S S' ]
     end
   | |- context [ alloc_SExp ?S ?p_ ] =>
     let p := fresh "p" in
