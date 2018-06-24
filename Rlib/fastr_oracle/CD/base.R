@@ -1,3 +1,4 @@
+# vector.R
 
 vector <- function(mode = "logical", length = 0L) .Internal(vector(mode, length))
 logical <- function(length = 0L) .Internal(vector("logical", length))
@@ -22,6 +23,8 @@ single <- function(length = 0L)
     structure(vector("double", length), Csingle=TRUE)
 
 
+# structure.R
+
 structure <- function (.Data, ...)
 {
     if(is.null(.Data))
@@ -43,6 +46,36 @@ structure <- function (.Data, ...)
     .Data
 }
 
+# New-Internal.R
+.deparseOpts <- function(control) {
+    opts <- pmatch(as.character(control),
+                   ## the exact order of these is determined by the integer codes in
+                   ## ../../../include/Defn.h
+                   c("all",
+                     "keepInteger", "quoteExpressions", "showAttributes",
+                     "useSource", "warnIncomplete", "delayPromises",
+                     "keepNA", "S_compatible", "hexNumeric", "digits17"))
+    if (anyNA(opts))
+        stop(sprintf(ngettext(as.integer(sum(is.na(opts))),
+                              "deparse option %s is not recognized",
+                              "deparse options %s are not recognized"),
+                     paste(sQuote(control[is.na(opts)]), collapse=", ")),
+             call. = FALSE, domain = NA)
+    if (any(opts == 1L))
+        opts <- unique(c(opts[opts != 1L], 2L,3L,4L,5L,6L,8L)) # not (7,9:11)
+    if(10L %in% opts && 11L %in% opts)
+        stop('"hexNumeric" and "digits17" are mutually exclusive')
+    return(sum(2^(opts-2)))
+}
+
+deparse <-
+    function(expr, width.cutoff = 60L,
+	     backtick = mode(expr) %in% c("call", "expression", "(", "function"),
+	     control = c("keepInteger", "showAttributes", "keepNA"),
+             nlines = -1L)
+    .Internal(deparse(expr, width.cutoff, backtick,
+                      .deparseOpts(control), nlines))
+
 do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 {
     if (!is.list(args))
@@ -52,6 +85,8 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
     .Internal(do.call(what, args, envir))
 }
 
+
+# lapply.R
 lapply <- function (X, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -64,6 +99,7 @@ lapply <- function (X, FUN, ...)
     .Internal(lapply(X, FUN))
 }
 
+# match.fun.R
 match.fun <- function (FUN, descend = TRUE)
 {
     if ( is.function(FUN) )
@@ -87,6 +123,7 @@ match.fun <- function (FUN, descend = TRUE)
 }
 
 
+# eval.R
 .GlobalEnv <- environment()
 parent.frame <- function(n = 1) .Internal(parent.frame(n))
 
@@ -236,7 +273,7 @@ cbind <- function(..., deparse.level = 1)
 }
 
 
-
+# matrix.R
 matrix <- function(data=NA, nrow=1, ncol=1, byrow=FALSE, dimnames=NULL)
 {
     ## avoid copying to strip attributes in simple cases
@@ -356,6 +393,7 @@ t.data.frame <- function(x)
     NextMethod("t")
 }
 
+# colSums.R
 
 colSums <- function(x, na.rm = FALSE, dims = 1L)
 {
@@ -437,7 +475,7 @@ rowMeans <- function(x, na.rm = FALSE, dims = 1L)
     z
 }
 
-
+# det.R
 det <- function(x, ...)
 {
     z <- determinant(x, logarithm = TRUE, ...)
@@ -446,4 +484,122 @@ det <- function(x, ...)
 
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
+# duplicated.R
+
 duplicated <- function(x, incomparables = FALSE, ...) UseMethod("duplicated")
+
+
+# dataframe.R
+is.data.frame <- function(x) inherits(x, "data.frame")
+
+# dput.R
+
+dput <-
+    function(x, file = "",
+             control = c("keepNA", "keepInteger", "showAttributes"))
+{
+    if(is.character(file))
+        if(nzchar(file)) {
+            file <- file(file, "wt")
+            on.exit(close(file))
+        } else file <- stdout()
+    opts <- .deparseOpts(control)
+    ## FIXME: this should happen in C {deparse2() in ../../../main/deparse.c}
+    ##        but we are missing a C-level slotNames()
+    ## Fails e.g. if an S3 list-like object has S4 components
+    if(isS4(x)) {
+	clx <- class(x)
+	cat('new("', clx,'"\n', file = file, sep = "")
+	for(n in methods::.slotNames(clx)) {
+	    cat("    ,", n, "= ", file = file)
+	    dput(methods::slot(x, n), file = file, control = control)
+	}
+	cat(")\n", file = file)
+	invisible()
+    }
+    else .Internal(dput(x, file, opts))
+}
+
+# match.R
+charmatch <- function(x, table, nomatch = NA_integer_)
+    .Internal(charmatch(as.character(x), as.character(table), nomatch))
+
+# diag.R
+diag <- function(x = 1, nrow, ncol)
+{
+    if (is.matrix(x)) {
+        if (nargs() > 1L)
+            stop("'nrow' or 'ncol' cannot be specified when 'x' is a matrix")
+
+        if((m <- min(dim(x))) == 0L) return(vector(typeof(x), 0L))
+        ## NB: need double index to avoid overflows.
+        y <- x[1 + 0L:(m - 1L) * (dim(x)[1L] + 1)]
+        nms <- dimnames(x)
+        if (is.list(nms) && !any(sapply(nms, is.null)) &&
+            identical((nm <- nms[[1L]][seq_len(m)]), nms[[2L]][seq_len(m)]))
+            names(y) <- nm
+        return(y)
+    }
+    if (is.array(x) && length(dim(x)) != 1L)
+        stop("'x' is an array, but not one-dimensional.")
+
+    if (missing(x)) n <- nrow
+    else if (length(x) == 1L && nargs() == 1L) {
+	n <- as.integer(x)
+	x <- 1
+    } else n <- length(x)
+    if (!missing(nrow)) n <- nrow
+    if (missing(ncol)) ncol <- n
+    ## some people worry about speed
+    .Internal(diag(x, n, ncol))
+}
+
+`diag<-` <- function(x, value)
+{
+    dx <- dim(x)
+    if (length(dx) != 2L)
+	## no further check, to also work with 'Matrix'
+	stop("only matrix diagonals can be replaced")
+    len.i <- min(dx)
+    len.v <- length(value)
+    if (len.v != 1L && len.v != len.i)
+	stop("replacement diagonal has wrong length")
+    if (len.i) {
+	i <- seq_len(len.i)
+	x[cbind(i, i)] <- value
+    }
+    x
+}
+
+# deriv.R
+deriv <- function(expr, ...) UseMethod("deriv")
+
+# assign.R
+assign <-
+    function (x, value, pos = -1, envir = as.environment(pos),
+              inherits = FALSE, immediate = TRUE)
+    .Internal(assign(x, value, envir, inherits))
+
+# delay.R
+delayedAssign <-
+    function(x, value, eval.env=parent.frame(1), assign.env=parent.frame(1))
+    .Internal(delayedAssign(x, substitute(value), eval.env, assign.env))
+
+# connections.R
+stdout <- function() .Internal(stdout())
+
+# character.R
+
+chartr <- function(old, new, x)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(chartr(old, new, x))
+}
+
+# chol.R
+chol <- function(x, ...) UseMethod("chol")
+
+# as.R
+as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
+
+as.symbol <- function(x) .Internal(as.vector(x, "symbol"))

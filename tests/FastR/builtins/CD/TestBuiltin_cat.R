@@ -1,8 +1,8 @@
-argv <- list('headn', 1:2, 'n', 3:4, file = 'foo4');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]]);
-argv <- list(list('Loading required package: splinesn'), structure(2L, class = c('terminal', 'connection')), '', FALSE, NULL, FALSE); .Internal(cat(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]]))
-argv <- list('%commentnn%anothern%n%n', 'C1tC2tC3n'Panel't'Area Examined't'% Blemishes'n', ''1't'0.8't'3'n', ''2't'0.6't'2'n', ''3't'0.8't'3'n', file = 'test.dat', sep = '');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]],argv[[6]],argv[[7]]);
-argv <- list('#commentnn#anothern#n#n', 'C1tC2tC3n'Panel't'Area Examined't'# Blemishes'n', ''1't'0.8't'3'n', ''2't'0.6't'2'n', ''3't'0.8't'3'n', file = 'test.dat', sep = '');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]],argv[[6]],argv[[7]]);
-argv <- list('headn', file = 'foo2');cat(argv[[1]],argv[[2]]);
+argv <- list('head\n', 1:2, '\n', 3:4, file = 'foo4');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]]);
+argv <- list(list('Loading required package: splines\n'), structure(2L, class = c('terminal', 'connection')), '', FALSE, NULL, FALSE); .Internal(cat(argv[[1]], argv[[2]], argv[[3]], argv[[4]], argv[[5]], argv[[6]]))
+argv <- list('%comment\n\n%another\n%\n%\n', 'C1\tC2\tC3\n\'Panel\'\t\'Area Examined\'\t\'% Blemishes\'\n', '\'1\'\t\'0.8\'\t\'3\'\n', '\'2\'\t\'0.6\'\t\'2\'\n', '\'3\'\t\'0.8\'\t\'3\'\n', file = 'test.dat', sep = '');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]],argv[[6]],argv[[7]]);
+argv <- list('#comment\n\n#another\n#\n#\n', 'C1\tC2\tC3\n\'Panel\'\t\'Area Examined\'\t\'# Blemishes\'\n', '\'1\'\t\'0.8\'\t\'3\'\n', '\'2\'\t\'0.6\'\t\'2\'\n', '\'3\'\t\'0.8\'\t\'3\'\n', file = 'test.dat', sep = '');cat(argv[[1]],argv[[2]],argv[[3]],argv[[4]],argv[[5]],argv[[6]],argv[[7]]);
+argv <- list('head\n', file = 'foo2');cat(argv[[1]],argv[[2]]);
 { cat() }
 { cat(1) }
 { cat(1, sep="n") }
