@@ -1176,6 +1176,22 @@ Definition write_SExp (S : state) e e_ :=
   | None => None
   end.
 
+Lemma alloc_SExp_state_same_except_for_memory : forall S S' e e_,
+  alloc_SExp S e_ = (S', e) ->
+  state_same_except_for_memory S S'.
+Proof.
+  introv A. unfolds in A. destruct alloc_memory_SExp. inverts A.
+  apply~ state_same_except_for_memory_state_with_memory.
+Qed.
+
+Lemma write_SExp_state_same_except_for_memory : forall S S' e e_,
+  write_SExp S e e_ = Some S' ->
+  state_same_except_for_memory S S'.
+Proof.
+  introv W. unfolds in W. destruct write_memory_SExp; inverts W.
+  apply~ state_same_except_for_memory_state_with_memory.
+Qed.
+
 Lemma write_read_SExp_None : forall S p e_,
   write_SExp S p e_ = None ->
   read_SExp S p = None.
