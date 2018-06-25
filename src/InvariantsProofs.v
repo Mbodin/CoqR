@@ -242,7 +242,6 @@ Proof.
   simpl. splits; try solve_premises_smart.
 Qed.
 
-(* TODO
 Lemma install_result : forall S name_,
   safe_state S ->
   safe_globals S globals ->
@@ -255,10 +254,33 @@ Lemma install_result : forall S name_,
     (install globals runs S name_).
 Proof.
   introv OKS OKg. unfolds install. computeR.
-  skip. (* TODO: cutR PRINTNAME_result. *)
+  set (Pret := fun S' ret =>
+    match ret with
+    | normal_result tt =>
+      conserve_old_bindings S S' /\ safe_state S'
+    | return_result sym =>
+      conserve_old_bindings S S' /\ safe_state S' /\
+      safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
+    end). cutR Pret.
+  - forwards L: safe_SymbolTable OKS. unfolds in L.
+    sets_eq ll: ([ListSxp]). sets_eq lcar: ([SymSxp]). sets_eq ltag: ([NilSxp]).
+    sets_eq sbt: (R_SymbolTable S). asserts OKsbt: (safe_pointer S sbt).
+    { substs. solve_premises_smart. }
+    clear EQsbt. induction L using list_type_ind.
+    + computeR. forwards* Ep: only_one_nil OKS R_NilValue_may_have_types.
+      rewrite <- Ep. rewrite fold_left_listSxp_nil. simpl.
+      splits; solve_premises_smart.
+    + substs. rewrite fold_left_listSxp_cons.
+      * computeR. cutR Pret.
+        -- cutR PRINTNAME_result.
+           ++ solve_premises_smart.
+           ++ lets (C&OKS0&OKa&Ta): (rm P). skip. (* TODO *)
+        -- skip. (* TODO: This is not the same for [apply IHL]. *)
+      * introv E. substs. forwards (Nv&Ev&Tv): R_NilValue_may_have_types OKg.
+        unfolds Globals.read_globals. rewrite Ev in *. skip. (* [Tv] vs [H] and [H1]. *)
+  - skip.
   Optimize Proof.
 Qed.
-*)
 
 
 (** * Lemmae about Rfeatures.v **)

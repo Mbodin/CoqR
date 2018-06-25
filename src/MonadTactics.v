@@ -722,6 +722,18 @@ Lemma exit_rresult_aborts : forall A B r (cont : state -> A -> result B),
   aborting_result (let%exit a := r using S in cont S a).
 Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
 
+Lemma exit_rresult_result : forall A B r (cont : state -> A -> result B)
+    (P_success P'_success : _ -> _ -> Prop) P_error P_longjump,
+  result_prop (fun S r =>
+    match r with
+    | normal_result a => P_success S a
+    | return_result ret => P'_success S ret
+    end) P_error P_longjump r ->
+  (forall S a, P_success S a ->
+    result_prop P'_success P_error P_longjump (cont S a)) ->
+  result_prop P'_success P_error P_longjump (let%exit a := r using S in cont S a).
+Proof. introv P I. destruct~ r. destruct~ n. apply I. apply P. Qed.
+
 Lemma continue_and_condition_pass : forall A B S (r : A) expr,
   continue_and_condition S (normal_result (B := B) r) expr = expr S r.
 Proof. introv. reflexivity. Qed.
@@ -1377,7 +1389,21 @@ Ltac cutR P :=
         [| introv _ P' || introv P' ]
       | applys~ if_success_result P; try (introv _ P' || introv P')
       | eapply if_success_result;
-        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
+  | |- result_prop _ _ _ (exit_rresult ?r ?cont) =>
+    let P' := fresh "P" in
+    first [
+        eapply exit_rresult_result with (P_success := P);
+        [| introv P' ]
+      | eapply exit_rresult_result with (P_success := fun S _ => P S);
+        [| introv _ P' || introv P' ]
+      | applys~ exit_rresult_result P; try (introv _ P' || introv P')
+      | eapply exit_rresult_result;
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
   | |- result_prop _ _ _ (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
     let E := fresh "E" in
     let D := fresh "D" in
@@ -1388,6 +1414,8 @@ Ltac cutR P :=
         [| introv E | introv E D ]
       | applys~ set_longjump_result P; try (introv _ P' || introv P')
       | eapply set_longjump_result;
-        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
   end.
 
