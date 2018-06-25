@@ -1,7 +1,5 @@
 #!/bin/bash
 
-title='FastR $1 Tests'
-
 echo "Running tests for FastR - $1"
 
 make
@@ -23,7 +21,7 @@ echo "Activating virtualenv"
 source $COQR_TEST_PATH/venv/bin/activate
 
 echo "Running tests"
-./compare/run_all.py tests/FastR/builtins/$1 -s -t 'FastR Test' -d
+./compare/run_all.py tests/FastR/builtins/$1 -s -t "FastR $1 Tests" -d
 
 echo "Deactivating virtualenv"
 source $COQR_TEST_PATH/venv/bin/deactivate
