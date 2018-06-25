@@ -47,6 +47,13 @@ structure <- function (.Data, ...)
 }
 
 # New-Internal.R
+typeof <- function(x) .Internal(typeof(x))
+
+drop <- function(x) .Internal(drop(x))
+
+inherits <- function(x, what, which = FALSE)
+	.Internal(inherits(x, what, which))
+
 .deparseOpts <- function(control) {
     opts <- pmatch(as.character(control),
                    ## the exact order of these is determined by the integer codes in
@@ -84,6 +91,8 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 	args <- lapply(args, enquote)
     .Internal(do.call(what, args, envir))
 }
+
+`comment<-` <- function(x, value) .Internal("comment<-"(x, value))
 
 
 # lapply.R
@@ -521,6 +530,11 @@ dput <-
 }
 
 # match.R
+match <- function(x, table, nomatch = NA_integer_, incomparables = NULL)
+    .Internal(match(x, table, nomatch, incomparables))
+
+`%in%`  <- function(x, table) match(x, table, nomatch = 0L) > 0L
+
 charmatch <- function(x, table, nomatch = NA_integer_)
     .Internal(charmatch(as.character(x), as.character(table), nomatch))
 
@@ -603,3 +617,363 @@ chol <- function(x, ...) UseMethod("chol")
 as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
 
 as.symbol <- function(x) .Internal(as.vector(x, "symbol"))
+as.expression <- function(x,...) UseMethod("as.expression")
+
+# identical.R
+identical <- function(x, y, num.eq = TRUE, single.NA = TRUE,
+                      attrib.as.set = TRUE, ignore.bytecode = TRUE,
+                      ignore.environment = FALSE, ignore.srcref = TRUE)
+    .Internal(identical(x,y, num.eq, single.NA, attrib.as.set,
+                        ignore.bytecode, ignore.environment, ignore.srcref))
+
+isTRUE <- function(x) identical(TRUE, x)
+
+# array.R
+array <-
+function(data = NA, dim = length(data), dimnames = NULL)
+{
+    ## allow for as.vector.factor (converts to character)
+    if(is.atomic(data) && !is.object(data))
+        return(.Internal(array(data, dim, dimnames)))
+    data <- as.vector(data)
+    ## package rv has an as.vector() method which leave this as a classed list
+    if(is.object(data)) {
+        dim <- as.integer(dim)
+        if (!length(dim)) stop("'dims' cannot be of length 0")
+        vl <- prod(dim)
+        if(length(data) != vl) {
+            ## C code allows long vectors, but rep() does not.
+            if(vl > .Machine$integer.max)
+                stop("'dim' specifies too large an array")
+            data <- rep_len(data, vl)
+        }
+        if(length(dim)) dim(data) <- dim
+        if(is.list(dimnames) && length(dimnames)) dimnames(data) <- dimnames
+        data
+    } else .Internal(array(data, dim, dimnames))
+}
+
+# dataframe.R
+data.frame <-
+    function(..., row.names = NULL, check.rows = FALSE, check.names = TRUE,
+	     fix.empty.names = TRUE,
+             stringsAsFactors = default.stringsAsFactors())
+{
+    data.row.names <-
+	if(check.rows && is.null(row.names)) {
+	    function(current, new, i) {
+		if(is.character(current)) new <- as.character(new)
+		if(is.character(new)) current <- as.character(current)
+		if(anyDuplicated(new))
+		    return(current)
+		if(is.null(current))
+		    return(new)
+		if(all(current == new) || all(current == ""))
+		    return(new)
+		stop(gettextf(
+		    "mismatch of row names in arguments of 'data.frame\', item %d", i),
+		    domain = NA)
+	    }
+    } else function(current, new, i) {
+	    if(is.null(current)) {
+		if(anyDuplicated(new)) {
+		    warning(gettextf(
+                        "some row.names duplicated: %s --> row.names NOT used",
+                        paste(which(duplicated(new)), collapse=",")),
+                        domain = NA)
+		    current
+		} else new
+	    } else current
+	}
+    object <- as.list(substitute(list(...)))[-1L]
+    mirn <- missing(row.names) # record before possibly changing
+    mrn <- is.null(row.names) # missing or NULL
+    x <- list(...)
+    n <- length(x)
+    if(n < 1L) {
+        if(!mrn) {
+            if(is.object(row.names) || !is.integer(row.names))
+                row.names <- as.character(row.names)
+            if(anyNA(row.names))
+                stop("row names contain missing values")
+            if(anyDuplicated(row.names))
+                stop(gettextf("duplicate row.names: %s",
+                              paste(unique(row.names[duplicated(row.names)]),
+                                    collapse = ", ")),
+                     domain = NA)
+        } else row.names <- integer()
+	return(structure(list(), names = character(),
+                         row.names = row.names,
+			 class = "data.frame"))
+    }
+    vnames <- names(x)
+    if(length(vnames) != n)
+	vnames <- character(n)
+    no.vn <- !nzchar(vnames)
+    vlist <- vnames <- as.list(vnames)
+    nrows <- ncols <- integer(n)
+    for(i in seq_len(n)) {
+        ## do it this way until all as.data.frame methods have been updated
+	xi <- if(is.character(x[[i]]) || is.list(x[[i]])) {
+		  as.data.frame(x[[i]], optional = TRUE,
+				stringsAsFactors = stringsAsFactors)
+    } else as.data.frame(x[[i]], optional = TRUE)
+
+        nrows[i] <- .row_names_info(xi) # signed for now
+	ncols[i] <- length(xi)
+	namesi <- names(xi)
+	if(ncols[i] > 1L) {
+	    if(length(namesi) == 0L) namesi <- seq_len(ncols[i])
+	    vnames[[i]] <- if(no.vn[i]) namesi else paste(vnames[[i]], namesi, sep=".")
+	} else if(length(namesi)) {
+	    vnames[[i]] <- namesi
+	} else if (fix.empty.names && no.vn[[i]]) {
+	    tmpname <- deparse(object[[i]], nlines = 1L)[1L]
+	    if(substr(tmpname, 1L, 2L) == "I(") { ## from 'I(*)', only keep '*':
+		ntmpn <- nchar(tmpname, "c")
+		if(substr(tmpname, ntmpn, ntmpn) == ")")
+		    tmpname <- substr(tmpname, 3L, ntmpn - 1L)
+	    }
+	    vnames[[i]] <- tmpname
+	} ## else vnames[[i]] are not changed
+	if(mirn && nrows[i] > 0L) {
+            rowsi <- attr(xi, "row.names")
+            ## Avoid all-blank names
+            if(any(nzchar(rowsi)))
+                row.names <- data.row.names(row.names, rowsi, i)
+        }
+        nrows[i] <- abs(nrows[i])
+	vlist[[i]] <- xi
+    }
+    nr <- max(nrows)
+    for(i in seq_len(n)[nrows < nr]) {
+	xi <- vlist[[i]]
+	if(nrows[i] > 0L && (nr %% nrows[i] == 0L)) {
+            ## make some attempt to recycle column i
+            xi <- unclass(xi) # avoid data-frame methods
+            fixed <- TRUE
+            for(j in seq_along(xi)) {
+                xi1 <- xi[[j]]
+                if(is.vector(xi1) || is.factor(xi1)) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else if(is.character(xi1) && inherits(xi1, "AsIs")) {
+                    xi[[j]] <- structure(rep(xi1, length.out = nr),
+                                         class = class(xi1))
+                } else if(inherits(xi1, "Date") || inherits(xi1, "POSIXct")) {
+                    xi[[j]] <- rep(xi1, length.out = nr)
+                } else {
+                    fixed <- FALSE
+                    break
+                }
+            }
+            if (fixed) {
+                vlist[[i]] <- xi
+                next
+            }
+        }
+        stop(gettextf("arguments imply differing number of rows: %s",
+                      paste(unique(nrows), collapse = ", ")),
+             domain = NA)
+    }
+    value <- unlist(vlist, recursive=FALSE, use.names=FALSE)
+    ## unlist() drops i-th component if it has 0 columns
+    vnames <- unlist(vnames[ncols > 0L])
+    if(fix.empty.names && any(noname <- !nzchar(vnames)))
+	vnames[noname] <- paste0("Var.", seq_along(vnames))[noname]
+    if(check.names) {
+	if(fix.empty.names) {
+	    vnames <- make.names(vnames, unique=TRUE)
+    } else { ## do not fix ""
+	    nz <- nzchar(vnames)
+	    vnames[nz] <- make.names(vnames[nz], unique=TRUE)
+	}
+    }
+    names(value) <- vnames
+    if(!mrn) { # non-null row.names arg was supplied
+        if(length(row.names) == 1L && nr != 1L) {  # one of the variables
+            if(is.character(row.names))
+                row.names <- match(row.names, vnames, 0L)
+            if(length(row.names) != 1L ||
+               row.names < 1L || row.names > length(vnames))
+                stop("'row.names' should specify one of the variables")
+            i <- row.names
+            row.names <- value[[i]]
+            value <- value[ - i]
+        } else if ( !is.null(row.names) && length(row.names) != nr )
+            stop("row names supplied are of the wrong length")
+    } else if( !is.null(row.names) && length(row.names) != nr ) {
+        warning("row names were found from a short variable and have been discarded")
+        row.names <- NULL
+    }
+    if(is.null(row.names)) {
+        row.names <- .set_row_names(nr) #seq_len(nr)
+    }else {
+        if(is.object(row.names) || !is.integer(row.names))
+            row.names <- as.character(row.names)
+        if(anyNA(row.names))
+            stop("row names contain missing values")
+        if(anyDuplicated(row.names))
+            stop(gettextf("duplicate row.names: %s",
+                          paste(unique(row.names[duplicated(row.names)]),
+                                collapse = ", ")),
+                 domain = NA)
+    }
+    attr(value, "row.names") <- row.names
+    attr(value, "class") <- "data.frame"
+    value
+}
+
+as.data.frame <- function(x, row.names = NULL, optional = FALSE, ...)
+{
+    if(is.null(x))			# can't assign class to NULL
+	return(as.data.frame(list()))
+    UseMethod("as.data.frame")
+}
+
+
+# version.R
+as.numeric_version <-
+function(x)
+{
+    if(is.numeric_version(x)) {
+        x
+    } else if(is.package_version(x)) {
+        ## Pre 2.6.0 is.package_version() compatibility code ...
+        ## Simplify eventually ...
+        structure(x, class = c(class(x), "numeric_version"))
+    } else if(is.list(x) && all(vapply(x, is.integer, NA))) {
+        bad <- vapply(x,
+                      function(e) anyNA(e) || any(e < 0L),
+                      NA)
+        if(any(bad)) {
+            x[bad] <- rep.int(list(integer()), sum(bad))
+        }
+        class(x) <- "numeric_version"
+        x
+    } else numeric_version(x)
+}
+
+# parse.R
+parse <- function(file = "", n = NULL, text = NULL, prompt = "?",
+		  keep.source = getOption("keep.source"),
+                  srcfile = NULL, encoding = "unknown")
+{
+    keep.source <- isTRUE(keep.source)
+    if(!is.null(text)) {
+    	if (length(text) == 0L) return(expression())
+	if (missing(srcfile)) {
+	    srcfile <- "<text>"
+	    if (keep.source)
+	       srcfile <- srcfilecopy(srcfile, text)
+	}
+	file <- stdin()
+    } else {
+	if(is.character(file)) {
+            if(file == "") {
+            	file <- stdin()
+            	if (missing(srcfile))
+            	    srcfile <- "<stdin>"
+            } else {
+		filename <- file
+		file <- file(filename, "r")
+            	if (missing(srcfile))
+            	    srcfile <- filename
+            	if (keep.source) {
+		    text <- readLines(file, warn = FALSE)
+		    if (!length(text)) text <- ""
+            	    close(file)
+            	    file <- stdin()
+        	    srcfile <-
+                        srcfilecopy(filename, text, file.mtime(filename),
+                                    isFile = TRUE)
+                } else on.exit(close(file))
+	    }
+	}
+    }
+    .Internal(parse(file, n, text, prompt, srcfile, encoding))
+}
+
+# seq.R
+seq <- function(...) UseMethod("seq")
+
+# diff.R
+#  File src/library/base/R/diff.R
+
+diff <- function(x, ...) UseMethod("diff")
+
+# raw.R
+raw <- function(length = 0L) .Internal(vector("raw", length))
+
+# time.R
+date <- function() .Internal(date())
+
+# paste.R
+
+paste <- function (..., sep = " ", collapse = NULL)
+    .Internal(paste(list(...), sep, collapse))
+
+# methodsSupport.R
+
+tracingState <- function(on = NULL) .Internal(traceOnOff(on))
+
+.doTrace <- function(expr, msg) {
+    on <- tracingState(FALSE)	   # turn it off QUICKLY (via a .Internal)
+    if(on) {
+	on.exit(tracingState(TRUE)) # restore on exit, keep off during trace
+	if(!missing(msg)) {
+	    call <- deparse(sys.call(sys.parent(1L)))
+	    if(length(call) > 1L)
+		call <- paste(call[[1L]], "....")
+	    cat("Tracing", call, msg, "\n")
+	}
+	exprObj <- substitute(expr)
+	eval.parent(exprObj)
+    }
+    NULL
+}
+
+# outer.R
+outer <- function (X, Y, FUN = "*", ...)
+{
+    if(is.array(X)) {
+        dX <- dim(X)
+        nx <- dimnames(X)
+        no.nx <- is.null(nx)
+    } else { # a vector
+        dX <- length(X)  # cannot be long, as form a matrix below
+        no.nx <- is.null(names(X))
+        if(!no.nx) nx <- list(names(X))
+    }
+    if(is.array(Y)) {
+        dY <- dim(Y)
+        ny <- dimnames(Y)
+        no.ny <- is.null(ny)
+    } else { # a vector
+        dY <- length(Y)
+        no.ny <- is.null(names(Y))
+        if(!no.ny) ny <- list(names(Y))
+    }
+    robj <-
+        if (is.character(FUN) && FUN=="*") {
+            if(!missing(...)) stop('using ... with FUN = "*" is an error')
+            ## this is for numeric vectors, so dropping attributes is OK
+            as.vector(X) %*% t(as.vector(Y))
+        } else {
+            FUN <- match.fun(FUN)
+            ## Y may have a class, so don't use rep.int
+            Y <- rep(Y, rep.int(length(X), length(Y)))
+            ##  length.out is not an argument of the generic rep()
+            ##  X <- rep(X, length.out = length(Y))
+            if(length(X))
+                X <- rep(X, times = ceiling(length(Y)/length(X)))
+            FUN(X, Y, ...)
+        }
+    dim(robj) <- c(dX, dY) # careful not to lose class here
+    ## no dimnames if both don't have ..
+    if(!(no.nx && no.ny)) {
+	if(no.nx) nx <- vector("list", length(dX)) else
+	if(no.ny) ny <- vector("list", length(dY))
+	dimnames(robj) <- c(nx, ny)
+    }
+    robj
+}

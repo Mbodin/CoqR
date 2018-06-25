@@ -1,4 +1,47 @@
+# as.R
+as.symbol <- function(x) .Internal(as.vector(x, "symbol"))
+as.name <- as.symbol
 
+# assign.R
+assign <-
+    function (x, value, pos = -1, envir = as.environment(pos),
+              inherits = FALSE, immediate = TRUE)
+    .Internal(assign(x, value, envir, inherits))
+
+# attach.R
+ls <- objects <-
+    function (name, pos = -1L, envir = as.environment(pos), all.names = FALSE,
+              pattern, sorted = TRUE)
+{
+    if (!missing(name)) {
+        pos <- tryCatch(name, error = function(e)e)
+        if(inherits(pos, "error")) {
+            name <- substitute(name)
+            if (!is.character(name))
+                name <- deparse(name)
+            warning(gettextf("%s converted to character string", sQuote(name)),
+                    domain = NA)
+            pos <- name
+        }
+    }
+    all.names <- .Internal(ls(envir, all.names, sorted))
+    if (!missing(pattern)) {
+        if ((ll <- length(grep("[", pattern, fixed = TRUE))) &&
+             ll != length(grep("]", pattern, fixed = TRUE))) {
+            if (pattern == "[") {
+                pattern <- "\\["
+                warning("replaced regular expression pattern '[' by  '\\\\['")
+            } else if (length(grep("[^\\\\]\\[<-", pattern))) {
+                pattern <- sub("\\[<-", "\\\\\\[<-", pattern)
+                warning("replaced '[<-' by '\\\\[<-' in regular expression pattern")
+            }
+        }
+        grep(pattern, all.names, value = TRUE)
+    } else all.names
+}
+
+
+# vector.R
 vector <- function(mode = "logical", length = 0L) .Internal(vector(mode, length))
 logical <- function(length = 0L) .Internal(vector("logical", length))
 character <- function(length = 0L) .Internal(vector("character", length))
@@ -21,7 +64,7 @@ complex <- function(length.out = 0L,
 single <- function(length = 0L)
     structure(vector("double", length), Csingle=TRUE)
 
-
+# structure.R
 structure <- function (.Data, ...)
 {
     if(is.null(.Data))
@@ -43,6 +86,8 @@ structure <- function (.Data, ...)
     .Data
 }
 
+# New-Internal.R
+
 do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 {
     if (!is.list(args))
@@ -52,6 +97,28 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
     .Internal(do.call(what, args, envir))
 }
 
+iconv <- function(x, from = "", to = "", sub = NA, mark = TRUE, toRaw = FALSE)
+{
+    if(! (is.character(x) || (is.list(x) && is.null(oldClass(x)))))
+        x <- as.character(x)
+    .Internal(iconv(x, from, to, as.character(sub), mark, toRaw))
+}
+
+is.unsorted <- function(x, na.rm = FALSE, strictly = FALSE)
+{
+    if(length(x) <= 1L) return(FALSE)
+    if(!na.rm && anyNA(x))
+	return(NA)
+    ## else
+    if(na.rm && any(ii <- is.na(x)))
+	x <- x[!ii]
+    .Internal(is.unsorted(x, strictly))
+}
+
+lengths <- function(x, use.names=TRUE) .Internal(lengths(x, use.names))
+
+
+# lapply.R
 lapply <- function (X, FUN, ...)
 {
     FUN <- match.fun(FUN)
@@ -64,6 +131,7 @@ lapply <- function (X, FUN, ...)
     .Internal(lapply(X, FUN))
 }
 
+# match.fun.R
 match.fun <- function (FUN, descend = TRUE)
 {
     if ( is.function(FUN) )
@@ -86,6 +154,7 @@ match.fun <- function (FUN, descend = TRUE)
     return(FUN)
 }
 
+# eval.R
 
 .GlobalEnv <- environment()
 parent.frame <- function(n = 1) .Internal(parent.frame(n))
@@ -123,7 +192,7 @@ Recall <- function(...) .Internal(Recall(...))
 
 with <- function(data, expr, ...) UseMethod("with")
 
-
+# cat.R
 cat <- function(..., file = "", sep = " ", fill = FALSE,
                 labels = NULL, append = FALSE)
 {
@@ -139,7 +208,7 @@ cat <- function(..., file = "", sep = " ", fill = FALSE,
     .Internal(cat(list(...), file, sep, fill, labels, append))
 }
 
-
+# cbind.R
 cbind <- function(..., deparse.level = 1)
 {
     has.dl <- !missing(deparse.level)
@@ -236,7 +305,7 @@ cbind <- function(..., deparse.level = 1)
 }
 
 
-
+# matrix.R
 matrix <- function(data=NA, nrow=1, ncol=1, byrow=FALSE, dimnames=NULL)
 {
     ## avoid copying to strip attributes in simple cases
@@ -356,7 +425,7 @@ t.data.frame <- function(x)
     NextMethod("t")
 }
 
-
+# colSums.R
 colSums <- function(x, na.rm = FALSE, dims = 1L)
 {
     if(is.data.frame(x)) x <- as.matrix(x)
@@ -437,7 +506,7 @@ rowMeans <- function(x, na.rm = FALSE, dims = 1L)
     z
 }
 
-
+# det.R
 det <- function(x, ...)
 {
     z <- determinant(x, logarithm = TRUE, ...)
@@ -446,4 +515,787 @@ det <- function(x, ...)
 
 determinant <- function(x, logarithm = TRUE, ...) UseMethod("determinant")
 
+# duplicated.R
 duplicated <- function(x, incomparables = FALSE, ...) UseMethod("duplicated")
+
+# factor.R
+factor <- function(x = character(), levels, labels = levels,
+                   exclude = NA, ordered = is.ordered(x), nmax = NA)
+{
+    if(is.null(x)) x <- character()
+    nx <- names(x)
+    if (missing(levels)) {
+	y <- unique(x, nmax = nmax)
+	ind <- sort.list(y) # or possibly order(x) which is more (too ?) tolerant
+	levels <- unique(as.character(y)[ind])
+    }
+    force(ordered) # check if original x is an ordered factor
+    if(!is.character(x))
+	x <- as.character(x)
+    ## levels could be a long vectors, but match will not handle that.
+    levels <- levels[is.na(match(levels, exclude))]
+    f <- match(x, levels)
+    if(!is.null(nx))
+	names(f) <- nx
+    nl <- length(labels)
+    nL <- length(levels)
+    if(!any(nl == c(1L, nL)))
+	stop(gettextf("invalid 'labels'; length %d should be 1 or %d", nl, nL),
+	     domain = NA)
+    levels(f) <- ## nl == nL or 1
+	if (nl == nL) as.character(labels)	else paste0(labels, seq_along(levels))
+    class(f) <- c(if(ordered) "ordered", "factor")
+    f
+}
+
+is.factor <- function(x) inherits(x, "factor")
+
+as.factor <- function(x) {
+    if (is.factor(x)) {
+        x
+    } else if (!is.object(x) && is.integer(x)) {
+        ## optimization for calls from tapply via split.default
+        levels <- sort(unique.default(x)) # avoid array methods
+        f <- match(x, levels)
+        levels(f) <- as.character(levels)
+	if(!is.null(nx <- names(x))) names(f) <- nx
+        class(f) <- "factor"
+        f
+    } else factor(x)
+}
+
+# identical.R
+
+identical <- function(x, y, num.eq = TRUE, single.NA = TRUE,
+                      attrib.as.set = TRUE, ignore.bytecode = TRUE,
+                      ignore.environment = FALSE, ignore.srcref = TRUE)
+    .Internal(identical(x,y, num.eq, single.NA, attrib.as.set,
+                        ignore.bytecode, ignore.environment, ignore.srcref))
+
+isTRUE <- function(x) identical(TRUE, x)
+
+# grep.R
+
+grep <-
+function(pattern, x, ignore.case = FALSE, perl = FALSE,
+         value = FALSE, fixed = FALSE, useBytes = FALSE, invert = FALSE)
+{
+    ## when value = TRUE we return names
+    if(!is.character(x)) x <- structure(as.character(x), names=names(x))
+    .Internal(grep(as.character(pattern), x, ignore.case, value,
+                   perl, fixed, useBytes, invert))
+}
+
+grepl <-
+function(pattern, x, ignore.case = FALSE, perl = FALSE,
+         fixed = FALSE, useBytes = FALSE)
+{
+    if(!is.character(x)) x <- as.character(x)
+    .Internal(grepl(as.character(pattern), x, ignore.case, FALSE,
+                    perl, fixed, useBytes, FALSE))
+}
+
+gsub <-
+function(pattern, replacement, x, ignore.case = FALSE,
+         perl = FALSE, fixed = FALSE, useBytes = FALSE)
+{
+    if (!is.character(x)) x <- as.character(x)
+    .Internal(gsub(as.character(pattern), as.character(replacement), x,
+                   ignore.case, perl, fixed, useBytes))
+}
+
+gregexpr <-
+function(pattern, text, ignore.case = FALSE, perl = FALSE,
+         fixed = FALSE, useBytes = FALSE)
+{
+    if (!is.character(text)) text <- as.character(text)
+    .Internal(gregexpr(as.character(pattern), text,
+                       ignore.case, perl, fixed, useBytes))
+}
+
+# format.R
+format <- function(x, ...) UseMethod("format")
+
+formatC <- function (x, digits = NULL, width = NULL,
+		     format = NULL, flag = "", mode = NULL,
+		     big.mark = "", big.interval = 3L,
+		     small.mark = "", small.interval = 5L,
+                     decimal.mark = getOption("OutDec"),
+                     preserve.width = "individual", zero.print = NULL,
+                     drop0trailing = FALSE)
+{
+    if(is.object(x)) {
+	if(!(is.atomic(x) || inherits(x, "vector")))
+	    warning("class of 'x' was discarded")
+        x <- unclass(x)
+    }
+    ## sanity check for flags added 2.1.0
+    flag <- as.character(flag)
+    if(length(flag) != 1) stop("'flag' must be a string, i.e., of length 1")
+    nf <- strsplit(flag, "")[[1L]]
+    if(!all(nf %in% c("0", "+", "-", " ", "#", "'", "I")))
+	stop("'flag' should contain only characters from [0+- #'I]")
+
+    format.char <- function (x, width, flag)
+    {
+	if(is.null(width)) {
+		width <- 0L
+	} else if(width < 0L) { flag <- "-"; width <- -width }
+	format.default(x, width=width,
+		       justify = if(flag=="-") "left" else "right")
+    }
+
+    if (!(n <- length(x))) return("")
+    if (is.null(mode)) {
+		mode <- storage.mode(x)
+	} else if (any(mode == c("double", "real", "integer")))  {
+      ## for .C call later on
+	if(mode == "real") mode <- "double"
+	storage.mode(x) <- mode
+    } else if (mode != "character")
+        stop("'mode' must be \"double\" (\"real\"), \"integer\" or \"character\"")
+    if (mode == "character" || (!is.null(format) && format == "s")) {
+	if (mode != "character") {
+	    warning('coercing argument to "character" for format="s"')
+	    x <- as.character(x)
+	}
+	return(format.char(x, width=width, flag=flag))
+    }
+    if (missing(format) || is.null(format)) {
+	format <- if (mode == "integer") "d" else "g"
+	} else {
+	if (any(format == c("f", "e", "E", "g", "G", "fg"))) {
+	    if (mode == "integer") mode <- storage.mode(x) <- "double"
+	} else if (format == "d") {
+	    if (mode != "integer") mode <- storage.mode(x) <- "integer"
+	} else stop('\'format\' must be one of {"f","e","E","g","G", "fg", "s"}')
+    }
+    some.special <- !all(Ok <- is.finite(x))
+    if (some.special) {
+	rQ <- as.character(x[!Ok])
+	rQ[is.na(rQ)] <- "NA"
+	x[!Ok] <- as.vector(0, mode = mode)
+    }
+    if(is.null(width) && is.null(digits))
+	width <- 1L
+    if (is.null(digits)) {
+	digits <- if (mode == "integer") 2L else 4L
+	} else if(digits < 0L) {
+	digits <- 6L
+	} else {
+	maxDigits <- if(format != "f") 50L else ceiling(-(.Machine$double.neg.ulp.digits + .Machine$double.min.exp) / log2(10))
+	if (digits > maxDigits) {
+            warning(gettextf("'digits' reduced to %d", maxDigits), domain = NA)
+	    digits <- maxDigits
+	}
+    }
+    if(is.null(width)) {
+		width <- digits + 1L
+	} else if (width == 0L) width <- digits
+    i.strlen <-
+	pmax(abs(as.integer(width)),
+	     if(format == "fg" || format == "f") {
+		 xEx <- as.integer(floor(log10(abs(x + (x==0)))))
+		 as.integer(x < 0 | flag!="") + digits +
+		     if(format == "f") {
+			 2L + pmax(xEx, 0L)
+		     } else {# format == "fg"
+			 1L + pmax(xEx, digits, digits + (-xEx) + 1L) +
+			     length(nf) # == nchar(flag, "b")
+		     }
+	     } else { # format == "g" or "e":
+		        rep.int(digits + 8L, n)
+         }
+	     )
+    if(digits > 0 && any(nf == "#"))
+	digits <- -digits # C-code will notice "do not drop trailing zeros"
+
+    attr(x, "Csingle") <- NULL	# avoid interpreting as.single
+    r <- .Internal(formatC(x, as.character(mode), width, digits,
+			   as.character(format), flag, i.strlen))
+    if (some.special) r[!Ok] <- format.char(rQ, width = width, flag = flag)
+
+    if(nzchar(big.mark) || nzchar(small.mark) || decimal.mark != "." ||
+       !is.null(zero.print) || drop0trailing)
+	r <- prettyNum(r, big.mark = big.mark, big.interval = big.interval,
+		       small.mark = small.mark, small.interval = small.interval,
+		       decimal.mark = decimal.mark, input.d.mark = ".",
+		       preserve.width = preserve.width, zero.print = zero.print,
+		       drop0trailing = drop0trailing, is.cmplx = FALSE)
+
+    if (!is.null(x.atr <- attributes(x)))
+	attributes(r) <- x.atr
+    r
+}
+
+# raw.R
+raw <- function(length = 0L) .Internal(vector("raw", length))
+
+intToBits <- function(x) .Internal(intToBits(x))
+intToUtf8 <- function(x, multiple=FALSE) .Internal(intToUtf8(x, multiple))
+
+# is.R
+is.vector <- function(x, mode="any") .Internal(is.vector(x,mode))
+`is.na<-` <- function(x, value) UseMethod("is.na<-")
+
+# toString.R
+toString <- function(x, ...) UseMethod("toString")
+
+# get.R
+get <-
+    function (x, pos = -1L, envir = as.environment(pos), mode = "any",
+              inherits = TRUE)
+    .Internal(get(x, envir, mode, inherits))
+
+gettext <- function(..., domain = NULL) {
+    args <- lapply(list(...), as.character)
+    .Internal(gettext(domain, unlist(args)))
+}
+
+mget <- function(x, envir = as.environment(-1L), mode = "any",
+                 ifnotfound, inherits = FALSE)
+    .Internal(mget(x, envir, mode,
+                   if(missing(ifnotfound))
+                       list(function(x) stop(gettextf("value for %s not found", sQuote(x)),
+                                             call. = FALSE))
+                   else ifnotfound,
+                   inherits))
+# parse.R
+parse <- function(file = "", n = NULL, text = NULL, prompt = "?",
+		  keep.source = getOption("keep.source"),
+                  srcfile = NULL, encoding = "unknown")
+{
+    keep.source <- isTRUE(keep.source)
+    if(!is.null(text)) {
+    	if (length(text) == 0L) return(expression())
+	if (missing(srcfile)) {
+	    srcfile <- "<text>"
+	    if (keep.source)
+	       srcfile <- srcfilecopy(srcfile, text)
+	}
+	file <- stdin()
+    } else {
+	if(is.character(file)) {
+            if(file == "") {
+            	file <- stdin()
+            	if (missing(srcfile))
+            	    srcfile <- "<stdin>"
+            } else {
+		filename <- file
+		file <- file(filename, "r")
+            	if (missing(srcfile))
+            	    srcfile <- filename
+            	if (keep.source) {
+		    text <- readLines(file, warn = FALSE)
+		    if (!length(text)) text <- ""
+            	    close(file)
+            	    file <- stdin()
+        	    srcfile <-
+                        srcfilecopy(filename, text, file.mtime(filename),
+                                    isFile = TRUE)
+                } else on.exit(close(file))
+	    }
+	}
+    }
+    .Internal(parse(file, n, text, prompt, srcfile, encoding))
+}
+
+# attach.R
+ls <- objects <-
+    function (name, pos = -1L, envir = as.environment(pos), all.names = FALSE,
+              pattern, sorted = TRUE)
+{
+    if (!missing(name)) {
+        pos <- tryCatch(name, error = function(e)e)
+        if(inherits(pos, "error")) {
+            name <- substitute(name)
+            if (!is.character(name))
+                name <- deparse(name)
+            warning(gettextf("%s converted to character string", sQuote(name)),
+                    domain = NA)
+            pos <- name
+        }
+    }
+    all.names <- .Internal(ls(envir, all.names, sorted))
+    if (!missing(pattern)) {
+        if ((ll <- length(grep("[", pattern, fixed = TRUE))) &&
+             ll != length(grep("]", pattern, fixed = TRUE))) {
+            if (pattern == "[") {
+                pattern <- "\\["
+                warning("replaced regular expression pattern '[' by  '\\\\['")
+            } else if (length(grep("[^\\\\]\\[<-", pattern))) {
+                pattern <- sub("\\[<-", "\\\\\\[<-", pattern)
+                warning("replaced '[<-' by '\\\\[<-' in regular expression pattern")
+            }
+        }
+        grep(pattern, all.names, value = TRUE)
+    } else all.names
+}
+
+# seq.R
+seq <- function(...) UseMethod("seq")
+
+# ifelse.R
+ifelse <- function (test, yes, no)
+{
+    if(is.atomic(test)) { # do not lose attributes
+        if (typeof(test) != "logical")
+            storage.mode(test) <- "logical"
+        ## quick return for cases where 'ifelse(a, x, y)' is used
+        ## instead of 'if (a) x else y'
+        if (length(test) == 1 && is.null(attributes(test))) {
+            if (is.na(test)) return(NA)
+            else if (test) {
+                if (length(yes) == 1) {
+                    yat <- attributes(yes)
+                    if (is.null(yat) || (is.function(yes) &&
+                                         identical(names(yat), "srcref")))
+                        return(yes)
+                }
+            } else if (length(no) == 1) {
+                nat <- attributes(no)
+                if (is.null(nat) || (is.function(no) &&
+                                     identical(names(nat), "srcref")))
+                    return(no)
+            }
+        }
+    } else { ## typically a "class"; storage.mode<-() typically fails
+        test <- if(isS4(test)) methods::as(test, "logical") else as.logical(test)
+    }
+    ans <- test
+    ok <- !(nas <- is.na(test))
+    if (any(test[ok]))
+	ans[test & ok] <- rep(yes, length.out = length(ans))[test & ok]
+    if (any(!test[ok]))
+	ans[!test & ok] <- rep(no, length.out = length(ans))[!test & ok]
+    ans[nas] <- NA
+    ans
+}
+
+# environment.R
+environmentName <- function(env) .Internal(environmentName(env))
+
+
+# match.R
+match <- function(x, table, nomatch = NA_integer_, incomparables = NULL)
+    .Internal(match(x, table, nomatch, incomparables))
+
+match.call <-
+    function(definition=sys.function(sys.parent()),
+             call=sys.call(sys.parent()), expand.dots=TRUE,
+             envir=parent.frame(2L))
+{
+    if (!missing(definition) && is.null(definition)) {
+        definition <- sys.function(sys.parent())
+    }
+    .Internal(match.call(definition,call,expand.dots,envir))
+}
+
+match.arg <- function (arg, choices, several.ok = FALSE)
+{
+    if (missing(choices)) {
+	formal.args <- formals(sys.function(sys.parent()))
+	choices <- eval(formal.args[[as.character(substitute(arg))]])
+    }
+    if (is.null(arg)) return(choices[1L])
+    else if(!is.character(arg))
+	stop("'arg' must be NULL or a character vector")
+    if (!several.ok) { # most important (default) case:
+        ## the arg can be the whole of choices as a default argument.
+        if(identical(arg, choices)) return(arg[1L])
+        if(length(arg) > 1L) stop("'arg' must be of length 1")
+    } else if(length(arg) == 0L) stop("'arg' must be of length >= 1")
+
+    ## handle each element of arg separately
+    i <- pmatch(arg, choices, nomatch = 0L, duplicates.ok = TRUE)
+    if (all(i == 0L))
+	stop(gettextf("'arg' should be one of %s",
+                      paste(dQuote(choices), collapse = ", ")),
+             domain = NA)
+    i <- i[i > 0L]
+    if (!several.ok && length(i) > 1)
+        stop("there is more than one match in 'match.arg'")
+    choices[i]
+}
+
+
+# sys.R
+
+sys.call <- function(which = 0L)
+    .Internal(sys.call(which))
+
+sys.calls <- function()
+    .Internal(sys.calls())
+
+sys.frame <- function(which = 0L)
+    .Internal(sys.frame(which))
+
+sys.function <- function(which = 0L)
+    .Internal(sys.function(which))
+
+sys.frames <- function()
+    .Internal(sys.frames())
+
+sys.nframe <- function()
+    .Internal(sys.nframe())
+
+sys.parent <- function(n = 1L)
+    .Internal(sys.parent(n))
+
+
+# locales.R
+
+Sys.setlocale <- function(category = "LC_ALL", locale = "")
+{
+    category <- match(category, c("LC_ALL", "LC_COLLATE", "LC_CTYPE",
+                                  "LC_MONETARY", "LC_NUMERIC", "LC_TIME",
+                                  "LC_MESSAGES", "LC_PAPER", "LC_MEASUREMENT"))
+    if(is.na(category)) stop("invalid 'category' argument")
+    .Internal(Sys.setlocale(category, locale))
+}
+
+
+# conditions.R
+tryCatch <- function(expr, ..., finally) {
+    tryCatchList <- function(expr, names, parentenv, handlers) {
+	nh <- length(names)
+	if (nh > 1L) {
+	    tryCatchOne(tryCatchList(expr, names[-nh], parentenv,
+                                     handlers[-nh]),
+			names[nh], parentenv, handlers[[nh]])
+    } else if (nh == 1L) {
+	    tryCatchOne(expr, names, parentenv, handlers[[1L]])
+    } else expr
+    }
+    tryCatchOne <- function(expr, name, parentenv, handler) {
+	doTryCatch <- function(expr, name, parentenv, handler) {
+	    .Internal(.addCondHands(name, list(handler), parentenv,
+				    environment(), FALSE))
+	    expr
+	}
+	value <- doTryCatch(return(expr), name, parentenv, handler)
+	# The return in the call above will exit withOneRestart unless
+	# the handler is invoked; we only get to this point if the handler
+	# is invoked.  If we get here then the handler will have been
+	# popped off the internal handler stack.
+	if (is.null(value[[1L]])) {
+	    # a simple error; message is stored internally
+	    # and call is in result; this defers all allocs until
+	    # after the jump
+	    msg <- .Internal(geterrmessage())
+	    call <- value[[2L]]
+	    cond <- simpleError(msg, call)
+	} else cond <- value[[1L]]
+	value[[3L]](cond)
+    }
+    if (! missing(finally))
+        on.exit(finally)
+    handlers <- list(...)
+    classes <- names(handlers)
+    parentenv <- parent.frame()
+    if (length(classes) != length(handlers))
+        stop("bad handler specification")
+    tryCatchList(expr, classes, parentenv, handlers)
+}
+
+# methodsSupport.R
+
+asS4 <- function(object, flag = TRUE, complete = TRUE)
+    .Internal(setS4Object(object, flag, complete))
+
+
+# RNG.R
+set.seed <- function(seed, kind = NULL, normal.kind = NULL)
+{
+    kinds <- c("Wichmann-Hill", "Marsaglia-Multicarry", "Super-Duper",
+               "Mersenne-Twister", "Knuth-TAOCP", "user-supplied",
+               "Knuth-TAOCP-2002", "L'Ecuyer-CMRG", "default")
+    n.kinds <- c("Buggy Kinderman-Ramage", "Ahrens-Dieter", "Box-Muller",
+                 "user-supplied", "Inversion", "Kinderman-Ramage",
+		 "default")
+    if(length(kind) ) {
+	if(!is.character(kind) || length(kind) > 1L)
+	    stop("'kind' must be a character string of length 1 (RNG to be used).")
+	if(is.na(i.knd <- pmatch(kind, kinds) - 1L))
+	    stop(gettextf("'%s' is not a valid abbreviation of an RNG", kind),
+                 domain = NA)
+        if(i.knd == length(kinds) - 1L) i.knd <- -1L
+    } else i.knd <- NULL
+
+    if(!is.null(normal.kind)) {
+	if(!is.character(normal.kind) || length(normal.kind) != 1L)
+	    stop("'normal.kind' must be a character string of length 1")
+        normal.kind <- pmatch(normal.kind, n.kinds) - 1L
+        if(is.na(normal.kind))
+	    stop(gettextf("'%s' is not a valid choice", normal.kind),
+                 domain = NA)
+	if (normal.kind == 0L)
+            stop("buggy version of Kinderman-Ramage generator is not allowed",
+                 domain = NA)
+         if(normal.kind == length(n.kinds) - 1L) normal.kind <- -1L
+    }
+    .Internal(set.seed(seed, i.knd, normal.kind))
+}
+
+# gl.R
+gl <- function (n, k, length = n*k, labels=seq_len(n), ordered=FALSE)
+  {
+    ## We avoid calling factor(), for efficiency.
+
+    ## Must set levels before class.
+    ## That way, `levels<-` will pick up an invalid
+    ## labels specification.
+
+    f <- rep_len(rep.int(seq_len(n), rep.int(k,n)), length)
+    levels(f) <- as.character(labels)
+    class(f) <- c(if (ordered) "ordered", "factor")
+    f
+  }
+
+# rep.R
+
+rep.int <- function(x, times) .Internal(rep.int(x, times))
+
+rep_len <- function(x, length.out) .Internal(rep_len(x, length.out))
+
+# file.R
+file.path <-
+function(..., fsep=.Platform$file.sep)
+    .Internal(file.path(list(...), fsep))
+
+# connections.R
+stdout <- function() .Internal(stdout())
+
+textConnection <- function(object, open = "r", local = FALSE,
+                           encoding = c("", "bytes", "UTF-8"))
+{
+    env <- if (local) parent.frame() else .GlobalEnv
+    type <- match(match.arg(encoding), c("", "bytes", "UTF-8"))
+    nm <- deparse(substitute(object))
+    if(length(nm) != 1)
+        stop("argument 'object' must deparse to a single character string")
+    .Internal(textConnection(nm, object, open, env, type))
+}
+
+# sapply.R
+simplify2array <- function(x, higher = TRUE)
+{
+    if(length(common.len <- unique(lengths(x))) > 1L)
+        return(x)
+    if(common.len == 1L) {
+        unlist(x, recursive = FALSE)
+    } else if(common.len > 1L) {
+        n <- length(x)
+        ## make sure that array(*) will not call rep() {e.g. for 'call's}:
+	r <- unlist(x, recursive = FALSE, use.names = FALSE)
+        if(higher && length(c.dim <- unique(lapply(x, dim))) == 1 &&
+           is.numeric(c.dim <- c.dim[[1L]]) &&
+           prod(d <- c(c.dim, n)) == length(r)) {
+
+            iN1 <- is.null(n1 <- dimnames(x[[1L]]))
+            n2 <- names(x)
+            dnam <-
+                if(!(iN1 && is.null(n2)))
+                    c(if(iN1) rep.int(list(n1), length(c.dim)) else n1,
+                      list(n2)) ## else NULL
+            array(r, dim = d, dimnames = dnam)
+
+        } else if(prod(d <- c(common.len, n)) == length(r)) {
+            array(r, dim = d,
+                  dimnames = if(!(is.null(n1 <- names(x[[1L]])) &
+                  is.null(n2 <- names(x)))) list(n1,n2))
+        } else x
+    } else x
+}
+
+sapply <- function(X, FUN, ..., simplify = TRUE, USE.NAMES = TRUE)
+{
+    FUN <- match.fun(FUN)
+    answer <- lapply(X = X, FUN = FUN, ...)
+    if(USE.NAMES && is.character(X) && is.null(names(answer)))
+	names(answer) <- X
+    if(!identical(simplify, FALSE) && length(answer)) {
+	simplify2array(answer, higher = (simplify == "array"))
+    } else answer
+}
+
+# character.R
+make.names <- function(names, unique = FALSE, allow_ = TRUE)
+{
+    names <- as.character(names)
+    names2 <- .Internal(make.names(names, allow_))
+    if(unique) {
+    	o <- order(names != names2)
+        names2[o] <- make.unique(names2[o])
+    }
+    names2
+}
+
+make.unique <- function (names, sep = ".") .Internal(make.unique(names, sep))
+
+# library.R
+require <-
+function(package, lib.loc = NULL, quietly = FALSE, warn.conflicts = TRUE,
+         character.only = FALSE)
+{
+    if(!character.only)
+        package <- as.character(substitute(package)) # allowing "require(eda)"
+    loaded <- paste0("package:", package) %in% search()
+
+    if (!loaded) {
+	if (!quietly)
+            packageStartupMessage(gettextf("Loading required package: %s",
+                                           package), domain = NA)
+	value <- tryCatch(library(package, lib.loc = lib.loc,
+                                  character.only = TRUE,
+                                  logical.return = TRUE,
+                                  warn.conflicts = warn.conflicts,
+				  quietly = quietly),
+                          error = function(e) e)
+        if (inherits(value, "error")) {
+            if (!quietly) {
+                msg <- conditionMessage(value)
+                cat("Failed with error:  ",
+                    sQuote(msg), "\n", file = stderr(), sep = "")
+                .Internal(printDeferredWarnings())
+            }
+            return(invisible(FALSE))
+        }
+        if (!value) return(invisible(FALSE))
+    } else value <- TRUE
+    invisible(value)
+}
+
+# mean.R
+mean <- function(x, ...) UseMethod("mean")
+
+# bindenv.R
+lockEnvironment <- function(env, bindings = FALSE)
+    .Internal(lockEnvironment(env, bindings))
+
+
+# print.R
+print <- function(x, ...) UseMethod("print")
+
+# array.R
+array <-
+function(data = NA, dim = length(data), dimnames = NULL)
+{
+    ## allow for as.vector.factor (converts to character)
+    if(is.atomic(data) && !is.object(data))
+        return(.Internal(array(data, dim, dimnames)))
+    data <- as.vector(data)
+    ## package rv has an as.vector() method which leave this as a classed list
+    if(is.object(data)) {
+        dim <- as.integer(dim)
+        if (!length(dim)) stop("'dims' cannot be of length 0")
+        vl <- prod(dim)
+        if(length(data) != vl) {
+            ## C code allows long vectors, but rep() does not.
+            if(vl > .Machine$integer.max)
+                stop("'dim' specifies too large an array")
+            data <- rep_len(data, vl)
+        }
+        if(length(dim)) dim(data) <- dim
+        if(is.list(dimnames) && length(dimnames)) dimnames(data) <- dimnames
+        data
+    } else .Internal(array(data, dim, dimnames))
+}
+
+# mapply.R
+mapply <- function(FUN,..., MoreArgs = NULL, SIMPLIFY = TRUE, USE.NAMES = TRUE)
+{
+    FUN <- match.fun(FUN)
+    dots <- list(...)
+
+    answer <- .Internal(mapply(FUN, dots, MoreArgs))
+
+    if (USE.NAMES && length(dots)) {
+	if (is.null(names1 <- names(dots[[1L]])) && is.character(dots[[1L]])) {
+	    names(answer) <- dots[[1L]]
+    } else if (!is.null(names1))
+	    names(answer) <- names1
+    }
+    if(!identical(SIMPLIFY, FALSE) && length(answer)) {
+	simplify2array(answer, higher = (SIMPLIFY == "array"))
+    } else answer
+}
+
+# stop.R
+stop <- function(..., call. = TRUE, domain = NULL)
+{
+    args <- list(...)
+    if (length(args) == 1L && inherits(args[[1L]], "condition")) {
+        cond <- args[[1L]]
+        if(nargs() > 1L)
+            warning("additional arguments ignored in stop()")
+        message <- conditionMessage(cond)
+        call <- conditionCall(cond)
+        .Internal(.signalCondition(cond, message, call))
+        .Internal(.dfltStop(message, call))
+    } else        .Internal(stop(call., .makeMessage(..., domain = domain)))
+}
+
+# files.R
+list.files <-
+    function(path = ".", pattern = NULL, all.files = FALSE,
+             full.names = FALSE, recursive = FALSE,
+             ignore.case = FALSE, include.dirs = FALSE, no.. = FALSE)
+    .Internal(list.files(path, pattern, all.files, full.names,
+			 recursive, ignore.case, include.dirs, no..))
+
+# merge.R
+merge <- function(x, y, ...) UseMethod("merge")
+
+# tapply.R
+tapply <- function (X, INDEX, FUN = NULL, ..., default = NA, simplify = TRUE)
+{
+    FUN <- if (!is.null(FUN)) match.fun(FUN)
+    if (!is.list(INDEX)) INDEX <- list(INDEX)
+    INDEX <- lapply(INDEX, as.factor)
+    nI <- length(INDEX)  # now, 'INDEX' is not classed
+    if (!nI) stop("'INDEX' is of length zero")
+    if (!all(lengths(INDEX) == length(X)))
+        stop("arguments must have same length")
+    namelist <- lapply(INDEX, levels)#- all of them, yes !
+    extent <- lengths(namelist, use.names = FALSE)
+    cumextent <- cumprod(extent)
+    if (cumextent[nI] > .Machine$integer.max)
+        stop("total number of levels >= 2^31")
+    storage.mode(cumextent) <- "integer"
+    ngroup <- cumextent[nI]
+    group <- as.integer(INDEX[[1L]]) #- to contain the splitting vector
+    if (nI > 1L)
+        for (i in 2L:nI)
+           group <- group + cumextent[i - 1L] * (as.integer(INDEX[[i]]) - 1L)
+    if (is.null(FUN)) return(group)
+    levels(group) <- as.character(seq_len(ngroup))
+    class(group) <- "factor"
+    ans <- split(X, group) # use generic, e.g. for 'Date'
+    names(ans) <- NULL
+    index <- as.logical(lengths(ans))  # equivalently, lengths(ans) > 0L
+    ans <- lapply(X = ans[index], FUN = FUN, ...)
+    ansmat <- array(
+	if (simplify && all(lengths(ans) == 1L)) {
+	    ans <- unlist(ans, recursive = FALSE, use.names = FALSE)
+	    if(!is.null(ans) && is.na(default) && is.atomic(ans)) {
+		vector(typeof(ans))
+        } else default
+	} else vector("list", prod(extent)),
+	dim = extent, dimnames = namelist)
+    if(length(ans)) {
+	ansmat[index] <- ans
+    }
+    ansmat
+}
+
+# sort.R
+sort <- function(x, decreasing = FALSE, ...)
+{
+    if(!is.logical(decreasing) || length(decreasing) != 1L)
+        stop("'decreasing' must be a length-1 logical vector.\nDid you intend to set 'partial'?")
+    UseMethod("sort")
+}
+
+# solve.R
+solve <- function(a, b, ...) UseMethod("solve")

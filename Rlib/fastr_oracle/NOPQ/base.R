@@ -710,6 +710,8 @@ assign <-
 
 
 # as.R
+as.list <- function(x,...) UseMethod("as.list")
+
 as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
 
 as.symbol <- function(x) .Internal(as.vector(x, "symbol"))
@@ -1136,3 +1138,44 @@ outer <- function (X, Y, FUN = "*", ...)
 
 ## Binary operator, hence don't simply do "%o%" <- outer.
 `%o%` <- function(X, Y) outer(X, Y)
+
+# options.R
+options <- function(...)
+    .Internal(options(...))
+
+getOption <- function(x, default = NULL)
+{
+    ## To avoid always performing the %in%,
+    ## we use the original code if default is not specified.
+    ## if(missing(default)) return(options(x)[[1L]])
+    if(missing(default) || x %in% names(options())) {
+	.Internal(getOption(x))
+    } else default
+}
+
+# formals.R
+formals <- function(fun = sys.function(sys.parent())) {
+    if(is.character(fun))
+	fun <- get(fun, mode = "function", envir = parent.frame())
+    .Internal(formals(fun))
+}
+
+# connections.R
+stdin <- function() .Internal(stdin())
+
+# utils/str.R
+
+str <- function(object, ...) UseMethod("str")
+
+# message.R
+.makeMessage <- function(..., domain = NULL, appendLF = FALSE)
+ {
+    args <- list(...)
+    msg <- if(length(args)) {
+        args <- lapply(list(...), as.character)
+        if(is.null(domain) || !is.na(domain))
+            args <- .Internal(gettext(domain, unlist(args)))
+        paste(args, collapse = "")
+    } else ""
+    if(appendLF) paste0(msg, "\n") else msg
+}

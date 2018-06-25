@@ -1,3 +1,6 @@
+# aperm.R
+aperm <- function(a, perm, ...) UseMethod("aperm")
+
 # apply.R
 apply <- function(X, MARGIN, FUN, ...)
 {
@@ -821,6 +824,28 @@ function(pattern, x, max.distance = 0.1, costs = NULL,
                      useBytes, fixed))
 }
 
+.amatch_costs <-
+function(x = NULL)
+{
+    costs <- c(insertions = 1, deletions = 1, substitutions = 1)
+    if(!is.null(x)) {
+        x <- as.list(x)
+        ## Partial matching.
+        pos <- pmatch(names(x), names(costs))
+        if(anyNA(pos)) {
+            warning("unknown cost components ignored")
+            x <- x[!is.na(pos)]
+        }
+        ## Sanity checks.
+        x <- unlist(x)
+        if(!all(is.numeric(x)) || any(x < 0))
+            stop("cost components must be non-negative")
+        costs[pos] <- x
+    }
+
+    costs
+}
+
 
 # vector.R
 
@@ -1305,3 +1330,77 @@ as.formula <- function(object, env = parent.frame())
 
 # datetime.R
 Sys.time <- function() .POSIXct(.Internal(Sys.time()))
+
+.POSIXct <- function(xx, tz = NULL)
+    structure(xx, class = c("POSIXct", "POSIXt"), tzone = tz)
+
+# array
+array <-
+function(data = NA, dim = length(data), dimnames = NULL)
+{
+    ## allow for as.vector.factor (converts to character)
+    if(is.atomic(data) && !is.object(data))
+        return(.Internal(array(data, dim, dimnames)))
+    data <- as.vector(data)
+    ## package rv has an as.vector() method which leave this as a classed list
+    if(is.object(data)) {
+        dim <- as.integer(dim)
+        if (!length(dim)) stop("'dims' cannot be of length 0")
+        vl <- prod(dim)
+        if(length(data) != vl) {
+            ## C code allows long vectors, but rep() does not.
+            if(vl > .Machine$integer.max)
+                stop("'dim' specifies too large an array")
+            data <- rep_len(data, vl)
+        }
+        if(length(dim)) dim(data) <- dim
+        if(is.list(dimnames) && length(dimnames)) dimnames(data) <- dimnames
+        data
+    } else .Internal(array(data, dim, dimnames))
+}
+
+# match.R
+match <- function(x, table, nomatch = NA_integer_, incomparables = NULL)
+    .Internal(match(x, table, nomatch, incomparables))
+
+match.call <-
+    function(definition=sys.function(sys.parent()),
+             call=sys.call(sys.parent()), expand.dots=TRUE,
+             envir=parent.frame(2L))
+{
+    if (!missing(definition) && is.null(definition)) {
+        definition <- sys.function(sys.parent())
+    }
+    .Internal(match.call(definition,call,expand.dots,envir))
+}
+
+pmatch <- function(x, table, nomatch = NA_integer_, duplicates.ok = FALSE)
+    .Internal(pmatch(as.character(x), as.character(table), nomatch,
+                     duplicates.ok))
+
+`%in%`  <- function(x, table) match(x, table, nomatch = 0L) > 0L
+
+# bitwise.R
+bitwOr <- function(a, b) .Internal(bitwiseOr(a, b))
+
+
+# files.R
+file.exists <- function(...) .Internal(file.exists(c(...)))
+
+
+# connections.R
+file <- function(description = "", open = "", blocking = TRUE,
+                 encoding = getOption("encoding"), raw = FALSE,
+                 method = getOption("url.method", "default")) {
+    .Internal(file(description, open, blocking, encoding, method, raw))
+}
+
+# get.R
+get <-
+    function (x, pos = -1L, envir = as.environment(pos), mode = "any",
+              inherits = TRUE)
+    .Internal(get(x, envir, mode, inherits))
+
+
+# is.R
+is.vector <- function(x, mode="any") .Internal(is.vector(x,mode))

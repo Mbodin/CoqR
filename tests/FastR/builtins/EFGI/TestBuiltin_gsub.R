@@ -47,9 +47,7 @@ argv <- structure(list(pattern = 'a*', replacement = 'x', x = 'baaaac'),     .Na
 { gsub('.*X', '', 'a\nXb', perl = TRUE) }
 { gsub('~', '\\\\X', '~') }
 { gsub(pattern = 'Ä*', replacement = 'x', x = 'aÄÄÄÄÄb', perl = TRUE) }
-list(gsub('>.*\n|\n', '', 'R> Line 1\n Line 2\n', perl=T),
-gsub('>.*\n|\n', '', 'R> Line 1\n Line 2\n', perl=F))
-list(gsub('>.*\t|\n', '', 'R> Line 1\t Line 2\n', perl=T),
-gsub('>.*\t|\n', '', 'R> Line 1\t Line 2\n', perl=F))
+list(gsub('>.*\n|\n', '', 'R> Line 1\n Line 2\n', perl=T), gsub('>.*\n|\n', '', 'R> Line 1\n Line 2\n', perl=F))
+list(gsub('>.*\t|\n', '', 'R> Line 1\t Line 2\n', perl=T),gsub('>.*\t|\n', '', 'R> Line 1\t Line 2\n', perl=F))
 { gsub('([^\n])$', '\\1\n', c('[1] 2', NA, 'aaaa\n')) }
 { gsub('x', '$', 'x') }
