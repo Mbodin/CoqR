@@ -1221,6 +1221,15 @@ Proof.
   introv M. rewrite <- Mem_mem in M. applys~ I M.
 Qed.
 
+Lemma BagIncl_trans : forall T `{Comparable T} (l1 l2 l3 : list T),
+  l1 \c l2 ->
+  l2 \c l3 ->
+  l1 \c l3.
+Proof.
+  introv I1 I2. applys BagInIncl_make. simpls. rewrite Forall_iff_forall_mem in *.
+  introv I. rewrite Mem_mem in I. apply I1 in I. rewrite Mem_mem in I. applys~ I2 I.
+Qed.
+
 Lemma BagInclEmpty : forall T `{Comparable T} (l : list T),
   \{} \c l.
 Proof. introv. apply BagInIncl_make. introv I. false~ BagInEmpty_list I. Qed.

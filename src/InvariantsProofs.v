@@ -48,7 +48,7 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
   result_prop P_success P_error P_longjump (runs_while_loop runs S a expr stat).
 
 Lemma while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
-    S (a : A) (expr stat : _ -> A -> _),
+    S (a : A) expr stat,
   P_success S a ->
   (forall S a,
     P_success S a ->
@@ -64,6 +64,48 @@ Proof.
   - destruct stat eqn: E'; autos~. computeR.
     applys~ runs_while_loop_result OKstat.
   - apply~ OKS'.
+Qed.
+
+Lemma fold_left_listSxp_gen_result : forall A S (a : A) l iterate l_t l_car l_tag
+    (P_success : _ -> _ -> Prop) P_error P_longjump Pheader Pcar Ptag,
+  safe_state S ->
+  safe_globals S globals ->
+  P_success S a ->
+  list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag l ->
+  (forall (S : state) a l l_ l_header (l_list : ListSxp_struct),
+    P_success S a ->
+    safe_state S ->
+    safe_globals S globals ->
+    read_SExp S l = Some l_ ->
+    l_ = make_NonVector_SExpRec l_header l_list ->
+    list_type_head_such_that (list_type_such_that Pheader Pcar Ptag)
+      Pheader Pcar Ptag S l_t l_car l_tag l_ ->
+    result_prop (fun S a => safe_state S /\ safe_globals S globals
+        /\ P_success S a
+        /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag (list_cdrval l_list))
+      P_error P_longjump (iterate S a l l_ l_list)) ->
+  result_prop P_success P_error P_longjump
+    (fold_left_listSxp_gen runs globals S l a iterate).
+Proof.
+  introv OKS OKg OKa L OKiterate. unfolds fold_left_listSxp_gen.
+  cutR (fun S (la : SEXP * A) =>
+          safe_state S /\ safe_globals S globals
+          /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag (fst la)
+          /\ P_success S (snd la)).
+  - apply while_loop_result.
+    + splits~.
+    + clear - OKiterate. introv (OKS&OKg&L&OKa). destruct a as (l&a).
+      unfolds @fst. unfolds @snd. simpl. splits~.
+      introv D. rew_refl in D. inverts L as L.
+      * false D. applys~ only_one_nil OKS. apply~ R_NilValue_may_have_types.
+      * inverts L as (El&L). destruct L as (h&car&cdr&tag&Ex&Tx&Hh&Tcar&Hcar&L&Ttag&Htag).
+        computeR. substs. computeR.
+        cutR (fun S a => safe_state S /\ safe_globals S globals
+          /\ P_success S a
+          /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag cdr).
+        -- apply~ OKiterate. constructors. exists* car cdr tag.
+        -- lets (OKS0&OKg0&P'&L'): (rm P). simpl. splits~.
+  - destruct a0. apply P.
 Qed.
 
 
@@ -250,7 +292,7 @@ Lemma install_result : forall S name_,
       /\ safe_state S'
       /\ safe_pointer S' sym
       /\ may_have_types S' ([SymSxp]) sym)
-    (fun _ => False) (fun _ _ _ => False)
+    (fun _ => name_ = ""%string) (fun _ _ _ => False)
     (install globals runs S name_).
 Proof.
   introv OKS OKg. unfolds install. computeR.
@@ -262,23 +304,19 @@ Proof.
       conserve_old_bindings S S' /\ safe_state S' /\
       safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
     end). cutR Pret.
-  - forwards L: safe_SymbolTable OKS. unfolds in L.
-    sets_eq ll: ([ListSxp]). sets_eq lcar: ([SymSxp]). sets_eq ltag: ([NilSxp]).
-    sets_eq sbt: (R_SymbolTable S). asserts OKsbt: (safe_pointer S sbt).
-    { substs. solve_premises_smart. }
-    clear EQsbt. induction L using list_type_ind.
-    + computeR. forwards* Ep: only_one_nil OKS R_NilValue_may_have_types.
-      rewrite <- Ep. rewrite fold_left_listSxp_nil. simpl.
-      splits; solve_premises_smart.
-    + substs. rewrite fold_left_listSxp_cons.
-      * computeR. cutR Pret.
-        -- cutR PRINTNAME_result.
-           ++ solve_premises_smart.
-           ++ lets (C&OKS0&OKa&Ta): (rm P). skip. (* TODO *)
-        -- skip. (* TODO: This is not the same for [apply IHL]. *)
-      * introv E. substs. forwards (Nv&Ev&Tv): R_NilValue_may_have_types OKg.
-        unfolds Globals.read_globals. rewrite Ev in *. skip. (* [Tv] vs [H] and [H1]. *)
-  - skip.
+  - forwards L: safe_SymbolTable OKS. unfolds fold_left_listSxp.
+    applys~ fold_left_listSxp_gen_result L.
+    + simpl. splits; solve_premises_smart.
+    + introv Preta OKS0 OKg0 El El_ L'.
+      destruct L' as (h&car&cdr&tag&Ex&Tx&Hh&Tcar&Hcar&L'&Ttag&Htag).
+      rewrite Ex in El_. inverts El_. unfolds in Preta. destruct a as [()|sym].
+      * lets (C&OKS0'): (rm Preta). computeR. cutR PRINTNAME_result.
+        -- skip. (* TODO *)
+        -- lets (C'&OKS1&OKa&Ta): (rm P). skip. (* TODO *)
+      * simpl. lets (C&OKS0'&OKsym&Tsym): (rm Preta). splits; try solve_premises_smart.
+  - destruct a. lets (C&OKs0): (rm P). cases_if as C0.
+    + fold_bool. rew_refl in C0. apply~ C0.
+    + skip. (* TODO *)
   Optimize Proof.
 Qed.
 
