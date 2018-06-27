@@ -691,19 +691,19 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
 
     let%success named_x := NAMED S x using S in
 
-    let%exit offset :=
+    let%exit (offset, named_x) :=
     ifb nsubs = 1 then   (* vector indexing *)
         read%list subs_car, _, _ := subs using S in
         let thesub := subs_car in
         let%success len := R_length globals runs S thesub using S in
 
-        let%success x :=
+        let%success (x, named_x) :=
         ifb len > 1 then
             (* Considering SWITCH_TO_REFCNT false *)
             let%success x := vectorIndex S x thesub 0%Z (len - 1%Z) pok call false using S in
             let%success named_x := NAMED S x using S in
-            result_success S x
-        else result_success S x
+            result_success S (x, named_x)
+        else result_success S (x, named_x)
         using S in
 
         let%success xnames := getAttrib globals runs S x R_NamesSymbol using S in
@@ -720,14 +720,14 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
                 result_rreturn S (R_NilValue : SEXP)
             else
                 result_error S "subscript out of bounds"
-        else result_rsuccess S (Z.to_nat offset)
+        else result_rsuccess S ((Z.to_nat offset), named_x)
                          
     else   (* matrix indexing *)
       (* Here we use the fact that: */
       /* CAR(R_NilValue) = R_NilValue */
       /* CDR(R_NilValue) = R_NilValue *) 
       
-        let%success indx := allocVector globals S IntSxp nsubs using s in
+        let%success indx := allocVector globals S IntSxp nsubs using S in
         run%success INTEGER_RO S dims using S in
         let%success dimnames := getAttrib globals runs S x R_DimNamesSymbol using S in
         let%success ndn := R_length globals runs S dimnames using S in
@@ -753,7 +753,7 @@ Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
             result_success S ((offset + (Z.to_nat indx_i)) * (Z.to_nat dims_i_1))
         using S in
         read%Integer indx_0 := indx at 0 using S in
-        result_rsuccess S (offset + (Z.to_nat indx_0))
+        result_rsuccess S ((offset + (Z.to_nat indx_0)), named_x)
     using S in
 
     let%success ans :=
