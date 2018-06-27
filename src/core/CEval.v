@@ -175,7 +175,10 @@ Definition R_execClosure S (call newrho sysparent rho arglist op : SEXP)
   set%longjump context_cjmpbuf cntxt as jmp using S, runs in
   let%success cntxt_returnValue :=
     ifb jmp <> empty_context_type then
-      ifb context_jumptarget cntxt = None then
+      if match context_jumptarget cntxt with
+         | None => true
+         | Some _ => false
+         end then
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
           let S := state_with_context S cntxt in
@@ -684,15 +687,17 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
     let%success nval :=
       if forcelocal then
         EnsureLocal globals runs S expr rho
-      else
+      else  (* now we are down to the target symbol *)
         read%env _, rho_env := rho using S in
         eval S expr (env_enclos rho_env) using S in
+
     let%success nval :=
       if%success MAYBE_SHARED S nval using S then
         shallow_duplicate globals runs S nval
       else result_success S nval using S in
     let (S, r) := CONS_NR globals S nval expr in
     result_success S r
+
   else if%success isLanguage globals S expr using S then
     read%list expr_car, expr_cdr, _ := expr using S in
     read%list expr_cdr_car, expr_cdr_cdr, _ := expr_cdr using S in
@@ -708,8 +713,8 @@ Definition evalseq S expr rho (forcelocal : bool) tmploc :=
         if%success MAYBE_SHARED S nval using S then
           shallow_duplicate globals runs S nval
         else
-          read%list nval_car, _, _ := nval using S in
-          if%success MAYBE_SHARED S nval_car using S then
+          read%list val_car, _, _ := val using S in
+          if%success MAYBE_SHARED S val_car using S then
             shallow_duplicate globals runs S nval
           else result_success S nval
       else result_success S nval using S in

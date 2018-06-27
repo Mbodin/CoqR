@@ -423,5 +423,10 @@ Definition copyMostAttrib S (inp ans : SEXP) :=
       SET_S4_OBJECT S ans
     else UNSET_S4_OBJECT S ans.
 
+      
+Definition GetArrayDimnames S x :=
+  add%stack "GetArrayDimnames" in
+    getAttrib S x R_DimNamesSymbol.
+
 End Parameterised.
 

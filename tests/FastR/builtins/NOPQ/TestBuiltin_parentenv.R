@@ -1,0 +1,5 @@
+parent.env()
+parent.env(NULL)
+parent.env(1)
+parent.env(c(1,2,3))
+e <- new.env(); parent.env(e)

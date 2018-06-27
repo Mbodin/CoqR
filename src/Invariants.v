@@ -354,7 +354,9 @@ Record safe_state S : Prop := make_safe_state {
     only_one_nil : forall p1 p2,
       may_have_types S ([NilSxp]) p1 ->
       may_have_types S ([NilSxp]) p2 ->
-      p1 = p2
+      p1 = p2 ;
+    safe_SymbolTable :
+      list_type S ([ListSxp]) ([SymSxp]) ([NilSxp]) (R_SymbolTable S)
   }.
 
 (** Global variables must be safe.
@@ -378,12 +380,12 @@ Record safe_globals S globals : Prop := make_safe_globals {
   We can also use this predicate to garbage collect a heap.
   The tactic [transition_conserve] uses such a statement to update as much
   properties as can be from the old state to the new one. **)
-Record conserve_old_binding S S' : Prop := make_conserve_old_binding {
-    conserve_old_binding_binding : forall p,
+Record conserve_old_bindings S S' : Prop := make_conserve_old_bindings {
+    conserve_old_bindings_bindings : forall p,
       bound S p ->
       bound_such_that S (fun e_ =>
         bound_such_that S' (fun e'_ => e_ = e'_) p) p ;
-    conserve_old_binding_entry_point : forall e,
+    conserve_old_bindings_entry_point : forall e,
       move_along_entry_point e S = move_along_entry_point e S'
   }.
 

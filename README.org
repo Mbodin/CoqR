@@ -27,10 +27,10 @@ This is why linking this project to higher-level specifications would be a huge 
 Some parts of the original R source code have not been formalised.
 The main example is the garbage collector, which is not supposed to
 change the semantics of R programs.
-Furthermore, this formalisation only formalises the C part of the source code of R.
-Indeed, in GNU R, some R libraries are supposed to be run before user code.
-These libraries creates a large number of functions and variables
-(such as =typeof=, =T=, etc.), which are thus not implemented in this formalisation.
+R is furthermore composed of several parts, some in C, and some in R it self.
+Our Coq translation focusses the C part,
+but we did our best to be able to run the R parts.
+These parts can be found in the folder =Rlib/base=.
 
 R is a project moving fast.
 We believe that the approach of sticking as close as possible to R’s source code

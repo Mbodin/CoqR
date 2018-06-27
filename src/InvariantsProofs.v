@@ -48,7 +48,7 @@ Hypothesis runs_while_loop_result : forall A (P_success : _ -> _ -> Prop) P_erro
   result_prop P_success P_error P_longjump (runs_while_loop runs S a expr stat).
 
 Lemma while_loop_result : forall A (P_success : _ -> _ -> Prop) P_error P_longjump
-    S (a : A) (expr stat : _ -> A -> _),
+    S (a : A) expr stat,
   P_success S a ->
   (forall S a,
     P_success S a ->
@@ -64,6 +64,48 @@ Proof.
   - destruct stat eqn: E'; autos~. computeR.
     applys~ runs_while_loop_result OKstat.
   - apply~ OKS'.
+Qed.
+
+Lemma fold_left_listSxp_gen_result : forall A S (a : A) l iterate l_t l_car l_tag
+    (P_success : _ -> _ -> Prop) P_error P_longjump Pheader Pcar Ptag,
+  safe_state S ->
+  safe_globals S globals ->
+  P_success S a ->
+  list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag l ->
+  (forall (S : state) a l l_ l_header (l_list : ListSxp_struct),
+    P_success S a ->
+    safe_state S ->
+    safe_globals S globals ->
+    read_SExp S l = Some l_ ->
+    l_ = make_NonVector_SExpRec l_header l_list ->
+    list_type_head_such_that (list_type_such_that Pheader Pcar Ptag)
+      Pheader Pcar Ptag S l_t l_car l_tag l_ ->
+    result_prop (fun S a => safe_state S /\ safe_globals S globals
+        /\ P_success S a
+        /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag (list_cdrval l_list))
+      P_error P_longjump (iterate S a l l_ l_list)) ->
+  result_prop P_success P_error P_longjump
+    (fold_left_listSxp_gen runs globals S l a iterate).
+Proof.
+  introv OKS OKg OKa L OKiterate. unfolds fold_left_listSxp_gen.
+  cutR (fun S (la : SEXP * A) =>
+          safe_state S /\ safe_globals S globals
+          /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag (fst la)
+          /\ P_success S (snd la)).
+  - apply while_loop_result.
+    + splits~.
+    + clear - OKiterate. introv (OKS&OKg&L&OKa). destruct a as (l&a).
+      unfolds @fst. unfolds @snd. simpl. splits~.
+      introv D. rew_refl in D. inverts L as L.
+      * false D. applys~ only_one_nil OKS. apply~ R_NilValue_may_have_types.
+      * inverts L as (El&L). destruct L as (h&car&cdr&tag&Ex&Tx&Hh&Tcar&Hcar&L&Ttag&Htag).
+        computeR. substs. computeR.
+        cutR (fun S a => safe_state S /\ safe_globals S globals
+          /\ P_success S a
+          /\ list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag cdr).
+        -- apply~ OKiterate. constructors. exists* car cdr tag.
+        -- lets (OKS0&OKg0&P'&L'): (rm P). simpl. splits~.
+  - destruct a0. apply P.
 Qed.
 
 
@@ -122,8 +164,9 @@ Proof.
   forwards Ts: bound_may_have_types S s.
   { solve_premises_smart. }
   unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
-    [ apply Ts
-    | lets (E&C): (rm P); substs; simpl; autos~ ]); computeR.
+      [ apply Ts
+      | lets (E&C): (rm P); substs; simpl; autos~ ]);
+    computeR; try solve_premises_smart.
   - cutR (fun S' (si : _ * nat) =>
       let (s, i) := si in
         S' = S /\ safe_pointer S s
@@ -179,7 +222,7 @@ Lemma NewEnvironment_result : forall S namelist valuelist rho,
   safe_pointer S rho ->
   may_have_types S ([NilSxp; EnvSxp]) rho ->
   result_prop (fun S' newrho =>
-      conserve_old_binding S S'
+      conserve_old_bindings S S'
       /\ safe_state S'
       /\ safe_pointer S' newrho
       /\ may_have_types S' ([EnvSxp]) newrho)
@@ -225,6 +268,58 @@ Proof.
   Optimize Proof.
 Qed.
 
+Lemma PRINTNAME_result : forall S x,
+  safe_state S ->
+  safe_pointer S x ->
+  may_have_types S ([SymSxp]) x ->
+  result_prop (fun S' name =>
+      conserve_old_bindings S S'
+      /\ safe_state S'
+      /\ safe_pointer S' name
+      /\ may_have_types S' ([CharSxp]) name)
+    (fun _ => False) (fun _ _ _ => False)
+    (PRINTNAME S x).
+Proof.
+  introv OKS OKx Tx. unfolds PRINTNAME. computeR.
+  simpl. splits; try solve_premises_smart.
+Qed.
+
+Lemma install_result : forall S name_,
+  safe_state S ->
+  safe_globals S globals ->
+  result_prop (fun S' sym =>
+      conserve_old_bindings S S'
+      /\ safe_state S'
+      /\ safe_pointer S' sym
+      /\ may_have_types S' ([SymSxp]) sym)
+    (fun _ => name_ = ""%string) (fun _ _ _ => False)
+    (install globals runs S name_).
+Proof.
+  introv OKS OKg. unfolds install. computeR.
+  set (Pret := fun S' ret =>
+    match ret with
+    | normal_result tt =>
+      conserve_old_bindings S S' /\ safe_state S'
+    | return_result sym =>
+      conserve_old_bindings S S' /\ safe_state S' /\
+      safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
+    end). cutR Pret.
+  - forwards L: safe_SymbolTable OKS. unfolds fold_left_listSxp.
+    applys~ fold_left_listSxp_gen_result L.
+    + simpl. splits; solve_premises_smart.
+    + introv Preta OKS0 OKg0 El El_ L'.
+      destruct L' as (h&car&cdr&tag&Ex&Tx&Hh&Tcar&Hcar&L'&Ttag&Htag).
+      rewrite Ex in El_. inverts El_. unfolds in Preta. destruct a as [()|sym].
+      * lets (C&OKS0'): (rm Preta). computeR. cutR PRINTNAME_result.
+        -- skip. (* TODO *)
+        -- lets (C'&OKS1&OKa&Ta): (rm P). skip. (* TODO *)
+      * simpl. lets (C&OKS0'&OKsym&Tsym): (rm Preta). splits; try solve_premises_smart.
+  - destruct a. lets (C&OKs0): (rm P). cases_if as C0.
+    + fold_bool. rew_refl in C0. apply~ C0.
+    + skip. (* TODO *)
+  Optimize Proof.
+Qed.
+
 
 (** * Lemmae about Rfeatures.v **)
 
@@ -258,7 +353,8 @@ Proof.
   cutR isLanguage_result. lets (?&(I&_)): (rm P). substs. cases_if.
   - forwards~ [EN|EL]: (rm I); substs.
     + forwards~ T: R_NilValue_may_have_types OKg. fold read_globals in T. computeR.
-    + computeR.
+      solve_premises_smart.
+    + computeR. solve_premises_smart.
   - simpl. autos~.
 Qed.
 
@@ -313,6 +409,8 @@ Proof.
     + applys~ safe_pointer_same_memory OKp.
   - (** only_one_nil **)
     introv M1 M2. applys only_one_nil OKS; apply* may_have_types_same_memory.
+  - (** safe_SymbolTable **)
+    simpl. applys~ list_type_same_memory (safe_SymbolTable OKS).
 Qed.
 
 (** The function [init_R_NilValue] allocates a new [NilSxp]: we have
@@ -324,13 +422,14 @@ Lemma init_R_NilValue_result : forall S,
   result_prop (fun S NilValue => safe_state S /\ safe_pointer S NilValue)
     (fun _ => False) (fun _ _ _ => False) (init_R_NilValue S).
 Proof.
-  introv OKS N. unfold init_R_NilValue. computeR.
+  introv OKS N. unfold init_R_NilValue.
+  forwards L: safe_SymbolTable OKS. computeR.
   asserts Ep: (forall p', may_have_types S2 ([NilSxp]) p' -> p = p').
   { introv M. tests Dp: (p = p'); [ autos~ |].
     false N p'.
     forwards~ M1: may_have_types_write_SExp_inv ES2 M.
     forwards~ M2: may_have_types_write_SExp_inv ES0 M1.
-    forwards~ M3: conserve_old_binding_may_have_types_inv C M2.
+    forwards~ M3: conserve_old_bindings_may_have_types_inv C M2.
     lets (p_&E'&_): may_have_types_bound M2.
     rewrites~ >> alloc_read_SExp_neq ES1 in E'.
     applys read_bound E'. }
@@ -355,6 +454,13 @@ Proof.
           autos~.
         * (** attrib_list **)
           apply~ list_type_nil. solve_premises_smart. }
+  asserts C': (conserve_old_bindings S S2).
+  { forwards (S2'&ES2'&S2E): write_SExp_write_SExp_eq ES0 ES2.
+    forwards (S3&ES3&S3E): alloc_SExp_write_SExp_eq ES1 ES2'.
+    applys conserve_old_bindings_trans S3.
+    - solve_premises_smart.
+    - apply state_equiv_conserve_old_bindings. apply state_equiv_sym.
+      applys state_equiv_trans S2E S3E. }
   simpl. splits~. constructors.
   - (** no_null_pointer_entry_point **)
     introv. rewrites~ >> move_along_entry_point_write_SExp ES2.
@@ -366,20 +472,31 @@ Proof.
     rewrites~ >> move_along_entry_point_write_SExp ES0 in M.
     rewrites~ >> move_along_entry_point_alloc_SExp ES1 in M.
     forwards~ OKp0: safe_entry_points OKS M Dp0.
-    apply (conserve_old_binding_safe_pointer C) in OKp0.
+    apply (conserve_old_bindings_safe_pointer C) in OKp0.
     tests Dp: (p0 = p).
     * apply OKp.
     * forwards~ OKp0': safe_entry_points M.
-      applys conserve_old_binding_safe_pointer OKp0'.
+      applys conserve_old_bindings_safe_pointer OKp0'.
       forwards (S1'&A1&E1): alloc_SExp_write_SExp_eq ES1 ES0.
       forwards (S2'&ES2'&E2): write_SExp_equiv_exists E1 ES2.
       forwards (S3'&A3&E3): alloc_SExp_write_SExp_eq A1 ES2'.
-      applys conserve_old_binding_trans S3'.
-      -- applys alloc_SExp_conserve_old_binding A3.
-      -- applys state_equiv_conserve_old_binding.
+      applys conserve_old_bindings_trans S3'.
+      -- applys alloc_SExp_conserve_old_bindings A3.
+      -- applys state_equiv_conserve_old_bindings.
          applys state_equiv_sym. applys state_equiv_trans E2 E3.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
+  - (** safe_SymbolTable **)
+    applys~ conserve_old_bindings_list_type C'.
+    asserts_rewrite (R_SymbolTable S2 = R_SymbolTable S).
+    { rewrites* >> state_same_except_for_memory_R_SymbolTable.
+      forwards (S2'&ES2'&S2E): write_SExp_write_SExp_eq ES0 ES2.
+      forwards (S3&ES3&S3E): alloc_SExp_write_SExp_eq ES1 ES2'.
+      applys state_same_except_for_memory_trans S2E.
+      applys state_same_except_for_memory_trans S3E.
+      apply state_same_except_for_memory_sym.
+      applys alloc_SExp_state_same_except_for_memory ES3. }
+    applys safe_SymbolTable OKS.
   Optimize Proof.
 Qed.
 

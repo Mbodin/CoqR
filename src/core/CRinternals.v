@@ -288,6 +288,11 @@ Definition isNull S s :=
   let%success s_type := TYPEOF S s using S in
   result_success S (decide (s_type = NilSxp)).
 
+Definition isExpression S s :=
+  add%stack "isExpression" in
+    let%success s_type := TYPEOF S s using S in
+    result_success S (decide (s_type = ExprSxp)).
+                      
 Definition isComplex S s :=
   add%stack "isComplex" in
   let%success s_type := TYPEOF S s using S in

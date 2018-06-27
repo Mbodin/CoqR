@@ -110,7 +110,8 @@ let all_global_variables =
     (MkPRIMSXP_primCache, "static variable primCache from mkPRIMSXP") ;
     (Do_attr_do_attr_formals, "static variable do_attr_formals from do_attr") ;
     (Do_attrgets_do_attrgets_formals, "static variable do_attrgets_formals from do_attrgets") ;
-    (Do_substitute_do_substitute_formals, "static variable do_substitute_formals from do_substitute") ]
+    (Do_substitute_do_substitute_formals, "static variable do_substitute_formals from do_substitute") ;
+    (Do_usemethod_do_usemethod_formals, "static variable do_usemethod_formals from do_usemethod") ]
 
 let _ =
   (** A sanity check that we forgot no name above **)
@@ -123,7 +124,7 @@ let all_global_variables_state =
   [ (r_SymbolTable, "R_SymbolTable") ;
     (r_ReturnedValue, "R_ReturnedValue") ]
 
-let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
+let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, (b8, ())))))))) =
   let l =
     let switch b str = if b then [str] else [] in
     List.concat (
@@ -137,6 +138,7 @@ let print_context_type (b1, (b2, (b3, (b4, (b5, (b6, (b7, ()))))))) =
         :: switch (b3 && b5) "Ctxt_Generic"
         :: switch b6 "Ctxt_Restart"
         :: switch b7 "Ctxt_Builtin"
+        :: switch b8 "Ctxt_Unwind"
         :: []
       ) in
   if l = [] then "Ctxt_TopLevel"

@@ -411,29 +411,43 @@ Lemma alloc_SExp_bound : forall S S' e e_,
   bound S' e.
 Proof. introv E. applys~ read_bound. applys~ alloc_read_SExp_Some E. Qed.
 
-Lemma alloc_SExp_conserve_old_binding : forall S S' e e_,
+Lemma alloc_SExp_conserve_old_bindings : forall S S' e e_,
   alloc_SExp S e_ = (S', e) ->
-  conserve_old_binding S S'.
+  conserve_old_bindings S S'.
 Proof.
   introv A. constructors.
-  - (** conserve_old_binding_binding **)
+  - (** conserve_old_bindings_bindings **)
     introv (p_&E&_). exists p_. splits~. exists p_. splits~.
     eapply alloc_read_SExp_neq in A.
     + rewrite~ A.
     + intro_subst. erewrite alloc_read_SExp_fresh in E; autos*. inverts* E.
-  - (** conserve_old_binding_entry_point **)
+  - (** conserve_old_bindings_entry_point **)
     introv. rewrites* >> move_along_entry_point_alloc_SExp A.
 Qed.
 
-Lemma state_equiv_conserve_old_binding : forall (S S' : state),
+Lemma write_SExp_conserve_old_bindings_when_read_None : forall (S S' : state) e e_,
+  read_SExp S e = None ->
+  write_SExp S e e_ = Some S' ->
+  conserve_old_bindings S S'.
+Proof.
+  introv N W. constructors.
+  - (** conserve_old_bindings_bindings **)
+    introv (p_&E&_). exists p_. splits~. exists p_. splits~.
+    erewrite read_write_SExp_neq; try apply W; autos~.
+    intro_subst. rewrite N in E. inverts E.
+  - (** conserve_old_bindings_entry_point **)
+    introv. rewrites* >> move_along_entry_point_write_SExp W.
+Qed.
+
+Lemma state_equiv_conserve_old_bindings : forall (S S' : state),
   state_equiv S S' ->
-  conserve_old_binding S S'.
+  conserve_old_bindings S S'.
 Proof.
   introv E. constructors.
-  - (** conserve_old_binding_binding **)
+  - (** conserve_old_bindings_bindings **)
     introv (p_&Ep&_). exists p_. splits~. exists p_. splits~.
     rewrites* <- >> read_SExp_equiv E.
-  - (** conserve_old_binding_entry_point **)
+  - (** conserve_old_bindings_entry_point **)
     introv. rewrites* >> move_along_entry_point_same_entry_points E.
 Qed.
 
@@ -462,103 +476,103 @@ Proof.
   - applys~ globals_not_NULL_safe OKg. applys~ globals_not_NULL OKg. introv A. inverts A.
 Qed.
 
-Lemma conserve_old_binding_read : forall S S' p p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_read : forall S S' p p_,
+  conserve_old_bindings S S' ->
   read_SExp S p = Some p_ ->
   read_SExp S' p = Some p_.
 Proof.
-  introv C E. forwards (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
+  introv C E. forwards (p1_&E1&(p2_&E2&E3)): conserve_old_bindings_bindings C p.
   - apply* read_bound.
   - rewrite E in E1. inverts E1. substs~.
 Qed.
 
-Lemma conserve_old_binding_bound : forall S S' p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_bound : forall S S' p,
+  conserve_old_bindings S S' ->
   bound S p ->
   bound S' p.
 Proof.
-  introv C (p_&E&_). forwards (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
+  introv C (p_&E&_). forwards (p1_&E1&(p2_&E2&E3)): conserve_old_bindings_bindings C p.
   - apply* read_bound.
   - rewrite E in E1. inverts E1. substs. exists~ p2_.
 Qed.
 
-Lemma conserve_old_binding_may_have_types : forall S S' l p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_may_have_types : forall S S' l p,
+  conserve_old_bindings S S' ->
   may_have_types S l p ->
   may_have_types S' l p.
 Proof.
-  introv C (p_&E&T). forwards (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
+  introv C (p_&E&T). forwards (p1_&E1&(p2_&E2&E3)): conserve_old_bindings_bindings C p.
   - apply* read_bound.
   - rewrite E in E1. inverts E1. substs. exists~ p2_.
 Qed.
 
-Lemma conserve_old_binding_may_have_types_inv : forall S S' l p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_may_have_types_inv : forall S S' l p,
+  conserve_old_bindings S S' ->
   may_have_types S' l p ->
   bound S p ->
   may_have_types S l p.
 Proof.
-  introv C (p_&E&T) B. forwards~ (p1_&E1&(p2_&E2&E3)): conserve_old_binding_binding C p.
+  introv C (p_&E&T) B. forwards~ (p1_&E1&(p2_&E2&E3)): conserve_old_bindings_bindings C p.
   rewrite E2 in E. inverts E. substs. exists~ p_.
 Qed.
 
-Lemma conserve_old_binding_list_type : forall Pheader Pcar Ptag S S' l_t l_car l_tag p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_list_type : forall Pheader Pcar Ptag S S' l_t l_car l_tag p,
+  conserve_old_bindings S S' ->
   list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag p ->
   list_type_such_that Pheader Pcar Ptag S' l_t l_car l_tag p.
 Proof.
   introv C L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H HH A L T IH]
     using list_type_ind.
-  - apply list_type_nil. applys~ conserve_old_binding_may_have_types C.
+  - apply list_type_nil. applys~ conserve_old_bindings_may_have_types C.
   - apply list_type_cons. exists p_. splits~.
-    + applys~ conserve_old_binding_read C.
-    + exists h car cdr tag. splits~; applys~ conserve_old_binding_may_have_types C.
+    + applys~ conserve_old_bindings_read C.
+    + exists h car cdr tag. splits~; applys~ conserve_old_bindings_may_have_types C.
   Optimize Proof.
 Qed.
 
-Lemma conserve_old_binding_list_head : forall Pheader Pcar Ptag S S' l_t l_car l_tag p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_list_head : forall Pheader Pcar Ptag S S' l_t l_car l_tag p_,
+  conserve_old_bindings S S' ->
   list_head_such_that Pheader Pcar Ptag S l_t l_car l_tag p_ ->
   list_head_such_that Pheader Pcar Ptag S' l_t l_car l_tag p_.
 Proof.
   introv C (h&car&cdr&tag&L). exists h car cdr tag. splits; try apply~ L.
-  - applys* conserve_old_binding_may_have_types C.
-  - applys* conserve_old_binding_list_type C.
-  - applys* conserve_old_binding_may_have_types C.
+  - applys* conserve_old_bindings_may_have_types C.
+  - applys* conserve_old_bindings_list_type C.
+  - applys* conserve_old_bindings_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_refl : forall S,
-  conserve_old_binding S S.
+Lemma conserve_old_bindings_refl : forall S,
+  conserve_old_bindings S S.
 Proof. introv. constructors~. introv (p_&E&_). exists p_. splits~. exists* p_. Qed.
 
-Lemma conserve_old_binding_trans : forall S1 S2 S3,
-  conserve_old_binding S1 S2 ->
-  conserve_old_binding S2 S3 ->
-  conserve_old_binding S1 S3.
+Lemma conserve_old_bindings_trans : forall S1 S2 S3,
+  conserve_old_bindings S1 S2 ->
+  conserve_old_bindings S2 S3 ->
+  conserve_old_bindings S1 S3.
 Proof.
   introv C1 C2. constructors.
-  - (** conserve_old_binding_binding **)
+  - (** conserve_old_bindings_bindings **)
     introv (p_&E&_). exists p_. splits~.
-    forwards~ E1: conserve_old_binding_read C1 (rm E).
-    forwards~ E2: conserve_old_binding_read C2 (rm E1).
+    forwards~ E1: conserve_old_bindings_read C1 (rm E).
+    forwards~ E2: conserve_old_bindings_read C2 (rm E1).
     exists p_. splits~.
-  - (** conserve_old_binding_entry_point **)
-    introv. rewrites >> conserve_old_binding_entry_point C1.
-    rewrites~ >> conserve_old_binding_entry_point C2.
+  - (** conserve_old_bindings_entry_point **)
+    introv. rewrites >> conserve_old_bindings_entry_point C1.
+    rewrites~ >> conserve_old_bindings_entry_point C2.
 Qed.
 
-Lemma conserve_old_binding_move_along_path_step : forall S S' p e e',
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_path_step : forall S S' p e e',
+  conserve_old_bindings S S' ->
   move_along_path_step p S e = Some e' ->
   move_along_path_step p S' e = Some e'.
 Proof.
   introv C E. unfolds in E. destruct (read_SExp S e) eqn: R.
-  - unfolds. rewrites~ >> conserve_old_binding_read C R.
+  - unfolds. rewrites~ >> conserve_old_bindings_read C R.
   - inverts~ E.
 Qed.
 
-Lemma conserve_old_binding_move_along_path_from : forall S S' p e e',
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_path_from : forall S S' p e e',
+  conserve_old_bindings S S' ->
   move_along_path_from p S e = Some e' ->
   move_along_path_from p S' e = Some e'.
 Proof.
@@ -567,20 +581,20 @@ Proof.
   gen e e'. induction (rev p); introv M.
   - inverts~ M.
   - rew_list in *. destruct fold_right eqn: F.
-    + simpl in M. forwards M': conserve_old_binding_move_along_path_step C M.
+    + simpl in M. forwards M': conserve_old_bindings_move_along_path_step C M.
       erewrite IHl; [apply M'|]. rewrite~ F.
     + inverts~ M.
   Optimize Proof.
 Qed.
 
-Lemma conserve_old_binding_move_along_path : forall S S' p e,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_path : forall S S' p e,
+  conserve_old_bindings S S' ->
   move_along_path p S = Some e ->
   move_along_path p S' = Some e.
 Proof.
   introv C E. forwards (en&pa&pe&E1&E2&E3): move_along_path_decompose E.
-  rewrites >> conserve_old_binding_entry_point C in E2.
-  forwards~ E3': conserve_old_binding_move_along_path_from C E3.
+  rewrites >> conserve_old_bindings_entry_point C in E2.
+  forwards~ E3': conserve_old_bindings_move_along_path_from C E3.
   forwards E': make_move_along_path E2 E3'. rewrite~ <- E1 in E'.
 Qed.
 
@@ -589,20 +603,20 @@ Lemma move_along_path_step_bound : forall S s e e',
   bound S e.
 Proof. introv E. unfolds in E. destruct read_SExp eqn: R; inverts E. eexists. splits*. Qed.
 
-Lemma conserve_old_binding_move_along_path_step_inv : forall S S' s e e',
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_path_step_inv : forall S S' s e e',
+  conserve_old_bindings S S' ->
   bound S e ->
   move_along_path_step s S' e = Some e' ->
   move_along_path_step s S e = Some e'.
 Proof.
   introv C B E. forwards (e_&R): bound_read B.
   unfolds move_along_path_step. rewrite R.
-  rewrites >> conserve_old_binding_read C R in E. apply~ E.
+  rewrites >> conserve_old_bindings_read C R in E. apply~ E.
 Qed.
 
-Lemma conserve_old_binding_move_along_path_from_inv_incl : forall (safe_pointer' : _ -> _ -> Prop) S S' p e e',
+Lemma conserve_old_bindings_move_along_path_from_inv_incl : forall (safe_pointer' : _ -> _ -> Prop) S S' p e e',
   (forall S p, safe_pointer' S p -> safe_pointer_gen safe_pointer' S p) ->
-  conserve_old_binding S S' ->
+  conserve_old_bindings S S' ->
   safe_pointer' S e ->
   move_along_path_from p S' e = Some e' ->
   move_along_path_from p S e = Some e'.
@@ -611,77 +625,77 @@ Proof.
   - rewrite move_along_path_from_nil in *. apply~ E.
   - forwards~ (e2&E1&E2): move_along_path_from_last_inv E.
     forwards~ E': IHp E1. applys~ move_along_path_from_last E'.
-    applys~ conserve_old_binding_move_along_path_step_inv E2.
+    applys~ conserve_old_bindings_move_along_path_step_inv E2.
     forwards~ OKe2: safe_pointer_along_path_from_incl OKe E'.
     + intro_subst. rewrite move_along_path_step_NULL in E2. inverts E2.
     + apply Incl in OKe2. applys~ pointer_bound OKe2.
 Qed.
 
-Lemma conserve_old_binding_move_along_path_from_inv : forall S S' p e e',
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_path_from_inv : forall S S' p e e',
+  conserve_old_bindings S S' ->
   safe_pointer S e ->
   move_along_path_from p S' e = Some e' ->
   move_along_path_from p S e = Some e'.
 Proof.
-  introv. applys~ conserve_old_binding_move_along_path_from_inv_incl.
+  introv. applys~ conserve_old_bindings_move_along_path_from_inv_incl.
   clear. introv OKp. rewrite~ <- safe_pointer_rewrite.
 Qed.
 
-Lemma conserve_old_binding_move_along_entry_point_inv : forall S S' e p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_move_along_entry_point_inv : forall S S' e p,
+  conserve_old_bindings S S' ->
   move_along_entry_point e S' = Some p ->
   move_along_entry_point e S = Some p.
-Proof. introv C E. rewrites~ >> conserve_old_binding_entry_point C. Qed.
+Proof. introv C E. rewrites~ >> conserve_old_bindings_entry_point C. Qed.
 
-Lemma conserve_old_binding_move_along_path_inv : forall S S' p e,
+Lemma conserve_old_bindings_move_along_path_inv : forall S S' p e,
   safe_state S ->
-  conserve_old_binding S S' ->
+  conserve_old_bindings S S' ->
   move_along_path p S' = Some e ->
   move_along_path p S = Some e.
 Proof.
   introv OKS C E. gen e. induction p as [?|p IH s]; introv E.
-  - simpls. applys~ conserve_old_binding_move_along_entry_point_inv E.
+  - simpls. applys~ conserve_old_bindings_move_along_entry_point_inv E.
   - simpls. destruct (move_along_path p S') eqn: E1.
     + rewrites~ >> IH. simpls.
-      applys~ conserve_old_binding_move_along_path_step_inv E.
+      applys~ conserve_old_bindings_move_along_path_step_inv E.
       applys~ safe_bindings_along_path.
       intro_subst. rewrite move_along_path_step_NULL in E. inverts E.
     + inverts E.
 Qed.
 
-Lemma conserve_old_binding_list_type_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
+Lemma conserve_old_bindings_list_type_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
     S S' l_t l_car l_tag p,
-  conserve_old_binding S S' ->
+  conserve_old_bindings S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
   list_type_such_that (safe_header_gen safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p ->
   list_type_such_that (safe_header_gen safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p.
 Proof.
   introv C CSafe L. induction L as [? ? ? ? I|? ? ? ? p_ h car cdr tag E M H HH A L T IH]
     using list_type_ind.
-  - apply list_type_nil. applys~ conserve_old_binding_may_have_types C.
+  - apply list_type_nil. applys~ conserve_old_bindings_may_have_types C.
   - apply list_type_cons. exists p_. splits~.
-    + applys~ conserve_old_binding_read C.
-    + exists h car cdr tag. splits~; try applys~ conserve_old_binding_may_have_types C.
-      inverts HH. constructors*. apply* conserve_old_binding_list_type.
+    + applys~ conserve_old_bindings_read C.
+    + exists h car cdr tag. splits~; try applys~ conserve_old_bindings_may_have_types C.
+      inverts HH. constructors*. apply* conserve_old_bindings_list_type.
 Qed.
 
-Lemma conserve_old_binding_list_head_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
+Lemma conserve_old_bindings_list_head_safe_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop)
     S S' l_t l_car l_tag p_,
-  conserve_old_binding S S' ->
+  conserve_old_bindings S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
   list_head_such_that (safe_header_gen safe_pointer1 S) (safe_pointer1 S) (safe_pointer1 S) S l_t l_car l_tag p_ ->
   list_head_such_that (safe_header_gen safe_pointer2 S') (safe_pointer2 S') (safe_pointer2 S') S' l_t l_car l_tag p_.
 Proof.
   introv C CSafe (h&car&cdr&tag&E&T&HH&Mcar&OKcar&L&Mtag&OKtag).
   exists h car cdr tag. splits~.
-  - inverts HH. constructors*. apply* conserve_old_binding_list_type.
-  - applys* conserve_old_binding_may_have_types C.
-  - applys* conserve_old_binding_list_type_safe_aux C.
-  - applys* conserve_old_binding_may_have_types C.
+  - inverts HH. constructors*. apply* conserve_old_bindings_list_type.
+  - applys* conserve_old_bindings_may_have_types C.
+  - applys* conserve_old_bindings_list_type_safe_aux C.
+  - applys* conserve_old_bindings_may_have_types C.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec_type : forall S S' t p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_SExpRec_type : forall S S' t p_,
+  conserve_old_bindings S S' ->
   safe_SExpRec_type S t p_ ->
   safe_SExpRec_type S' t p_.
 Proof.
@@ -691,84 +705,84 @@ Proof.
                      repeat (let P'' := fresh P in
                        lets (?&P''): (rm P'); rename P'' into P')
                    end; try splits);
-    try applys_first (>> conserve_old_binding_may_have_types
-                         conserve_old_binding_list_type) C; autos*.
+    try applys_first (>> conserve_old_bindings_may_have_types
+                         conserve_old_bindings_list_type) C; autos*.
   Optimize Proof.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_SExpRec_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p_,
+  conserve_old_bindings S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
   safe_SExpRec_gen safe_pointer1 S p_ ->
   safe_SExpRec_gen safe_pointer2 S' p_.
 Proof.
   introv C CSafe E. constructors~.
-  - applys* conserve_old_binding_safe_SExpRec_type C.
+  - applys* conserve_old_bindings_safe_SExpRec_type C.
     applys~ SExpType_corresponds_to_datatype E.
   - constructors~.
     + applys~ CSafe E.
-    + applys~ conserve_old_binding_list_type C E.
+    + applys~ conserve_old_bindings_list_type C E.
 Qed.
 
-Lemma conserve_old_binding_safe_pointer_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_pointer_aux : forall (safe_pointer1 safe_pointer2 : _ -> _ -> Prop) S S' p,
+  conserve_old_bindings S S' ->
   (forall p, safe_pointer1 S p -> safe_pointer2 S' p) ->
   safe_pointer_gen safe_pointer1 S p ->
   safe_pointer_gen safe_pointer2 S' p.
 Proof.
   introv C CSafe OKp. constructors.
   - (** pointer_bound **)
-    applys conserve_old_binding_bound C. applys~ pointer_bound OKp.
+    applys conserve_old_bindings_bound C. applys~ pointer_bound OKp.
   - (** no_null_pointer_along_path_step **)
     introv NPE E. applys~ no_null_pointer_along_path_step OKp NPE.
-    applys~ conserve_old_binding_move_along_path_step_inv C OKp.
+    applys~ conserve_old_bindings_move_along_path_step_inv C OKp.
   - (** safe_pointer_along_path_step **)
-    introv E D. apply CSafe. applys~ OKp. applys~ conserve_old_binding_move_along_path_step_inv C E.
+    introv E D. apply CSafe. applys~ OKp. applys~ conserve_old_bindings_move_along_path_step_inv C E.
     applys~ pointer_bound OKp.
   - (** safe_SExpRec_read **)
     introv R. destruct (read_SExp S p) as [p'_|] eqn: E.
-    + forwards E': conserve_old_binding_read C E.
+    + forwards E': conserve_old_bindings_read C E.
       rewrite E' in R. inverts~ R.
-      applys~ conserve_old_binding_safe_SExpRec_aux C.
+      applys~ conserve_old_bindings_safe_SExpRec_aux C.
       * introv OKp0. apply CSafe. applys~ OKp0.
       * applys~ safe_SExpRec_read OKp E.
     + false. forwards~ (?&E'): bound_read (pointer_bound OKp). rewrite E' in E. inverts E.
 Qed.
 
-Lemma conserve_old_binding_safe_pointer : forall S S' p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_pointer : forall S S' p,
+  conserve_old_bindings S S' ->
   safe_pointer S p ->
   safe_pointer S' p.
 Proof.
   pcofix IH. introv C OKp. pfold. rewrite safe_pointer_rewrite in OKp.
-  applys* conserve_old_binding_safe_pointer_aux C OKp.
+  applys* conserve_old_bindings_safe_pointer_aux C OKp.
 Qed.
 
-Lemma conserve_old_binding_safe_SExpRec : forall S S' p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_SExpRec : forall S S' p_,
+  conserve_old_bindings S S' ->
   safe_SExpRec S p_ ->
   safe_SExpRec S' p_.
 Proof.
-  introv C OK. applys~ conserve_old_binding_safe_SExpRec_aux C OK.
-  introv. applys~ conserve_old_binding_safe_pointer.
+  introv C OK. applys~ conserve_old_bindings_safe_SExpRec_aux C OK.
+  introv. applys~ conserve_old_bindings_safe_pointer.
 Qed.
 
-Lemma conserve_old_binding_list_type_safe : forall S S' l_t l_car l_tag p,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_list_type_safe : forall S S' l_t l_car l_tag p,
+  conserve_old_bindings S S' ->
   list_type_safe S l_t l_car l_tag p ->
   list_type_safe S' l_t l_car l_tag p.
 Proof.
-  introv C L. applys~ conserve_old_binding_list_type_safe_aux C L.
-  introv. applys~ conserve_old_binding_safe_pointer.
+  introv C L. applys~ conserve_old_bindings_list_type_safe_aux C L.
+  introv. applys~ conserve_old_bindings_safe_pointer.
 Qed.
 
-Lemma conserve_old_binding_list_head_safe : forall S S' l_t l_car l_tag p_,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_list_head_safe : forall S S' l_t l_car l_tag p_,
+  conserve_old_bindings S S' ->
   list_head_safe S l_t l_car l_tag p_ ->
   list_head_safe S' l_t l_car l_tag p_.
 Proof.
-  introv C L. applys~ conserve_old_binding_list_head_safe_aux C L.
-  introv. applys~ conserve_old_binding_safe_pointer.
+  introv C L. applys~ conserve_old_bindings_list_head_safe_aux C L.
+  introv. applys~ conserve_old_bindings_safe_pointer.
 Qed.
 
 Lemma alloc_SExp_safe_state : forall S S' p p_,
@@ -778,13 +792,13 @@ Lemma alloc_SExp_safe_state : forall S S' p p_,
   type p_ <> NilSxp ->
   safe_state S'.
 Proof.
-  introv OKS OKp A D. forwards C: alloc_SExp_conserve_old_binding A. constructors~.
+  introv OKS OKp A D. forwards C: alloc_SExp_conserve_old_bindings A. constructors~.
   - (** no_null_pointer_entry_point **)
-    introv NE E1. forwards~ E2: conserve_old_binding_move_along_entry_point_inv C E1.
+    introv NE E1. forwards~ E2: conserve_old_bindings_move_along_entry_point_inv C E1.
     applys~ no_null_pointer_entry_point E2.
   - (** safe_entry_points **)
-    introv E1 D'. applys~ conserve_old_binding_safe_pointer C.
-    forwards~ E2: conserve_old_binding_move_along_entry_point_inv C E1.
+    introv E1 D'. applys~ conserve_old_bindings_safe_pointer C.
+    forwards~ E2: conserve_old_bindings_move_along_entry_point_inv C E1.
     applys~ safe_entry_points E2.
   - (** only_one_nil **)
     introv (p1_&E1&T1) (p2_&E2&T2). rewrites >> alloc_read_SExp_neq A in E1.
@@ -794,6 +808,10 @@ Proof.
       * intro_subst. rewrites >> alloc_read_SExp_eq A in E2. inverts E2.
         false D. apply~ BagInSingle_list.
       * applys~ only_one_nil OKS; eexists; autos*.
+  - (** safe_SymbolTable **)
+    asserts E: (R_SymbolTable S' = R_SymbolTable S).
+    { inverts~ A. }
+    rewrite E. applys conserve_old_bindings_list_type C. applys~ safe_SymbolTable OKS.
 Qed.
 
 Lemma safe_pointer_may_have_types_all_storable_SExpTypes : forall S p,
@@ -836,8 +854,8 @@ Proof.
   Optimize Proof.
 Qed.
 
-Lemma conserve_old_binding_safe_globals : forall S S' globals,
-  conserve_old_binding S S' ->
+Lemma conserve_old_bindings_safe_globals : forall S S' globals,
+  conserve_old_bindings S S' ->
   safe_globals S globals ->
   safe_globals S' globals.
 Proof.
@@ -845,9 +863,9 @@ Proof.
   - (** globals_not_NULL **)
     applys~ globals_not_NULL OKglobals.
   - (** globals_not_NULL_safe **)
-    introv D. applys~ conserve_old_binding_safe_pointer C. applys~ globals_not_NULL_safe D.
+    introv D. applys~ conserve_old_bindings_safe_pointer C. applys~ globals_not_NULL_safe D.
   - (** R_NilValue_may_have_types **)
-    applys~ conserve_old_binding_may_have_types C. applys~ R_NilValue_may_have_types.
+    applys~ conserve_old_bindings_may_have_types C. applys~ R_NilValue_may_have_types.
 Qed.
 
 Lemma may_have_types_same_memory : forall S1 S2 l p,

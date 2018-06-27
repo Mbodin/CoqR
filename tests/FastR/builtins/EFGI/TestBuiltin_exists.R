@@ -1,0 +1,5 @@
+argv <- structure(list(x = '.Device'), .Names = 'x');do.call('exists', argv)
+exists('somethingthatdoesnotexist123456789')
+exists('.Device', inherit=FALSE)
+x <- 42; exists('x', mode='numeric')
+x <- '42'; exists('x', mode='numeric')

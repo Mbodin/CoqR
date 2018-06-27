@@ -1,0 +1,5 @@
+argv <- list('0777', 8L); .Internal(strtoi(argv[[1]], argv[[2]]))
+argv <- list('700', 8L); .Internal(strtoi(argv[[1]], argv[[2]]))
+argv <- list(c('0xff', '077', '123'), 0L); .Internal(strtoi(argv[[1]], argv[[2]]))
+argv <- list('1.3', 16L); .Internal(strtoi(argv[[1]], argv[[2]]))
+argv <- list(character(0), 8L); .Internal(strtoi(argv[[1]], argv[[2]]))

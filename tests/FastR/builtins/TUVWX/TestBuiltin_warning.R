@@ -1,0 +1,7 @@
+warning('foo')
+f <- function() warning('foo'); f()
+options(warn=1); f <- function() warning('foo'); f()
+f <- function() warning('foo'); f2 <- function() f(); f2()
+options(warn=1); f <- function() warning('foo'); f2 <- function() f(); f2()
+op.warn <- getOption('warn'); options(warn = 2); f <- function() warning('foo'); tryCatch(f(), finally={options(warn = op.warn)})
+op.warn <- getOption('warn'); options(warn = 2); f <- function() warning('foo'); f2 <- function() f(); tryCatch(f2(), finally={options(warn = op.warn)})

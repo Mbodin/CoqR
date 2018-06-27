@@ -722,6 +722,18 @@ Lemma exit_rresult_aborts : forall A B r (cont : state -> A -> result B),
   aborting_result (let%exit a := r using S in cont S a).
 Proof. introv H. destruct r; (reflexivity || inverts~ H). Qed.
 
+Lemma exit_rresult_result : forall A B r (cont : state -> A -> result B)
+    (P_success P'_success : _ -> _ -> Prop) P_error P_longjump,
+  result_prop (fun S r =>
+    match r with
+    | normal_result a => P_success S a
+    | return_result ret => P'_success S ret
+    end) P_error P_longjump r ->
+  (forall S a, P_success S a ->
+    result_prop P'_success P_error P_longjump (cont S a)) ->
+  result_prop P'_success P_error P_longjump (let%exit a := r using S in cont S a).
+Proof. introv P I. destruct~ r. destruct~ n. apply I. apply P. Qed.
+
 Lemma continue_and_condition_pass : forall A B S (r : A) expr,
   continue_and_condition S (normal_result (B := B) r) expr = expr S r.
 Proof. introv. reflexivity. Qed.
@@ -895,89 +907,89 @@ Proof. introv. apply~ for_list_map. Qed.
 
 Ltac get_pass_lemma t :=
   lazymatch get_head t with
-  | add_stack => add_stack_pass
-  | if_success => if_success_pass
-  | if_defined_msg => if_defined_msg_pass
-  | if_defined => if_defined_pass
-  | if_is_prim => if_is_prim_pass
-  | if_is_sym => if_is_sym_pass
-  | if_is_list => if_is_list_pass
-  | if_is_env => if_is_env_pass
-  | if_is_clo => if_is_clo_pass
-  | if_is_prom => if_is_prom_pass
-  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_pass
-  | update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_pass
-  | let_VectorChar => let_VectorChar_pass
-  | let_VectorLogical => let_VectorLogical_pass
-  | let_VectorInteger => let_VectorInteger_pass
-  | let_VectorReal => let_VectorReal_pass
-  | let_VectorComplex => let_VectorComplex_pass
-  | let_VectorPointer => let_VectorPointer_pass
-  | fold_left_listSxp_gen => constr:(>> fold_left_listSxp_gen_nil fold_left_listSxp_gen_cons)
-  | fold_left_listSxp => constr:(>> fold_left_listSxp_nil fold_left_listSxp_cons)
-  | match_rresult => constr:(>> match_rresult_pass match_rresult_pass_return)
-  | exit_rresult => constr:(>> exit_rresult_pass exit_rresult_pass_return)
-  | continue_and_condition => constr:(>> continue_and_condition_pass continue_and_condition_pass_return)
-  | get_success => constr:(>> get_success_pass get_success_pass_return)
-  | for_list => constr:(>> for_list_nil for_list_cons for_list_last)
+  | @add_stack => add_stack_pass
+  | @if_success => if_success_pass
+  | @if_defined_msg => if_defined_msg_pass
+  | @if_defined => if_defined_pass
+  | @if_is_prim => if_is_prim_pass
+  | @if_is_sym => if_is_sym_pass
+  | @if_is_list => if_is_list_pass
+  | @if_is_env => if_is_env_pass
+  | @if_is_clo => if_is_clo_pass
+  | @if_is_prom => if_is_prom_pass
+  | @read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_pass
+  | @update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_pass
+  | @let_VectorChar => let_VectorChar_pass
+  | @let_VectorLogical => let_VectorLogical_pass
+  | @let_VectorInteger => let_VectorInteger_pass
+  | @let_VectorReal => let_VectorReal_pass
+  | @let_VectorComplex => let_VectorComplex_pass
+  | @let_VectorPointer => let_VectorPointer_pass
+  | @fold_left_listSxp_gen => constr:(>> fold_left_listSxp_gen_nil fold_left_listSxp_gen_cons)
+  | @fold_left_listSxp => constr:(>> fold_left_listSxp_nil fold_left_listSxp_cons)
+  | @match_rresult => constr:(>> match_rresult_pass match_rresult_pass_return)
+  | @exit_rresult => constr:(>> exit_rresult_pass exit_rresult_pass_return)
+  | @continue_and_condition => constr:(>> continue_and_condition_pass continue_and_condition_pass_return)
+  | @get_success => constr:(>> get_success_pass get_success_pass_return)
+  | @for_list => constr:(>> for_list_nil for_list_cons for_list_last)
   end.
 
 Ltac get_abort_lemma t :=
   lazymatch get_head t with
-  | if_success => if_success_abort
-  | if_defined_msg => if_defined_msg_abort
-  | if_defined => if_defined_abort
-  | if_is_prim => if_is_prim_abort
-  | if_is_sym => if_is_sym_abort
-  | if_is_list => if_is_list_abort
-  | if_is_env => if_is_env_abort
-  | if_is_clo => if_is_clo_abort
-  | if_is_prom => if_is_prom_abort
-  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_abort
-  | update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_abort
-  | let_VectorChar => let_VectorChar_abort
-  | let_VectorLogical => let_VectorLogical_abort
-  | let_VectorInteger => let_VectorInteger_abort
-  | let_VectorReal => let_VectorReal_abort
-  | let_VectorComplex => let_VectorComplex_abort
-  | let_VectorPointer => let_VectorPointer_abort
-  | while_loop => while_expr_abort
-  | match_rresult => match_rresult_abort
-  | exit_rresult => exit_rresult_abort
+  | @if_success => if_success_abort
+  | @if_defined_msg => if_defined_msg_abort
+  | @if_defined => if_defined_abort
+  | @if_is_prim => if_is_prim_abort
+  | @if_is_sym => if_is_sym_abort
+  | @if_is_list => if_is_list_abort
+  | @if_is_env => if_is_env_abort
+  | @if_is_clo => if_is_clo_abort
+  | @if_is_prom => if_is_prom_abort
+  | @read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_abort
+  | @update_Vector_SExpRec_cell => update_Vector_SExpRec_cell_abort
+  | @let_VectorChar => let_VectorChar_abort
+  | @let_VectorLogical => let_VectorLogical_abort
+  | @let_VectorInteger => let_VectorInteger_abort
+  | @let_VectorReal => let_VectorReal_abort
+  | @let_VectorComplex => let_VectorComplex_abort
+  | @let_VectorPointer => let_VectorPointer_abort
+  | @while_loop => while_expr_abort
+  | @match_rresult => match_rresult_abort
+  | @exit_rresult => exit_rresult_abort
   end.
 
 Ltac get_aborts_lemma t :=
   lazymatch get_head t with
-  | add_stack => add_stack_aborts
-  | if_success => if_success_aborts
-  | if_defined_msg => if_defined_msg_aborts
-  | if_defined => if_defined_aborts
-  | if_is_prim => if_is_prim_aborts
-  | if_is_sym => if_is_sym_aborts
-  | if_is_list => if_is_list_aborts
-  | if_is_env => if_is_env_aborts
-  | if_is_clo => if_is_clo_aborts
-  | if_is_prom => if_is_prom_aborts
-  | read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_aborts
-  | let_VectorChar => let_VectorChar_aborts
-  | let_VectorLogical => let_VectorLogical_aborts
-  | let_VectorInteger => let_VectorInteger_aborts
-  | let_VectorReal => let_VectorReal_aborts
-  | let_VectorComplex => let_VectorComplex_aborts
-  | let_VectorPointer => let_VectorPointer_aborts
-  | while_loop => while_expr_aborts
-  | match_rresult => match_rresult_aborts
-  | exit_rresult => exit_rresult_aborts
+  | @add_stack => add_stack_aborts
+  | @if_success => if_success_aborts
+  | @if_defined_msg => if_defined_msg_aborts
+  | @if_defined => if_defined_aborts
+  | @if_is_prim => if_is_prim_aborts
+  | @if_is_sym => if_is_sym_aborts
+  | @if_is_list => if_is_list_aborts
+  | @if_is_env => if_is_env_aborts
+  | @if_is_clo => if_is_clo_aborts
+  | @if_is_prom => if_is_prom_aborts
+  | @read_cell_Vector_SExpRec => read_cell_Vector_SExpRec_aborts
+  | @let_VectorChar => let_VectorChar_aborts
+  | @let_VectorLogical => let_VectorLogical_aborts
+  | @let_VectorInteger => let_VectorInteger_aborts
+  | @let_VectorReal => let_VectorReal_aborts
+  | @let_VectorComplex => let_VectorComplex_aborts
+  | @let_VectorPointer => let_VectorPointer_aborts
+  | @while_loop => while_expr_aborts
+  | @match_rresult => match_rresult_aborts
+  | @exit_rresult => exit_rresult_aborts
   end.
 
 Ltac get_simplify_lemma t :=
   lazymatch get_head t with
-  | add_stack => constr:(>> add_stack_result add_stack_simplify)
-  | while_loop => while_unfold
-  | set_longjump => set_longjump_simplify
-  | for_list => for_list_map
-  | for_loop => for_loop_backwards
-  | for_array => for_array_map
+  | @add_stack => constr:(>> add_stack_result add_stack_simplify)
+  | @while_loop => while_unfold
+  | @set_longjump => set_longjump_simplify
+  | @for_list => for_list_map
+  | @for_loop => for_loop_backwards
+  | @for_array => for_array_map
   end.
 
 Ltac unfolds_get_impossible :=
@@ -1030,7 +1042,8 @@ Ltac unfold_monad_pass t :=
     lazymatch L with
     | boxer ?P :: ?L' =>
       first [
-          rewrite P; try solve_premises
+          rewrite P; try solve_premises;
+          [idtac]
         | try_all_lemmae L' ]
     end in
   try_all_lemmae L.
@@ -1045,7 +1058,8 @@ Ltac unfold_monad_simplify t :=
     | boxer ?S :: ?L' =>
       first [
           solve [ (apply* S || rewrite* S); solve_premises ]
-        | (apply S || rewrite S); try solve_premises
+        | (apply S || rewrite S); try solve_premises;
+          [idtac]
         | try_all_lemmae L' ]
     end in
   try_all_lemmae L.
@@ -1375,7 +1389,21 @@ Ltac cutR P :=
         [| introv _ P' || introv P' ]
       | applys~ if_success_result P; try (introv _ P' || introv P')
       | eapply if_success_result;
-        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
+  | |- result_prop _ _ _ (exit_rresult ?r ?cont) =>
+    let P' := fresh "P" in
+    first [
+        eapply exit_rresult_result with (P_success := P);
+        [| introv P' ]
+      | eapply exit_rresult_result with (P_success := fun S _ => P S);
+        [| introv _ P' || introv P' ]
+      | applys~ exit_rresult_result P; try (introv _ P' || introv P')
+      | eapply exit_rresult_result;
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
   | |- result_prop _ _ _ (set_longjump ?runs ?S ?mask ?cjmpbuf ?f) =>
     let E := fresh "E" in
     let D := fresh "D" in
@@ -1386,6 +1414,8 @@ Ltac cutR P :=
         [| introv E | introv E D ]
       | applys~ set_longjump_result P; try (introv _ P' || introv P')
       | eapply set_longjump_result;
-        [ applys* result_prop_weaken P; simpls* | introv _ P' || introv P' ] ]
+        [ applys* result_prop_weaken P; simpls*;
+          let OK := fresh "OK" in try solve [ introv OK; apply OK ]
+        | introv _ P' || introv P' ] ]
   end.
 

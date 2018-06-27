@@ -99,9 +99,23 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
   add%stack "applydefine" in
   read%list args_car, args_cdr, _ := args using S in
   let expr := args_car in
+
+  (*  It's important that the rhs get evaluated first because
+	assignment is right associative i.e.  a <- b <- c is parsed as
+	a <- (b <- c).  *)
+
   read%list args_cdr_car, _, _ := args_cdr using S in
   let%success rhs := eval globals runs S args_cdr_car rho using S in
   let saverhs := rhs in
+
+  run%success
+    let%success ans_named := NAMED S rhs using S in
+    ifb ans_named <> named_temporary then
+      set%named rhs := named_plural using S in
+      result_skip S
+    else result_skip S
+  using S in
+      
   ifb rho = R_BaseNamespace then
     result_error S "Can’t do complex assignments in base namespace."
   else ifb rho = R_BaseEnv then
@@ -109,14 +123,18 @@ Definition applydefine S (call op args rho : SEXP) : result SEXP :=
   else
     run%success defineVar globals runs S R_TmpvalSymbol R_NilValue rho using S in
     let%success tmploc := R_findVarLocInFrame globals runs S rho R_TmpvalSymbol using S in
+
     let%success cntxt :=
       begincontext globals S Ctxt_CCode call R_BaseEnv R_BaseEnv R_NilValue R_NilValue using S in
+
+    (*  Do a partial evaluation down through the LHS. *)
     let%success op_val := PRIMVAL runs S op using S in
     let%success lhs :=
       read%list _, expr_cdr, _ := expr using S in
       read%list expr_cdr_car, _, _ := expr_cdr using S in
       evalseq globals runs S expr_cdr_car rho (decide (op_val = 1 \/ op_val = 3)) tmploc using S in
     let%success rhsprom := mkRHSPROMISE globals S args_cdr_car rhs using S in
+
     do%success (lhs, expr) := (lhs, expr)
     while
         read%list _, expr_cdr, _ := expr using S in
@@ -435,24 +453,24 @@ Definition do_for S (call op args rho : SEXP) : result SEXP :=
         | _ => let%success v :=
               match val_type with
               | LglSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         read%Logical v_i := v at i using S in
-                         write%Logical v at 0 := v_i using S in
+                         read%Logical val_i := val at i using S in
+                         write%Logical v at 0 := val_i using S in
                          result_success S v
               | IntSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         read%Integer v_i := v at i using S in
-                         write%Integer v at 0 := v_i using S in
+                         read%Integer val_i := val at i using S in
+                         write%Integer v at 0 := val_i using S in
                          result_success S v
               | RealSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                          read%Real v_i := v at i using S in
-                          write%Real v at 0 := v_i using S in
+                          read%Real val_i := val at i using S in
+                          write%Real v at 0 := val_i using S in
                           result_success S v
               | CplxSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                          read%Complex v_i := v at i using S in
-                          write%Complex v at 0 := v_i using S in
+                          read%Complex val_i := val at i using S in
+                          write%Complex v at 0 := val_i using S in
                           result_success S v
               | StrSxp => let%success v := ALLOC_LOOP_VAR S v val_type using S in
-                         let%success v_i := STRING_ELT S val i using S in
-                         run%success SET_STRING_ELT S v 0 v_i using S in
+                         let%success val_i := STRING_ELT S val i using S in
+                         run%success SET_STRING_ELT S v 0 val_i using S in
                          result_success S v                             
               | RawSxp => result_not_implemented "Raw case not implemented"
               | _ => result_error S "invalid for() loop sequence"

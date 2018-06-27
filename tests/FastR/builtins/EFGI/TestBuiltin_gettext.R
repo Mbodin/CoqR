@@ -1,0 +1,8 @@
+argv <- list(NULL, 'Loading required package: %s'); .Internal(gettext(argv[[1]], argv[[2]]))
+argv <- list(NULL, ''); .Internal(gettext(argv[[1]], argv[[2]]))
+argv <- list(NULL, 'The following object is masked from ‘package:base’:nn    detn'); .Internal(gettext(argv[[1]], argv[[2]]))
+argv <- list(NULL, c('/', ' not meaningful for factors')); .Internal(gettext(argv[[1]], argv[[2]]))
+argv <- list(NULL, character(0)); .Internal(gettext(argv[[1]], argv[[2]]))
+argv <- list(NULL, NULL); .Internal(gettext(argv[[1]], argv[[2]]))
+gettext('Loading required package: %s')
+gettext(domain='foo', 'bar')

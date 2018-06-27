@@ -67,7 +67,7 @@ Definition R_allocOrReuseVector S s1 s2 type n :=
 Definition R_integer_plus x y :=
   ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_INTEGER
   else
-    ifb (y < 0 /\ x > R_INT_MAX - y)%Z \/ (y > 0 /\ x < R_INT_MIN - y)%Z then
+    ifb (y > 0 /\ x > R_INT_MAX - y)%Z \/ (y < 0 /\ x < R_INT_MIN - y)%Z then
       (* A warning has been formalised out here. *)
       NA_INTEGER
     else (x + y)%Z.

@@ -1,0 +1,6 @@
+.Fortran(.F_dqrdc2, 1, 1L, 1L, 1L, 1, 1L, 1, 1L, 1)
+.Fortran(.F_dqrcf, 1, 1L, 1L, 1, 1, 1L, 1, 1L)
+.Fortran(.F_dqrqty, 1, 1L, 1L, 1, 1, 1L, qty=1)
+.Fortran(.F_dqrqy, 1, 1L, 1L, 1, 1, 1L, 1)
+.Fortran(.F_dqrrsd, 1, 1L, 1L, 1, 1, 1L, 1)
+.Fortran(.F_dqrxb, 1, 1L, 1L, 1, 1, 1L, 1)

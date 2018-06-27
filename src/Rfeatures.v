@@ -43,6 +43,7 @@ Require Export FRelop.
 Require Export FArray.
 Require Export FNames.
 Require Export FLogic.
+Require Export FSubassign.
 
 (** * Closing the Loop **)
 
@@ -151,12 +152,12 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "{" do_begin (0)%Z eval200 (-1)%Z PP_CURLY PREC_FN false ;
               rdecl "(" do_paren (0)%Z eval1 (1)%Z PP_PAREN PREC_FN false ;
               rdecl ".subset" do_subset_dflt (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl ".subset2" (dummy_function "do_subset2_dflt") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl ".subset2" do_subset2_dflt (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "[" do_subset (1)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
-              rdecl "[[" (dummy_function "do_subset2") (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
+              rdecl "[[" do_subset2 (2)%Z eval0 (-1)%Z PP_SUBSET PREC_SUBSET false ;
               rdecl "$" do_subset3 (3)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
               rdecl "@" (dummy_function "do_AT") (0)%Z eval0 (2)%Z PP_DOLLAR PREC_DOLLAR false ;
-              rdecl "[<-" (dummy_function "do_subassign") (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
+              rdecl "[<-" do_subassign (0)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "[[<-" (dummy_function "do_subassign2") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "$<-" (dummy_function "do_subassign3") (1)%Z eval0 (3)%Z PP_SUBASS PREC_LEFT true ;
               rdecl "switch" (dummy_function "do_switch") (0)%Z eval200 (-1)%Z PP_FUNCALL PREC_FN false ;
@@ -217,9 +218,9 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "<=" do_relop LEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
               rdecl ">=" do_relop GEOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
               rdecl ">" do_relop GTOP eval1 (2)%Z PP_BINARY PREC_COMPARE false ;
-              rdecl "&" (dummy_function "do_logic") (1)%Z eval1 (2)%Z PP_BINARY PREC_AND false ;
-              rdecl "|" (dummy_function "do_logic") (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
-              rdecl "!" (dummy_function "do_logic") (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;
+              rdecl "&" do_logic (1)%Z eval1 (2)%Z PP_BINARY PREC_AND false ;
+              rdecl "|" do_logic (2)%Z eval1 (2)%Z PP_BINARY PREC_OR false ;
+              rdecl "!" do_logic (3)%Z eval1 (1)%Z PP_UNARY PREC_NOT false ;
 
               rdecl "&&" do_logic2 (1)%Z eval0 (2)%Z PP_BINARY PREC_AND false ;
               rdecl "||" do_logic2 (2)%Z eval0 (2)%Z PP_BINARY PREC_OR false ;
@@ -256,7 +257,7 @@ Fixpoint runs max_step globals : runs_type :=
 
               rdecl "vector" do_makevector (0)%Z eval11 (2)%Z PP_FUNCALL PREC_FN false ;
               rdecl "complex" (dummy_function "do_complex") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "matrix" (dummy_function "do_matrix") (0)%Z eval11 (7)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "matrix" do_matrix (0)%Z eval11 (7)%Z PP_FUNCALL PREC_FN false ;
               rdecl "array" (dummy_function "do_array") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "diag" (dummy_function "do_diag") (0)%Z eval11 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "backsolve" (dummy_function "do_backsolve") (0)%Z eval11 (5)%Z PP_FUNCALL PREC_FN false ;
@@ -503,13 +504,13 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "cummax" (dummy_function "do_cum") (3)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "cummin" (dummy_function "do_cum") (4)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
 
-              rdecl "as.character" (dummy_function "do_asatomic") (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.integer" (dummy_function "do_asatomic") (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.double" (dummy_function "do_asatomic") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.numeric" (dummy_function "do_asatomic") (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.complex" (dummy_function "do_asatomic") (3)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.logical" (dummy_function "do_asatomic") (4)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "as.raw" (dummy_function "do_asatomic") (5)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.character" do_asatomic (0)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.integer" do_asatomic (1)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.double" do_asatomic (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.numeric"do_asatomic (2)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.complex" do_asatomic (3)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.logical" do_asatomic (4)%Z eval1 (-1)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "as.raw" do_asatomic (5)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "as.call" (dummy_function "do_ascall") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "as.environment" (dummy_function "do_as_environment") (0)%Z eval1 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "storage.mode<-" (dummy_function "do_storage_mode") (0)%Z eval1 (2)%Z PP_FUNCALL PREC_FN false ;

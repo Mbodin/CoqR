@@ -1,0 +1,2 @@
+{ foo <- function(x) lapply(1:7, function(x) ls(sys.frame(x)));boo <- function(bo) bar(bo);callboo <- function(cb) do.call('boo', list(cb));fun <- function(f) callboo(f);fun(42);}
+{ top <- function(vtop) vtop;foo <- function(vfoo) top(vfoo);boo <- function(vboo) foo(sys.frame(vboo));bar <- function(vbar) do.call(boo, list(vbar), envir = parent.frame(2));baz <- function(vbaz) bar(vbaz);start <- function(vstart) baz(vstart);lapply(lapply(0:8, function(i) start(i)), function(env) sort(tolower(ls(env)))); }

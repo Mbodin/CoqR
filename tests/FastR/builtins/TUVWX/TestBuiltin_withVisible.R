@@ -1,0 +1,7 @@
+withVisible()
+withVisible(1)
+withVisible(x <- 1)
+withVisible({ x <- 1; 1 })
+withVisible({ 1; x <- 1 })
+f <- function(x) { foo <- 1 + x }; withVisible(f(1))
+f <- function(x) { 1 + x }; withVisible(f(1))

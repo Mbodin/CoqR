@@ -8,15 +8,14 @@ typeof (NA) ; typeof (NA_integer_) ; typeof (NA_real_) ; typeof (NA_character_) 
 typeof (NaN) ; typeof (Inf)
 typeof (typeof) ; typeof (typeof (1))
 typeof (.Internal)
-runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
+# runif <- function (...) .Internal (runif (...)) ; typeof (runif (1, 5L, 10L)) ; typeof (runif (1, FALSE, TRUE))
 f <- function (...) typeof (...) ; f (1) ; f (list (1, 2)) ; f (NULL)
 integer (0) ; typeof (integer (0))
 numeric (0) ; typeof (numeric (0))
 logical (0) ; typeof (logical (0))
 character (0) ; typeof (character (0))
-complex (0) ; typeof (complex (0))
-raw (0) ; typeof (raw (0))
+# complex (0) ; typeof (complex (0))
+
 
 typeof2 <- function (x) .Internal (typeof (x)) ; typeof == typeof2
-typeof2 <- function (x) .Internal (typeof (x)) ; typeof (1) == typeof2 (1) ; typeof (1L) == typeof2 (1L) ; typeof (NA) == typeof2 (NA) ; typeof (Inf) == typeof2 (Inf) ; typeof (c) == typeof2 (c) ; typeof (TRUE) == typeof2 (TRUE) ; typeof ("a") == typeof2 ("a")
-
+# typeof2 <- function (x) .Internal (typeof (x)) ; typeof (1) == typeof2 (1) ; typeof (1L) == typeof2 (1L) ; typeof (NA) == typeof2 (NA) ; typeof (Inf) == typeof2 (Inf) ; typeof (c) == typeof2 (c) ; typeof (TRUE) == typeof2 (TRUE) ; typeof ("a") == typeof2 ("a")
