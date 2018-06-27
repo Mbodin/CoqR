@@ -17,11 +17,5 @@ done
 echo "Finished including base library"
 
 
-echo "Activating virtualenv"
-source $COQR_TEST_PATH/venv/bin/activate
-
 echo "Running tests"
 ./compare/run_all.py tests/FastR/builtins/$1 -s -t "FastR $1 Tests" -d
-
-echo "Deactivating virtualenv"
-source $COQR_TEST_PATH/venv/bin/deactivate

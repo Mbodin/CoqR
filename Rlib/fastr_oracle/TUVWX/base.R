@@ -62,6 +62,8 @@ do.call <- function(what, args, quote = FALSE, envir = parent.frame())
 
 typeof <- function(x) .Internal(typeof(x))
 
+sprintf <- function(fmt, ...) .Internal(sprintf(fmt, ...))
+
 # apply.R
 apply <- function(X, MARGIN, FUN, ...)
 {
@@ -646,6 +648,8 @@ warning <- function(..., call. = TRUE, immediate. = FALSE,
                           .makeMessage(..., domain = domain)))
 }
 
+gettextf <- function(fmt, ..., domain = NULL)
+    sprintf(gettext(fmt, domain = domain), ...)
 
 # tabulate.R
 tabulate <- function(bin, nbins = max(1L, bin, na.rm = TRUE))
@@ -1005,3 +1009,6 @@ tryCatch <- function(expr, ..., finally) {
         stop("bad handler specification")
     tryCatchList(expr, classes, parentenv, handlers)
 }
+
+# temp.R
+tempdir <- function() .Internal(tempdir())

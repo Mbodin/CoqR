@@ -790,7 +790,10 @@ pairlist <- function(...) as.pairlist(list(...))
 path.expand <- function(path)
     .Internal(path.expand(path))
 
+getwd <- function()
+    .Internal(getwd())
 
+    
 # locales.R
 Sys.setlocale <- function(category = "LC_ALL", locale = "")
 {
@@ -802,6 +805,9 @@ Sys.setlocale <- function(category = "LC_ALL", locale = "")
 }
 
 # sys.R
+
+sys.parent <- function(n = 1L)
+    .Internal(sys.parent(n))
 
 sys.function <- function(which = 0L)
     .Internal(sys.function(which))

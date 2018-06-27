@@ -832,6 +832,10 @@ as.data.frame <- function(x, row.names = NULL, optional = FALSE, ...)
 
 
 # version.R
+is.numeric_version <-
+function(x)
+    inherits(x, "numeric_version")
+
 as.numeric_version <-
 function(x)
 {
@@ -852,6 +856,10 @@ function(x)
         x
     } else numeric_version(x)
 }
+
+is.package_version <-
+function(x)
+    inherits(x, "package_version")
 
 # parse.R
 parse <- function(file = "", n = NULL, text = NULL, prompt = "?",
@@ -977,3 +985,26 @@ outer <- function (X, Y, FUN = "*", ...)
     }
     robj
 }
+
+
+# stats/R/distn.R
+df <- function(x, df1, df2, ncp, log = FALSE) {
+    if(missing(ncp)) .Call(C_df, x, df1, df2, log)
+    else .Call(C_dnf, x, df1, df2, ncp, log)
+}
+
+dnorm <- function(x, mean=0, sd=1, log=FALSE)
+    .Call(C_dnorm, x, mean, sd, log)
+
+# serialize.R
+unserialize <- function(connection, refhook = NULL)
+{
+    if (typeof(connection) != "raw" &&
+        !is.character(connection) &&
+        !inherits(connection, "connection"))
+        stop("'connection' must be a connection")
+    .Internal(unserialize(connection, refhook))
+}
+
+# print.R
+print <- function(x, ...) UseMethod("print")
