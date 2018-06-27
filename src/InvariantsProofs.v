@@ -284,6 +284,42 @@ Proof.
   simpl. splits; try solve_premises_smart.
 Qed.
 
+Lemma CHAR_result : forall S x,
+  safe_state S ->
+  safe_pointer S x ->
+  may_have_types S ([CharSxp]) x ->
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (CHAR S x).
+Proof. introv OKS OKx Tx. unfolds CHAR. computeR. simpl. reflexivity. Qed.
+
+Lemma iSDDName_result : forall S x,
+  safe_state S ->
+  safe_pointer S x ->
+  may_have_types S ([CharSxp]) x ->
+  result_prop (fun S' _ => S' = S) (fun _ => False) (fun _ _ _ => False)
+    (iSDDName S x).
+Proof.
+  introv OKS OKx Tx. unfolds iSDDName. computeR.
+  cutR CHAR_result. substs. cases_if; simpl; autos~.
+Qed.
+
+Lemma mkSYMSXP_result : forall S name value,
+  safe_state S ->
+  safe_globals S globals ->
+  safe_pointer S name ->
+  may_have_types S ([CharSxp]) name ->
+  result_prop (fun S' sym =>
+      conserve_old_bindings S S' /\ may_have_types S' ([SymSxp]) sym)
+    (fun _ => False) (fun _ _ _ => False)
+    (mkSYMSXP globals S name value).
+Proof.
+  introv OKS OKg OKname Tname. unfolds mkSYMSXP. computeR.
+  cutR iSDDName_result. substs. computeR.
+  unfolds SET_DDVAL. computeR. simpl. splits~; try solve_premises_smart.
+  forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 ES0.
+  applys conserve_old_bindings_trans S2; solve_premises_smart.
+Qed.
+
 Lemma install_result : forall S name_,
   safe_state S ->
   safe_globals S globals ->
@@ -311,12 +347,28 @@ Proof.
       destruct L' as (h&car&cdr&tag&Ex&Tx&Hh&Tcar&Hcar&L'&Ttag&Htag).
       rewrite Ex in El_. inverts El_. unfolds in Preta. destruct a as [()|sym].
       * lets (C&OKS0'): (rm Preta). computeR. cutR PRINTNAME_result.
-        -- skip. (* TODO *)
-        -- lets (C'&OKS1&OKa&Ta): (rm P). skip. (* TODO *)
+        -- applys~ conserve_old_bindings_safe_pointer C.
+        -- lets (C'&OKS1&OKa&Ta): (rm P).
+           forwards C1: conserve_old_bindings_trans C C'.
+           cutR CHAR_result. substs. cases_if; simpl.
+           ++ repeat splits~.
+              ** applys~ conserve_old_bindings_safe_globals OKg.
+              ** applys~ conserve_old_bindings_safe_pointer Hcar.
+              ** applys~ conserve_old_bindings_may_have_types Tcar.
+              ** applys~ conserve_old_bindings_list_type L'.
+           ++ repeat splits~.
+              ** applys~ conserve_old_bindings_safe_globals OKg.
+              ** applys~ conserve_old_bindings_list_type L'.
       * simpl. lets (C&OKS0'&OKsym&Tsym): (rm Preta). splits; try solve_premises_smart.
   - destruct a. lets (C&OKs0): (rm P). cases_if as C0.
     + fold_bool. rew_refl in C0. apply~ C0.
-    + skip. (* TODO *)
+    + unfolds mkChar. unfolds alloc_vector_char. computeR.
+      (*cutR mkSYMSXP_result; try solve_premises_smart.
+      * skip. (* TODO *)
+      * skip. (* TODO *)
+      * skip. (* TODO *)
+      * simpl. splits; try solve_premises_smart.*)
+      skip. (* TODO *)
   Optimize Proof.
 Qed.
 
@@ -410,7 +462,7 @@ Proof.
   - (** only_one_nil **)
     introv M1 M2. applys only_one_nil OKS; apply* may_have_types_same_memory.
   - (** safe_SymbolTable **)
-    simpl. applys~ list_type_same_memory (safe_SymbolTable OKS).
+    simpl. applys~ list_type_safe_same_memory (safe_SymbolTable OKS).
 Qed.
 
 (** The function [init_R_NilValue] allocates a new [NilSxp]: we have

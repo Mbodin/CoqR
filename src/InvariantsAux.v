@@ -785,6 +785,16 @@ Proof.
   introv. applys~ conserve_old_bindings_safe_pointer.
 Qed.
 
+Lemma conserve_old_bindings_safe_header : forall S S' h,
+  conserve_old_bindings S S' ->
+  safe_header S h ->
+  safe_header S' h.
+Proof.
+  introv C OKh. constructors.
+  - applys~ conserve_old_bindings_safe_pointer C OKh.
+  - applys~ conserve_old_bindings_list_type C OKh.
+Qed.
+
 Lemma alloc_SExp_safe_state : forall S S' p p_,
   safe_state S ->
   safe_SExpRec S p_ ->
@@ -811,7 +821,10 @@ Proof.
   - (** safe_SymbolTable **)
     asserts E: (R_SymbolTable S' = R_SymbolTable S).
     { inverts~ A. }
-    rewrite E. applys conserve_old_bindings_list_type C. applys~ safe_SymbolTable OKS.
+    rewrite E. applys conserve_old_bindings_list_type C.
+    applys list_type_weaken; try applys~ safe_SymbolTable OKS; try solve_incl;
+      introv OK; try applys~ conserve_old_bindings_safe_pointer C.
+    applys conserve_old_bindings_safe_header C OK.
 Qed.
 
 Lemma safe_pointer_may_have_types_all_storable_SExpTypes : forall S p,

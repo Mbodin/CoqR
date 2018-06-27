@@ -356,7 +356,7 @@ Record safe_state S : Prop := make_safe_state {
       may_have_types S ([NilSxp]) p2 ->
       p1 = p2 ;
     safe_SymbolTable :
-      list_type S ([ListSxp]) ([SymSxp]) ([NilSxp]) (R_SymbolTable S)
+      list_type_safe S ([ListSxp]) ([SymSxp]) ([NilSxp]) (R_SymbolTable S)
   }.
 
 (** Global variables must be safe.
