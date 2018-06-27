@@ -309,7 +309,8 @@ Lemma mkSYMSXP_result : forall S name value,
   safe_pointer S name ->
   may_have_types S ([CharSxp]) name ->
   result_prop (fun S' sym =>
-      conserve_old_bindings S S' /\ may_have_types S' ([SymSxp]) sym)
+      conserve_old_bindings S S'
+      /\ safe_state S' /\ may_have_types S' ([SymSxp]) sym)
     (fun _ => False) (fun _ _ _ => False)
     (mkSYMSXP globals S name value).
 Proof.
@@ -318,6 +319,28 @@ Proof.
   unfolds SET_DDVAL. computeR. simpl. splits~; try solve_premises_smart.
   forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 ES0.
   applys conserve_old_bindings_trans S2; solve_premises_smart.
+  constructor. (* TODO: This really needs to be a lemmae: [map_gp] doesn’t change the invariants. *)
+  - (** no_null_pointer_entry_point **)
+    introv NE E. applys~ no_null_pointer_entry_point S0 NE.
+    destruct~ e; rewrite <- E; simpl; fequals;
+      try applys~ move_along_context_path_same_contexts;
+      applys~ write_SExp_state_same_except_for_memory ES0.
+  - (** safe_entry_points **)
+    skip. (* TODO *)
+    (*
+    introv E NN. forwards OKp: safe_entry_points S0 e NN.
+    + solve_premises_smart.
+    + destruct~ e; simpls;
+        try erewrite move_along_context_path_same_contexts; try apply E;
+        try (rewrite <- E; fequals);
+        try applys~ write_SExp_state_same_except_for_memory ES0.
+    + tests: (p0 = p).
+      * skip. (* TODO *)
+      *  *)
+  - (** only_one_nil **)
+    introv M1 M2. applys only_one_nil S0; try solve_premises_smart; skip. (* TODO *)
+  - (** safe_SymbolTable **)
+    simpl. applys~ list_type_safe_same_memory (safe_SymbolTable OKS).
 Qed.
 
 Lemma install_result : forall S name_,
@@ -363,12 +386,47 @@ Proof.
   - destruct a. lets (C&OKs0): (rm P). cases_if as C0.
     + fold_bool. rew_refl in C0. apply~ C0.
     + unfolds mkChar. unfolds alloc_vector_char. computeR.
-      (*cutR mkSYMSXP_result; try solve_premises_smart.
-      * skip. (* TODO *)
-      * skip. (* TODO *)
-      * skip. (* TODO *)
-      * simpl. splits; try solve_premises_smart.*)
-      skip. (* TODO *)
+      match type of E with
+      | read_SExp _ _ = Some ?p_ =>
+        asserts OKp_: (safe_SExpRec S0 p_)
+      end.
+      { applys~ make_SExpRec_char_safe.
+        - applys~ globals_not_NULL_safe; try solve_premises_smart.
+          applys~ conserve_old_bindings_safe_globals OKg.
+        - applys list_type_nil R_NilValue_may_have_types.
+          applys~ conserve_old_bindings_safe_globals OKg. }
+      cutR mkSYMSXP_result; try solve_premises_smart.
+      * applys alloc_SExp_safe_state ES0; try solve_premises_smart.
+      * applys~ conserve_old_bindings_safe_globals OKg.
+        applys~ conserve_old_bindings_trans C C1.
+      * rewrite safe_pointer_rewrite. constructors.
+        -- (** pointer_bound **)
+           solve_premises_smart.
+        -- (** no_null_pointer_along_path_step **)
+           destruct s; introv NE M; unfolds in M; rewrite E in M; simpl in M; inverts M as M.
+           solve_premises_smart.
+        -- (** safe_pointer_along_path_step **)
+           destruct s; introv M D'; unfolds in M; rewrite E in M; simpl in M; inverts M as M.
+           applys globals_not_NULL_safe; try solve_premises_smart.
+           applys~ conserve_old_bindings_safe_globals OKg.
+           applys~ conserve_old_bindings_trans C C1.
+        -- (** safe_SExpRec_read **)
+           introv E'. rewrite E' in E. inverts~ E.
+           applys~ conserve_old_bindings_safe_SExpRec OKp_.
+      * lets (C12&OKTa): (rm P). destruct CONS as (S3&SymbolTable) eqn: ECONS.
+        forwards (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS.
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- skip. (* TODO *)
+        -- simpl. splits~.
+           ++ skip. (* TODO *)
+           ++ skip. (* TODO *)
+           ++ skip. (* TODO *)
+           ++ skip. (* TODO *)
   Optimize Proof.
 Qed.
 
