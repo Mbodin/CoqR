@@ -142,7 +142,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 let%success t_sidx := STRING_ELT S t sidx using S in                   
                 run%success SET_STRING_ELT S s didx t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -154,7 +155,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Logical t_sidx := t at sidx using S in                   
                 write%Logical s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -166,7 +168,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Integer t_sidx := t at sidx using S in                   
                 write%Integer s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -178,7 +181,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Real t_sidx := t at sidx using S in                   
                 write%Real s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -190,7 +194,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Complex t_sidx := t at sidx using S in                   
                 write%Complex s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -203,7 +208,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 let%success t_sidx := VECTOR_ELT S t sidx using S in                   
                 run%success SET_VECTOR_ELT S s didx t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx  
