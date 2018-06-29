@@ -142,7 +142,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 let%success t_sidx := STRING_ELT S t sidx using S in                   
                 run%success SET_STRING_ELT S s didx t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -154,7 +155,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Logical t_sidx := t at sidx using S in                   
                 write%Logical s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -166,7 +168,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Integer t_sidx := t at sidx using S in                   
                 write%Integer s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -178,7 +181,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Real t_sidx := t at sidx using S in                   
                 write%Real s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -190,7 +194,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 read%Complex t_sidx := t at sidx using S in                   
                 write%Complex s at didx := t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx
@@ -203,7 +208,8 @@ Definition copyMatrix S (s t : SEXP) byrow :=
             for j from 0 to nc - 1 do
                 let%success t_sidx := VECTOR_ELT S t sidx using S in                   
                 run%success SET_VECTOR_ELT S s didx t_sidx using S in
-                let sidx := ifb sidx >= nt then sidx + 1 - nt else sidx + 1 in
+                let sidx := sidx + 1 in
+                let sidx := ifb sidx >= nt then sidx - nt else sidx in
             result_success S (sidx, didx +  nr)
             using S in               
             result_success S sidx  
@@ -260,7 +266,7 @@ Definition do_matrix S (call op args rho : SEXP) : result SEXP :=
     read%list args_car, _, _ := args using S in
     let%success miss_nc := asLogical globals S args_car using S in                                        
     let%success nr :=
-    ifb miss_nr <> 0 then
+    ifb miss_nr = 0 then
         let%success snr_isNumeric := isNumeric globals runs S snr using S in
         if negb snr_isNumeric then
             result_error S "non-numeric matrix extent"
@@ -278,7 +284,7 @@ Definition do_matrix S (call op args rho : SEXP) : result SEXP :=
     using S in
 
     let%success nc :=
-    ifb miss_nc <> 0 then
+    ifb miss_nc = 0 then
         let%success snc_isNumeric := isNumeric globals runs S snc using S in
         if negb snc_isNumeric then
             result_error S "non-numeric matrix extent"
@@ -313,7 +319,7 @@ Definition do_matrix S (call op args rho : SEXP) : result SEXP :=
         else
             result_success S (Double.double_to_int_zero (Double.ceil (Double.div (lendat : double) (nc : double))), nc)
     else ifb miss_nc <> 0 then
-        ifb (lendat : double) > Double.mult (nc : double) (INT_MAX : double) then
+        ifb (lendat : double) > Double.mult (nr : double) (INT_MAX : double) then
             result_error S "data is too long"
         else
         ifb nr = 0 then
@@ -322,7 +328,7 @@ Definition do_matrix S (call op args rho : SEXP) : result SEXP :=
             else
                 result_success S (nr, 0%Z)
         else
-            result_success S (nr, (Double.double_to_int_zero (Double.ceil (Double.div (lendat : double) (nc : double)))))
+            result_success S (nr, (Double.double_to_int_zero (Double.ceil (Double.div (lendat : double) (nr : double)))))
     else
         result_success S (nr, nc)
     using S in

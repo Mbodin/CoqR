@@ -45,8 +45,10 @@ c (NULL, 1L) ; c (NULL, NULL) ; c (NULL, TRUE) ; c (NULL, "a") ; c (NULL, NA) ; 
 c (TRUE, 1L) ; c (TRUE, NULL) ; c (TRUE, TRUE) ; c (TRUE, 'a') ; c (TRUE, NA) ; c (TRUE, NaN) ; c (TRUE, 3i)
 # c ("b", 1L) ; c ('b', NULL) ; c ("b", TRUE) ; c ('b', "a") ; c ("b", NA) ; c ('b', NaN) ; c ("b", 3i)
 c (NA, 1L) ; c (NA, NULL) ; c (NA, TRUE) ; c (NA, "a") ; c (NA, NA) ; c (NA, NaN) ; c (NA, 3i)
-c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN) ; c (NaN, 3i)
-c (4i, 1L) ; c (4i, NULL) ; c (4i, TRUE) ; c (4i, "a") ; c (4i, NA) ; c (4i, NaN) ; c (4i, 3i)
+# c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, "a") ; c (NaN, NA) ; c (NaN, NaN) ; c (NaN, 3i)
+c (NaN, 1L) ; c (NaN, NULL) ; c (NaN, TRUE) ; c (NaN, NA) ; c (NaN, NaN) ; c (NaN, 3i)
+# c (4i, 1L) ; c (4i, NULL) ; c (4i, TRUE) ; c (4i, "a") ; c (4i, NA) ; c (4i, NaN) ; c (4i, 3i)
+c (4i, 1L) ; c (4i, NULL) ; c (4i, TRUE) ; c (4i, NA) ; c (4i, NaN) ; c (4i, 3i)
 #c (1, TRUE, 'a') ; c (c (1, TRUE), "a") ; c (1, c (TRUE, 'a'))
 c (1) ; c (1L) ; c (1i) ; c (TRUE) ; c ("a") ; c (NA) ; c (NaN) ; c (Inf)
 c () ; c (NULL) ; c (NULL, NULL, NULL, NA, NULL, NULL, NULL)
@@ -64,7 +66,7 @@ NULL == list () ; NULL == c () ; list () == list () ; list () == c () ; list () 
 #(list (1, 2, 3)) [[2]] ; (1:3) [[2]] ; list (1) [[2]]
 list (a = 3, b = 5) $ a ; list (a = 3, b = 5) $ c ; list (ab = 3, b = 4) $ a ; list (ab = 3, abc = 4) $ a ; list (ab = 3, abc = 4) $ ab
 #1 == 1i ; 1 == 1 + 0i
--0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:"1" ; 1:" "
+-0:0 ; 1:1 ; 1:-1 ; -1:1 ; 1L:-1 ; -1:1L ; 1:" "# ; 1:"1" ; 1:" "
 -10:10 ; -(10:10) ; 1:""
 1:NA
 1:NaN

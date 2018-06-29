@@ -154,7 +154,7 @@ Definition nthcdr S s n :=
         result_error S "List too short."
       else
         read%list _, s_cdr, _ := s using S in
-        result_success S (s, n - 1) using S, runs in
+        result_success S (s_cdr, n - 1) using S, runs in
     result_success S s
   else result_error S "No CDR.".
 

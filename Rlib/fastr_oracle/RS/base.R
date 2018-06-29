@@ -1,3 +1,28 @@
+# array.R
+array <-
+function(data = NA, dim = length(data), dimnames = NULL)
+{
+    ## allow for as.vector.factor (converts to character)
+    if(is.atomic(data) && !is.object(data))
+        return(.Internal(array(data, dim, dimnames)))
+    data <- as.vector(data)
+    ## package rv has an as.vector() method which leave this as a classed list
+    if(is.object(data)) {
+        dim <- as.integer(dim)
+        if (!length(dim)) stop("'dims' cannot be of length 0")
+        vl <- prod(dim)
+        if(length(data) != vl) {
+            ## C code allows long vectors, but rep() does not.
+            if(vl > .Machine$integer.max)
+                stop("'dim' specifies too large an array")
+            data <- rep_len(data, vl)
+        }
+        if(length(dim)) dim(data) <- dim
+        if(is.list(dimnames) && length(dimnames)) dimnames(data) <- dimnames
+        data
+    } else .Internal(array(data, dim, dimnames))
+}
+
 # assign.R
 assign <-
     function (x, value, pos = -1, envir = as.environment(pos),
@@ -5,6 +30,8 @@ assign <-
     .Internal(assign(x, value, envir, inherits))
 
 # as.R
+as.list <- function(x,...) UseMethod("as.list")
+
 as.vector <- function(x, mode = "any") .Internal(as.vector(x, mode))
 as.symbol <- function(x) .Internal(as.vector(x, "symbol"))
 as.name <- as.symbol
@@ -625,6 +652,8 @@ sys.parents <- function()
 sys.nframe <- function()
     .Internal(sys.nframe())
 
+sys.function <- function(which = 0L)
+    .Internal(sys.function(which))
 
 
 # rep.R
@@ -878,7 +907,9 @@ readChar <- function(con, nchars, useBytes = FALSE)
     }
     .Internal(readChar(con, as.integer(nchars), useBytes))
 }
-
+rawConnection <- function(object, open = "r") {
+    .Internal(rawConnection(deparse(substitute(object)), object, open))
+}
 
 # strwrap.R
 strtrim <- function(x, width)
@@ -1136,6 +1167,13 @@ data.frame <-
     value
 }
 
+as.data.frame <- function(x, row.names = NULL, optional = FALSE, ...)
+{
+    if(is.null(x))			# can't assign class to NULL
+	return(as.data.frame(list()))
+    UseMethod("as.data.frame")
+}
+
 is.data.frame <- function(x) inherits(x, "data.frame")
 
 # seq.R
@@ -1302,3 +1340,11 @@ get <-
     function (x, pos = -1L, envir = as.environment(pos), mode = "any",
               inherits = TRUE)
     .Internal(get(x, envir, mode, inherits))
+
+# is.R
+is.vector <- function(x, mode="any") .Internal(is.vector(x,mode))
+
+# stats/R/distn.R
+runif <- function(n, min=0, max=1) .Call(C_runif, n, min, max)
+
+rhyper <- function(nn, m, n, k) .Call(C_rhyper, nn, m, n, k)

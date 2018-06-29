@@ -126,11 +126,15 @@ Definition do_attr S (call op args env : SEXP) : result SEXP :=
                 (* A potential warning has been formalised out here. *)
                 getAttrib globals runs S s tag.
 
+(* attr(obj, which = "<name>")  <-  value    (op == 0)  and
+        obj @ <name>            <-  value    (op == 1)
+*)
 Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
   add%stack "do_attrgets" in
   run%success Rf_checkArityCall globals runs S op args call using S in
+
   let%success op_val := PRIMVAL runs S op using S in
-  ifb op_val <> 0 then
+  ifb op_val <> 0 then  (* @<- *)
     let%success input := allocVector globals S StrSxp 1 using S in
     read%list _, args_cdr, _ := args using S in
     read%list args_cdr_car, _, _ := args_cdr using S in
@@ -155,7 +159,7 @@ Definition do_attrgets S (call op args env : SEXP) : result SEXP :=
       read%list ans_cdr_cdr_car, _, _ := ans_cdr_cdr using S in
       let value := ans_cdr_cdr_car in
       unimplemented_function "check_slot_assign"
-  else
+  else  (* attr(obj, "name") <- value : *)
     read%list args_car, args_cdr, _ := args using S in
     let obj := args_car in
     let%success obj :=
