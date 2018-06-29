@@ -1079,4 +1079,150 @@ Lemma make_SExpRec_cplx_safe : forall S attrib array,
   safe_SExpRec S (make_SExpRec_cplx attrib array).
 Proof. introv OKattrib Lattrib. constructors; constructors~. Qed.
 
+Lemma map_gp_result : forall A P_success P_error P_longjump globals S p f (cont : state -> result A),
+  safe_state S ->
+  safe_globals S globals ->
+  bound S p ->
+  (forall S',
+    safe_state S' ->
+    safe_globals S' globals ->
+    result_prop P_success P_error P_longjump (cont S')) ->
+  result_prop P_success P_error P_longjump (map%gp p with f using S in cont S).
+Proof.
+  introv OKS OKg B I. unfolds map_pointer. apply add_stack_result.
+  lets (p_&E&_): (rm B). rewrite E. simpl.
+  forwards (S0&W): read_write_SExp_Some E. rewrite W. simpl.
+  forwards E': read_write_SExp_eq W.
+  asserts TGP: (forall p_ : SExpRec,
+                 Mem (type p_) all_storable_SExpTypes ->
+                 type (map_gp f p_) = type p_).
+  { clear. introv I. destruct p_; apply~ SExpType_restrict_all_storable_SExpTypes. }
+  asserts TS: (forall p l,
+                 LibBag.incl l all_storable_SExpTypes ->
+                 may_have_types S l p -> may_have_types S0 l p).
+  { introv Il (p_'&R&T). tests: (p0 = p).
+    - rewrite E in R. inverts R. eexists. splits*. rewrite~ TGP. applys~ BagInIncl Il.
+    - eexists. splits.
+      + erewrite read_write_SExp_neq; autos*.
+      + autos~. }
+  asserts LN: (forall l_t l_car l_tag p,
+                 LibBag.incl l_t all_storable_SExpTypes ->
+                 LibBag.incl l_car all_storable_SExpTypes ->
+                 LibBag.incl l_tag all_storable_SExpTypes ->
+                 list_type S l_t l_car l_tag p ->
+                 list_type S0 l_t l_car l_tag p).
+  { introv I1 I2 I3 L. induction L using list_type_ind.
+    - applys~ list_type_nil. apply~ TS. solve_incl.
+    - applys~ list_type_cons. tests: (p0 = p).
+      + rewrite H in E. inverts E. eexists. splits*.
+        subst. do 4 eexists. splits*.
+        * simpl. rewrite~ SExpType_restrict_all_storable_SExpTypes.
+          applys BagInIncl H1. solve_incl.
+      + eexists. splits.
+        * erewrite read_write_SExp_neq; autos*.
+        * subst. do 4 eexists. splits*. }
+  asserts SP: (forall p, safe_pointer S p -> safe_pointer S0 p).
+  { pcofix IH. introv OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
+    - (** pointer_bound **)
+      applys* bound_write W. applys pointer_bound OKp. 
+    - (** no_null_pointer_along_path_step **)
+      introv NE M. applys no_null_pointer_along_path_step OKp NE.
+      unfolds move_along_path_step. tests: (p0 = p).
+      + rewrite E. rewrite E' in M. destruct s; destruct p_; apply M.
+      + erewrite <- read_write_SExp_neq; autos*.
+    - (** safe_pointer_along_path_step **)
+      introv M D'. right. apply IH. applys* safe_pointer_along_path_step s.
+      unfolds move_along_path_step. tests: (p0 = p).
+      + rewrite E. rewrite E' in M. destruct s; destruct p_; apply M.
+      + erewrite <- read_write_SExp_neq; autos*.
+    - (** safe_SExpRec_read **)
+      introv R. tests: (p0 = p).
+      + rewrite E' in R. inverts R.
+        forwards OKp_: safe_SExpRec_read OKp E. constructors.
+        * (** SExpType_corresponds_to_datatype **)
+          forwards OK: SExpType_corresponds_to_datatype OKp_. rewrite~ TGP.
+          -- inverts~ OK; constructors~; try introv M; try apply~ TS; try apply~ LN; try solve_incl.
+             destruct p_; tryfalse.
+          -- inverts~ OK; Mem_solve.
+        * (** SExpRec_header **)
+          constructors.
+          -- (** safe_attrib **)
+             right. asserts_rewrite (attrib (map_gp f p_) = attrib p_).
+             { destruct~ p_. }
+             applys~ IH OKp_.
+          -- (** attrib_list **)
+             apply~ LN; try solve_incl.
+             asserts_rewrite (attrib (map_gp f p_) = attrib p_).
+             { destruct~ p_. }
+             apply OKp_.
+      + erewrite read_write_SExp_neq in R; autos*.
+        forwards OKp_: safe_SExpRec_read OKp R. constructors.
+        * (** SExpType_corresponds_to_datatype **)
+          forwards OK: SExpType_corresponds_to_datatype OKp_.
+          inverts~ OK; constructors~; try introv M; try apply~ TS; try apply~ LN; try solve_incl.
+        * (** SExpRec_header **)
+          constructors.
+          -- (** safe_attrib **)
+             right. applys~ IH OKp_.
+          -- (** attrib_list **)
+             apply~ LN; try solve_incl. apply OKp_. }
+  asserts LS: (forall l_t l_car l_tag p,
+                 LibBag.incl l_t all_storable_SExpTypes ->
+                 LibBag.incl l_car all_storable_SExpTypes ->
+                 LibBag.incl l_tag all_storable_SExpTypes ->
+                 list_type_safe S l_t l_car l_tag p ->
+                 list_type_safe S0 l_t l_car l_tag p).
+  { introv I1 I2 I3 L. induction L using list_type_ind.
+    - applys~ list_type_nil. apply~ TS. solve_incl.
+    - applys~ list_type_cons. tests: (p0 = p).
+      + eexists. splits*. rewrite E in H. inverts H.
+        subst. do 4 eexists. splits*.
+        * simpl. simpl in H1. rewrite~ SExpType_restrict_all_storable_SExpTypes.
+          applys~ BagInIncl I1.
+        * simpl. constructor.
+          -- simpl. apply~ SP. inverts~ H2.
+          -- simpl. applys~ LN; try solve_incl. inverts~ H2.
+      + eexists. splits~.
+        * erewrite  <- read_write_SExp_neq in H; autos*.
+        * subst. do 4 eexists. splits*.
+          -- simpl. constructor.
+             ++ simpl. apply~ SP. inverts~ H2.
+             ++ simpl. applys~ LN; try solve_incl. inverts~ H2. }
+  apply I.
+  - constructor.
+    + (** no_null_pointer_entry_point **)
+      introv NE M. applys~ no_null_pointer_entry_point S NE.
+      destruct~ e; rewrite <- M; simpl; fequals;
+        try applys~ move_along_context_path_same_contexts;
+        applys~ write_SExp_state_same_except_for_memory W.
+    + (** safe_entry_points **)
+      introv M NN. forwards~ OKp: safe_entry_points S e NN.
+      erewrite* move_along_entry_point_same_entry_points.
+      apply state_same_except_for_memory_sym.
+      applys* write_SExp_state_same_except_for_memory W.
+    + (** only_one_nil **)
+      asserts TS_inv: (forall p,
+                        may_have_types S0 ([NilSxp]) p -> may_have_types S ([NilSxp]) p).
+      { introv (p0_&R&T). tests: (p0 = p).
+        - rewrite E' in R. inverts R. eexists. splits*. clear - T.
+          destruct p_; simpls; rewrite <- SExpType_restrict_not_FunSxp with (t := type _); autos~;
+            destruct type; try discriminate; simpls; repeat inverts T as T.
+        - eexists. splits.
+          + erewrite <- read_write_SExp_neq; autos*.
+          + autos~. }
+      introv M1 M2. applys~ only_one_nil S; apply~ TS_inv.
+    + (** safe_SymbolTable **)
+      simpl. forwards L: safe_SymbolTable OKS.
+      asserts_rewrite (R_SymbolTable S0 = R_SymbolTable S).
+      { symmetry. applys~ write_SExp_state_same_except_for_memory W. }
+      applys~ LS L; solve_incl.
+  - constructor.
+    + (** globals_not_NULL **)
+      apply OKg.
+    + (** globals_not_NULL_safe **)
+      introv D'. apply SP. applys~ globals_not_NULL_safe OKg.
+    + (** R_NilValue_may_have_types **)
+      apply~ TS; try solve_incl. applys~ R_NilValue_may_have_types OKg.
+Qed.
+
 Optimize Heap.

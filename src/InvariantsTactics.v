@@ -2247,7 +2247,8 @@ Qed.
 
 Ltac get_result_lemma t :=
   lazymatch get_head t with
-  | TYPEOF => constr:(>> TYPEOF_pass TYPEOF_result)
+  | @map_pointer => map_gp_result
+  | @TYPEOF => constr:(>> TYPEOF_pass TYPEOF_result)
   end.
 
 Ltac apply_result_lemma t :=
@@ -2289,6 +2290,8 @@ Ltac computeR_step :=
     let E := fresh "E" S' in
     destruct (alloc_SExp S p_) as [S' p] eqn: E;
     transition_conserve S S'
+  | |- context [ map_pointer ?S (map_gp ?f) ?p ?cont ] =>
+    apply_result_lemma (map_pointer S (map_gp f) p cont)
   | |- context [ TYPEOF ?S ?e ] =>
     apply_result_lemma (TYPEOF S e)
   | |- context [ CONS ?globals ?S ?car ?cdr ] =>

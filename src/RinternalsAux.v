@@ -41,6 +41,15 @@ Definition SExpType_restrict t :=
   | _ => t
   end.
 
+Lemma SExpType_restrict_idem : forall t,
+  SExpType_restrict (SExpType_restrict t) = SExpType_restrict t.
+Proof. introv. destruct* t. Qed.
+
+Lemma SExpType_restrict_not_FunSxp : forall t,
+  t <> FunSxp ->
+  SExpType_restrict t = t.
+Proof. introv. destruct* t. Qed.
+
 Definition TYPE_BITS := 5.
 Definition MAX_NUM_SEXPTYPE := 2 ^ TYPE_BITS.
 
