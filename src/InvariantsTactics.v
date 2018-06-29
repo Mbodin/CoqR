@@ -304,28 +304,10 @@ Ltac remove_all_already_seen :=
   end.
 
 
-(** ** Case analysis on lists **)
+(** ** Clearing trivial hypotheses **)
 
-(** Given an hypothesis [T] stating that an element is present in a list,
-  it explodes the goal in as many subgoal as needed, each of them only
-  considering only one element of the list.
-  For instance [x \in [a ; b]] is replaced by two goals, one with [x = a]
-  and the other with [x = b].
-  It supports various ways to state that an element is in a list. **)
-Ltac explode_list T :=
+Ltac explode_list_smart T :=
   lazymatch type of T with
-  | ?x \in nil =>
-    false~ BagInEmpty_list T
-  | ?x \in [?y] =>
-    let T' := fresh1 T in
-    asserts T': (x = y); [ eapply BagInSingle_list; apply T |];
-    clear T; rename T' into T
-  | ?x \in (?y :: ?l) =>
-    apply BagIn_cons in T;
-    let T' := fresh1 T in
-    lets [T'|T']: (rm T);
-    [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
   | may_have_types ?S nil ?x =>
     false~ may_have_types_nil T
   | may_have_types ?S (?t :: ?l) ?x =>
@@ -333,35 +315,9 @@ Ltac explode_list T :=
     let T' := fresh1 T in
     lets [T'|T']: (rm T);
     [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
-  | Mem ?x nil =>
-    rewrite Mem_nil_eq in T; false~ T
-  | Mem ?x (?y :: ?l) =>
-    rewrite Mem_cons_eq in T;
-    let T' := fresh1 T in
-    lets [T'|T']: (rm T);
-    [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
-  | mem ?x nil =>
-    rewrite mem_nil in T; false~ T
-  | mem ?x (?y :: ?l) =>
-    rewrite mem_cons in T;
-    rew_refl in T;
-    let T' := fresh1 T in
-    lets [T'|T']: (rm T);
-    [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
-  | In ?x nil =>
-    false~ in_nil T
-  | In ?x (?y :: ?l) =>
-    let T' := fresh1 T in
-    lets [T'|T']: in_inv (rm T);
-    [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
+    | (rename T' into T ; explode_list_smart T) || explode_list_smart T' ]
+  | _ => explode_list T
   end.
-
-
-(** ** Clearing trivial hypotheses **)
 
 (** This tactic removes useless hypotheses. **)
 Ltac clear_trivial :=
@@ -369,7 +325,7 @@ Ltac clear_trivial :=
   | T : True |- _ => clear T
   | E : ?x = ?x |- _ => clear E
   | H1 : ?P, H2 : ?P |- _ => clear H2
-  | I : ?x \in [?y] |- _ => explode_list I
+  | I : ?x \in [?y] |- _ => explode_list_smart I
   end;
   repeat match goal with
   | u : unit |- _ => clear u
@@ -1188,7 +1144,7 @@ Ltac get_safe_pointer_no_S p cont :=
   This tactic may solve the goal if some of these hypotheses are inconsistant. **)
 Ltac clear_useless_type_eq :=
   repeat match goal with
-  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list T
+  | T : type (get_SxpInfo ?p_) \in [?t] |- _ => explode_list_smart T
   | T1 : type (get_SxpInfo ?p_) = ?t,
     T2 : type (get_SxpInfo ?p_) = ?t |- _ => clear T2
   | T1 : type (get_SxpInfo ?p_) = ?t1,
@@ -1244,7 +1200,7 @@ Ltac force_unfold_shape explode S p_ :=
             | _ _ => idtac
             | _ => unfold l in T
             end;
-            explode_list T;
+            explode_list_smart T;
             solve_T T ])
         (** Lemmae-based approach **)
         | let header := fresh "header" in
@@ -1658,7 +1614,7 @@ Ltac add_in_No_duplicates_hypothesis D p :=
       [ abstract (
           let M := fresh "M" in
           introv M;
-          explode_list M;
+          explode_list_smart M;
           gen M;
           prove_locations_different)
       | clear D; rename D' into D ]
@@ -1907,7 +1863,7 @@ Ltac prove_types_different :=
       | _ =>
         lazymatch goal with
         | E : t = _ |- _ => rewrite E
-        | E : t \in _ |- _ => explode_list E; rewrite E
+        | E : t \in _ |- _ => explode_list_smart E; rewrite E
         end
       | type (get_SxpInfo ?p_) =>
         match goal with
@@ -1915,7 +1871,7 @@ Ltac prove_types_different :=
           get_may_have_types S p ltac:(fun T =>
             let L := fresh "L" in
             forwards L: may_have_types_read_SExp T E;
-            explode_list L; rewrite L)
+            explode_list_smart L; rewrite L)
         end
       end in
     solve [

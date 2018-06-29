@@ -108,6 +108,118 @@ Proof.
   - destruct a0. apply P.
 Qed.
 
+(* TODO: To be moved in InvariantsAux and linked to tactics. *)
+Lemma map_gp_result : forall A P_success P_error P_longjump S p f (cont : state -> result A),
+  safe_state S ->
+  safe_globals S globals ->
+  bound S p ->
+  (forall S',
+    safe_state S' ->
+    safe_globals S' globals ->
+    result_prop P_success P_error P_longjump (cont S')) ->
+  result_prop P_success P_error P_longjump (map%gp p with f using S in cont S).
+Proof.
+  introv OKS OKg B I. unfolds map_pointer. apply add_stack_result.
+  lets (p_&E&_): (rm B). rewrite E. simpl.
+  forwards (S0&W): read_write_SExp_Some E. rewrite W. simpl.
+  forwards E': read_write_SExp_eq W.
+  asserts RS0: (forall p p_,
+    read_SExp S p = Some p_ -> read_SExp S0 p = Some (map_gp f p_)).
+  { skip. }
+  asserts TS: (forall p l, may_have_types S0 l p <-> may_have_types S l p).
+  { skip. }
+  asserts LN: (forall l_t l_car l_tag p,
+                 LibBag.incl l_t all_storable_SExpTypes ->
+                 list_type S l_t l_car l_tag p ->
+                 list_type S0 l_t l_car l_tag p).
+  { introv I' L. induction L using list_type_ind.
+    - applys~ list_type_nil. apply~ TS.
+    - applys~ list_type_cons. eexists. splits~.
+      + applys* RS0.
+      + subst. do 4 eexists. splits*.
+        * simpl. rewrite~ SExpType_restrict_all_storable_SExpTypes.
+          applys BagInIncl H1. solve_incl.
+        * apply~ TS.
+        * applys~ TS. }
+  asserts SP: (forall p, safe_pointer S p -> safe_pointer S0 p).
+  { pcofix IH. introv OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
+    - (** pointer_bound **)
+      forwards (p_'&R&_): pointer_bound OKp. exists*.
+    - (** no_null_pointer_along_path_step **)
+      introv NE M. applys no_null_pointer_along_path_step OKp NE.
+      unfolds move_along_path_step. tests: (p0 = p).
+      + rewrite E. rewrite E' in M. destruct s; destruct p_; apply M.
+      + erewrite <- read_write_SExp_neq; autos*.
+    - (** safe_pointer_along_path_step **)
+      introv M D'. right. apply IH. applys* safe_pointer_along_path_step s.
+      unfolds move_along_path_step. tests: (p0 = p).
+      + rewrite E. rewrite E' in M. destruct s; destruct p_; apply M.
+      + erewrite <- read_write_SExp_neq; autos*.
+    - (** safe_SExpRec_read **)
+      introv R. tests: (p0 = p).
+      + rewrite E' in R. inverts R.
+        skip. (* forwards OKp_: safe_SExpRec_read E'. *)
+      + erewrite read_write_SExp_neq in R; autos*.
+        forwards OKp_: safe_SExpRec_read OKp R. constructors.
+        * (** SExpType_corresponds_to_datatype **)
+          forwards OK: SExpType_corresponds_to_datatype OKp_.
+          inverts~ OK; constructors~; try introv M; try apply~ TS; try (apply~ LN; solve_incl).
+        * (** SExpRec_header **)
+          constructors.
+          -- (** safe_attrib **)
+             right. applys~ IH OKp_.
+          -- (** attrib_list **)
+             apply~ LN.
+             ++ solve_incl.
+             ++ apply OKp_. }
+  asserts LS: (forall l_t l_car l_tag p,
+                 LibBag.incl l_t all_storable_SExpTypes ->
+                 list_type_safe S l_t l_car l_tag p ->
+                 list_type_safe S0 l_t l_car l_tag p).
+  { introv I' L. induction L using list_type_ind.
+    - applys~ list_type_nil. apply~ TS.
+    - applys~ list_type_cons. eexists. splits~.
+      + applys* RS0.
+      + subst. do 4 eexists. splits*.
+        * simpl. rewrite~ SExpType_restrict_all_storable_SExpTypes.
+          applys BagInIncl H1. solve_incl.
+        * simpl. constructor.
+          -- simpl. apply~ SP. inverts~ H2.
+          -- simpl. applys~ LN.
+             ++ solve_incl.
+             ++ inverts~ H2.
+        * applys~ TS.
+        * applys~ TS. }
+  apply I.
+  - constructor.
+    + (** no_null_pointer_entry_point **)
+      introv NE M. applys~ no_null_pointer_entry_point S NE.
+      destruct~ e; rewrite <- M; simpl; fequals;
+        try applys~ move_along_context_path_same_contexts;
+        applys~ write_SExp_state_same_except_for_memory W.
+    + (** safe_entry_points **)
+      introv M NN. forwards OKp: safe_entry_points S e NN.
+      * solve_premises_smart.
+      * erewrite* move_along_entry_point_same_entry_points.
+        apply state_same_except_for_memory_sym.
+        applys* write_SExp_state_same_except_for_memory W.
+      * applys~ SP.
+    + (** only_one_nil **)
+      introv M1 M2. applys~ only_one_nil S; apply~ TS.
+    + (** safe_SymbolTable **)
+      simpl. forwards L: safe_SymbolTable OKS.
+      asserts_rewrite (R_SymbolTable S0 = R_SymbolTable S).
+      { symmetry. applys~ write_SExp_state_same_except_for_memory W. }
+      applys~ LS L. solve_incl.
+  - constructor.
+    + (** globals_not_NULL **)
+      apply OKg.
+    + (** globals_not_NULL_safe **)
+      introv D'. apply SP. applys~ globals_not_NULL_safe OKg.
+    + (** R_NilValue_may_have_types **)
+      apply~ TS. applys~ R_NilValue_may_have_types OKg.
+Qed.
+
 
 (** * Lemmae about Rcore.v **)
 
@@ -163,7 +275,7 @@ Proof.
   introv OKS OKg OKs. unfolds R_length. computeR.
   forwards Ts: bound_may_have_types S s.
   { solve_premises_smart. }
-  unfolds all_SExpTypes. explode_list Ts; (cutR TYPEOF_result;
+  unfolds all_SExpTypes. explode_list_smart Ts; (cutR TYPEOF_result;
       [ apply Ts
       | lets (E&C): (rm P); substs; simpl; autos~ ]);
     computeR; try solve_premises_smart.
@@ -175,7 +287,7 @@ Proof.
       * splits~; solve_premises_smart.
       * introv. destruct a. introv (?&OKs'&Ts').
         substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
-        explode_list Ts'.
+        explode_list_smart Ts'.
         -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
         -- computeR. simpls. splits~; solve_premises_smart.
     + destruct a. lets (?&OKs'&Ts'): (rm P). substs. simpl. reflexivity.
@@ -187,7 +299,7 @@ Proof.
       * splits~; solve_premises_smart.
       * introv. destruct a. introv (?&OKs'&Ts').
         substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
-        explode_list Ts'.
+        explode_list_smart Ts'.
         -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
         -- computeR. simpls. splits~; solve_premises_smart.
         -- computeR. simpls. splits~; solve_premises_smart.
@@ -200,7 +312,7 @@ Proof.
       * splits~; solve_premises_smart.
       * introv. destruct a. introv (?&OKs'&Ts').
         substs. simpl. splits~. introv D. rew_refl in D. lets (D1&D2): (rm D).
-        explode_list Ts'.
+        explode_list_smart Ts'.
         -- false D2. applys~ only_one_nil OKS. solve_premises_smart.
         -- computeR. simpls. splits~; solve_premises_smart.
         -- computeR. simpls. splits~; solve_premises_smart.
@@ -224,6 +336,7 @@ Lemma NewEnvironment_result : forall S namelist valuelist rho,
   result_prop (fun S' newrho =>
       conserve_old_bindings S S'
       /\ safe_state S'
+      /\ safe_globals S' globals
       /\ safe_pointer S' newrho
       /\ may_have_types S' ([EnvSxp]) newrho)
     (fun _ => False) (fun _ _ _ => False)
@@ -310,7 +423,9 @@ Lemma mkSYMSXP_result : forall S name value,
   may_have_types S ([CharSxp]) name ->
   result_prop (fun S' sym =>
       conserve_old_bindings S S'
-      /\ safe_state S' /\ may_have_types S' ([SymSxp]) sym)
+      /\ safe_state S'
+      /\ safe_globals S' globals
+      /\ may_have_types S' ([SymSxp]) sym)
     (fun _ => False) (fun _ _ _ => False)
     (mkSYMSXP globals S name value).
 Proof.
@@ -319,28 +434,6 @@ Proof.
   unfolds SET_DDVAL. computeR. simpl. splits~; try solve_premises_smart.
   forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 ES0.
   applys conserve_old_bindings_trans S2; solve_premises_smart.
-  constructor. (* TODO: This really needs to be a lemmae: [map_gp] doesn’t change the invariants. *)
-  - (** no_null_pointer_entry_point **)
-    introv NE E. applys~ no_null_pointer_entry_point S0 NE.
-    destruct~ e; rewrite <- E; simpl; fequals;
-      try applys~ move_along_context_path_same_contexts;
-      applys~ write_SExp_state_same_except_for_memory ES0.
-  - (** safe_entry_points **)
-    skip. (* TODO *)
-    (*
-    introv E NN. forwards OKp: safe_entry_points S0 e NN.
-    + solve_premises_smart.
-    + destruct~ e; simpls;
-        try erewrite move_along_context_path_same_contexts; try apply E;
-        try (rewrite <- E; fequals);
-        try applys~ write_SExp_state_same_except_for_memory ES0.
-    + tests: (p0 = p).
-      * skip. (* TODO *)
-      *  *)
-  - (** only_one_nil **)
-    introv M1 M2. applys only_one_nil S0; try solve_premises_smart; skip. (* TODO *)
-  - (** safe_SymbolTable **)
-    simpl. applys~ list_type_safe_same_memory (safe_SymbolTable OKS).
 Qed.
 
 Lemma install_result : forall S name_,
@@ -350,6 +443,7 @@ Lemma install_result : forall S name_,
       conserve_old_bindings S S'
       /\ safe_state S'
       /\ safe_pointer S' sym
+      /\ safe_globals S' globals
       /\ may_have_types S' ([SymSxp]) sym)
     (fun _ => name_ = ""%string) (fun _ _ _ => False)
     (install globals runs S name_).
@@ -613,12 +707,12 @@ Qed.
 Lemma InitMemory_result : forall S,
   safe_state S ->
   safe_globals S globals ->
-  result_prop (fun S (res : _ * _ * _) =>
+  result_prop (fun S' (res : _ * _ * _) =>
     let '(TrueValue, FalseValue, LogicalNAValue) := res in
-    safe_state S
-    /\ safe_pointer S TrueValue
-    /\ safe_pointer S FalseValue
-    /\ safe_pointer S LogicalNAValue)
+    safe_state S' /\ safe_globals S' globals
+    /\ safe_pointer S' TrueValue
+    /\ safe_pointer S' FalseValue
+    /\ safe_pointer S' LogicalNAValue)
     (fun _ => False) (fun _ _ _ => False) (InitMemory globals S).
 Proof.
   introv OKS OKg. unfolds InitMemory. unfolds mkTrue, mkFalse, alloc_vector_lgl.
@@ -662,11 +756,11 @@ Qed.
 Lemma InitBaseEnv_result : forall S,
   safe_state S ->
   safe_globals S globals ->
-  result_prop (fun S (res : _ * _) =>
+  result_prop (fun S' (res : _ * _) =>
     let (EmptyEnv, BaseEnv) := res in
-    safe_state S
-    /\ safe_pointer S EmptyEnv
-    /\ safe_pointer S BaseEnv)
+    safe_state S' /\ safe_globals S' globals
+    /\ safe_pointer S' EmptyEnv
+    /\ safe_pointer S' BaseEnv)
     (fun _ => False) (fun _ _ _ => False) (InitBaseEnv globals runs S).
 Proof.
   introv OKS OKg. unfolds InitBaseEnv. computeR.

@@ -63,6 +63,11 @@ Definition all_storable_SExpTypes : list SExpType.
   exact l.
 Defined.
 
+Lemma SExpType_restrict_all_storable_SExpTypes : forall t,
+  Mem t all_storable_SExpTypes ->
+  SExpType_restrict t = t.
+Proof. introv M. unfolds all_storable_SExpTypes. explode_list M; substs~. Qed.
+
 Definition bool_to_nat (b : bool) : nat :=
   if b then 1 else 0.
 Coercion bool_to_nat : bool >-> nat.

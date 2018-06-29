@@ -930,6 +930,31 @@ Proof.
         forwards* L: attrib_list OKp. applys~ list_type_same_memory L.
 Qed.
 
+Lemma safe_header_same_memory : forall S1 S2 h,
+  state_memory S1 = state_memory S2 ->
+  safe_header S1 h ->
+  safe_header S2 h.
+Proof.
+  introv E OKh. constructors.
+  - (** safe_attrib **)
+    applys~ safe_pointer_same_memory OKh.
+  - (** attrib_list **)
+    applys~ list_type_same_memory OKh.
+Qed.
+
+Lemma list_type_safe_same_memory : forall S1 S2 l_t l_car l_tag p,
+  state_memory S1 = state_memory S2 ->
+  list_type_safe S1 l_t l_car l_tag p ->
+  list_type_safe S2 l_t l_car l_tag p.
+Proof.
+  introv E L. induction L using list_type_ind.
+  - applys list_type_nil. applys~ may_have_types_same_memory E.
+  - applys list_type_cons. rewrite E in *. eexists. splits*. do 4 eexists.
+    splits*; try applys~ may_have_types_same_memory E;
+      try applys~ safe_pointer_same_memory E.
+    applys~ safe_header_same_memory E.
+Qed.
+
 Lemma write_SExp_move_along_path_step_inv : forall S S' p1 p2 p p_ s,
   write_SExp S p p_ = Some S' ->
   move_along_path_step s S' p1 = Some p2 ->

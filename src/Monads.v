@@ -828,6 +828,7 @@ Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
   Here is a monad binder for it. **)
 Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SEXP)
     (cont : state -> result A) : result A :=
+  add%stack "map_pointer" in
   read%defined p_ := p using S in
   write%defined p := map p_ using S in
   cont S.
@@ -873,6 +874,7 @@ Notation "'set%type' p ':=' t 'using' S 'in' cont" :=
 
 (** Updating a list. **)
 Definition map_list A S f (p : SEXP) (cont : state -> result A) : result A :=
+  add%stack "map_list" in
   read%list p_, p_list := p using S in
   let p_ := {|
       NonVector_SExpRec_header := p_ ;
@@ -887,6 +889,7 @@ Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
 
 (** Updating the first element (car) of a list. **)
 Definition set_car A S car (p : SEXP) (f : state -> result A) : result A :=
+  add%stack "set_car" in
   map%list p with set_car_list car using S in f S.
 
 Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
@@ -895,6 +898,7 @@ Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
 
 (** Updating the tail (cdr) of a list. **)
 Definition set_cdr A S cdr (p : SEXP) (f : state -> result A) : result A :=
+  add%stack "set_cdr" in
   map%list p with set_cdr_list cdr using S in f S.
 
 Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
@@ -903,6 +907,7 @@ Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
 
 (** Updating the tag of a list. **)
 Definition set_tag A S tag (p : SEXP) (f : state -> result A) : result A :=
+  add%stack "set_tag" in
   map%list p with set_tag_list tag using S in f S.
 
 Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=

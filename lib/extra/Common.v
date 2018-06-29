@@ -1310,6 +1310,55 @@ Ltac solve_incl :=
     | apply* BagInIncl_make ].
 
 
+(** * Case analysis on lists **)
+
+(** Given an hypothesis [T] stating that an element is present in a list,
+  it explodes the goal in as many subgoal as needed, each of them only
+  considering only one element of the list.
+  For instance [x \in [a ; b]] is replaced by two goals, one with [x = a]
+  and the other with [x = b].
+  It supports various ways to state that an element is in a list. **)
+Ltac explode_list T :=
+  lazymatch type of T with
+  | ?x \in nil =>
+    false~ BagInEmpty_list T
+  | ?x \in [?y] =>
+    let T' := fresh1 T in
+    asserts T': (x = y); [ eapply BagInSingle_list; apply T |];
+    clear T; rename T' into T
+  | ?x \in (?y :: ?l) =>
+    apply BagIn_cons in T;
+    let T' := fresh1 T in
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
+  | Mem ?x nil =>
+    rewrite Mem_nil_eq in T; false~ T
+  | Mem ?x (?y :: ?l) =>
+    rewrite Mem_cons_eq in T;
+    let T' := fresh1 T in
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
+  | mem ?x nil =>
+    rewrite mem_nil in T; false~ T
+  | mem ?x (?y :: ?l) =>
+    rewrite mem_cons in T;
+    rew_refl in T;
+    let T' := fresh1 T in
+    lets [T'|T']: (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
+  | In ?x nil =>
+    false~ in_nil T
+  | In ?x (?y :: ?l) =>
+    let T' := fresh1 T in
+    lets [T'|T']: in_inv (rm T);
+    [ try rename T' into T
+    | (rename T' into T ; explode_list T) || explode_list T' ]
+  end.
+
+
 (** * Miscellaneous **)
 
 (** See message “[Coq-Club] finer control over typeclass instance refinement” on the Coq list. **)
