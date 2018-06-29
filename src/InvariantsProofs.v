@@ -313,15 +313,29 @@ Lemma mkSYMSXP_result : forall S name value,
       conserve_old_bindings S S'
       /\ safe_state S'
       /\ safe_globals S' globals
+      /\ safe_pointer S' sym
       /\ may_have_types S' ([SymSxp]) sym)
     (fun _ => False) (fun _ _ _ => False)
     (mkSYMSXP globals S name value).
 Proof.
   introv OKS OKg OKname Tname. unfolds mkSYMSXP. computeR.
   cutR iSDDName_result. substs. computeR.
-  unfolds SET_DDVAL. computeR. simpl. splits~; try solve_premises_smart.
-  forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 ES0.
-  applys conserve_old_bindings_trans S2; solve_premises_smart.
+  unfolds SET_DDVAL. cutR (fun S' (_ : unit) =>
+      conserve_old_bindings S S'
+      /\ safe_state S'
+      /\ safe_globals S' globals
+      /\ safe_pointer S' p
+      /\ may_have_types S' ([SymSxp]) p).
+  - apply add_stack_result. applys~ map_gp_result OKg.
+    + applys~ read_bound E.
+    + introv OKS' OKg' E' W. rewrite E in E'. inverts E'. simpl. splits~.
+      * forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 W.
+        applys conserve_old_bindings_trans S2; solve_premises_smart.
+      * skip. (* TODO *)
+      * eexists. splits.
+        -- applys read_write_SExp_eq W.
+        -- simpl. Mem_solve.
+  - introv (C1&OKS1'&OKg1&OKp&T1). simpl. splits~.
 Qed.
 
 Lemma install_result : forall S name_,
@@ -330,8 +344,8 @@ Lemma install_result : forall S name_,
   result_prop (fun S' sym =>
       conserve_old_bindings S S'
       /\ safe_state S'
-      /\ safe_pointer S' sym
       /\ safe_globals S' globals
+      /\ safe_pointer S' sym
       /\ may_have_types S' ([SymSxp]) sym)
     (fun _ => name_ = ""%string) (fun _ _ _ => False)
     (install globals runs S name_).
@@ -342,8 +356,8 @@ Proof.
     | normal_result tt =>
       conserve_old_bindings S S' /\ safe_state S'
     | return_result sym =>
-      conserve_old_bindings S S' /\ safe_state S' /\
-      safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
+      conserve_old_bindings S S' /\ safe_state S' /\ safe_globals S' globals
+      /\ safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
     end). cutR Pret.
   - forwards L: safe_SymbolTable OKS. unfolds fold_left_listSxp.
     applys~ fold_left_listSxp_gen_result L.
@@ -357,6 +371,7 @@ Proof.
            forwards C1: conserve_old_bindings_trans C C'.
            cutR CHAR_result. substs. cases_if; simpl.
            ++ repeat splits~.
+              ** applys~ conserve_old_bindings_safe_globals OKg.
               ** applys~ conserve_old_bindings_safe_globals OKg.
               ** applys~ conserve_old_bindings_safe_pointer Hcar.
               ** applys~ conserve_old_bindings_may_have_types Tcar.
@@ -395,9 +410,10 @@ Proof.
         -- (** safe_SExpRec_read **)
            introv E'. rewrite E' in E. inverts~ E.
            applys~ conserve_old_bindings_safe_SExpRec OKp_.
-      * lets (C12&OKTa): (rm P). destruct CONS as (S3&SymbolTable) eqn: ECONS.
-        forwards (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS.
-        -- skip. (* TODO *)
+      * lets (C12&OKS2&OKg2&OKTa): (rm P). destruct CONS as (S3&SymbolTable) eqn: ECONS.
+        forwards~ (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS.
+        -- applys conserve_old_bindings_safe_pointer.
+        -- solve_premises_smart.
         -- skip. (* TODO *)
         -- skip. (* TODO *)
         -- skip. (* TODO *)
