@@ -496,39 +496,6 @@ Proof.
   - simpl. autos~.
 Qed.
 
-(* This lemmae is about [do_while_result], which can call arbitrary R code.
-  We leave this proof for when the whole of our interpreter will have been
-  proven holding our invariants. (* FIXME
-Lemma do_while_result : forall S call op args rho,
-  safe_state S ->
-  safe_globals S globals ->
-  safe_pointer S call ->
-  safe_pointer S op ->
-  may_have_types S ([SpecialSxp; BuiltinSxp]) op ->
-  safe_pointer S args ->
-  may_have_types S ([NilSxp; ListSxp]) args ->
-  safe_pointer S rho ->
-  result_prop (fun S nil =>
-      safe_state S /\ safe_pointer S nil /\ nil = R_NilValue)
-    (fun S => safe_state S) (fun _ _ _ => False)
-    (do_while globals runs S call op args rho).
-Proof.
-  introv OKS OKg OKcall OKop Top OKargs Targs OKrho. unfolds do_while. computeR.
-  cutR Rf_checkArityCall_result. substs. computeR.
-  unfolds list_cdrval. unfold_shape_pointer_one S cdr. computeR. fold read_globals.
-  cutR BodyHasBraces_result; try solve_premises_smart. substs.
-  unfolds begincontext.
-  match goal with |- context [ state_with_context _ ?cptr' ] => sets_eq cptr: cptr' end.
-  sets_eq S': (state_with_context S cptr). computeR. cutR safe_state.
-  - cases_if as C; fold_bool; rew_refl in C.
-    + skip. (* TODO: while. *)
-    + computeR. skip. (* TODO: endcontext. *)
-  - skip. (* TODO: lacks hypothesis about [runs_set_longjump]. *)
-  - skip. (* TODO: Something is wrong here… *)
-  Optimize Proof.
-Qed.
-*) *)
-
 
 (** * Lemmae about Rinit.v **)
 
