@@ -358,8 +358,7 @@ Lemma install_result : forall S name_,
   safe_state S ->
   safe_globals S globals ->
   result_prop (fun S' sym =>
-      conserve_old_bindings S S'
-      /\ safe_state S'
+      safe_state S'
       /\ safe_globals S' globals
       /\ safe_pointer S' sym
       /\ may_have_types S' ([SymSxp]) sym)
@@ -372,7 +371,7 @@ Proof.
     | normal_result tt =>
       conserve_old_bindings S S' /\ safe_state S'
     | return_result sym =>
-      conserve_old_bindings S S' /\ safe_state S' /\ safe_globals S' globals
+      safe_state S' /\ safe_globals S' globals
       /\ safe_pointer S' sym /\ may_have_types S' ([SymSxp]) sym
     end). cutR Pret.
   - forwards L: safe_SymbolTable OKS. unfolds fold_left_listSxp.
@@ -434,11 +433,28 @@ Proof.
         forwards~ (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS;
           try apply~ safe_SymbolTable; try solve_premises_smart.
         simpl. splits~.
-        -- skip.
-        -- skip.
-        -- applys conserve_old_bindings_safe_globals OKg'. skip.
-        -- applys conserve_old_bindings_safe_pointer OKa. skip.
-        -- applys conserve_old_bindings_may_have_types Ta. skip.
+        -- constructors.
+           ++ (** no_null_pointer_entry_point **)
+              introv NE M. destruct e; try solve [ applys~ no_null_pointer_entry_point OKS' NE ].
+              ** applys~ no_null_pointer_entry_point OKS' NE.
+                 simpl. erewrite move_along_context_path_same_contexts; try apply M; reflexivity.
+              ** inverts M. solve_premises_smart.
+           ++ (** safe_entry_points **)
+              introv M D'. applys~ safe_pointer_same_memory S3. destruct e.
+              ** simpl in M. erewrite move_along_context_path_same_contexts with (S2 := S3) in M; autos~.
+                 applys~ safe_entry_points OKS' (Econtext c c0).
+              ** inverts~ M.
+              ** inverts M. applys~ safe_entry_points OKS' EReturnedValue.
+              ** applys~ safe_entry_points OKS' (EasymSymbol n) D'.
+           ++ (** only_one_nil **)
+              apply OKS'.
+           ++ (** safe_SymbolTable **)
+              simpl. simpl_list_union. applys~ list_type_safe_same_memory Ll'.
+        -- applys~ same_memory_safe_globals OKg'.
+        -- applys~ safe_pointer_same_memory S3.
+           applys~ conserve_old_bindings_safe_pointer OKa.
+        -- applys~ may_have_types_same_memory S3.
+           applys~ conserve_old_bindings_may_have_types Ta.
   Optimize Proof.
 Qed.
 

@@ -930,6 +930,20 @@ Proof.
         forwards* L: attrib_list OKp. applys~ list_type_same_memory L.
 Qed.
 
+Lemma same_memory_safe_globals : forall S S' globals,
+  state_memory S = state_memory S' ->
+  safe_globals S globals ->
+  safe_globals S' globals.
+Proof.
+  introv E OKglobals. constructors.
+  - (** globals_not_NULL **)
+    applys~ globals_not_NULL OKglobals.
+  - (** globals_not_NULL_safe **)
+    introv D. applys~ safe_pointer_same_memory E. applys~ globals_not_NULL_safe D.
+  - (** R_NilValue_may_have_types **)
+    applys~ may_have_types_same_memory E. applys~ R_NilValue_may_have_types.
+Qed.
+
 Lemma safe_header_same_memory : forall S1 S2 h,
   state_memory S1 = state_memory S2 ->
   safe_header S1 h ->
