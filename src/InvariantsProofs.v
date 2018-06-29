@@ -309,6 +309,7 @@ Lemma mkSYMSXP_result : forall S name value,
   safe_globals S globals ->
   safe_pointer S name ->
   may_have_types S ([CharSxp]) name ->
+  safe_pointer S value ->
   result_prop (fun S' sym =>
       conserve_old_bindings S S'
       /\ safe_state S'
@@ -318,7 +319,7 @@ Lemma mkSYMSXP_result : forall S name value,
     (fun _ => False) (fun _ _ _ => False)
     (mkSYMSXP globals S name value).
 Proof.
-  introv OKS OKg OKname Tname. unfolds mkSYMSXP. computeR.
+  introv OKS OKg OKname Tname OKvalue. unfolds mkSYMSXP. computeR.
   cutR iSDDName_result. substs. computeR.
   unfolds SET_DDVAL. cutR (fun S' (_ : unit) =>
       conserve_old_bindings S S'
@@ -331,7 +332,22 @@ Proof.
     + introv OKS' OKg' E' W. rewrite E in E'. inverts E'. simpl. splits~.
       * forwards (S2&ES2&EqS2): alloc_SExp_write_SExp_eq ES1 W.
         applys conserve_old_bindings_trans S2; solve_premises_smart.
-      * skip. (* TODO *)
+      * applys~ map_gp_aux_safe_pointer W.
+        rewrite safe_pointer_rewrite. constructors.
+        -- (** pointer_bound **)
+           applys* read_bound E.
+        -- (** no_null_pointer_along_path_step **)
+           introv NE M. unfolds in M. rewrite E in M. simpl in M.
+           destruct s; inverts M.
+           ++ solve_premises_smart.
+           ++ destruct s; simpl; solve_premises_smart.
+        -- (** safe_pointer_along_path_step **)
+           introv M D'. unfolds in M. rewrite E in M. simpl in M.
+           destruct s; inverts M.
+           ++ solve_premises_smart.
+           ++ destruct s; simpl; solve_premises_smart.
+        -- (** safe_SExpRec_read **)
+           introv R. rewrite E in R. inverts R. solve_premises_smart.
       * eexists. splits.
         -- applys read_write_SExp_eq W.
         -- simpl. Mem_solve.
@@ -410,21 +426,19 @@ Proof.
         -- (** safe_SExpRec_read **)
            introv E'. rewrite E' in E. inverts~ E.
            applys~ conserve_old_bindings_safe_SExpRec OKp_.
-      * lets (C12&OKS2&OKg2&OKTa): (rm P). destruct CONS as (S3&SymbolTable) eqn: ECONS.
-        forwards~ (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS.
-        -- applys conserve_old_bindings_safe_pointer.
+      * applys~ globals_not_NULL_safe.
+        -- applys~ conserve_old_bindings_safe_globals OKg.
+           applys~ conserve_old_bindings_trans C C1.
         -- solve_premises_smart.
-        -- skip. (* TODO *)
-        -- skip. (* TODO *)
-        -- skip. (* TODO *)
-        -- skip. (* TODO *)
-        -- skip. (* TODO *)
-        -- skip. (* TODO *)
-        -- simpl. splits~.
-           ++ skip. (* TODO *)
-           ++ skip. (* TODO *)
-           ++ skip. (* TODO *)
-           ++ skip. (* TODO *)
+      * lets (C12&OKS2&OKg2&OKa&Ta): (rm P). destruct CONS as (S3&SymbolTable) eqn: ECONS.
+        forwards~ (OKS'&OKg'&OKl'&Ll'&C'): CONS_safe ECONS;
+          try apply~ safe_SymbolTable; try solve_premises_smart.
+        simpl. splits~.
+        -- skip.
+        -- skip.
+        -- applys conserve_old_bindings_safe_globals OKg'. skip.
+        -- applys conserve_old_bindings_safe_pointer OKa. skip.
+        -- applys conserve_old_bindings_may_have_types Ta. skip.
   Optimize Proof.
 Qed.
 
@@ -595,7 +609,7 @@ Proof.
   - (** only_one_nil **)
     introv M1 M2. rewrites~ <- >> Ep M1.
   - (** safe_SymbolTable **)
-    applys~ conserve_old_bindings_list_type C'.
+    forwards L': safe_SymbolTable OKS.
     asserts_rewrite (R_SymbolTable S2 = R_SymbolTable S).
     { rewrites* >> state_same_except_for_memory_R_SymbolTable.
       forwards (S2'&ES2'&S2E): write_SExp_write_SExp_eq ES0 ES2.
@@ -604,7 +618,7 @@ Proof.
       applys state_same_except_for_memory_trans S3E.
       apply state_same_except_for_memory_sym.
       applys alloc_SExp_state_same_except_for_memory ES3. }
-    applys safe_SymbolTable OKS.
+    applys~ conserve_old_bindings_list_type_safe L'.
   Optimize Proof.
 Qed.
 
@@ -669,9 +683,9 @@ Lemma InitBaseEnv_result : forall S,
 Proof.
   introv OKS OKg. unfolds InitBaseEnv. computeR.
   cutR NewEnvironment_result; try solve_premises_smart.
-  lets (C&OKS0&OKrho&Trho): (rm P). transition_conserve S S0.
+  lets (C&OKS0&OKrho&OKa&Trho): (rm P). transition_conserve S S0.
   cutR NewEnvironment_result; try solve_premises_smart.
-  lets (C'&OKS1&OKrho'&Trho'): (rm P). transition_conserve S0 S1.
+  lets (C'&OKS1&OKrho'&OKa'&Trho'): (rm P). transition_conserve S0 S1.
   simpl. splits~.
   Optimize Proof.
 Qed.
