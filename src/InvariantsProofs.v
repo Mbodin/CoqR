@@ -123,6 +123,10 @@ Proof.
   lets (p_&E&_): (rm B). rewrite E. simpl.
   forwards (S0&W): read_write_SExp_Some E. rewrite W. simpl.
   forwards E': read_write_SExp_eq W.
+  asserts TGP: (forall p_ : SExpRec,
+                 Mem (type p_) all_storable_SExpTypes ->
+                 type (map_gp f p_) = type p_).
+  { clear. introv I. destruct p_; apply~ SExpType_restrict_all_storable_SExpTypes. }
   asserts RS0: (forall p p_,
     read_SExp S p = Some p_ -> read_SExp S0 p = Some (map_gp f p_)).
   { skip. }
@@ -158,7 +162,24 @@ Proof.
     - (** safe_SExpRec_read **)
       introv R. tests: (p0 = p).
       + rewrite E' in R. inverts R.
-        skip. (* forwards OKp_: safe_SExpRec_read E'. *)
+        forwards OKp_: safe_SExpRec_read OKp E. constructors.
+        * (** SExpType_corresponds_to_datatype **)
+          forwards OK: SExpType_corresponds_to_datatype OKp_. rewrite~ TGP.
+          -- inverts~ OK; constructors~; try introv M; try apply~ TS; try (apply~ LN; solve_incl).
+             destruct p_; tryfalse.
+          -- inverts~ OK; Mem_solve.
+        * (** SExpRec_header **)
+          constructors.
+          -- (** safe_attrib **)
+             right. asserts_rewrite (attrib (map_gp f p_) = attrib p_).
+             { destruct~ p_. }
+             applys~ IH OKp_.
+          -- (** attrib_list **)
+             apply~ LN.
+             ++ solve_incl.
+             ++ asserts_rewrite (attrib (map_gp f p_) = attrib p_).
+                { destruct~ p_. }
+                apply OKp_.
       + erewrite read_write_SExp_neq in R; autos*.
         forwards OKp_: safe_SExpRec_read OKp R. constructors.
         * (** SExpType_corresponds_to_datatype **)
