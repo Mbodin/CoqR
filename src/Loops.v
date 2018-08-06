@@ -1012,7 +1012,13 @@ Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 
 
 (** * Long Jump Monads **)
 
-(** R source code uses long jumps. These monads specify their behaviour. **)
+(** R source code uses long jumps.
+  This monad specifies their behaviour.
+  It corresponds to a call to [setjmp] in C:
+  [result_longjump] addressed to another [setjmp] are propagated,
+  and [result_longjump] addressed to this particular [setjmp] puts the local environment
+  as it was when calling [setjmp] the first time, but with the value returned by the
+  [result_longjump] costructor instead of the default one. **)
 
 Definition set_longjump runs (A : Type) S mask (cjmpbuf : nat) (f : state -> context_type -> result A) : result A :=
   match f S mask with
