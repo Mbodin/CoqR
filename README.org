@@ -1,4 +1,4 @@
-A Coq formalisation of the R programming language
+A trustworthy Coq formalisation of the R programming language
 
 
 * Overview of the Project
@@ -7,14 +7,14 @@ This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
 It follows principles strongly inspired from the [[http://jscert.org/][JSCert project]]:
  - the code is as close as possible from a reference specification
-   (in this case, the source of [[https://www.r-project.org/][GNU R]]).
+   (in this case, the source of [[https://www.r-project.org/][GNU R]]).
    The formalisation has been written in a monadic form,
    which enables a line-to-line correspondance with the original source.
    We believe that anyone can check the code similarity after a short training period.
  - the formalisation is runnable, and can be run against test suites.
-   We tested it against [[https://www.r-project.org/][GNU R]] in random tests
+   We tested it against [[https://www.r-project.org/][GNU R]] in random tests
    (see the =gen/= folder), custom tests (see the =tests/= folder),
-   as well as other test suites for R (see the =compare/CoqR-Tester/RTests/= folder).
+   as well as other test suites for R (see the =compare/RTests/= folder).
 
 The goal of this project is to provide a strong basis for anyone wanting to
 certify in Coq a higher-level formalisation of R, as well as code analyses, etc.
@@ -31,6 +31,29 @@ R is furthermore composed of several parts, some in C, and some in R it self.
 Our Coq translation focusses the C part,
 but we did our best to be able to run the R parts.
 These parts can be found in the folder =Rlib/base=.
+
+We have tested our formalisation by extracting it to OCaml (see how to build the project below).
+We have tested it on several test suites, including random tests
+(see the =gen/= folder after building th project),
+customs tests with an emphase on corner cases
+(referred as “Corners” in our publications, see the =tests/= folder),
+as well as other test suites
+(from [[https://www.r-project.org/][GNU R]] and two different versions of the FastR project,
+available [[https://github.com/h2oai/fastr][here]] and [[https://github.com/oracle/fastr][here]],
+see the =compare/RTests/= folder).
+Test suites for the R programming language are quite large.
+We have filtered out some tests which we consider irrelevant for the current state of this project.
+More precisely, we have filtered out:
+ - tests generating PDFs;
+ - tests requiring additional packages and libraries (PCRE, JIT, MASS, etc);
+ - tests about character encodings;
+ - tests requiring Internet connection;
+ - tests generating plots in graphical interfaces;
+ - Windows-only tests;
+ - tests related to S4 classes;
+ - tests about input and outputs (typically manipulating files or sockets);
+ - tests related to limiting CPU time for computations;
+ - generated tests.
 
 R is a project moving fast.
 We believe that the approach of sticking as close as possible to R’s source code
