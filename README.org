@@ -62,9 +62,9 @@ But this means that if you are using this repository several years in the future
 there might be differences that were not present at the writing time.
 Most of the project is based on the versions 3.4.2, 3.4.3, and 3.4.4 of R.
 
-More information can be found in the
-[[http://www.cmm.uchile.cl/~mbodin/esplorado.html?lang=en#babilkongresoj_en][following paper]]:
-    A Coq Formalisation of a Core of R, Martin Bodin, CoqPL, 2018.
+More information about this project can be found in the following papers:
+ - [[http://dim.uchile.cl/~mbodin/paperoj/coqpl18.pdf][A Coq Formalisation of a Core of R]], Martin Bodin, CoqPL, 2018.
+ - [[http://dim.uchile.cl/~mbodin/paperoj/dls18.pdf][A Trustworthy Mechanized Formalization of R]], Martin Bodin, Tomás Diaz, and Éric Tanter, Dynamic Languages Symposium (DLS), 2018.
 
 Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
