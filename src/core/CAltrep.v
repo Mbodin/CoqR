@@ -45,15 +45,15 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition new_compact_intseq S n (n1 inc : int) :=
+Definition new_compact_intseq n (n1 inc : int) :=
   add%stack "new_compact_intseq" in
   ifb n = 1 then
-    let (S, r) := ScalarInteger globals S n1 in
-    result_success S r
+    let (S, r) := ScalarInteger globals n1 in
+    result_success r
   else ifb inc <> 1 /\ inc <> (-1)%Z then
-    result_error S "Compact sequences can only have an increment of -1 or 1."
+    result_error "Compact sequences can only have an increment of -1 or 1."
   else
-    let%success ans := allocVector globals S IntSxp n using S in
+    let%success ans := allocVector globals IntSxp n in
     let generate :=
       fix generate start length :=
         match length with
@@ -61,18 +61,18 @@ Definition new_compact_intseq S n (n1 inc : int) :=
         | S length =>
           start :: generate (start + inc)%Z length
         end in
-    write%VectorInteger ans := ArrayList.from_list (generate n1 n) using S in
-    result_success S ans.
+    write%VectorInteger ans := ArrayList.from_list (generate n1 n) in
+    result_success ans.
 
-Definition new_compact_realseq S n (n1 inc : double) :=
+Definition new_compact_realseq n (n1 inc : double) :=
   add%stack "new_compact_realseq" in
   ifb n = 1 then
-    let (S, r) := ScalarReal globals S n1 in
-    result_success S r
+    let (S, r) := ScalarReal globals n1 in
+    result_success r
   else ifb inc <> 1 /\ inc <> (-1)%Z then
-    result_error S "Compact sequences can only have an increment of -1 or 1."
+    result_error "Compact sequences can only have an increment of -1 or 1."
   else
-    let%success ans := allocVector globals S RealSxp n using S in
+    let%success ans := allocVector globals RealSxp n in
     let generate :=
       fix generate start length :=
         match length with
@@ -80,10 +80,10 @@ Definition new_compact_realseq S n (n1 inc : double) :=
         | S length =>
           start :: generate (Double.add start inc) length
         end in
-    write%VectorReal ans := ArrayList.from_list (generate n1 n) using S in
-    result_success S ans.
+    write%VectorReal ans := ArrayList.from_list (generate n1 n) in
+    result_success ans.
 
-Definition R_compact_intrange S (n1 n2 : nat) :=
+Definition R_compact_intrange (n1 n2 : nat) :=
   add%stack "R_compact_intrange" in
   let n :=
     ifb n1 <= n2 then
@@ -91,8 +91,8 @@ Definition R_compact_intrange S (n1 n2 : nat) :=
     else n1 - n2 + 1 in
   ifb (n1 : int) <= INT_MIN \/ (n1 : int) > INT_MAX
       \/ (n2 : int) <= INT_MIN \/ (n2 : int) > INT_MAX then
-    new_compact_realseq S n n1 (ifb n1 <= n2 then 1 else (-1)%Z)
-  else new_compact_intseq S n n1 (ifb n1 <= n2 then 1 else (-1)%Z).
+    new_compact_realseq n n1 (ifb n1 <= n2 then 1 else (-1)%Z)
+  else new_compact_intseq n n1 (ifb n1 <= n2 then 1 else (-1)%Z).
 
 End Parameterised.
 

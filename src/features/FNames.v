@@ -35,90 +35,90 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition do_internal S (call op args env : SEXP) : result SEXP :=
+Definition do_internal (call op args env : SEXP) : result SEXP :=
   add%stack "do_internal" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  read%list args_car, _, _ := args using S in
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, _, _ := args in
   let s := args_car in
-  let%success pl := isPairList S s using S in
+  let%success pl := isPairList s in
   if negb pl then
-    result_error S "Invalid .Internal() argument."
+    result_error "Invalid .Internal() argument."
   else
-    read%list s_car, s_cdr, _ := s using S in
+    read%list s_car, s_cdr, _ := s in
     let sfun := s_car in
-    let%success isym := isSymbol S sfun using S in
+    let%success isym := isSymbol sfun in
     if negb isym then
-      result_error S "Invalid .Internal() argument."
+      result_error "Invalid .Internal() argument."
     else
-      read%sym _, sfun_sym := sfun using S in
+      read%sym _, sfun_sym := sfun in
       ifb sym_internal sfun_sym = R_NilValue then
-        result_error S "There is no such .Internal function."
+        result_error "There is no such .Internal function."
       else
         let%success args :=
           let args := s_cdr in
-          let%success sfun_internal_type := TYPEOF S (sym_internal sfun_sym) using S in
+          let%success sfun_internal_type := TYPEOF (sym_internal sfun_sym) in
           ifb sfun_internal_type = BuiltinSxp then
-            evalList globals runs S args env call 0
-          else result_success S args using S in
-        let%success f := PRIMFUN runs S (sym_internal sfun_sym) using S in
-        let%success ans := f S s (sym_internal sfun_sym) args env using S in
-        result_success S ans.
+            evalList globals runs args env call 0
+          else result_success args in
+        let%success f := PRIMFUN runs (sym_internal sfun_sym) in
+        let%success ans := f s (sym_internal sfun_sym) args env in
+        result_success ans.
 
-Fixpoint R_Primitive_loop S R_FunTab primname lmi :=
+Fixpoint R_Primitive_loop R_FunTab primname lmi :=
   let i := ArrayList.length R_FunTab - lmi in
   (** For termination, the loop variable has been reversed.
     In C, the loop variable is [i] and not [lmi = ArrayList.length R_FunTab - i]. **)
   match lmi with
   | 0 =>
     (** [i = ArrayList.length R_FunTab] **)
-    result_success S (R_NilValue : SEXP)
+    result_success (R_NilValue : SEXP)
   | S lmi =>
     let c := ArrayList.read R_FunTab i in
     ifb fun_name c = primname then
       if funtab_eval_arg_internal (fun_eval c) then
-        result_success S (R_NilValue : SEXP)
+        result_success (R_NilValue : SEXP)
       else
         let%success prim :=
-          mkPRIMSXP globals runs S i (funtab_eval_arg_eval (fun_eval c)) using S in
-        result_success S prim
-    else R_Primitive_loop S R_FunTab primname lmi
+          mkPRIMSXP globals runs i (funtab_eval_arg_eval (fun_eval c)) in
+        result_success prim
+    else R_Primitive_loop R_FunTab primname lmi
   end.
 
-Definition R_Primitive S primname :=
+Definition R_Primitive primname :=
   add%stack "R_Primitive" in
-  let%success R_FunTab := get_R_FunTab runs S using S in
-  R_Primitive_loop S R_FunTab primname (ArrayList.length R_FunTab).
+  let%success R_FunTab := get_R_FunTab runs in
+  R_Primitive_loop R_FunTab primname (ArrayList.length R_FunTab).
 
-Definition do_primitive S (call op args env : SEXP) : result SEXP :=
+Definition do_primitive (call op args env : SEXP) : result SEXP :=
   add%stack "do_primitive" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  read%list args_car, _, _ := args using S in
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, _, _ := args in
   let name := args_car in
-  let%success ist := isString S name using S in
-  let%success len := LENGTH globals S name using S in
+  let%success ist := isString name in
+  let%success len := LENGTH globals name in
   ifb ~ ist \/ len <> 1 then
-    result_error S "String argument required."
+    result_error "String argument required."
   else
-    let%success strel := STRING_ELT S name 0 using S in
+    let%success strel := STRING_ELT name 0 in
     ifb strel = R_NilValue then
-      result_error S "String argument required."
+      result_error "String argument required."
     else
-      let%success strel_ := CHAR S strel using S in
-      let%success prim := R_Primitive S strel_ using S in
+      let%success strel_ := CHAR strel in
+      let%success prim := R_Primitive strel_ in
       ifb prim = R_NilValue then
-        result_error S "No such primitive function."
-      else result_success S prim.
+        result_error "No such primitive function."
+      else result_success prim.
 
 
 (** In contrary to the original C, this function here takes as argument
   the structure of type [funtab_cell] in addition to its range in the
   array [R_FunTab]. **)
-Definition installFunTab S c offset : result unit :=
+Definition installFunTab c offset : result unit :=
   add%stack "installFunTab" in
   let%success prim :=
-    mkPRIMSXP globals runs S offset (funtab_eval_arg_eval (fun_eval c)) using S in
-  let%success p := install globals runs S (fun_name c) using S in
-  read%sym p_, p_sym := p using S in
+    mkPRIMSXP globals runs offset (funtab_eval_arg_eval (fun_eval c)) in
+  let%success p := install globals runs (fun_name c) in
+  read%sym p_, p_sym := p in
   let p_sym :=
     if funtab_eval_arg_internal (fun_eval c) then {|
         sym_pname := sym_pname p_sym ;
@@ -134,8 +134,8 @@ Definition installFunTab S c offset : result unit :=
       NonVector_SExpRec_header := NonVector_SExpRec_header p_ ;
       NonVector_SExpRec_data := p_sym
     |} in
-  write%defined p := p_ using S in
-  result_success S tt.
+  write%defined p := p_ in
+  result_success tt.
 
 Definition Spec_name :=
   [ "if" ; "while" ; "repeat" ; "for" ; "break" ; "next" ; "return" ; "function" ;

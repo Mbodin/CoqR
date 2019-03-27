@@ -46,88 +46,88 @@ Local Coercion int_to_double : Z >-> double.
 (** The function names of this section correspond to the function names
   in the file include/Rinlinedfuns.c. **)
 
-Definition R_FixupRHS S x y :=
+Definition R_FixupRHS x y :=
   add%stack "R_FixupRHS" in
-  let%success y_named := NAMED S y using S in
+  let%success y_named := NAMED y in
   ifb y <> R_NilValue /\ y_named <> named_temporary then
-    if%success R_cycle_detected globals runs S x y using S then
-      duplicate globals runs S y
+    if%success R_cycle_detected globals runs x y then
+      duplicate globals runs y
     else
-      set%named y := named_plural using S in
-      result_success S y
-  else result_success S y.
+      set%named y := named_plural in
+      result_success y
+  else result_success y.
 
-Definition isVectorizable S (s : SEXP) :=
+Definition isVectorizable (s : SEXP) :=
   add%stack "isVectorizable" in
   ifb s = R_NilValue then
-    result_success S true
-  else if%success isNewList globals S s using S then
-    let%success n := XLENGTH S s using S in
+    result_success true
+  else if%success isNewList globals s then
+    let%success n := XLENGTH s in
     do%exit
     for i from 0 to n - 1 do
-      let%success s_i := VECTOR_ELT S s i using S in
-      let%success s_i_iv := isVector S s_i using S in
-      let%success s_i_len := LENGTH globals S s_i using S in
+      let%success s_i := VECTOR_ELT s i in
+      let%success s_i_iv := isVector s_i in
+      let%success s_i_len := LENGTH globals s_i in
       ifb ~ s_i_iv \/ s_i_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S in
-    result_success S true
-  else if%success isList globals S s using S then
+        result_rreturn false
+      else result_rskip in
+    result_success true
+  else if%success isList globals s then
     fold%return
     along s
     as s_car, _ do
-      let%success s_car_iv := isVector S s_car using S in
-      let%success s_car_len := LENGTH globals S s_car using S in
+      let%success s_car_iv := isVector s_car in
+      let%success s_car_len := LENGTH globals s_car in
       ifb ~ s_car_iv \/ s_car_len > 1 then
-        result_rreturn S false
-      else result_rskip S using S, runs, globals in
-    result_success S true
-  else result_success S false.
+        result_rreturn false
+      else result_rskip using S, runs, globals in
+    result_success true
+  else result_success false.
 
-Definition isArray S s :=
+Definition isArray s :=
   add%stack "isArray" in
-  if%success isVector S s using S then
-    let%success t := runs_getAttrib runs S s R_DimSymbol using S in
-    let%success t_type := TYPEOF S t using S in
-    let%success t_len := LENGTH globals S t using S in
+  if%success isVector s then
+    let%success t := runs_getAttrib runs s R_DimSymbol in
+    let%success t_type := TYPEOF t in
+    let%success t_len := LENGTH globals t in
     ifb t_type = IntSxp /\ t_len > 0 then
-      result_success S true
-    else result_success S false
-  else result_success S false.
+      result_success true
+    else result_success false
+  else result_success false.
 
-Definition isTs S s :=
+Definition isTs s :=
   add%stack "isTs" in
-  if%success isVector S s using S then
-    let%success a := runs_getAttrib runs S s R_TspSymbol using S in
-    result_success S (decide (a <> R_NilValue))
-  else result_success S false.
+  if%success isVector s then
+    let%success a := runs_getAttrib runs s R_TspSymbol in
+    result_success (decide (a <> R_NilValue))
+  else result_success false.
 
-Definition conformable S x y :=
+Definition conformable x y :=
   add%stack "conformable" in
-  let%success x := runs_getAttrib runs S x R_DimSymbol using S in
-  let%success y := runs_getAttrib runs S y R_DimSymbol using S in
-  let%success x_len := R_length globals runs S x using S in
-  let%success y_len := R_length globals runs S y using S in
+  let%success x := runs_getAttrib runs x R_DimSymbol in
+  let%success y := runs_getAttrib runs y R_DimSymbol in
+  let%success x_len := R_length globals runs x in
+  let%success y_len := R_length globals runs y in
   ifb x_len <> y_len then
-    result_success S false
+    result_success false
   else
     let n := x_len in
     do%exit
     for i from 0 to n - 1 do
-      read%Integer x_i := x at i using S in
-      read%Integer y_i := y at i using S in
+      read%Integer x_i := x at i in
+      read%Integer y_i := y at i in
       ifb x_i <> y_i then
-        result_rreturn S false
-      else result_rskip S using S in
-    result_success S true.
+        result_rreturn false
+      else result_rskip in
+    result_success true.
 
-Definition isValidString S x :=
+Definition isValidString x :=
   add%stack "isValidString" in
-  let%success x_type := TYPEOF S x using S in
-  let%success x_len := LENGTH globals S x using S in
-  let%success x_0 := STRING_ELT S x 0 using S in
-  let%success x_0_type := TYPEOF S x_0 using S in
-  result_success S (decide (x_type = StrSxp /\ x_len > 0 /\ x_0_type <> NilSxp)).
+  let%success x_type := TYPEOF x in
+  let%success x_len := LENGTH globals x in
+  let%success x_0 := STRING_ELT x 0 in
+  let%success x_0_type := TYPEOF x_0 in
+  result_success (decide (x_type = StrSxp /\ x_len > 0 /\ x_0_type <> NilSxp)).
 
 
 (** ** util.c **)
@@ -135,28 +135,28 @@ Definition isValidString S x :=
 (** The function names of this section correspond to the function names
   in the file main/util.c. **)
 
-Definition type2rstr S (t : SExpType) :=
+Definition type2rstr (t : SExpType) :=
   add%stack "type2rstr" in
   let res := Type2Table_rstrName (ArrayList.read (global_Type2Table globals) t) in
-  ifb res <> NULL then result_success S res
-  else result_success S (R_NilValue : SEXP).
+  ifb res <> NULL then result_success res
+  else result_success (R_NilValue : SEXP).
 
-Definition nthcdr S s n :=
+Definition nthcdr s n :=
   add%stack "nthcdr" in
-  let%success s_li := isList globals S s using S in
-  let%success s_la := isLanguage globals S s using S in
-  let%success s_fr := isFrame globals runs S s using S in
-  let%success s_t := TYPEOF S s using S in
+  let%success s_li := isList globals s in
+  let%success s_la := isLanguage globals s in
+  let%success s_fr := isFrame globals runs s in
+  let%success s_t := TYPEOF s in
   ifb s_li \/ s_la \/ s_fr \/ s_t = DotSxp then
     do%success (s, n) := (s, n)
     whileb n > 0 do
       ifb s = R_NilValue then
-        result_error S "List too short."
+        result_error "List too short."
       else
-        read%list _, s_cdr, _ := s using S in
-        result_success S (s_cdr, n - 1) using S, runs in
-    result_success S s
-  else result_error S "No CDR.".
+        read%list _, s_cdr, _ := s in
+        result_success (s_cdr, n - 1) using S, runs in
+    result_success s
+  else result_error "No CDR.".
 
 (** ** envir.c **)
 
@@ -168,17 +168,17 @@ Definition nthcdr S s n :=
   allocated twice the same string, by looking through the already
   allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
-Definition mkChar S (str : string) : state * SEXP :=
+Definition mkChar (str : string) : state * SEXP :=
   (* Note that values are not cached, in contrary to the original code. *)
-  alloc_vector_char globals S (ArrayList.from_list (string_to_list str)).
+  alloc_vector_char globals (ArrayList.from_list (string_to_list str)).
 
-Definition mkString S (str : string) : state * SEXP :=
-  let (S, c) := mkChar S str in
-  alloc_vector_str globals S (ArrayList.from_list [c]).
+Definition mkString (str : string) : state * SEXP :=
+  let (S, c) := mkChar str in
+  alloc_vector_str globals (ArrayList.from_list [c]).
 
-Definition BCCONSTS S e :=
+Definition BCCONSTS e :=
   add%stack "BCCONSTS" in
-  BCODE_CONSTS S e.
+  BCODE_CONSTS e.
 
 
 (** ** eval.c **)
@@ -186,33 +186,33 @@ Definition BCCONSTS S e :=
 (** The function names of this section correspond to the function names
   in the file main/eval.c. **)
 
-Definition bytecodeExpr S e :=
+Definition bytecodeExpr e :=
   add%stack "bytecodeExpr" in
-  if%success isByteCode S e using S then
-    let%success e := BCCONSTS S e using S in
-    let%success e_len := LENGTH globals S e using S in
+  if%success isByteCode e then
+    let%success e := BCCONSTS e in
+    let%success e_len := LENGTH globals e in
     ifb e_len > 0 then
-      VECTOR_ELT S e 0
-    else result_success S (R_NilValue : SEXP)
-  else result_success S e.
+      VECTOR_ELT e 0
+    else result_success (R_NilValue : SEXP)
+  else result_success e.
 
-Definition R_PromiseExpr S p :=
+Definition R_PromiseExpr p :=
   add%stack "R_PromiseExpr" in
-  read%prom _, p_prom := p using S in
-  bytecodeExpr S (prom_expr p_prom).
+  read%prom _, p_prom := p in
+  bytecodeExpr (prom_expr p_prom).
 
-Definition PREXPR S e :=
+Definition PREXPR e :=
   add%stack "PREXPR" in
-  R_PromiseExpr S e.
+  R_PromiseExpr e.
 
-Definition R_ClosureExpr S p :=
+Definition R_ClosureExpr p :=
   add%stack "R_ClosureExpr" in
-  read%clo _, p_clo := p using S in
-  bytecodeExpr S (clo_body p_clo).
+  read%clo _, p_clo := p in
+  bytecodeExpr (clo_body p_clo).
 
-Definition BODY_EXPR S e :=
+Definition BODY_EXPR e :=
   add%stack "BODY_EXPR" in
-  R_ClosureExpr S e.
+  R_ClosureExpr e.
 
 
 (** ** attrib.c **)
@@ -234,28 +234,28 @@ Definition R_data_class2 (S : state) (obj : SEXP) : result SEXP :=
 (** The function names of this section correspond to the function names
   in the file main/objects.c. **)
 
-Definition inherits2 S x what :=
+Definition inherits2 x what :=
   add%stack "inherits2" in
-    if%success OBJECT S x using S then
+    if%success OBJECT x then
         let%success klass :=
-        if%success IS_S4_OBJECT S x using S then
-            R_data_class2 S x
+        if%success IS_S4_OBJECT x then
+            R_data_class2 x
         else 
-            R_data_class S x false
-        using S in
-        let%success nclass := R_length globals runs S klass using S in
+            R_data_class x false
+        in
+        let%success nclass := R_length globals runs klass in
         do%exit
         for i from 0 to nclass - 1 do
-            let%success klass_i := STRING_ELT S klass i using S in
-            let%success klass_i_char := CHAR S klass_i using S in
+            let%success klass_i := STRING_ELT klass i in
+            let%success klass_i_char := CHAR klass_i in
             ifb klass_i_char = what then
-                result_rreturn S true
+                result_rreturn true
             else
-                result_rskip S
-        using S in
-        result_success S false
+                result_rskip
+        in
+        result_success false
     else
-        result_success S false.
+        result_success false.
 
 End Parameterised.
 

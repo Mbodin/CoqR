@@ -41,69 +41,69 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition mkTrue S :=
-  alloc_vector_lgl globals S (ArrayList.from_list [1 : int]).
+Definition mkTrue :=
+  alloc_vector_lgl globals (ArrayList.from_list [1 : int]).
 
-Definition mkFalse S :=
-  alloc_vector_lgl globals S (ArrayList.from_list [0 : int]).
+Definition mkFalse :=
+  alloc_vector_lgl globals (ArrayList.from_list [0 : int]).
 
-Definition mkNA S :=
-  alloc_vector_lgl globals S (ArrayList.from_list [NA_LOGICAL : int]).
+Definition mkNA :=
+  alloc_vector_lgl globals (ArrayList.from_list [NA_LOGICAL : int]).
 
 
-Definition NewList S :=
+Definition NewList :=
   add%stack "NewList" in
-  let (S, s) := CONS globals S R_NilValue R_NilValue in
-  set%car s := s using S in
-  result_success S s.
+  let (S, s) := CONS globals R_NilValue R_NilValue in
+  set%car s := s in
+  result_success s.
 
-Definition GrowList S l s :=
+Definition GrowList l s :=
   add%stack "GrowList" in
-  let (S, tmp) := CONS globals S s R_NilValue in
-  read%list l_car, _, _ := l using S in
-  set%cdr l_car := tmp using S in
-  set%car l := tmp using S in
-  result_success S l.
+  let (S, tmp) := CONS globals s R_NilValue in
+  read%list l_car, _, _ := l in
+  set%cdr l_car := tmp in
+  set%car l := tmp in
+  result_success l.
 
-Definition TagArg S arg tag :=
+Definition TagArg arg tag :=
   add%stack "TagArg" in
-  let%success tag_type := TYPEOF S tag using S in
+  let%success tag_type := TYPEOF tag in
   match tag_type with
   | StrSxp =>
-    let%success tag_ := STRING_ELT S tag 0 using S in
-    let%success tag := installTrChar globals runs S tag_ using S in
-    lang2 globals S arg tag
+    let%success tag_ := STRING_ELT tag 0 in
+    let%success tag := installTrChar globals runs tag_ in
+    lang2 globals arg tag
   | NilSxp
   | SymSxp =>
-    lang2 globals S arg tag
+    lang2 globals arg tag
   | _ =>
-    result_error S "Incorrect tag type."
+    result_error "Incorrect tag type."
   end.
 
-Definition FirstArg S s tag :=
+Definition FirstArg s tag :=
   add%stack "FirstArg" in
-  let%success tmp := NewList S using S in
-  let%success tmp := GrowList S tmp s using S in
-  read%list tmp_car, _, _ := tmp using S in
-  set%tag tmp_car := tag using S in
-  result_success S tmp.
+  let%success tmp := NewList in
+  let%success tmp := GrowList tmp s in
+  read%list tmp_car, _, _ := tmp in
+  set%tag tmp_car := tag in
+  result_success tmp.
 
-Definition NextArg S l s tag :=
+Definition NextArg l s tag :=
   add%stack "NextArg" in
-  let%success l := GrowList S l s using S in
-  read%list l_car, _, _ := l using S in
-  set%tag l_car := tag using S in
-  result_success S l.
+  let%success l := GrowList l s in
+  read%list l_car, _, _ := l in
+  set%tag l_car := tag in
+  result_success l.
 
-Definition CheckFormalArgs S formlist new :=
+Definition CheckFormalArgs formlist new :=
   add%stack "CheckFormalArgs" in
   fold%success
   along formlist
   as _, formlist_tag do
     ifb formlist_tag = new then
-      result_error S "Repeated formal argument."
-    else result_skip S using S, runs, globals in
-  result_skip S.
+      result_error "Repeated formal argument."
+    else result_skip using S, runs, globals in
+  result_skip.
 
 End Parameterised.
 

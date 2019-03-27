@@ -47,18 +47,18 @@ Fixpoint do_parentframe_loop cptr t (n : int) :=
     else do_parentframe_loop cptr_nextcontext t n
   end.
 
-Definition do_parentframe S (call op args rho : SEXP) : result SEXP :=
+Definition do_parentframe (call op args rho : SEXP) : result SEXP :=
   add%stack "do_parentframe" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  read%list args_car, _, _ := args using S in
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, _, _ := args in
   let t := args_car in
-  let%success n := asInteger globals S t using S in
+  let%success n := asInteger globals t in
   ifb n = NA_INTEGER \/ n < 1 then
-    result_error S "Invalid ‘n’ value."
+    result_error "Invalid ‘n’ value."
   else
-    let cptr := R_GlobalContext S in
+    let cptr := R_GlobalContext in
     let t := context_sysparent cptr in
-    result_success S (do_parentframe_loop cptr t n).
+    result_success (do_parentframe_loop cptr t n).
 
 End Parameters.
 

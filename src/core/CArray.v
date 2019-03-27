@@ -39,42 +39,42 @@ Variable runs : runs_type.
 Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
-Definition allocMatrix S mode nrow ncol :=
+Definition allocMatrix mode nrow ncol :=
   add%stack "allocMatrix" in
     ifb nrow < 0 \/ ncol < 0 then
-        result_error S "negative extents to matrix"
+        result_error "negative extents to matrix"
     else
     let n := nrow * ncol in
-    let%success s := allocVector globals S mode n using S in
-    let%success t := allocVector globals S IntSxp 2 using S in
-    write%Integer t at 0 := nrow using S in
-    write%Integer t at 1 := ncol using S in
-    run%success setAttrib globals runs S s R_DimSymbol t using S in
-    result_success S s.
+    let%success s := allocVector globals mode n in
+    let%success t := allocVector globals IntSxp 2 in
+    write%Integer t at 0 := nrow in
+    write%Integer t at 1 := ncol in
+    run%success setAttrib globals runs s R_DimSymbol t in
+    result_success s.
 
 
-Definition GetRowNames S dimnames :=
+Definition GetRowNames dimnames :=
   add%stack "GetRowNames" in
-    let%success dimnames_type := TYPEOF S dimnames using S in
+    let%success dimnames_type := TYPEOF dimnames in
     ifb dimnames_type = VecSxp then
-        VECTOR_ELT S dimnames 0
+        VECTOR_ELT dimnames 0
     else
-        result_success S (R_NilValue : SEXP).
+        result_success (R_NilValue : SEXP).
 
-Definition allocArray S mode dims :=
+Definition allocArray mode dims :=
   add%stack "allocArray" in
-  let%success dims_len := LENGTH globals S dims using S in
+  let%success dims_len := LENGTH globals dims in
   do%success (dn, n) := (1 : double, 1 : nat)
   for i from 0 to dims_len - 1 do
-    read%Integer dims_i := dims at i using S in
+    read%Integer dims_i := dims at i in
     let dn := Double.mult dn (dims_i : double) in
     ifb dn > (INT_MAX : double) then
-      result_error S "Too many element specified by ‘dims’."
+      result_error "Too many element specified by ‘dims’."
     else
-      result_success S (dn, n * Z.to_nat dims_i) using S in
-  let%success dims := duplicate globals runs S dims using S in
-  let%success array := allocVector globals S mode n using S in
-  run%success setAttrib globals runs S array R_DimSymbol dims using S in
-  result_success S array.
+      result_success (dn, n * Z.to_nat dims_i) in
+  let%success dims := duplicate globals runs dims in
+  let%success array := allocVector globals mode n in
+  run%success setAttrib globals runs array R_DimSymbol dims in
+  result_success array.
 
 End Parameterised.

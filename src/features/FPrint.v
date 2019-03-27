@@ -34,16 +34,16 @@ Variable runs : runs_type.
 Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
-Definition do_invisible S (call op args env : SEXP) : result SEXP :=
+Definition do_invisible (call op args env : SEXP) : result SEXP :=
   add%stack "do_invisible" in
-    let%success args_length := R_length globals runs S args using S in
+    let%success args_length := R_length globals runs args in
     match args_length with
-    | 0 => result_success S (R_NilValue : SEXP)
-    | 1 => run%success Rf_check1arg globals S args call "x" using S in
-          read%list args_car, _, _ := args using S in
-          result_success S args_car
-          | _ => run%success Rf_checkArityCall globals runs S op args call using S in
-                 result_success S call
+    | 0 => result_success (R_NilValue : SEXP)
+    | 1 => run%success Rf_check1arg globals args call "x" in
+          read%list args_car, _, _ := args in
+          result_success args_car
+          | _ => run%success Rf_checkArityCall globals runs op args call in
+                 result_success call
     end.
 
 End Parameters.

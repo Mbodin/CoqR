@@ -38,91 +38,91 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition CHKZLN S x :=
+Definition CHKZLN x :=
   add%stack "CHKZLN" in
-    let%success x_length := STDVEC_LENGTH S x using S in
-    let%success x_type := TYPEOF S x using S in
+    let%success x_length := STDVEC_LENGTH x in
+    let%success x_type := TYPEOF x in
     ifb x_length = 0 /\ x_type <> CharSxp then
-        result_error S "attempting to read/write elements of a zero-length vector"
+        result_error "attempting to read/write elements of a zero-length vector"
     else
-        result_skip S.
+        result_skip.
 
 (* Slightly modified version of INTEGER_RO. It just checks types and length 
    of vector and returns the vector itself, instead of returning the vector 
    data. Therefore, after checking, one should do 'read%Integer' directly on 
    the vector *)
-Definition INTEGER_RO S x :=
+Definition INTEGER_RO x :=
   add%stack "INTEGER_RO" in
-    let%success x_type := TYPEOF S x using S in
+    let%success x_type := TYPEOF x in
     ifb x_type <> IntSxp /\ x_type <> LglSxp then
-        result_error S "INTEGER can only be applied to an integer"
+        result_error "INTEGER can only be applied to an integer"
     else
-    CHKZLN S x.
+    CHKZLN x.
                      
-Definition pstrmatch S (target input : SEXP) slen :=
+Definition pstrmatch (target input : SEXP) slen :=
   add%stack "pstrmatch" in
   ifb target = R_NilValue then
-    result_success S NO_MATCH
+    result_success NO_MATCH
   else
-    let%success target_type := TYPEOF S target using S in
+    let%success target_type := TYPEOF target in
     let%success st :=
       match target_type with
       | SymSxp =>
-        let%success target_name := PRINTNAME S target using S in
-        CHAR S target_name
+        let%success target_name := PRINTNAME target in
+        CHAR target_name
       | CharSxp =>
-        translateChar S target
-      | _ => result_impossible S "Invalid type."
-      end using S in
-    let%success si := translateChar S input using S in
+        translateChar target
+      | _ => result_impossible "Invalid type."
+      end in
+    let%success si := translateChar input in
     let si_0 := LibOption.unsome_default "000"%char (String.get 0 si) in
     ifb si_0 <> "000"%char /\ substring 0 slen st = substring 0 slen si then
-      result_success S (ifb String.length st = slen then EXACT_MATCH else PARTIAL_MATCH)
-    else result_success S NO_MATCH.
+      result_success (ifb String.length st = slen then EXACT_MATCH else PARTIAL_MATCH)
+    else result_success NO_MATCH.
 
-Definition R_DispatchOrEvalSP S call op generic args rho :=
+Definition R_DispatchOrEvalSP call op generic args rho :=
   add%stack "R_DispatchOrEvalSP" in
-  read%list args_car, args_cdr, _ := args using S in
+  read%list args_car, args_cdr, _ := args in
   let%exit (prom, args) :=
     ifb args <> R_NilValue /\ args_car <> R_DotsSymbol then
-      let%success x := eval globals runs S args_car rho using S in
-      run%success INCREMENT_LINKS S x using S in
-      let%success x_obj := OBJECT S x using S in
+      let%success x := eval globals runs args_car rho in
+      run%success INCREMENT_LINKS x in
+      let%success x_obj := OBJECT x in
       if negb x_obj then
         let%success elkm :=
-          evalListKeepMissing globals runs S args_cdr rho using S in
-        let (S, ans) := CONS_NR globals S x elkm in
-        run%success DECREMENT_LINKS S x using S in
-        result_rreturn S (false, ans)
+          evalListKeepMissing globals runs args_cdr rho in
+        let (S, ans) := CONS_NR globals x elkm in
+        run%success DECREMENT_LINKS x in
+        result_rreturn (false, ans)
       else unimplemented_function "R_mkEVPROMISE_NR"
-    else result_rsuccess S (NULL, args) using S in
+    else result_rsuccess (NULL, args) in
   let%success (disp, ans) :=
-    DispatchOrEval globals runs S call op generic args rho false false using S in
+    DispatchOrEval globals runs call op generic args rho false false in
   run%success
     ifb prom <> NULL then
-      let%success prom_value := PRVALUE S prom using S in
-      DECREMENT_LINKS S prom_value
-    else result_skip S using S in
-  result_success S (disp, ans).
+      let%success prom_value := PRVALUE prom in
+      DECREMENT_LINKS prom_value
+    else result_skip in
+  result_success (disp, ans).
 
-Definition scalarIndex S s :=
+Definition scalarIndex s :=
   add%stack "scalarIndex" in
-  let%success s_attr := ATTRIB S s using S in
+  let%success s_attr := ATTRIB s in
   ifb s_attr = R_NilValue then
-    if%success IS_SCALAR S s IntSxp using S then
-      let%success ival := SCALAR_IVAL S s using S in
+    if%success IS_SCALAR s IntSxp then
+      let%success ival := SCALAR_IVAL s in
       ifb ival <> NA_INTEGER then
-        result_success S ival
-      else result_success S (-1)%Z
-    else if%success IS_SCALAR S s RealSxp using S then
-      let%success rval := SCALAR_DVAL S s using S in
+        result_success ival
+      else result_success (-1)%Z
+    else if%success IS_SCALAR s RealSxp then
+      let%success rval := SCALAR_DVAL s in
       if R_FINITE rval then
-        result_success S (Double.double_to_int_zero rval)
-      else result_success S (-1)%Z
-    else result_success S (-1)%Z
-  else result_success S (-1)%Z.
+        result_success (Double.double_to_int_zero rval)
+      else result_success (-1)%Z
+    else result_success (-1)%Z
+  else result_success (-1)%Z.
 
-Definition ExtractArg S args arg_sym :=
+Definition ExtractArg args arg_sym :=
   add%stack "ExtractArg" in
   fold%return prev_arg := args
   along args
@@ -130,21 +130,21 @@ Definition ExtractArg S args arg_sym :=
     ifb list_tagval arg_list = arg_sym then
       run%success
         ifb arg = prev_arg then
-          result_skip S
+          result_skip
         else
-          set%cdr prev_arg := list_cdrval arg_list using S in
-          result_skip S using S in
-      result_rreturn S (list_carval arg_list)
-    else result_rsuccess S arg using S, runs, globals in
-  result_success S (R_NilValue : SEXP).
+          set%cdr prev_arg := list_cdrval arg_list in
+          result_skip in
+      result_rreturn (list_carval arg_list)
+    else result_rsuccess arg using S, runs, globals in
+  result_success (R_NilValue : SEXP).
 
-Definition ExtractDropArg S el :=
+Definition ExtractDropArg el :=
   add%stack "ExtractDropArg" in
-  let%success dropArg := ExtractArg S el R_DropSymbol using S in
-  let%success drop := asLogical globals S dropArg using S in
+  let%success dropArg := ExtractArg el R_DropSymbol in
+  let%success drop := asLogical globals dropArg in
   ifb drop = NA_LOGICAL then
-    result_success S true
-  else result_success S (decide (drop <> 0)).
+    result_success true
+  else result_success (decide (drop <> 0)).
 
 
 (* Modified version, warnings are not implemented, therefore using true and false
@@ -154,811 +154,811 @@ Definition ExtractDropArg S el :=
        false  not exact
        true  exact
  *)
-Definition ExtractExactArg S args :=
+Definition ExtractExactArg args :=
   add%stack "ExtractExactArg" in
-    let%success argval := ExtractArg S args R_ExactSymbol using S in 
-    let%success argval_isNull := isNull S argval using S in
+    let%success argval := ExtractArg args R_ExactSymbol in 
+    let%success argval_isNull := isNull argval in
     if argval_isNull then
-        result_success S true
+        result_success true
     else
-    let%success exact := asLogical globals S argval using S in
+    let%success exact := asLogical globals argval in
     ifb exact = NA_LOGICAL then
-        result_success S false
+        result_success false
     else
-        result_success S (decide (exact <> 0)).
+        result_success (decide (exact <> 0)).
 
 
     
-Definition ExtractSubset S (x indx call : SEXP) :=
+Definition ExtractSubset (x indx call : SEXP) :=
   add%stack "ExtractSubset" in
     ifb x = R_NilValue then
-        result_success S x
+        result_success x
     else
 
-    if%success ALTREP S x using S then
+    if%success ALTREP x then
         unimplemented_function "ALTVEC_EXTRACT_SUBSET"
     else
 
-    let%success n := XLENGTH S indx using S in
-    let%success nx := xlength globals runs S x using S in
-    let%success mode := TYPEOF S x using S in
+    let%success n := XLENGTH indx in
+    let%success nx := xlength globals runs x in
+    let%success mode := TYPEOF x in
 
-    let%success result := allocVector globals S mode n using S in
+    let%success result := allocVector globals mode n in
     run%success
     match mode with
     | LglSxp =>
-      let%success indx_type := TYPEOF S indx using S in
+      let%success indx_type := TYPEOF indx in
       ifb indx_type = IntSxp then
-        run%success INTEGER_RO S indx using S in
+        run%success INTEGER_RO indx in
         do%success
         for i from 0 to n - 1 do   
-            read%Integer ii := indx at i using S in                  
+            read%Integer ii := indx at i in                  
             ifb 0%Z < ii /\ ii <= nx then
                 let ii := Z.to_nat ii - 1 in
-                let%success x_ii := LOGICAL_ELT S x ii using S in
-                write%Logical result at i := x_ii using S in result_skip S
+                let%success x_ii := LOGICAL_ELT x ii in
+                write%Logical result at i := x_ii in result_skip
             else (* out of bounds or NA *)
-                write%Logical result at i := NA_INTEGER using S in result_skip S
-        using S in result_skip S
+                write%Logical result at i := NA_INTEGER in result_skip
+        in result_skip
       else
         do%success
         for i from 0 to n - 1 do
-            read%Real di := indx at i using S in
+            read%Real di := indx at i in
             let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
             ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
-                let%success x_ii := LOGICAL_ELT S x (Z.to_nat ii) using S in
-                write%Logical result at i := x_ii using S in result_skip S
+                let%success x_ii := LOGICAL_ELT x (Z.to_nat ii) in
+                write%Logical result at i := x_ii in result_skip
             else
-                write%Logical result at i := NA_INTEGER using S in result_skip S
-        using S in result_skip S
+                write%Logical result at i := NA_INTEGER in result_skip
+        in result_skip
                             
     | IntSxp =>
-      let%success indx_type := TYPEOF S indx using S in
+      let%success indx_type := TYPEOF indx in
       ifb indx_type = IntSxp then
-        run%success INTEGER_RO S indx using S in
+        run%success INTEGER_RO indx in
         do%success
         for i from 0 to n - 1 do   
-            read%Integer ii := indx at i using S in                  
+            read%Integer ii := indx at i in                  
             ifb 0%Z < ii /\ ii <= nx then
                 let ii := Z.to_nat ii - 1 in
-                let%success x_ii := INTEGER_ELT S x ii using S in
-                write%Integer result at i := x_ii using S in result_skip S
+                let%success x_ii := INTEGER_ELT x ii in
+                write%Integer result at i := x_ii in result_skip
             else (* out of bounds or NA *)
-                write%Integer result at i := NA_INTEGER using S in result_skip S
-        using S in result_skip S
+                write%Integer result at i := NA_INTEGER in result_skip
+        in result_skip
       else
         do%success
         for i from 0 to n - 1 do
-            read%Real di := indx at i using S in
+            read%Real di := indx at i in
             let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
             ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
-                let%success x_ii := INTEGER_ELT S x (Z.to_nat ii) using S in
-                write%Integer result at i := x_ii using S in result_skip S
+                let%success x_ii := INTEGER_ELT x (Z.to_nat ii) in
+                write%Integer result at i := x_ii in result_skip
             else
-                write%Integer result at i := NA_INTEGER using S in result_skip S
-        using S in result_skip S
+                write%Integer result at i := NA_INTEGER in result_skip
+        in result_skip
 
     | RealSxp =>
-      let%success indx_type := TYPEOF S indx using S in
+      let%success indx_type := TYPEOF indx in
       ifb indx_type = IntSxp then
-        run%success INTEGER_RO S indx using S in
+        run%success INTEGER_RO indx in
         do%success
         for i from 0 to n - 1 do   
-            read%Integer ii := indx at i using S in                  
+            read%Integer ii := indx at i in                  
             ifb 0%Z < ii /\ ii <= nx then
                 let ii := Z.to_nat ii - 1 in
-                let%success x_ii := REAL_ELT S x ii using S in
-                write%Real result at i := x_ii using S in result_skip S
+                let%success x_ii := REAL_ELT x ii in
+                write%Real result at i := x_ii in result_skip
             else (* out of bounds or NA *)
-                write%Real result at i := NA_REAL using S in result_skip S
-        using S in result_skip S
+                write%Real result at i := NA_REAL in result_skip
+        in result_skip
     else
         do%success
         for i from 0 to n - 1 do
-            read%Real di := indx at i using S in
+            read%Real di := indx at i in
             let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
             ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
-                let%success x_ii := REAL_ELT S x (Z.to_nat ii) using S in
-                write%Real result at i := x_ii using S in result_skip S
+                let%success x_ii := REAL_ELT x (Z.to_nat ii) in
+                write%Real result at i := x_ii in result_skip
             else
-                 write%Real result at i := NA_REAL using S in result_skip S
-        using S in result_skip S
+                 write%Real result at i := NA_REAL in result_skip
+        in result_skip
      
     | CplxSxp => result_not_implemented "Complex case"
     | StrSxp =>
-      let%success indx_type := TYPEOF S indx using S in
+      let%success indx_type := TYPEOF indx in
       ifb indx_type = IntSxp then
-        run%success INTEGER_RO S indx using S in
+        run%success INTEGER_RO indx in
         do%success
         for i from 0 to n - 1 do   
-            read%Integer ii := indx at i using S in                  
+            read%Integer ii := indx at i in                  
             ifb 0%Z < ii /\ ii <= nx then
                 let ii := Z.to_nat ii - 1 in
-                let%success x_ii := STRING_ELT S x ii using S in
-                SET_STRING_ELT S result i x_ii
+                let%success x_ii := STRING_ELT x ii in
+                SET_STRING_ELT result i x_ii
             else (* out of bounds or NA *)
-                SET_STRING_ELT S result i NA_STRING
-        using S in result_skip S
+                SET_STRING_ELT result i NA_STRING
+        in result_skip
       else
         do%success
         for i from 0 to n - 1 do
-            read%Real di := indx at i using S in
+            read%Real di := indx at i in
             let ii := (Z.to_nat (Double.double_to_int_zero di) - 1) : int in
             ifb R_FINITE di /\ 0%Z <= ii /\ ii < nx then
-                let%success x_ii := STRING_ELT S x (Z.to_nat ii) using S in
-                SET_STRING_ELT S result i x_ii
+                let%success x_ii := STRING_ELT x (Z.to_nat ii) in
+                SET_STRING_ELT result i x_ii
             else
-                SET_STRING_ELT S result i NA_STRING
-        using S in result_skip S
+                SET_STRING_ELT result i NA_STRING
+        in result_skip
       
     | VecSxp
     | ExprSxp => result_not_implemented "Expr case"
     | RawSxp => result_not_implemented "raw case"
-    | ListSxp => result_impossible S "cannot happen: pairlists are coerced to lists"
-    | LangSxp => result_impossible S "cannot happen: LANGSXPs are coerced to lists"
-    | _ => result_error S "wrong type to extract"
+    | ListSxp => result_impossible "cannot happen: pairlists are coerced to lists"
+    | LangSxp => result_impossible "cannot happen: LANGSXPs are coerced to lists"
+    | _ => result_error "wrong type to extract"
     end
-    using S in
-    result_success S result.
+    in
+    result_success result.
 
-Definition VectorSubset S (x s call : SEXP) :=
+Definition VectorSubset (x s call : SEXP) :=
   add%stack "VectorSubset" in
   let stretch := 1 in
   ifb s = R_MissingArg then
-    duplicate globals runs S x
+    duplicate globals runs x
   else
-    let%success attrib := getAttrib globals runs S x R_DimSymbol using S in
+    let%success attrib := getAttrib globals runs x R_DimSymbol in
 
     (* Check to see if we have special matrix subscripting. */
     /* If we do, make a real subscript vector and protect it. *)
 
     let%success s :=
-      let%success s_mat := isMatrix globals runs S s using S in
-      let%success x_arr := isArray globals runs S x using S in
+      let%success s_mat := isMatrix globals runs s in
+      let%success x_arr := isArray globals runs x in
       ifb s_mat /\ x_arr then
-        let%success s_cols := ncols globals runs S s using S in
-        let%success attrib_len := R_length globals runs S attrib using S in
+        let%success s_cols := ncols globals runs s in
+        let%success attrib_len := R_length globals runs attrib in
         ifb s_cols = attrib_len then
           let%success s :=
-            if%success isString S s using S then
+            if%success isString s then
               unimplemented_function "strmat2intmat"
-            else result_success S s using S in
-          let%success s_int := isInteger globals runs S s using S in
-          let%success s_real := isReal S s using S in
+            else result_success s in
+          let%success s_int := isInteger globals runs s in
+          let%success s_real := isReal s in
           ifb s_int \/ s_real then
             unimplemented_function "mat2indsub"
-          else result_success S s
-        else result_success S s
-      else result_success S s using S in
+          else result_success s
+        else result_success s
+      else result_success s in
 
     (* Convert to a vector of integer subscripts */
     /* in the range 1:length(x). *)
 
-    let%success (indx, stretch) := makeSubscript globals runs S x s stretch call using S in
+    let%success (indx, stretch) := makeSubscript globals runs x s stretch call in
 
     (* Allocate the result. *)
     
-    let%success mode := TYPEOF S x using S in
-    let%success result := ExtractSubset S x indx call using S in
+    let%success mode := TYPEOF x in
+    let%success result := ExtractSubset x indx call in
     run%success
     ifb mode = VecSxp \/ mode = ExprSxp then
-      set%named result := named_plural using S in result_skip S
-    else result_skip S
-    using S in  
+      set%named result := named_plural in result_skip
+    else result_skip
+    in  
 
     let%success result :=
     ifb result <> R_NilValue then
       let%success result :=
-      let%success attrib := getAttrib globals runs S x R_NamesSymbol using S in
+      let%success attrib := getAttrib globals runs x R_NamesSymbol in
       ifb attrib <> R_NilValue then
-        let%success nattrib := ExtractSubset S attrib indx call using S in
-        setAttrib globals runs S result R_NamesSymbol nattrib  
+        let%success nattrib := ExtractSubset attrib indx call in
+        setAttrib globals runs result R_NamesSymbol nattrib  
       else
-        let%success x_isArray := isArray globals runs S x using S in
-        let%success x_attrib := getAttrib globals runs S x R_DimNamesSymbol using S in
-        let%success x_attrib_length := R_length globals runs S x_attrib using S in
+        let%success x_isArray := isArray globals runs x in
+        let%success x_attrib := getAttrib globals runs x R_DimNamesSymbol in
+        let%success x_attrib_length := R_length globals runs x_attrib in
         let attrib := x_attrib in
         let%success attrib :=
-           ifb attrib <> R_NilValue then GetRowNames globals S attrib
-           else result_success S (R_NilValue : SEXP) using S in
+           ifb attrib <> R_NilValue then GetRowNames globals attrib
+           else result_success (R_NilValue : SEXP) in
         ifb x_isArray /\ x_attrib_length = 1 /\ attrib <> R_NilValue then
-          let%success nattrib := ExtractSubset S attrib indx call using S in
-          setAttrib globals runs S result R_NamesSymbol nattrib  
+          let%success nattrib := ExtractSubset attrib indx call in
+          setAttrib globals runs result R_NamesSymbol nattrib  
         else
-          result_success S result
-      using S in
-      let%success attrib := getAttrib globals runs S x R_SrcrefSymbol using S in
-      let%success attrib_type := TYPEOF S attrib using S in
+          result_success result
+      in
+      let%success attrib := getAttrib globals runs x R_SrcrefSymbol in
+      let%success attrib_type := TYPEOF attrib in
       ifb attrib <> R_NilValue /\ attrib_type = VecSxp then
-         let%success nattrib := ExtractSubset S attrib indx call using S in
-         setAttrib globals runs S result R_SrcrefSymbol nattrib 
+         let%success nattrib := ExtractSubset attrib indx call in
+         setAttrib globals runs result R_SrcrefSymbol nattrib 
       else
-        result_success S result
+        result_success result
     else
-      result_success S result
-    using S in
-  result_success S result.
+      result_success result
+    in
+  result_success result.
 
 
-Definition do_subset_dflt S (call op args rho : SEXP) : result SEXP :=
+Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset_dflt" in
-  read%list args_car, args_cdr, _ := args using S in
+  read%list args_car, args_cdr, _ := args in
   let cdrArgs := args_cdr in
-  read%list cdrArgs_car, cdrArgs_cdr, cdrArgs_tag := cdrArgs using S in
+  read%list cdrArgs_car, cdrArgs_cdr, cdrArgs_tag := cdrArgs in
   let cddrArgs := cdrArgs_cdr in
-  read%list cddrArgs_car, cddrArgs_cdr, cddrArgs_tag := cddrArgs using S in
+  read%list cddrArgs_car, cddrArgs_cdr, cddrArgs_tag := cddrArgs in
   run%exit
     ifb cdrArgs <> R_NilValue /\ cddrArgs = R_NilValue /\ cdrArgs_tag = R_NilValue then
       let x := args_car in
-      let%success x_attr := ATTRIB S x using S in
+      let%success x_attr := ATTRIB x in
       ifb x_attr = R_NilValue then
         let s := cdrArgs_car in
-        let%success i := scalarIndex S s using S in
-        let%success x_type := TYPEOF S x using S in
+        let%success i := scalarIndex s in
+        let%success x_type := TYPEOF x in
         match x_type with
         | RealSxp =>
-          let%success len := XLENGTH S x using S in
+          let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
-            let%success x_imu := REAL_ELT S x (Z.to_nat (i - 1)) using S in
-            let (S, r) := ScalarReal globals S x_imu in
-            result_rreturn S r
-          else result_rskip S
+            let%success x_imu := REAL_ELT x (Z.to_nat (i - 1)) in
+            let (S, r) := ScalarReal globals x_imu in
+            result_rreturn r
+          else result_rskip
         | IntSxp =>
-          let%success len := XLENGTH S x using S in
+          let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
-            let%success x_imu := INTEGER_ELT S x (Z.to_nat (i - 1)) using S in
-            let (S, r) := ScalarInteger globals S x_imu in
-            result_rreturn S r
-          else result_rskip S
+            let%success x_imu := INTEGER_ELT x (Z.to_nat (i - 1)) in
+            let (S, r) := ScalarInteger globals x_imu in
+            result_rreturn r
+          else result_rskip
         | LglSxp =>
-          let%success len := XLENGTH S x using S in
+          let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
-            let%success x_imu := LOGICAL_ELT S x (Z.to_nat (i - 1)) using S in
-            result_rreturn S (ScalarLogical globals x_imu)
-          else result_rskip S
+            let%success x_imu := LOGICAL_ELT x (Z.to_nat (i - 1)) in
+            result_rreturn (ScalarLogical globals x_imu)
+          else result_rskip
         | CplxSxp =>
-          let%success len := XLENGTH S x using S in
+          let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
-            let%success x_imu := COMPLEX_ELT S x (Z.to_nat (i - 1)) using S in
-            let (S, r) := ScalarComplex globals S x_imu in
-            result_rreturn S r
-          else result_rskip S
+            let%success x_imu := COMPLEX_ELT x (Z.to_nat (i - 1)) in
+            let (S, r) := ScalarComplex globals x_imu in
+            result_rreturn r
+          else result_rskip
         | RawSxp => result_not_implemented "Raw case."
-        | _ => result_rskip S
+        | _ => result_rskip
         end
-      else result_rskip S
+      else result_rskip
     else ifb cddrArgs <> R_NilValue /\ cddrArgs_cdr = R_NilValue
           /\ cdrArgs_tag = R_NilValue /\ cddrArgs_tag = R_NilValue then
       let x := args_car in
-      let%success attr := ATTRIB S x using S in
-      read%list attr_car, attr_cdr, attr_tag := attr using S in
+      let%success attr := ATTRIB x in
+      read%list attr_car, attr_cdr, attr_tag := attr in
       ifb attr_tag = R_DimSymbol /\ attr_cdr = R_NilValue then
         let dim := attr_car in
-        let%success dim_type := TYPEOF S dim using S in
-        let%success dim_len := LENGTH globals S dim using S in
+        let%success dim_type := TYPEOF dim in
+        let%success dim_len := LENGTH globals dim in
         ifb dim_type = IntSxp /\ dim_len = 2 then
           let si := cdrArgs_car in
           let sj := cddrArgs_car in
-          let%success i := scalarIndex S si using S in
-          let%success j := scalarIndex S sj using S in
-          let%success nrow := INTEGER_ELT S dim 0 using S in
-          let%success ncol := INTEGER_ELT S dim 1 using S in
+          let%success i := scalarIndex si in
+          let%success j := scalarIndex sj in
+          let%success nrow := INTEGER_ELT dim 0 in
+          let%success ncol := INTEGER_ELT dim 1 in
           ifb i > 0 /\ j > 0 /\ i <= nrow /\ j <= ncol then
             let k := Z.to_nat (i - 1 + nrow * (j - 1))%Z in
-            let%success x_type := TYPEOF S x using S in
+            let%success x_type := TYPEOF x in
             match x_type with
             | RealSxp =>
-              let%success len := XLENGTH S x using S in
+              let%success len := XLENGTH x in
               ifb k <= len then
-                let%success x_k := REAL_ELT S x k using S in
-                let (S, r) := ScalarReal globals S x_k in
-                result_rreturn S r
-              else result_rskip S
+                let%success x_k := REAL_ELT x k in
+                let (S, r) := ScalarReal globals x_k in
+                result_rreturn r
+              else result_rskip
             | IntSxp =>
-              let%success len := XLENGTH S x using S in
+              let%success len := XLENGTH x in
               ifb k <= len then
-                let%success x_k := INTEGER_ELT S x k using S in
-                let (S, r) := ScalarInteger globals S x_k in
-                result_rreturn S r
-              else result_rskip S
+                let%success x_k := INTEGER_ELT x k in
+                let (S, r) := ScalarInteger globals x_k in
+                result_rreturn r
+              else result_rskip
             | LglSxp =>
-              let%success len := XLENGTH S x using S in
+              let%success len := XLENGTH x in
               ifb k <= len then
-                let%success x_k := LOGICAL_ELT S x k using S in
-                result_rreturn S (ScalarLogical globals x_k)
-              else result_rskip S
+                let%success x_k := LOGICAL_ELT x k in
+                result_rreturn (ScalarLogical globals x_k)
+              else result_rskip
             | CplxSxp =>
-              let%success len := XLENGTH S x using S in
+              let%success len := XLENGTH x in
               ifb k <= len then
-                let%success x_k := COMPLEX_ELT S x k using S in
-                let (S, r) := ScalarComplex globals S x_k in
-                result_rreturn S r
-              else result_rskip S
+                let%success x_k := COMPLEX_ELT x k in
+                let (S, r) := ScalarComplex globals x_k in
+                result_rreturn r
+              else result_rskip
             | RawSxp => result_not_implemented "Raw case."
-            | _ => result_rskip S
+            | _ => result_rskip
             end
-          else result_rskip S
-        else result_rskip S
-      else result_rskip S
-    else result_rskip S using S in
-  let%success drop := ExtractDropArg S args using S in
+          else result_rskip
+        else result_rskip
+      else result_rskip
+    else result_rskip in
+  let%success drop := ExtractDropArg args in
   let x := args_car in
   ifb x = R_NilValue then
-    result_success S x
+    result_success x
   else
     let subs := args_cdr in
-    let%success nsubs := R_length globals runs S subs using S in
-    let%success type := TYPEOF S x using S in
+    let%success nsubs := R_length globals runs subs in
+    let%success type := TYPEOF x in
     let%success ax :=
-      if%success isVector S x using S then
-        result_success S x
-      else if%success isPairList S x using S then
-        let%success dim := getAttrib globals runs S x R_DimSymbol using S in
-        let%success ndim := R_length globals runs S dim using S in
+      if%success isVector x then
+        result_success x
+      else if%success isPairList x then
+        let%success dim := getAttrib globals runs x R_DimSymbol in
+        let%success ndim := R_length globals runs dim in
         let%success ax :=
           ifb ndim > 1 then
-            let%success ax := allocArray globals runs S VecSxp dim using S in
-            let%success x_dimnames := getAttrib globals runs S x R_DimNamesSymbol using S in
-            run%success setAttrib globals runs S ax R_DimNamesSymbol x_dimnames using S in
-            run%success setAttrib globals runs S ax R_NamesSymbol x_dimnames using S in
-            result_success S ax
+            let%success ax := allocArray globals runs VecSxp dim in
+            let%success x_dimnames := getAttrib globals runs x R_DimNamesSymbol in
+            run%success setAttrib globals runs ax R_DimNamesSymbol x_dimnames in
+            run%success setAttrib globals runs ax R_NamesSymbol x_dimnames in
+            result_success ax
           else
-            let%success x_len := R_length globals runs S x using S in
-            let%success ax := allocVector globals S VecSxp x_len using S in
-            let%success x_names := getAttrib globals runs S x R_NamesSymbol using S in
-            run%success setAttrib globals runs S ax R_NamesSymbol x_names using S in
-            result_success S ax using S in
+            let%success x_len := R_length globals runs x in
+            let%success ax := allocVector globals VecSxp x_len in
+            let%success x_names := getAttrib globals runs x R_NamesSymbol in
+            run%success setAttrib globals runs ax R_NamesSymbol x_names in
+            result_success ax in
         fold%success i := 0
         along x
         as x_car, _ do
-          run%success SET_VECTOR_ELT S ax i x_car using S in
-          result_success S (1 + i) using S, runs, globals in
-        result_success S ax
-      else result_error S "Object is not subsettable." using S in
+          run%success SET_VECTOR_ELT ax i x_car in
+          result_success (1 + i) using S, runs, globals in
+        result_success ax
+      else result_error "Object is not subsettable." in
 
     (* This is the actual subsetting code. */
     /* The separation of arrays and matrices is purely an optimization. *)
 
     let%success ans :=
       ifb nsubs < 2 then
-        let%success dim := getAttrib globals runs S x R_DimSymbol using S in
-        let%success ndim := R_length globals runs S dim using S in
-        read%list subs_car, _, _ := subs using S in
-        let%success ans := VectorSubset S ax (ifb nsubs = 1 then subs_car else R_MissingArg) call using S in
+        let%success dim := getAttrib globals runs x R_DimSymbol in
+        let%success ndim := R_length globals runs dim in
+        read%list subs_car, _, _ := subs in
+        let%success ans := VectorSubset ax (ifb nsubs = 1 then subs_car else R_MissingArg) call in
         run%success
           ifb ndim = 1 then
-            let%success len := R_length globals runs S ans using S in
+            let%success len := R_length globals runs ans in
             ifb ~ drop \/ len > 1 then
-              let%success nm := getAttrib globals runs S ans R_NamesSymbol using S in
-              let (S, attr) := ScalarInteger globals S len in
+              let%success nm := getAttrib globals runs ans R_NamesSymbol in
+              let (S, attr) := ScalarInteger globals len in
               run%success
-                let%success dim_names := getAttrib globals runs S dim R_NamesSymbol using S in
-                let%success dim_names_null := isNull S dim_names using S in
+                let%success dim_names := getAttrib globals runs dim R_NamesSymbol in
+                let%success dim_names_null := isNull dim_names in
                 if negb dim_names_null then
-                  run%success setAttrib globals runs S attr R_NamesSymbol dim_names using S in
-                  result_skip S
-                else result_skip S using S in
-              run%success setAttrib globals runs S ans R_DimSymbol attr using S in
-              let%success attrib := getAttrib globals runs S x R_DimNamesSymbol using S in
+                  run%success setAttrib globals runs attr R_NamesSymbol dim_names in
+                  result_skip
+                else result_skip in
+              run%success setAttrib globals runs ans R_DimSymbol attr in
+              let%success attrib := getAttrib globals runs x R_DimNamesSymbol in
               ifb attrib <> R_NilValue then
-                let%success nattrib := duplicate globals runs S attrib using S in
-                run%success SET_VECTOR_ELT S nattrib 0 nm using S in
-                run%success setAttrib globals runs S ans R_DimNamesSymbol nattrib using S in
-                run%success setAttrib globals runs S ans R_NamesSymbol R_NilValue using S in
-                result_skip S
-              else result_skip S
-            else result_skip S
-          else result_skip S using S in
-        result_success S ans
+                let%success nattrib := duplicate globals runs attrib in
+                run%success SET_VECTOR_ELT nattrib 0 nm in
+                run%success setAttrib globals runs ans R_DimNamesSymbol nattrib in
+                run%success setAttrib globals runs ans R_NamesSymbol R_NilValue in
+                result_skip
+              else result_skip
+            else result_skip
+          else result_skip in
+        result_success ans
       else
-        let%success x_dim := getAttrib globals runs S x R_DimSymbol using S in
-        let%success x_dim_len := R_length globals runs S x_dim using S in
+        let%success x_dim := getAttrib globals runs x R_DimSymbol in
+        let%success x_dim_len := R_length globals runs x_dim in
         ifb nsubs <> x_dim_len then
-          result_error S "Incorrect number of dimensions."
+          result_error "Incorrect number of dimensions."
         else ifb nsubs = 2 then
           unimplemented_function "MatrixSubset"
-        else unimplemented_function "ArraySubset" using S in
+        else unimplemented_function "ArraySubset" in
     let%success ans :=
       ifb type = LangSxp then
         let ax := ans in
-        let%success ax_len := LENGTH globals S ax using S in
-        let (S, ans) := allocList globals S ax_len in
+        let%success ax_len := LENGTH globals ax in
+        let (S, ans) := allocList globals ax_len in
         run%success
           ifb ax_len > 0 then
-            set%type ans := LangSxp using S in
+            set%type ans := LangSxp in
             fold%success i := 0
             along ans
             as px, _, _ do
-              let%success ax_i := VECTOR_ELT S ax i using S in
-              set%car px := ax_i using S in
-              result_success S (1 + i) using S, runs, globals in
+              let%success ax_i := VECTOR_ELT ax i in
+              set%car px := ax_i in
+              result_success (1 + i) using S, runs, globals in
             run%success
-              let%success ax_dim := getAttrib globals runs S ax R_DimSymbol using S in
-              setAttrib globals runs S ans R_DimSymbol ax_dim using S in
+              let%success ax_dim := getAttrib globals runs ax R_DimSymbol in
+              setAttrib globals runs ans R_DimSymbol ax_dim in
             run%success
-              let%success ax_dimn := getAttrib globals runs S ax R_DimNamesSymbol using S in
-              setAttrib globals runs S ans R_DimNamesSymbol ax_dimn using S in
+              let%success ax_dimn := getAttrib globals runs ax R_DimNamesSymbol in
+              setAttrib globals runs ans R_DimNamesSymbol ax_dimn in
             run%success
-              let%success ax_names := getAttrib globals runs S ax R_NamesSymbol using S in
-              setAttrib globals runs S ans R_NamesSymbol ax_names using S in
+              let%success ax_names := getAttrib globals runs ax R_NamesSymbol in
+              setAttrib globals runs ans R_NamesSymbol ax_names in
             run%success
-              let%success ax_named := NAMED S ax using S in
-              RAISE_NAMED S ans ax_named using S in
-            result_skip S
-          else result_skip S using S in
-        result_success S ans
-      else result_success S ans using S in
+              let%success ax_named := NAMED ax in
+              RAISE_NAMED ans ax_named in
+            result_skip
+          else result_skip in
+        result_success ans
+      else result_success ans in
     run%success
-      let%success ans_attr := ATTRIB S ans using S in
+      let%success ans_attr := ATTRIB ans in
       ifb ans_attr <> R_NilValue then
-        run%success setAttrib globals runs S ans R_TspSymbol R_NilValue using S in
-        run%success setAttrib globals runs S ans R_ClassSymbol R_NilValue using S in
-        result_skip S
-      else result_skip S using S in
-    result_success S ans.
+        run%success setAttrib globals runs ans R_TspSymbol R_NilValue in
+        run%success setAttrib globals runs ans R_ClassSymbol R_NilValue in
+        result_skip
+      else result_skip in
+    result_success ans.
 
-Definition do_subset S (call op args rho : SEXP) : result SEXP :=
+Definition do_subset (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset" in
-  let%success (disp, ans) := R_DispatchOrEvalSP S call op "[" args rho using S in
+  let%success (disp, ans) := R_DispatchOrEvalSP call op "[" args rho in
   if disp then
     run%success
-      let%success ans_named := NAMED S ans using S in
+      let%success ans_named := NAMED ans in
       ifb ans_named <> named_temporary then
-        set%named ans := named_plural using S in
-        result_skip S
-      else result_skip S using S in
-    result_success S ans
-  else do_subset_dflt S call op ans rho.
+        set%named ans := named_plural in
+        result_skip
+      else result_skip in
+    result_success ans
+  else do_subset_dflt call op ans rho.
 
 
 
-Definition do_subset2_dflt S (call op args rho : SEXP) : result SEXP :=
+Definition do_subset2_dflt (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset2_dflt" in
-    let%success drop := ExtractDropArg S args using S in
+    let%success drop := ExtractDropArg args in
     
-    let%success exact := ExtractExactArg S args using S in
+    let%success exact := ExtractExactArg args in
     let pok := decide (exact <> false) in
     
-    read%list args_car, args_cdr, _ := args using S in
+    read%list args_car, args_cdr, _ := args in
     let x := args_car in
 
     ifb x = R_NilValue then
-        result_success S x
+        result_success x
     else
 
     (* Get the subscripting and dimensioning information */
     /* and check that any array subscripting is compatible. *)
 
     let subs := args_cdr in
-    let%success nsubs := R_length globals runs S subs using S in
+    let%success nsubs := R_length globals runs subs in
     ifb 0 = nsubs then
-        result_error S "no index specified"
+        result_error "no index specified"
     else
-    let%success dims := getAttrib globals runs S x R_DimSymbol using S in
-    let%success ndims := R_length globals runs S dims using S in
+    let%success dims := getAttrib globals runs x R_DimSymbol in
+    let%success ndims := R_length globals runs dims in
     ifb nsubs > 1 /\ nsubs <> ndims then
-        result_error S "incorrect number of subscripts"
+        result_error "incorrect number of subscripts"
     else
 
     (* code to allow classes to extend environment *)
-    let%success x_type := TYPEOF S x using S in
+    let%success x_type := TYPEOF x in
     let%success x :=
     ifb x_type = S4Sxp then
         unimplemented_function "R_getS4DataSlot"
     else
-        result_success S x
-    using S in
+        result_success x
+    in
 
     (* split out ENVSXP for now *)
     ifb x_type = EnvSxp then
-        read%list subs_car, _, _ := subs using S in
-        let%success subs_car_isString := isString S subs_car using S in
-        let%success subs_car_length := R_length globals runs S subs_car using S in
+        read%list subs_car, _, _ := subs in
+        let%success subs_car_isString := isString subs_car in
+        let%success subs_car_length := R_length globals runs subs_car in
         ifb nsubs <> 1 \/ ~subs_car_isString \/ subs_car_length <> 1 then
-            result_error S "wrong arguments for subsetting an environment"
+            result_error "wrong arguments for subsetting an environment"
         else
-        let%success subs_car_0 := STRING_ELT S subs_car 0 using S in
-        let%success subs_car_0_inst := installTrChar globals runs S subs_car_0 using S in
-        let%success ans := findVarInFrame globals runs S x subs_car_0_inst using S in
-        let%success ans_type := TYPEOF S ans using S in
+        let%success subs_car_0 := STRING_ELT subs_car 0 in
+        let%success subs_car_0_inst := installTrChar globals runs subs_car_0 in
+        let%success ans := findVarInFrame globals runs x subs_car_0_inst in
+        let%success ans_type := TYPEOF ans in
         let%success ans :=
         ifb ans_type = PromSxp then
-            eval globals runs S ans R_GlobalEnv
+            eval globals runs ans R_GlobalEnv
         else
-            set%named ans := named_plural using S in
-            result_success S ans
-        using S in 
+            set%named ans := named_plural in
+            result_success ans
+        in 
        
         ifb ans = R_UnboundValue then
-            result_success S (R_NilValue : SEXP)
+            result_success (R_NilValue : SEXP)
         else
             run%success
-            let%success ans_named := NAMED S ans using S in
+            let%success ans_named := NAMED ans in
             ifb ans_named <> named_temporary then
-                set%named ans := named_plural using S in
-                result_skip S
-            else result_skip S using S in
-            result_success S ans
+                set%named ans := named_plural in
+                result_skip
+            else result_skip in
+            result_success ans
     else
 
     (* back to the regular program *)
-    let%success x_isVector := isVector S x using S in
-    let%success x_isList := isList globals S x using S in
-    let%success x_isLanguage := isLanguage globals S x using S in
+    let%success x_isVector := isVector x in
+    let%success x_isList := isList globals x in
+    let%success x_isLanguage := isLanguage globals x in
     ifb ~(x_isVector \/ x_isList \/ x_isLanguage) then
-        result_error S "object of this type is not subsettable"
+        result_error "object of this type is not subsettable"
     else 
 
-    let%success named_x := NAMED S x using S in
+    let%success named_x := NAMED x in
 
     let%exit (offset, named_x) :=
     ifb nsubs = 1 then   (* vector indexing *)
-        read%list subs_car, _, _ := subs using S in
+        read%list subs_car, _, _ := subs in
         let thesub := subs_car in
-        let%success len := R_length globals runs S thesub using S in
+        let%success len := R_length globals runs thesub in
 
         let%success (x, named_x) :=
         ifb len > 1 then
             (* Considering SWITCH_TO_REFCNT false *)
-            let%success x := vectorIndex S x thesub 0%Z (len - 1%Z) pok call false using S in
-            let%success named_x := NAMED S x using S in
-            result_success S (x, named_x)
-        else result_success S (x, named_x)
-        using S in
+            let%success x := vectorIndex x thesub 0%Z (len - 1%Z) pok call false in
+            let%success named_x := NAMED x in
+            result_success (x, named_x)
+        else result_success (x, named_x)
+        in
 
-        let%success xnames := getAttrib globals runs S x R_NamesSymbol using S in
-        let%success x_xlength := xlength globals runs S x using S in
-        let%success offset := get1index globals runs S thesub xnames x_xlength pok (ifb len > 1 then (len - 1) else (-1)%Z) call using S in
+        let%success xnames := getAttrib globals runs x R_NamesSymbol in
+        let%success x_xlength := xlength globals runs x in
+        let%success offset := get1index globals runs thesub xnames x_xlength pok (ifb len > 1 then (len - 1) else (-1)%Z) call in
 
         ifb offset < 0 \/ offset >= x_xlength then
             (* a bold attempt to get the same behaviour for $ and [[ *)
-            let%success x_isNewList := isNewList globals S x using S in
-            let%success x_isExpression := isExpression S x using S in
-            let%success x_isList := isList globals S x using S in
-            let%success x_isLanguage := isLanguage globals S x using  S in
+            let%success x_isNewList := isNewList globals x in
+            let%success x_isExpression := isExpression x in
+            let%success x_isList := isList globals x in
+            let%success x_isLanguage := isLanguage globals x using  in
             ifb offset < 0 /\ (x_isNewList \/ x_isExpression \/ x_isList \/ x_isLanguage) then
-                result_rreturn S (R_NilValue : SEXP)
+                result_rreturn (R_NilValue : SEXP)
             else
-                result_error S "subscript out of bounds"
-        else result_rsuccess S ((Z.to_nat offset), named_x)
+                result_error "subscript out of bounds"
+        else result_rsuccess ((Z.to_nat offset), named_x)
                          
     else   (* matrix indexing *)
       (* Here we use the fact that: */
       /* CAR(R_NilValue) = R_NilValue */
       /* CDR(R_NilValue) = R_NilValue *) 
       
-        let%success indx := allocVector globals S IntSxp nsubs using S in
-        run%success INTEGER_RO S dims using S in
-        let%success dimnames := getAttrib globals runs S x R_DimNamesSymbol using S in
-        let%success ndn := R_length globals runs S dimnames using S in
+        let%success indx := allocVector globals IntSxp nsubs in
+        run%success INTEGER_RO dims in
+        let%success dimnames := getAttrib globals runs x R_DimNamesSymbol in
+        let%success ndn := R_length globals runs dimnames in
         do%success subs := subs
         for i from 0 to nsubs - 1 do
-            read%list subs_car, subs_cdr, _ := subs using S in
-            let%success dimnames_i := ifb i < ndn then VECTOR_ELT S dimnames i else result_success S (R_NilValue : SEXP) using S in
-            read%Integer indx_i := indx at i using S in
-            let%success get1indx := get1index globals runs S subs_car dimnames_i indx_i pok (-1)%Z call using S in
-            write%Integer indx at i := get1indx using S in
-            read%Integer dims_i := dims at i using S in
+            read%list subs_car, subs_cdr, _ := subs in
+            let%success dimnames_i := ifb i < ndn then VECTOR_ELT dimnames i else result_success (R_NilValue : SEXP) in
+            read%Integer indx_i := indx at i in
+            let%success get1indx := get1index globals runs subs_car dimnames_i indx_i pok (-1)%Z call in
+            write%Integer indx at i := get1indx in
+            read%Integer dims_i := dims at i in
             ifb get1indx < 0 \/ get1indx >= dims_i then
-                result_error S "subscript out of bounds"
+                result_error "subscript out of bounds"
             else
-                result_success S subs_cdr
-        using S in
+                result_success subs_cdr
+        in
         let offset := 0 in
         do%success offset := offset
         (* Doing iteration a bit differently, hopefully the same result *)                      
         for i from 0 to nsubs - 2 do
-            read%Integer indx_i := indx at ((nsubs - 1) - i) using S in                      
-            read%Integer dims_i_1 := dims at ((nsubs - 1) - i - 1) using S in
-            result_success S ((offset + (Z.to_nat indx_i)) * (Z.to_nat dims_i_1))
-        using S in
-        read%Integer indx_0 := indx at 0 using S in
-        result_rsuccess S ((offset + (Z.to_nat indx_0)), named_x)
-    using S in
+            read%Integer indx_i := indx at ((nsubs - 1) - i) in                      
+            read%Integer dims_i_1 := dims at ((nsubs - 1) - i - 1) in
+            result_success ((offset + (Z.to_nat indx_i)) * (Z.to_nat dims_i_1))
+        in
+        read%Integer indx_0 := indx at 0 in
+        result_rsuccess ((offset + (Z.to_nat indx_0)), named_x)
+    in
 
     let%success ans :=
-    let%success x_isPairList := isPairList S x using S in
-    let%success x_isVectorList := isVectorList S x using S in
+    let%success x_isPairList := isPairList x in
+    let%success x_isVectorList := isVectorList x in
     if x_isPairList then 
-        let%success x_offset := nthcdr globals runs S x offset using S in
-        read%list x_offset_car, _, _ := x_offset using S in
+        let%success x_offset := nthcdr globals runs x offset in
+        read%list x_offset_car, _, _ := x_offset in
         let ans := x_offset_car in
-        run%success RAISE_NAMED S ans named_x using S in
-        result_success S ans
+        run%success RAISE_NAMED ans named_x in
+        result_success ans
     else if x_isVectorList then
-        let%success ans := VECTOR_ELT S x offset using S in 
-        run%success RAISE_NAMED S ans named_x using S in 
-        result_success S ans
+        let%success ans := VECTOR_ELT x offset in 
+        run%success RAISE_NAMED ans named_x in 
+        result_success ans
     else                   
-        let%success x_type := TYPEOF S x using S in
-        let%success ans := allocVector globals S x_type 1 using S in
+        let%success x_type := TYPEOF x in
+        let%success ans := allocVector globals x_type 1 in
         match x_type with
         | LglSxp =>
-          let%success x_offset := LOGICAL_ELT S x offset using S in
-          write%Logical ans at 0 := x_offset using S in
-          result_success S ans
+          let%success x_offset := LOGICAL_ELT x offset in
+          write%Logical ans at 0 := x_offset in
+          result_success ans
         | IntSxp =>
-          let%success x_offset := INTEGER_ELT S x offset using S in
-          write%Integer ans at 0 := x_offset using S in
-          result_success S ans
+          let%success x_offset := INTEGER_ELT x offset in
+          write%Integer ans at 0 := x_offset in
+          result_success ans
         | RealSxp =>
-          let%success x_offset := REAL_ELT S x offset using S in
-          write%Real ans at 0 := x_offset using S in
-          result_success S ans
+          let%success x_offset := REAL_ELT x offset in
+          write%Real ans at 0 := x_offset in
+          result_success ans
         | CplxSxp =>
-          let%success x_offset := COMPLEX_ELT S x offset using S in
-          write%Complex ans at 0 := x_offset using S in
-          result_success S ans
+          let%success x_offset := COMPLEX_ELT x offset in
+          write%Complex ans at 0 := x_offset in
+          result_success ans
         | StrSxp =>
-          let%success x_offset := STRING_ELT S x offset using S in
-          run%success SET_STRING_ELT S ans 0 x_offset using S in
-          result_success S ans
+          let%success x_offset := STRING_ELT x offset in
+          run%success SET_STRING_ELT ans 0 x_offset in
+          result_success ans
         | RawSxp => result_not_implemented "raw case"
-        | _ => result_error S "unimplemented type in do_subset2"
+        | _ => result_error "unimplemented type in do_subset2"
         end
-    using S in
-    result_success S ans.
+    in
+    result_success ans.
       
-Definition do_subset2 S (call op args rho : SEXP) : result SEXP :=
+Definition do_subset2 (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subset2" in
-     let%success (disp, ans) := R_DispatchOrEvalSP S call op "[[" args rho using S in
+     let%success (disp, ans) := R_DispatchOrEvalSP call op "[[" args rho in
      if disp then
         run%success
-        let%success ans_named := NAMED S ans using S in
+        let%success ans_named := NAMED ans in
         ifb ans_named <> named_temporary then
-            set%named ans := named_plural using S in
-            result_skip S
-        else result_skip S using S in
-        result_success S ans
-  else do_subset2_dflt S call op ans rho.
+            set%named ans := named_plural in
+            result_skip
+        else result_skip in
+        result_success ans
+  else do_subset2_dflt call op ans rho.
 
 
 
   
 Definition R_subset3_dflt (S : state) (x input call : SEXP) : result SEXP :=
   add%stack "R_subset3_dflt" in
-    let%success input_translate := translateChar S input using S in
+    let%success input_translate := translateChar input in
     let slen := String.length input_translate in
 
-    let%success x_s4 := IS_S4_OBJECT S x using S in
-    let%success x_type := TYPEOF S x using S in
+    let%success x_s4 := IS_S4_OBJECT x in
+    let%success x_type := TYPEOF x in
     let%success x :=
     ifb x_s4 /\ x_type = S4Sxp then
-      let%success x := unimplemented_function "R_getS4DataSlot" : result SEXP using S in
+      let%success x := unimplemented_function "R_getS4DataSlot" : result SEXP in
       ifb x = R_NilValue then
-        result_error S "$ operator not defined for this S4 class."
+        result_error "$ operator not defined for this S4 class."
       else
-        result_success S x
-    else result_success S x using S in
+        result_success x
+    else result_success x in
 
-    if%success isPairList S x using S then
+    if%success isPairList x then
       fold%return (xmatch, havematch) := (R_NilValue : SEXP, 0) along x as y, _, y_list do
         let y_tag := list_tagval y_list in
         let y_car := list_carval y_list in
 
-        let%success pstr := pstrmatch S y_tag input slen using S in
+        let%success pstr := pstrmatch y_tag input slen in
           match pstr with
             | EXACT_MATCH =>  let y := y_car in
-                              let%success x_named := NAMED S x using S in
-                              run%success RAISE_NAMED S y x_named using S in
-                                result_rreturn S y
-            | PARTIAL_MATCH => result_rsuccess S (y, 1 + havematch)
-            | NO_MATCH => result_rsuccess S (xmatch, havematch)
+                              let%success x_named := NAMED x in
+                              run%success RAISE_NAMED y x_named in
+                                result_rreturn y
+            | PARTIAL_MATCH => result_rsuccess (y, 1 + havematch)
+            | NO_MATCH => result_rsuccess (xmatch, havematch)
           end using S, runs, globals in
 
         ifb havematch = 1 then
         (* A warning has been formalised out here. *)
-          read%list xmatch_car, _, _ := xmatch using S in
+          read%list xmatch_car, _, _ := xmatch in
           let y := xmatch_car in
-          let%success x_named := NAMED S x using S in
-          run%success RAISE_NAMED S y x_named using S in
-            result_success S y
+          let%success x_named := NAMED x in
+          run%success RAISE_NAMED y x_named in
+            result_success y
         else
-          result_success S (R_NilValue : SEXP)
-    else if%success isVectorList S x using S then
-      let%success nlist := getAttrib globals runs S x R_NamesSymbol using S in
+          result_success (R_NilValue : SEXP)
+    else if%success isVectorList x then
+      let%success nlist := getAttrib globals runs x R_NamesSymbol in
 
-      let%success n := xlength globals runs S x using S in
+      let%success n := xlength globals runs x in
       do%exit (imatch, havematch) := ((-1)%Z, 0)
       for i from 0 to n - 1 do
-        let%success nlist_i := STRING_ELT S nlist i using S in
-        let%success pstr := pstrmatch S nlist_i input slen using S in
+        let%success nlist_i := STRING_ELT nlist i in
+        let%success pstr := pstrmatch nlist_i input slen in
         match pstr with
-         | EXACT_MATCH => let%success y := VECTOR_ELT S x i using S in
-                          let%success x_named := NAMED S x using S in
-                          run%success RAISE_NAMED S y x_named using S in
-                          result_rreturn S y
+         | EXACT_MATCH => let%success y := VECTOR_ELT x i in
+                          let%success x_named := NAMED x in
+                          run%success RAISE_NAMED y x_named in
+                          result_rreturn y
          | PARTIAL_MATCH => let havematch := havematch + 1 in
                             ifb havematch = 1 then
-                              let%success y := VECTOR_ELT S x i using S in
-                              set%named y := named_plural using S in
-                              run%success SET_VECTOR_ELT S x i y using S in
-                              result_rsuccess S (i : int, havematch)
+                              let%success y := VECTOR_ELT x i in
+                              set%named y := named_plural in
+                              run%success SET_VECTOR_ELT x i y in
+                              result_rsuccess (i : int, havematch)
                             else
-                              result_rsuccess S (i : int, havematch)
-         | NO_MATCH => result_rsuccess S (imatch, havematch)
+                              result_rsuccess (i : int, havematch)
+         | NO_MATCH => result_rsuccess (imatch, havematch)
         end
-      using S in
+      in
       ifb havematch = 1 then
       (* A warning has been formalised out here. *)
-        let%success y := VECTOR_ELT S x (Z.to_nat imatch) using S in
-        let%success x_named := NAMED S x using S in
-        run%success RAISE_NAMED S y x_named using S in
-        result_success S y
+        let%success y := VECTOR_ELT x (Z.to_nat imatch) in
+        let%success x_named := NAMED x in
+        run%success RAISE_NAMED y x_named in
+        result_success y
       else
-        result_success S (R_NilValue : SEXP)
-    else if%success isEnvironment S x using S then
-      let%success input_install := installTrChar globals runs S input using S in
-      let%success y := findVarInFrame globals runs S x input_install using S in
-      let%success y_type := TYPEOF S y using S in
+        result_success (R_NilValue : SEXP)
+    else if%success isEnvironment x then
+      let%success input_install := installTrChar globals runs input in
+      let%success y := findVarInFrame globals runs x input_install in
+      let%success y_type := TYPEOF y in
       let%success y :=
         ifb y_type = PromSxp then
-          eval globals runs S y R_GlobalEnv
-        else result_success S y using S in
+          eval globals runs y R_GlobalEnv
+        else result_success y in
       ifb y <> R_UnboundValue then
         run%success
-          let%success y_named := NAMED S y using S in
+          let%success y_named := NAMED y in
           ifb y_named <> named_temporary then
-            set%named y := named_plural using S in
-            result_skip S
+            set%named y := named_plural in
+            result_skip
           else
-            let%success x_named := NAMED S x using S in
-            RAISE_NAMED S y x_named using S in
-        result_success S y
-      else result_success S (R_NilValue : SEXP)
-    else if%success isVectorAtomic S x using S then
-      result_error S "$ operator is invalid for atomic vectors."
-    else result_error S "This object is not subsettable.".
+            let%success x_named := NAMED x in
+            RAISE_NAMED y x_named in
+        result_success y
+      else result_success (R_NilValue : SEXP)
+    else if%success isVectorAtomic x then
+      result_error "$ operator is invalid for atomic vectors."
+    else result_error "This object is not subsettable.".
 
 (* We choose not to formalise the last argument [syminp] in the following function. *)
-Definition fixSubset3Args S (call args env : SEXP) :=
+Definition fixSubset3Args (call args env : SEXP) :=
   add%stack "fixSubset3args" in
-    let%success input := allocVector globals S StrSxp 1 using S in
-    read%list _, args_cdr, _ := args using S in
-    read%list args_cdr_car, _, _ := args_cdr using S in
+    let%success input := allocVector globals StrSxp 1 in
+    read%list _, args_cdr, _ := args in
+    read%list args_cdr_car, _, _ := args_cdr in
     let nlist := args_cdr_car in
-    let%success nlist_type := TYPEOF S nlist using S in
+    let%success nlist_type := TYPEOF nlist in
     let%success nlist :=  ifb nlist_type = PromSxp then
-                            eval globals runs S nlist env
-                          else result_success S nlist using S in
+                            eval globals runs nlist env
+                          else result_success nlist in
 
     run%success
-    if%success isSymbol S nlist using S then
-      let%success nlist_name := PRINTNAME S nlist using S in
-      SET_STRING_ELT S input 0 nlist_name
-    else if%success isString S nlist using S then
-      let%success nlist0 := STRING_ELT S nlist 0 using S in
-      SET_STRING_ELT S input 0 nlist0
-    else result_error S "invalid subscript" using S in
+    if%success isSymbol nlist then
+      let%success nlist_name := PRINTNAME nlist in
+      SET_STRING_ELT input 0 nlist_name
+    else if%success isString nlist then
+      let%success nlist0 := STRING_ELT nlist 0 in
+      SET_STRING_ELT input 0 nlist0
+    else result_error "invalid subscript" in
 
-    let%success args := shallow_duplicate globals runs S args using S in
-    read%list _, args_cdr, _ := args using S in
-    set%car args_cdr := input using S in
-    result_success S args.
+    let%success args := shallow_duplicate globals runs args in
+    read%list _, args_cdr, _ := args in
+    set%car args_cdr := input in
+    result_success args.
 
 
-Definition do_subset3 S (call op args env : SEXP) : result SEXP :=
+Definition do_subset3 (call op args env : SEXP) : result SEXP :=
   add%stack "do_subset3" in
-    run%success Rf_checkArityCall globals runs S op args call using S in
-    let%success args := fixSubset3Args S call args env using S in
+    run%success Rf_checkArityCall globals runs op args call in
+    let%success args := fixSubset3Args call args env in
 
-    let%success (disp, ans) := R_DispatchOrEvalSP S call op "$" args env using S in
+    let%success (disp, ans) := R_DispatchOrEvalSP call op "$" args env in
     if disp then
       run%success
-      let%success ans_named := NAMED S ans using S in
+      let%success ans_named := NAMED ans in
       ifb ans_named <> named_temporary then
-        set%named ans := named_plural using S in
-        result_skip S
-      else result_skip S using S in
-        result_success S ans
+        set%named ans := named_plural in
+        result_skip
+      else result_skip in
+        result_success ans
     else
-      read%list ans_car, _, _ := ans using S in
-      read%list _, args_cdr, _ := args using S in
-      read%list args_cdr_car, _, _ := args_cdr using S in
+      read%list ans_car, _, _ := ans in
+      read%list _, args_cdr, _ := args in
+      read%list args_cdr_car, _, _ := args_cdr in
 
-      let%success args_cdr_car_0 := STRING_ELT S args_cdr_car 0 using S in
-      let%success ans := R_subset3_dflt S ans_car  args_cdr_car_0 call using S in
-      result_success S ans.
+      let%success args_cdr_car_0 := STRING_ELT args_cdr_car 0 in
+      let%success ans := R_subset3_dflt ans_car  args_cdr_car_0 call in
+      result_success ans.
 
 End Parameters.
 

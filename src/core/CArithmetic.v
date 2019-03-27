@@ -91,24 +91,24 @@ Definition R_finite (x : double) :=
 
 Definition R_FINITE := R_finite.
 
-Definition ScalarValue1 S x :=
+Definition ScalarValue1 x :=
   add%stack "ScalarValue1" in
-  if%success NO_REFERENCES S x using S then
-    result_success S x
+  if%success NO_REFERENCES x then
+    result_success x
   else
-    let%success x_type := TYPEOF S x using S in
-    allocVector globals S x_type 1.
+    let%success x_type := TYPEOF x in
+    allocVector globals x_type 1.
 
-Definition ScalarValue2 S x y :=
+Definition ScalarValue2 x y :=
   add%stack "ScalarValue2" in
-  if%success NO_REFERENCES S x using S then
-    result_success S x
+  if%success NO_REFERENCES x then
+    result_success x
   else
-    if%success NO_REFERENCES S y using S then
-      result_success S y
+    if%success NO_REFERENCES y then
+      result_success y
     else
-      let%success x_type := TYPEOF S x using S in
-      allocVector globals S x_type 1.
+      let%success x_type := TYPEOF x in
+      allocVector globals x_type 1.
 
 End Parameterised.
 

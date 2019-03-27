@@ -38,13 +38,13 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition mkSymMarker S pname :=
+Definition mkSymMarker pname :=
   add%stack "mkSymMarker" in
-  let (S, ans) := alloc_SExp S (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
-  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue using S in
-  result_success S ans.
+  let (S, ans) := alloc_SExp (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
+  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue in
+  result_success ans.
 
-Definition install S name_ : result SEXP :=
+Definition install name_ : result SEXP :=
   add%stack "install" in
   (** As said in the description of [InitNames] in Rinit.v,
     the hash table present in [R_SymbolTable] has not been
@@ -53,28 +53,28 @@ Definition install S name_ : result SEXP :=
     as [HSIZE] different lists.
     This approach is slower, but equivalent. **)
   fold%return
-  along R_SymbolTable S
+  along R_SymbolTable
   as sym_car, _ do
-    let%success str_sym := PRINTNAME S sym_car using S in
-    let%success str_name_ := CHAR S str_sym using S in
+    let%success str_sym := PRINTNAME sym_car in
+    let%success str_name_ := CHAR str_sym in
     ifb name_ = str_name_ then
-      result_rreturn S sym_car
-    else result_rskip S using S, runs, globals in
+      result_rreturn sym_car
+    else result_rskip using S, runs, globals in
   ifb name_ = ""%string then
-    result_error S "Attempt to use zero-length variable name."
+    result_error "Attempt to use zero-length variable name."
   else
-    let (S, str) := mkChar globals S name_ in
-    let%success sym := mkSYMSXP globals S str R_UnboundValue using S in
-    let (S, SymbolTable) := CONS globals S sym (R_SymbolTable S) in
-    let S := update_R_SymbolTable S SymbolTable in
-    result_success S sym.
+    let (S, str) := mkChar globals name_ in
+    let%success sym := mkSYMSXP globals str R_UnboundValue in
+    let (S, SymbolTable) := CONS globals sym (R_SymbolTable S) in
+    let := update_R_SymbolTable SymbolTable in
+    result_success sym.
 
 (** We here choose to model [installChar] as its specification
   given by the associated comment in the C source file. **)
-Definition installChar S charSXP :=
+Definition installChar charSXP :=
   add%stack "installChar" in
-  let%success str := CHAR S charSXP using S in
-  install S str.
+  let%success str := CHAR charSXP in
+  install str.
 
 End Parameterised.
 

@@ -44,49 +44,49 @@ Local Coercion int_to_double : Z >-> double.
   below are thus slightly different from their C counterparts.  The
   [repeat] function of Coq can be used to initialise their data. **)
 
-Definition alloc_vector_char S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_char R_NilValue v_data).
+Definition alloc_vector_char v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_char R_NilValue v_data).
 
-Definition alloc_vector_lgl S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_lgl R_NilValue v_data).
+Definition alloc_vector_lgl v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_lgl R_NilValue v_data).
 
-Definition alloc_vector_int S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_int R_NilValue v_data).
+Definition alloc_vector_int v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_int R_NilValue v_data).
 
-Definition alloc_vector_real S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_real R_NilValue v_data).
+Definition alloc_vector_real v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_real R_NilValue v_data).
 
-Definition alloc_vector_cplx S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_cplx R_NilValue v_data).
+Definition alloc_vector_cplx v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_cplx R_NilValue v_data).
 
 (** The following allocators uses pointers. Note that the original
   [allocVector] function initialises them to [R_NilValue] (and not
   [NULL], for instance) by default. **)
 
-Definition alloc_vector_str S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_str R_NilValue v_data).
+Definition alloc_vector_str v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_str R_NilValue v_data).
 
-Definition alloc_vector_vec S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_vec R_NilValue v_data).
+Definition alloc_vector_vec v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_vec R_NilValue v_data).
 
-Definition alloc_vector_expr S v_data : state * SEXP :=
-  alloc_SExp S (make_SExpRec_expr R_NilValue v_data).
+Definition alloc_vector_expr v_data : state * SEXP :=
+  alloc_SExp (make_SExpRec_expr R_NilValue v_data).
 
 (** We however propose the following smart constructor, based on
   [allocVector]/[allocVector3] from main/memory.c. **)
 (** Note: using [arbitrary] would here be more natural than these default values
   for the base cases, but it would not behave well in the extraction. **)
-Definition allocVector S type (length : nat) :=
+Definition allocVector type (length : nat) :=
   add%stack "allocVector" in
   ifb (length : int) > R_XLEN_T_MAX then
-    result_error S "Vector is too large"
+    result_error "Vector is too large"
   else
     let alloc {T} (allocator : state -> ArrayList.array T -> state * SEXP) (base : T) :=
-      let (S, v) := allocator S (ArrayList.from_list (repeat base length)) in
-      result_success S v in
+      let (S, v) := allocator (ArrayList.from_list (repeat base length)) in
+      result_success v in
     match type with
     | NilSxp =>
-      result_success S (R_NilValue : SEXP)
+      result_success (R_NilValue : SEXP)
     | RawSxp =>
       result_not_implemented "Raw type."
     | CharSxp =>
@@ -106,15 +106,15 @@ Definition allocVector S type (length : nat) :=
     | VecSxp =>
       alloc alloc_vector_vec (R_NilValue : SEXP)
     | LangSxp =>
-      ifb length = 0 then result_success S (R_NilValue : SEXP)
+      ifb length = 0 then result_success (R_NilValue : SEXP)
       else
-        let (S, s) := allocList globals S length in
-        set%type s := LangSxp using S in
-        result_success S s
+        let (S, s) := allocList globals length in
+        set%type s := LangSxp in
+        result_success s
     | ListSxp =>
-      let (S, s) := allocList globals S length in
-      result_success S s
-    | _ => result_error S "Invalid type in vector allocation."
+      let (S, s) := allocList globals length in
+      result_success s
+    | _ => result_error "Invalid type in vector allocation."
     end.
 
 Definition ScalarLogical x : SEXP :=
@@ -124,46 +124,46 @@ Definition ScalarLogical x : SEXP :=
     R_TrueValue
   else R_FalseValue.
 
-Definition ScalarInteger S x : state * SEXP :=
-  alloc_vector_int S (ArrayList.from_list [x]).
+Definition ScalarInteger x : state * SEXP :=
+  alloc_vector_int (ArrayList.from_list [x]).
 
-Definition ScalarReal S x : state * SEXP :=
-  alloc_vector_real S (ArrayList.from_list [x]).
+Definition ScalarReal x : state * SEXP :=
+  alloc_vector_real (ArrayList.from_list [x]).
 
-Definition ScalarComplex S x : state * SEXP :=
-  alloc_vector_cplx S (ArrayList.from_list [x]).
+Definition ScalarComplex x : state * SEXP :=
+  alloc_vector_cplx (ArrayList.from_list [x]).
 
-Definition ScalarString S (x : SEXP) : result SEXP :=
+Definition ScalarString (x : SEXP) : result SEXP :=
   add%stack "ScalarString" in
-  let%success x_type := TYPEOF S x using S in
+  let%success x_type := TYPEOF x in
   ifb x_type <> CharSxp then
-    result_error S "The given argument is not of type ‘CharSxp’."
+    result_error "The given argument is not of type ‘CharSxp’."
   else
-    let (S, s) := alloc_vector_str S (ArrayList.from_list [x]) in
-    result_success S s.
+    let (S, s) := alloc_vector_str (ArrayList.from_list [x]) in
+    result_success s.
 
-Definition isPairList S s :=
+Definition isPairList s :=
   add%stack "isPairList" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | NilSxp
   | ListSxp
   | LangSxp
   | DotSxp =>
-    result_success S true
+    result_success true
   | _ =>
-    result_success S false
+    result_success false
   end.
 
-Definition isVectorList S s :=
+Definition isVectorList s :=
   add%stack "isVectorList" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | VecSxp
   | ExprSxp =>
-    result_success S true
+    result_success true
   | _ =>
-    result_success S false
+    result_success false
   end.
 
 (** The following function is actually from main/altrep.c. It has been
@@ -172,28 +172,28 @@ Definition isVectorList S s :=
 Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
   unimplemented_function "ALTREP_LENGTH".
 
-Definition XLENGTH_EX S x :=
+Definition XLENGTH_EX x :=
   add%stack "XLENGTH_EX" in
-  let%success x_altrep := ALTREP S x using S in
-  if x_altrep then ALTREP_LENGTH S x
-  else STDVEC_LENGTH S x.
+  let%success x_altrep := ALTREP x in
+  if x_altrep then ALTREP_LENGTH x
+  else STDVEC_LENGTH x.
 
 Definition XLENGTH := XLENGTH_EX.
 
-Definition LENGTH_EX S (x : SEXP) :=
+Definition LENGTH_EX (x : SEXP) :=
   add%stack "LENGTH_EX" in
   ifb x = R_NilValue then
-    result_success S 0
-  else XLENGTH S x.
+    result_success 0
+  else XLENGTH x.
 
 Definition LENGTH := LENGTH_EX.
 
-Definition xlength S s :=
+Definition xlength s :=
   add%stack "xlength" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | NilSxp =>
-    result_success S 0
+    result_success 0
   | LglSxp
   | IntSxp
   | RealSxp
@@ -203,26 +203,26 @@ Definition xlength S s :=
   | VecSxp
   | ExprSxp
   | RawSxp =>
-    LENGTH S s
+    LENGTH s
   | ListSxp
   | LangSxp
   | DotSxp =>
     do%success (s, i) := (s, 0)
     whileb s <> NULL /\ s <> R_NilValue do
-      read%list _, s_cdr, _ := s using S in
-      result_success S (s_cdr, 1 + i) using S, runs in
-    result_success S i
+      read%list _, s_cdr, _ := s in
+      result_success (s_cdr, 1 + i) using S, runs in
+    result_success i
   | EnvSxp =>
     unimplemented_function "Rf_envlength"
   | _ =>
-    result_success S 1
+    result_success 1
   end.
 (** Named [length] in the C source file. **)
-Definition R_length S s :=
+Definition R_length s :=
   add%stack "R_length" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
-  | NilSxp => result_success S 0
+  | NilSxp => result_success 0
   | LglSxp
   | IntSxp
   | RealSxp
@@ -232,282 +232,282 @@ Definition R_length S s :=
   | VecSxp
   | ExprSxp
   | RawSxp =>
-    read%defined s_ := s using S in
-    let%defined l := get_VecSxp_length s_ using S in
-    result_success S l
+    read%defined s_ := s in
+    let%defined l := get_VecSxp_length s_ in
+    result_success l
   | ListSxp
   | LangSxp
   | DotSxp =>
     do%success (s, i) := (s, 0)
     whileb s <> NULL /\ s <> R_NilValue do
-      read%list _, s_cdr, _ := s using S in
-      result_success S (s_cdr, 1 + i) using S, runs in
-    result_success S i
+      read%list _, s_cdr, _ := s in
+      result_success (s_cdr, 1 + i) using S, runs in
+    result_success i
   | EnvSxp =>
     unimplemented_function "Rf_envlength"
   | _ =>
-    result_success S 1
+    result_success 1
   end.
 
-Definition inherits S s name :=
+Definition inherits s name :=
   add%stack "inherits" in
-  read%defined s_ := s using S in
+  read%defined s_ := s in
   if obj s_ then
-    let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
-    read%VectorPointer klass_vector := klass using S in
+    let%success klass := runs_getAttrib runs s R_ClassSymbol in
+    read%VectorPointer klass_vector := klass in
     do%success b := false
     for str in%array VecSxp_data klass_vector do
-      if b then result_success S true
+      if b then result_success true
       else
-        let%success str_ := CHAR S str using S in
-        result_success S (decide (str_ = name)) using S in
-    result_success S b
-  else result_success S false.
+        let%success str_ := CHAR str in
+        result_success (decide (str_ = name)) in
+    result_success b
+  else result_success false.
 
-Definition isVectorAtomic S s :=
+Definition isVectorAtomic s :=
   add%stack "isVectorAtomic" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | LglSxp
   | IntSxp
   | RealSxp
   | CplxSxp
   | StrSxp
-  | RawSxp => result_success S true
-  | _ => result_success S false
+  | RawSxp => result_success true
+  | _ => result_success false
   end.
 
-Definition isInteger S s :=
+Definition isInteger s :=
   add%stack "isInteger" in
-  let%success s_type := TYPEOF S s using S in
-  let%success inh := inherits S s "factor" using S in
-  result_success S (decide (s_type = IntSxp /\ ~ inh)).
+  let%success s_type := TYPEOF s in
+  let%success inh := inherits s "factor" in
+  result_success (decide (s_type = IntSxp /\ ~ inh)).
 
-Definition isFunction S s :=
+Definition isFunction s :=
   add%stack "isFunction" in
-    let%success s_type := TYPEOF S s using S in
-    result_success S (decide (s_type = CloSxp \/ s_type = BuiltinSxp \/ s_type = SpecialSxp)).
+    let%success s_type := TYPEOF s in
+    result_success (decide (s_type = CloSxp \/ s_type = BuiltinSxp \/ s_type = SpecialSxp)).
 
-Definition isList S s :=
+Definition isList s :=
   add%stack "isList" in
-  let%success s_type := TYPEOF S s using S in
-  result_success S (decide (s = R_NilValue \/ s_type = ListSxp)).
+  let%success s_type := TYPEOF s in
+  result_success (decide (s = R_NilValue \/ s_type = ListSxp)).
 
-Definition isLanguage S s :=
+Definition isLanguage s :=
   add%stack "isLanguage" in
-  let%success s_type := TYPEOF S s using S in
-  result_success S (decide (s = R_NilValue \/ s_type = LangSxp)).
+  let%success s_type := TYPEOF s in
+  result_success (decide (s = R_NilValue \/ s_type = LangSxp)).
 
-Definition isNumeric S s :=
+Definition isNumeric s :=
   add%stack "isNumeric" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | IntSxp =>
-    let%success inh := inherits S s "factor" using S in
-    result_success S (negb inh)
+    let%success inh := inherits s "factor" in
+    result_success (negb inh)
   | LglSxp
   | RealSxp =>
-    result_success S true
-  | _ => result_success S false
+    result_success true
+  | _ => result_success false
   end.
 
-Definition isNumber S s :=
+Definition isNumber s :=
   add%stack "isNumber" in
-  let%success s_type := TYPEOF S s using S in
+  let%success s_type := TYPEOF s in
   match s_type with
   | IntSxp =>
-    let%success inh := inherits S s "factor" using S in
-    result_success S (negb inh)
+    let%success inh := inherits s "factor" in
+    result_success (negb inh)
   | LglSxp
   | RealSxp
   | CplxSxp =>
-    result_success S true
-  | _ => result_success S false
+    result_success true
+  | _ => result_success false
   end.
 
-Definition isFrame S s :=
+Definition isFrame s :=
   add%stack "isFrame" in
-  if%success OBJECT S s using S then
-    let%success klass := runs_getAttrib runs S s R_ClassSymbol using S in
-    let%success klass_len := R_length S klass using S in
+  if%success OBJECT s then
+    let%success klass := runs_getAttrib runs s R_ClassSymbol in
+    let%success klass_len := R_length klass in
     do%exit
     for i from 0 to klass_len - 1 do
-      let%success str := STRING_ELT S klass i using S in
-      let%success str_ := CHAR S str using S in
+      let%success str := STRING_ELT klass i in
+      let%success str_ := CHAR str in
       ifb str_ = "data.frame"%string then
-        result_rreturn S true
-      else result_rskip S using S in
-    result_success S false
-  else result_success S false.
+        result_rreturn true
+      else result_rskip in
+    result_success false
+  else result_success false.
 
-Definition isNewList S s :=
+Definition isNewList s :=
   add%stack "isNewList" in
-  let%success s_type := TYPEOF S s using S in
-  result_success S (decide (s = R_NilValue \/ s_type = VecSxp)).
+  let%success s_type := TYPEOF s in
+  result_success (decide (s = R_NilValue \/ s_type = VecSxp)).
 
-Definition SCALAR_LVAL S x :=
+Definition SCALAR_LVAL x :=
   add%stack "SCALAR_LVAL" in
-  read%Logical r := x at 0 using S in
-  result_success S r.
+  read%Logical r := x at 0 in
+  result_success r.
 
-Definition SCALAR_IVAL S x :=
+Definition SCALAR_IVAL x :=
   add%stack "SCALAR_IVAL" in
-  read%Integer r := x at 0 using S in
-  result_success S r.
+  read%Integer r := x at 0 in
+  result_success r.
 
-Definition SCALAR_DVAL S x :=
+Definition SCALAR_DVAL x :=
   add%stack "SCALAR_DVAL" in
-  read%Real r := x at 0 using S in
-  result_success S r.
+  read%Real r := x at 0 in
+  result_success r.
 
-Definition SET_SCALAR_LVAL S x v :=
+Definition SET_SCALAR_LVAL x v :=
   add%stack "SET_SCALAR_LVAL" in
-  write%Logical x at 0 := v using S in
-  result_skip S.
+  write%Logical x at 0 := v in
+  result_skip.
 
-Definition SET_SCALAR_IVAL S x v :=
+Definition SET_SCALAR_IVAL x v :=
   add%stack "SET_SCALAR_IVAL" in
-  write%Integer x at 0 := v using S in
-  result_skip S.
+  write%Integer x at 0 := v in
+  result_skip.
 
-Definition SET_SCALAR_DVAL S x v :=
+Definition SET_SCALAR_DVAL x v :=
   add%stack "SET_SCALAR_DVAL" in
-  write%Real x at 0 := v using S in
-  result_skip S.
+  write%Real x at 0 := v in
+  result_skip.
 
 
-Definition lcons S car cdr :=
+Definition lcons car cdr :=
   add%stack "lcons" in
-  let (S, e) := CONS globals S car cdr in
-  set%type e := LangSxp using S in
-  result_success S e.
+  let (S, e) := CONS globals car cdr in
+  set%type e := LangSxp in
+  result_success e.
 
 Definition LCONS := lcons.
 
-Definition list1 S s :=
-  CONS globals S s R_NilValue.
+Definition list1 s :=
+  CONS globals s R_NilValue.
 
-Definition list2 S s t :=
-  let (S, l) := list1 S t in
-  CONS globals S s l.
+Definition list2 s t :=
+  let (S, l) := list1 t in
+  CONS globals s l.
 
-Definition list3 S s t u :=
-  let (S, l) := list2 S t u in
-  CONS globals S s l.
+Definition list3 s t u :=
+  let (S, l) := list2 t u in
+  CONS globals s l.
 
-Definition list4 S s t u v :=
-  let (S, l) := list3 S t u v in
-  CONS globals S s l.
+Definition list4 s t u v :=
+  let (S, l) := list3 t u v in
+  CONS globals s l.
 
-Definition list5 S s t u v w :=
-  let (S, l) := list4 S t u v w in
-  CONS globals S s l.
+Definition list5 s t u v w :=
+  let (S, l) := list4 t u v w in
+  CONS globals s l.
 
-Definition list6 S s t u v w x :=
-  let (S, l) := list5 S t u v w x in
-  CONS globals S s l.
+Definition list6 s t u v w x :=
+  let (S, l) := list5 t u v w x in
+  CONS globals s l.
 
-Definition lang1 S s :=
+Definition lang1 s :=
   add%stack "lang1" in
-  lcons S s R_NilValue.
+  lcons s R_NilValue.
 
-Definition lang2 S s t :=
+Definition lang2 s t :=
   add%stack "lang2" in
-  let (S, l) := list1 S t in
-  lcons S s l.
+  let (S, l) := list1 t in
+  lcons s l.
 
-Definition lang3 S s t u :=
+Definition lang3 s t u :=
   add%stack "lang3" in
-  let (S, l) := list2 S t u in
-  lcons S s l.
+  let (S, l) := list2 t u in
+  lcons s l.
 
-Definition lang4 S s t u v :=
+Definition lang4 s t u v :=
   add%stack "lang4" in
-  let (S, l) := list3 S t u v in
-  lcons S s l.
+  let (S, l) := list3 t u v in
+  lcons s l.
 
-Definition lang5 S s t u v w :=
+Definition lang5 s t u v w :=
   add%stack "lang5" in
-  let (S, l) := list4 S t u v w in
-  lcons S s l.
+  let (S, l) := list4 t u v w in
+  lcons s l.
 
-Definition lang6 S s t u v w x :=
+Definition lang6 s t u v w x :=
   add%stack "lang6" in
-  let (S, l) := list5 S t u v w x in
-  lcons S s l.
+  let (S, l) := list5 t u v w x in
+  lcons s l.
 
 
-Definition ALTLOGICAL_ELT S x i :=
+Definition ALTLOGICAL_ELT x i :=
   add%stack "ALTLOGICAL_ELT" in
-  read%Logical x_i := x at i using S in
-  result_success S x_i.
+  read%Logical x_i := x at i in
+  result_success x_i.
 
-Definition LOGICAL_ELT S x i :=
+Definition LOGICAL_ELT x i :=
   add%stack "LOGICAL_ELT" in
-  read%defined x_ := x using S in
-  ifb alt x_ then ALTLOGICAL_ELT S x i
+  read%defined x_ := x in
+  ifb alt x_ then ALTLOGICAL_ELT x i
   else
-    read%Logical x_i := x at i using S in
-    result_success S x_i.
+    read%Logical x_i := x at i in
+    result_success x_i.
 
 Definition ALTINTEGER_ELT (S : state) (x : SEXP) (i : nat) : result int :=
   unimplemented_function "ALTINTEGER_ELT".
 
-Definition INTEGER_ELT S x i :=
+Definition INTEGER_ELT x i :=
   add%stack "INTEGER_ELT" in
-  read%defined x_ := x using S in
-  ifb alt x_ then ALTINTEGER_ELT S x i
+  read%defined x_ := x in
+  ifb alt x_ then ALTINTEGER_ELT x i
   else
-    read%Integer x_i := x at i using S in
-    result_success S x_i.
+    read%Integer x_i := x at i in
+    result_success x_i.
 
 Definition ALTREAL_ELT (S : state) (x : SEXP) (i : nat) : result double :=
   unimplemented_function "ALTREAL_ELT".
 
-Definition REAL_ELT S x i :=
+Definition REAL_ELT x i :=
   add%stack "REAL_ELT" in
-  read%defined x_ := x using S in
-  ifb alt x_ then ALTREAL_ELT S x i
+  read%defined x_ := x in
+  ifb alt x_ then ALTREAL_ELT x i
   else
-    read%Real x_i := x at i using S in
-    result_success S x_i.
+    read%Real x_i := x at i in
+    result_success x_i.
 
 Definition ALTCOMPLEX_ELT (S : state) (x : SEXP) (i : nat) : result Rcomplex :=
   unimplemented_function "ALTCOMPLEX_ELT".
 
-Definition COMPLEX_ELT S x i :=
+Definition COMPLEX_ELT x i :=
   add%stack "COMPLEX_ELT" in
-  read%defined x_ := x using S in
-  ifb alt x_ then ALTCOMPLEX_ELT S x i
+  read%defined x_ := x in
+  ifb alt x_ then ALTCOMPLEX_ELT x i
   else
-    read%Complex x_i := x at i using S in
-    result_success S x_i.
+    read%Complex x_i := x at i in
+    result_success x_i.
 
-Definition ALTRAW_ELT S x i :=
+Definition ALTRAW_ELT x i :=
   add%stack "ALTRAW_ELT" in
-  read%Pointer x_i := x at i using S in
-  result_success S x_i.
+  read%Pointer x_i := x at i in
+  result_success x_i.
 
-Definition RAW_ELT S x i :=
+Definition RAW_ELT x i :=
   add%stack "RAW_ELT" in
-  read%defined x_ := x using S in
-  ifb alt x_ then ALTRAW_ELT S x i
+  read%defined x_ := x in
+  ifb alt x_ then ALTRAW_ELT x i
   else
-    read%Pointer x_i := x at i using S in
-    result_success S x_i.
+    read%Pointer x_i := x at i in
+    result_success x_i.
 
 (** The following function is actually from main/altrep.c. It has been
   placed here to solve a circular file dependency. **)
 
-Definition ALTREP_TRUELENGTH S (x : SEXP) :=
+Definition ALTREP_TRUELENGTH (x : SEXP) :=
   add%stack "ALTREP_TRUELENGTH" in
-  result_success S 0.
+  result_success 0.
 
-Definition XTRUELENGTH S x :=
+Definition XTRUELENGTH x :=
   add%stack "XTRUELENGTH" in
-  if%success ALTREP S x using S then
-    ALTREP_TRUELENGTH S x
-  else STDVEC_TRUELENGTH S x.
+  if%success ALTREP x then
+    ALTREP_TRUELENGTH x
+  else STDVEC_TRUELENGTH x.
 
 End Parameterised.
 

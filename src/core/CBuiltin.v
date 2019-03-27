@@ -41,62 +41,62 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition asVecSize S (x : SEXP)  :=
+Definition asVecSize (x : SEXP)  :=
   add%stack "asVecSize" in
-    let%success x_isVectorAtomic := isVectorAtomic S x using S in
-    let%success x_LENGTH := LENGTH globals S x using S in
+    let%success x_isVectorAtomic := isVectorAtomic x in
+    let%success x_LENGTH := LENGTH globals x in
     ifb x_isVectorAtomic /\ x_LENGTH >= 1 then
-        let%success x_type := TYPEOF S x using S in
+        let%success x_type := TYPEOF x in
         match x_type with
-        | IntSxp => read%Integer res := x at 0 using S in
+        | IntSxp => read%Integer res := x at 0 in
                    ifb res = NA_INTEGER then
-                       result_error S "vector size cannot be NA"
+                       result_error "vector size cannot be NA"
                    else
-                       result_success S res
-        | RealSxp => read%Real d := x at 0 using S in
+                       result_success res
+        | RealSxp => read%Real d := x at 0 in
                     if ISNAN d then
-                        result_error S "vector size cannot be NA/NaN"
+                        result_error "vector size cannot be NA/NaN"
                     else if negb (R_FINITE d) then
-                        result_error S "vector size cannot be infinite"
+                        result_error "vector size cannot be infinite"
                     else ifb d > R_XLEN_T_MAX then
-                        result_error S "vector size specified is too large"
-                    else result_success S (Double.double_to_int_zero d)
-         | StrSxp => let%success d := asReal globals S x using S in
+                        result_error "vector size specified is too large"
+                    else result_success (Double.double_to_int_zero d)
+         | StrSxp => let%success d := asReal globals x in
                      if ISNAN d then
-                         result_error S "vector size cannot be NA/NaN"
+                         result_error "vector size cannot be NA/NaN"
                      else if negb (R_FINITE d) then
-                         result_error S "vector size cannot be infinite"
+                         result_error "vector size cannot be infinite"
                      else ifb d > R_XLEN_T_MAX then
-                         result_error S "vector size specified is too large"
-                     else result_success S (Double.double_to_int_zero d)
-         | _ => result_error S "invalid type for argument"
+                         result_error "vector size specified is too large"
+                     else result_success (Double.double_to_int_zero d)
+         | _ => result_error "invalid type for argument"
          end                   
     else
-        result_error S "-999 code status".
+        result_error "-999 code status".
 
-Definition R_IsImportsEnv S env :=
+Definition R_IsImportsEnv env :=
   add%stack "R_IsImportsEnv" in
-  let%success env_null := isNull S env using S in
-  let%success env_env := isEnvironment S env using S in
+  let%success env_null := isNull env in
+  let%success env_env := isEnvironment env in
   ifb env_null \/ ~ env_env then
-    result_success S false
+    result_success false
   else
-    read%env _, env_env := env using S in
+    read%env _, env_env := env in
     ifb env_enclos env_env = R_BaseNamespace then
-      result_success S false
+      result_success false
     else
-      let%success name := runs_getAttrib runs S env R_NameSymbol using S in
-      let%success name_str := isString S name using S in
-      let%success name_len := LENGTH globals S name using S in
+      let%success name := runs_getAttrib runs env R_NameSymbol in
+      let%success name_str := isString name in
+      let%success name_len := LENGTH globals name in
       ifb ~ name_str \/ name_len <> 1 then
-        result_success S false
+        result_success false
       else
         let imports_prefix := "imports:"%string in
-        let%success name_0 := STRING_ELT S name 0 using S in
-        let%success name_string := CHAR S name_0 using S in
+        let%success name_0 := STRING_ELT name 0 in
+        let%success name_string := CHAR name_0 in
         ifb String.substring 0 (String.length imports_prefix) name_string = imports_prefix then
-          result_success S true
-        else result_success S false.
+          result_success true
+        else result_success false.
 
 End Parameterised.
 

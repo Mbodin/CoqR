@@ -36,132 +36,132 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition do_missing S (call op args rho : SEXP) : result SEXP :=
+Definition do_missing (call op args rho : SEXP) : result SEXP :=
   add%stack "do_missing" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  run%success Rf_check1arg globals S args call "x" using S in
-  read%list args_car, _, _ := args using S in
+  run%success Rf_checkArityCall globals runs op args call in
+  run%success Rf_check1arg globals args call "x" in
+  read%list args_car, _, _ := args in
   let%success sym :=
     let sym := args_car in
-    let%success sym_str := isString S sym using S in
-    let%success sym_len := R_length globals runs S sym using S in
+    let%success sym_str := isString sym in
+    let%success sym_len := R_length globals runs sym in
     ifb sym_str /\ sym_len = 1 then
-      read%Pointer args_car_0 := args_car at 0 using S in
-      installTrChar globals runs S args_car_0
-    else result_success S sym using S in
+      read%Pointer args_car_0 := args_car at 0 in
+      installTrChar globals runs args_car_0
+    else result_success sym in
   let s := sym in
-  let%success sym_sym := isSymbol S sym using S in
+  let%success sym_sym := isSymbol sym in
   if negb sym_sym then
-    result_error S "Invalid use."
+    result_error "Invalid use."
   else
     let%success (ddv, sym) :=
-      if%success DDVAL S sym using S then
-        let%success ddv := ddVal S sym using S in
-        result_success S (ddv, R_DotsSymbol : SEXP)
-      else result_success S (0, sym) using S in
-    let%success t := findVarLocInFrame globals runs S rho sym using S in
-    let%success rval := allocVector globals S LglSxp 1 using S in
+      if%success DDVAL sym then
+        let%success ddv := ddVal sym in
+        result_success (ddv, R_DotsSymbol : SEXP)
+      else result_success (0, sym) in
+    let%success t := findVarLocInFrame globals runs rho sym in
+    let%success rval := allocVector globals LglSxp 1 in
     ifb t <> R_NilValue then
-      read%list t_car, _, _ := t using S in
+      read%list t_car, _, _ := t in
       let%exit t :=
-        if%success DDVAL S s using S then
-          let%success t_car_len := R_length globals runs S t_car using S in
+        if%success DDVAL s then
+          let%success t_car_len := R_length globals runs t_car in
           ifb t_car_len < ddv \/ t_car = R_MissingArg then
-            write%Logical rval at 0 := 1 using S in
-            result_rreturn S rval
+            write%Logical rval at 0 := 1 in
+            result_rreturn rval
           else
-            let%success t := nthcdr globals runs S t_car (ddv - 1) using S in
-            result_rsuccess S t
-        else result_rsuccess S t using S in
+            let%success t := nthcdr globals runs t_car (ddv - 1) in
+            result_rsuccess t
+        else result_rsuccess t in
       run%exit
-        let%success t_mis := MISSING S t using S in
+        let%success t_mis := MISSING t in
         ifb t_mis <> 0 \/ t_car = R_MissingArg then
-          write%Logical rval at 0 := 1 using S in
-          result_rreturn S rval
-        else result_rskip S using S in
+          write%Logical rval at 0 := 1 in
+          result_rreturn rval
+        else result_rskip in
       (** This is the translation of the [havebinding] label. **)
       let t := t_car in
-      let%success t_type := TYPEOF S t using S in
+      let%success t_type := TYPEOF t in
       ifb t_type <> PromSxp then
-        write%Logical rval at 0 := 0 using S in
-        result_success S rval
+        write%Logical rval at 0 := 0 in
+        result_success rval
       else
-        let%success t := findRootPromise globals runs S t using S in
+        let%success t := findRootPromise globals runs t in
         let%success t_is :=
-          let%success t := PREXPR globals S t using S in
-          isSymbol S t using S in
+          let%success t := PREXPR globals t in
+          isSymbol t in
         if negb t_is then
-          write%Logical rval at 0 := 0 using S in
-          result_success S rval
+          write%Logical rval at 0 := 0 in
+          result_success rval
         else
-          let%success t_expr := PREXPR globals S t using S in
+          let%success t_expr := PREXPR globals t in
           let%success t_env :=
-             read%prom _, t_prom := t using S in
-             result_success S (prom_env t_prom) using S in
-          let%success ism := R_isMissing globals runs S t_expr t_env using S in
-          write%Logical rval at 0 := ism using S in
-          result_success S rval
-    else result_error S "It can only be used for arguments.".
+             read%prom _, t_prom := t in
+             result_success (prom_env t_prom) in
+          let%success ism := R_isMissing globals runs t_expr t_env in
+          write%Logical rval at 0 := ism in
+          result_success rval
+    else result_error "It can only be used for arguments.".
 
 Definition do_get (S : state) (call op args rho : SEXP) : result SEXP :=
   add%stack "do_get" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
+  run%success Rf_checkArityCall globals runs op args call in
   unimplemented_function "do_get".
 
-Definition do_assign S (call op args rho : SEXP) : result SEXP :=
+Definition do_assign (call op args rho : SEXP) : result SEXP :=
   add%stack "do_assign" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  read%list args_car, args_cdr, _ := args using S in
-  let%success args_car_str := isString S args_car using S in
-  let%success args_car_len := R_length globals runs S args_car using S in
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, args_cdr, _ := args in
+  let%success args_car_str := isString args_car in
+  let%success args_car_len := R_length globals runs args_car in
   ifb ~ args_car_str \/ args_car_len = 0 then
-    result_error S "Invalid first argument"
+    result_error "Invalid first argument"
   else
     (** A potential warning has been formalised out here. **)
-    let%success args_car_0 := STRING_ELT S args_car 0 using S in
-    let%success name := installTrChar globals runs S args_car_0 using S in
-    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr using S in
+    let%success args_car_0 := STRING_ELT args_car 0 in
+    let%success name := installTrChar globals runs args_car_0 in
+    read%list args_cdr_car, args_cdr_cdr, _ := args_cdr in
     let val := args_cdr_car in
-    read%list args_cdr_cdr_car, args_cdr_cdr_cdr, _ := args_cdr_cdr using S in
+    read%list args_cdr_cdr_car, args_cdr_cdr_cdr, _ := args_cdr_cdr in
     let aenv := args_cdr_cdr_car in
-    let%success aenv_type := TYPEOF S aenv using S in
+    let%success aenv_type := TYPEOF aenv in
     ifb aenv_type = NilSxp then
-      result_error S "Use of NULL environment is defunct."
+      result_error "Use of NULL environment is defunct."
     else
       let%success aenv :=
         ifb aenv_type = EnvSxp then
-          result_success S aenv
+          result_success aenv
         else
-          simple_as_environment globals S aenv using S in
-      let%success aenv_type := TYPEOF S aenv using S in
+          simple_as_environment globals aenv in
+      let%success aenv_type := TYPEOF aenv in
       ifb aenv_type <> EnvSxp then
-        result_error S "Invalid ‘envir’ argument."
+        result_error "Invalid ‘envir’ argument."
       else
-        read%list args_cdr_cdr_cdr_car, _, _ := args_cdr_cdr_cdr using S in
-        let%success ginherits := asLogical globals S args_cdr_cdr_cdr_car using S in
+        read%list args_cdr_cdr_cdr_car, _, _ := args_cdr_cdr_cdr in
+        let%success ginherits := asLogical globals args_cdr_cdr_cdr_car in
         ifb ginherits = NA_LOGICAL then
-          result_error S "Invalid ‘inherits’ argument."
+          result_error "Invalid ‘inherits’ argument."
         else
           run%success
             ifb ginherits <> 0 then
-              setVar globals runs S name val aenv
-            else defineVar globals runs S name val aenv using S in
-          result_success S val.
+              setVar globals runs name val aenv
+            else defineVar globals runs name val aenv in
+          result_success val.
 
-Definition do_emptyenv S (call op args rho : SEXP) : result SEXP :=
+Definition do_emptyenv (call op args rho : SEXP) : result SEXP :=
   add%stack "do_emptyenv" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  result_success S (R_EmptyEnv : SEXP).
+  run%success Rf_checkArityCall globals runs op args call in
+  result_success (R_EmptyEnv : SEXP).
 
-Definition do_baseenv S (call op args rho : SEXP) : result SEXP :=
+Definition do_baseenv (call op args rho : SEXP) : result SEXP :=
   add%stack "do_baseenv" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  result_success S (R_BaseEnv : SEXP).
+  run%success Rf_checkArityCall globals runs op args call in
+  result_success (R_BaseEnv : SEXP).
 
-Definition do_globalenv S (call op args rho : SEXP) : result SEXP :=
+Definition do_globalenv (call op args rho : SEXP) : result SEXP :=
   add%stack "do_globalenv" in
-  run%success Rf_checkArityCall globals runs S op args call using S in
-  result_success S (R_GlobalEnv : SEXP).
+  run%success Rf_checkArityCall globals runs op args call in
+  result_success (R_GlobalEnv : SEXP).
 
 End Parameters.
 

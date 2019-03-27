@@ -41,10 +41,10 @@ Definition EncodeLogical x :=
   else ifb x <> 0 then "TRUE"%string
   else "FALSE"%string.
 
-Definition StringFromReal S x :=
+Definition StringFromReal x :=
   add%stack "StringFromReal" in
   if R_IsNA x then
-    result_success S (NA_STRING : SEXP)
+    result_success (NA_STRING : SEXP)
   else unimplemented_function "EncodeRealDrop0".
 
 End Parameterised.

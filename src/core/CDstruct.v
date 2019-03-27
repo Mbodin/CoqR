@@ -37,63 +37,63 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition mkPRIMSXP S (offset : nat) (type : bool) : result SEXP :=
+Definition mkPRIMSXP (offset : nat) (type : bool) : result SEXP :=
   add%stack "mkPRIMSXP" in
   let type := if type then BuiltinSxp else SpecialSxp in
-  let%success R_FunTab := get_R_FunTab runs S using S in
+  let%success R_FunTab := get_R_FunTab runs in
   let FunTabSize := ArrayList.length R_FunTab in
   (** The initialisation of the array is performed in [mkPRIMSXP_init] in [Rinit]. **)
   ifb offset >= FunTabSize then
-    result_error S "Offset is out of range"
+    result_error "Offset is out of range"
   else
-    read%Pointer result := mkPRIMSXP_primCache at offset using S in
+    read%Pointer result := mkPRIMSXP_primCache at offset in
     ifb result = R_NilValue then
-      let (S, result) := alloc_SExp S (make_SExpRec_prim R_NilValue offset type) in
-      write%Pointer mkPRIMSXP_primCache at offset := result using S in
-      result_success S result
+      let (S, result) := alloc_SExp (make_SExpRec_prim R_NilValue offset type) in
+      write%Pointer mkPRIMSXP_primCache at offset := result in
+      result_success result
     else
-      let%success result_type := TYPEOF S result using S in
+      let%success result_type := TYPEOF result in
       ifb result_type <> type then
-        result_error S "Requested primitive type is not consistent with cached value."
-      else result_success S result.
+        result_error "Requested primitive type is not consistent with cached value."
+      else result_success result.
 
-Definition mkCLOSXP S (formals body rho : SEXP) :=
+Definition mkCLOSXP (formals body rho : SEXP) :=
   add%stack "mkCLOSXP" in
-  let%success body_type := TYPEOF S body using S in
+  let%success body_type := TYPEOF body in
   match body_type with
   | CloSxp
   | BuiltinSxp
   | SpecialSxp
   | DotSxp
   | AnySxp =>
-    result_error S "Invalid body argument."
+    result_error "Invalid body argument."
   | _ =>
     let env :=
       ifb rho = R_NilValue then
         (R_GlobalEnv : SEXP)
       else rho in
-    let (S, c) := alloc_SExp S (make_SExpRec_clo R_NilValue formals body env) in
-    result_success S c
+    let (S, c) := alloc_SExp (make_SExpRec_clo R_NilValue formals body env) in
+    result_success c
   end.
 
-Definition iSDDName S (name : SEXP) :=
+Definition iSDDName (name : SEXP) :=
   add%stack "iSDDName" in
-  let%success buf := CHAR S name using S in
+  let%success buf := CHAR name in
   ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
     let buf := String.substring 2 (String.length buf) buf in
     (** I am simplifying the C code here. **)
-    result_success S (decide (Forall (fun c : Ascii.ascii =>
+    result_success (decide (Forall (fun c : Ascii.ascii =>
         Mem c (["0"; "1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"])%char)
       (string_to_list buf)))
   else
-  result_success S false.
+  result_success false.
 
-Definition mkSYMSXP S (name value : SEXP) :=
+Definition mkSYMSXP (name value : SEXP) :=
   add%stack "mkSYMSXP" in
-  let%success i := iSDDName S name using S in
-  let (S, c) := alloc_SExp S (make_SExpRec_sym R_NilValue name value R_NilValue) in
-  run%success SET_DDVAL S c i using S in
-  result_success S c.
+  let%success i := iSDDName name in
+  let (S, c) := alloc_SExp (make_SExpRec_sym R_NilValue name value R_NilValue) in
+  run%success SET_DDVAL c i in
+  result_success c.
 
 End Parameterised.
 

@@ -33,82 +33,82 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 
 Variable runs : runs_type.
 
-Definition R_DispatchOrEvalSP S call op generic args rho :=
+Definition R_DispatchOrEvalSP call op generic args rho :=
   add%stack "R_DispatchOrEvalSP" in
-  read%list args_car, args_cdr, _ := args using S in
+  read%list args_car, args_cdr, _ := args in
   let%exit (prom, args) :=
     ifb args <> R_NilValue /\ args_car <> R_DotsSymbol then
-      let%success x := eval globals runs S args_car rho using S in
-      run%success INCREMENT_LINKS S x using S in
-      let%success x_obj := OBJECT S x using S in
+      let%success x := eval globals runs args_car rho in
+      run%success INCREMENT_LINKS x in
+      let%success x_obj := OBJECT x in
       if negb x_obj then
         let%success elkm :=
-          evalListKeepMissing globals runs S args_cdr rho using S in
-        let (S, ans) := CONS_NR globals S x elkm in
-        run%success DECREMENT_LINKS S x using S in
-        result_rreturn S (false, ans)
+          evalListKeepMissing globals runs args_cdr rho in
+        let (S, ans) := CONS_NR globals x elkm in
+        run%success DECREMENT_LINKS x in
+        result_rreturn (false, ans)
       else unimplemented_function "R_mkEVPROMISE_NR"
-    else result_rsuccess S (NULL, args) using S in
+    else result_rsuccess (NULL, args) in
   let%success (disp, ans) :=
-    DispatchOrEval globals runs S call op generic args rho false false using S in
+    DispatchOrEval globals runs call op generic args rho false false in
   run%success
     ifb prom <> NULL then
-      let%success prom_value := PRVALUE S prom using S in
-      DECREMENT_LINKS S prom_value
-    else result_skip S using S in
-    result_success S (disp, ans).
+      let%success prom_value := PRVALUE prom in
+      DECREMENT_LINKS prom_value
+    else result_skip in
+    result_success (disp, ans).
 
-Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
+Definition do_subassign_dflt (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subassign_dflt" in
-    let%success (nsubs, x, subs, y) := SubAssignArgs globals runs S args using S in
+    let%success (nsubs, x, subs, y) := SubAssignArgs globals runs args in
     fold%success
     along subs as _, _, subs_list do
         let idx := list_carval subs_list in
         
         ifb x = idx then
-           MARK_NOT_MUTABLE S x
+           MARK_NOT_MUTABLE x
         else
-            result_skip S
+            result_skip
     using S, runs, globals in
 
-    read%list args_car, _, _ := args using S in
-    let%success args_car_maybeShared := MAYBE_SHARED S args_car using S in
+    read%list args_car, _, _ := args in
+    let%success args_car_maybeShared := MAYBE_SHARED args_car in
     let%success x :=
     if args_car_maybeShared then
-        let%success args_car_duplic := shallow_duplicate globals runs S args_car using S in
-        set%car args := args_car_duplic using S in
-        result_success S args_car_duplic
+        let%success args_car_duplic := shallow_duplicate globals runs args_car in
+        set%car args := args_car_duplic in
+        result_success args_car_duplic
     else
-        result_success S x
-    using S in
-    let%success S4 := IS_S4_OBJECT S x using S in
+        result_success x
+    in
+    let%success S4 := IS_S4_OBJECT x in
 
     let oldtype := 0 in
-    let%success x_type := TYPEOF S x using S in
+    let%success x_type := TYPEOF x in
 
     let%exit (x, oldtype) :=
     ifb x_type = ListSxp \/ x_type = LangSxp then
-        let%success x := PairToVectorList S x using S in
-        result_rsuccess S (x, SExpType_to_nat x_type)
+        let%success x := PairToVectorList x in
+        result_rsuccess (x, SExpType_to_nat x_type)
     else
-        let%success x_xlength := xlength globals runs S x using S in
+        let%success x_xlength := xlength globals runs x in
         ifb x_xlength = 0 then
-            let%success y_xlength := xlength globals runs S y using S in
-            let%success y_type := TYPEOF S y using S in
-            let%success x_isNull := isNull S x using S in
+            let%success y_xlength := xlength globals runs y in
+            let%success y_type := TYPEOF y in
+            let%success x_isNull := isNull x in
             ifb y_xlength = 0 /\ (x_isNull \/ x_type = y_type \/ y_type = VecSxp \/ y_type = ExprSxp) then
-                result_rreturn S x
+                result_rreturn x
             else
                 if x_isNull then
-                    let%success x := coerceVector globals runs S x y_type using S in
-                    result_rsuccess S (x, oldtype)
+                    let%success x := coerceVector globals runs x y_type in
+                    result_rsuccess (x, oldtype)
                 else
-                     result_rsuccess S (x, oldtype)
+                     result_rsuccess (x, oldtype)
         else
-            result_rsuccess S (x, oldtype)
-    using S in    
+            result_rsuccess (x, oldtype)
+    in    
 
-    let%success x_type := TYPEOF S x using S in
+    let%success x_type := TYPEOF x in
     let%success x :=
     match x_type with
     | LglSxp
@@ -120,45 +120,45 @@ Definition do_subassign_dflt S (call op args rho : SEXP) : result SEXP :=
     | VecSxp
     | RawSxp =>
       match nsubs with
-      | 0 => VectorAssign globals runs S call rho x R_MissingArg y 
-      | 1 => read%list subs_car, _, _ := subs using S in
-            VectorAssign globals runs S call rho x subs_car y
-      | 2 => MatrixAssign S call rho x subs y
-      | _ => ArrayAssign S call rho x subs y
+      | 0 => VectorAssign globals runs call rho x R_MissingArg y 
+      | 1 => read%list subs_car, _, _ := subs in
+            VectorAssign globals runs call rho x subs_car y
+      | 2 => MatrixAssign call rho x subs y
+      | _ => ArrayAssign call rho x subs y
       end
-    | _ => result_error S "Bad type for argument"
+    | _ => result_error "Bad type for argument"
     end
-    using S in
+    in
 
     let%success x :=
     ifb oldtype = LangSxp then
-        let%success x_length := R_length globals runs S x using S in
+        let%success x_length := R_length globals runs x in
         ifb x_length <> 0 then
-            let%success x := VectorToPairList globals runs S x using S in
-            set%type x := LangSxp using S in
-            result_success S x
+            let%success x := VectorToPairList globals runs x in
+            set%type x := LangSxp in
+            result_success x
         else
-            result_error S "result is zero-length and so cannot be a language object"
+            result_error "result is zero-length and so cannot be a language object"
     else
-        result_success S x
-    using S in
+        result_success x
+    in
 
     run%success
-    SETTER_CLEAR_NAMED S x using S in
+    SETTER_CLEAR_NAMED x in
     run%success
     if S4 then
-        SET_S4_OBJECT S x
+        SET_S4_OBJECT x
     else
-        result_skip S
-    using S in
-    result_success S x.
+        result_skip
+    in
+    result_success x.
 
-Definition do_subassign S (call op args rho : SEXP) : result SEXP :=
+Definition do_subassign (call op args rho : SEXP) : result SEXP :=
   add%stack "do_subassign" in
-    let%success (disp, ans) := R_DispatchOrEvalSP S call op "[<-" args rho using S in
+    let%success (disp, ans) := R_DispatchOrEvalSP call op "[<-" args rho in
     if disp then
-      result_success S ans
+      result_success ans
     else
-      do_subassign_dflt S call op ans rho.
+      do_subassign_dflt call op ans rho.
 
 End Parameters.

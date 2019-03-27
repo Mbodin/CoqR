@@ -36,10 +36,10 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 (** This function is inspired from [Rprintf]. **)
-Definition Rprint S str :=
+Definition Rprint str :=
   add%stack "Rprint" in
-  let con_num := R_OutputCon S in
-  run_print S con_num str.
+  let con_num := R_OutputCon in
+  run_print con_num str.
 
 End Parameters.
 

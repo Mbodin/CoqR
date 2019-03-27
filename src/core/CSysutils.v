@@ -39,23 +39,23 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition translateChar S x :=
+Definition translateChar x :=
   add%stack "translateChar" in
-  let%success x_type := TYPEOF S x using S in
+  let%success x_type := TYPEOF x in
   ifb x_type <> CharSxp then
-    result_error S "Must be called on a CharSxp."
+    result_error "Must be called on a CharSxp."
   else
     (** The original C program deals with encoding here. **)
-    CHAR S x.
+    CHAR x.
 
-Definition installTrChar S x :=
+Definition installTrChar x :=
   add%stack "installTrChar" in
-  let%success x_type := TYPEOF S x using S in
+  let%success x_type := TYPEOF x in
   ifb x_type <> CharSxp then
-    result_error S "Must be called on a CharSxp."
+    result_error "Must be called on a CharSxp."
   else
     (** The original C program deals with encoding here. **)
-    installChar globals runs S x.
+    installChar globals runs x.
 
 End Parameterised.
 
