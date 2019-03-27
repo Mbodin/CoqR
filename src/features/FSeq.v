@@ -36,7 +36,7 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition cross_colon (S : state) (call s t : SEXP) : result SEXP :=
+Definition cross_colon (call s t : SEXP) : result SEXP :=
   unimplemented_function "cross_colon".
 
 Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=

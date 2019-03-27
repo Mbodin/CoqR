@@ -247,7 +247,7 @@ Definition SubAssignArgs (args : SEXP) :=
         do
             read%list _, p_cdr, _ := p in
             result_success (p_cdr, nsubs + 1)
-        using S, runs in
+        using runs in
         read%list _, p_cdr, _ := p in
         read%list p_cdr_car, _, _ := p_cdr in
         let y := p_cdr_car in
@@ -565,11 +565,11 @@ Definition VectorAssign (call rho x s y : SEXP) :=
     else result_skip
     in result_success x.
 
-Definition MatrixAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
+Definition MatrixAssign (call rho x s y : SEXP) : result SEXP :=
   add%stack "MatrixAssign" in
     result_not_implemented "MatrixAssign".
 
-Definition ArrayAssign (S : state) (call rho x s y : SEXP) : result SEXP :=
+Definition ArrayAssign (call rho x s y : SEXP) : result SEXP :=
   add%stack "ArrayAssign" in
     result_not_implemented "ArrayAssign".
 

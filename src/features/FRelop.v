@@ -155,13 +155,13 @@ Definition numeric_relop code s1 s2 :=
       NUMERIC_RELOP_double id id code ans n n1 n2 (readREAL s1) (readREAL s2) ISNAN ISNAN in
   result_success ans.
 
-Definition string_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition string_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
   unimplemented_function "string_relop".
 
-Definition complex_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition complex_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
   unimplemented_function "complex_relop".
 
-Definition raw_relop (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition raw_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
   unimplemented_function "raw_relop".
 
 Definition do_relop_dflt (call op x y : SEXP) : result SEXP :=

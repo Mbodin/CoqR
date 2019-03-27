@@ -80,7 +80,7 @@ Definition isVectorizable (s : SEXP) :=
       let%success s_car_len := LENGTH globals s_car in
       ifb ~ s_car_iv \/ s_car_len > 1 then
         result_rreturn false
-      else result_rskip using S, runs, globals in
+      else result_rskip using runs, globals in
     result_success true
   else result_success false.
 
@@ -154,7 +154,7 @@ Definition nthcdr s n :=
         result_error "List too short."
       else
         read%list _, s_cdr, _ := s in
-        result_success (s_cdr, n - 1) using S, runs in
+        result_success (s_cdr, n - 1) using runs in
     result_success s
   else result_error "No CDR.".
 
@@ -168,12 +168,12 @@ Definition nthcdr s n :=
   allocated twice the same string, by looking through the already
   allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
-Definition mkChar (str : string) : state * SEXP :=
+Definition mkChar (str : string) : result SEXP :=
   (* Note that values are not cached, in contrary to the original code. *)
   alloc_vector_char globals (ArrayList.from_list (string_to_list str)).
 
-Definition mkString (str : string) : state * SEXP :=
-  let (S, c) := mkChar str in
+Definition mkString (str : string) : result SEXP :=
+  let%success c := mkChar str in
   alloc_vector_str globals (ArrayList.from_list [c]).
 
 Definition BCCONSTS e :=
@@ -220,12 +220,12 @@ Definition BODY_EXPR e :=
 (** The function names of this section correspond to the function names
   in the file main/attrib.c. **)
 
-Definition R_data_class (S : state)  (obj : SEXP)  (singleString : bool) : result SEXP :=
+Definition R_data_class  (obj : SEXP)  (singleString : bool) : result SEXP :=
   add%stack "R_data_class" in
     result_not_implemented "R_data_class"
 .
 
-Definition R_data_class2 (S : state) (obj : SEXP) : result SEXP :=
+Definition R_data_class2 (obj : SEXP) : result SEXP :=
   add%stack "R_data_class2" in
     result_not_implemented "R_data_class2".
         

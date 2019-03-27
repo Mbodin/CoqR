@@ -62,7 +62,7 @@ Definition integerOneIndex i len (call : SEXP) :=
         result_error "attempt to select more than one element in integerOneIndex".
 
       
-Definition get1index (S : state) (s names : SEXP) (len pok pos : int) (call : SEXP) : result int :=
+Definition get1index (s names : SEXP) (len pok pos : int) (call : SEXP) : result int :=
   add%stack "get1index" in
     (* Get a single index for the [[ and [[<- operators.
        Checks that only one index is being selected.
@@ -183,12 +183,12 @@ Definition get1index (S : state) (s names : SEXP) (len pok pos : int) (call : SE
     in
     result_success indx.          
       
-Definition vectorIndex (S : state) (x thesub : SEXP) (start stop : int) (pok : bool) (call : SEXP) (dup : bool) : result SEXP :=
+Definition vectorIndex (x thesub : SEXP) (start stop : int) (pok : bool) (call : SEXP) (dup : bool) : result SEXP :=
   add%stack "vectorIndex" in
     result_not_implemented "vectorIndex".
 
   
-Definition logicalSubscript (S : state) (s : SEXP) (ns nx : nat) (stretch : nat) (call : SEXP) : result SEXP :=
+Definition logicalSubscript (s : SEXP) (ns nx : nat) (stretch : nat) (call : SEXP) : result SEXP :=
   add%stack "logicalSubscript" in
     result_not_implemented "logicalSubscript".
 

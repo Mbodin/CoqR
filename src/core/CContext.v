@@ -97,7 +97,7 @@ Fixpoint R_run_onexits_loop c cptr :=
           let := state_with_context c in
           run%success
             runs_eval runs (list_carval s_list) (context_cloenv cptr) in
-            result_skip using S, runs, globals in
+            result_skip using runs, globals in
         let := update_R_ExitContext savecontext in
         result_skip
       else result_skip in
@@ -149,7 +149,7 @@ Definition endcontext cptr :=
         let := state_with_context cptr in
         run%success
           runs_eval runs (list_carval s_list) (context_cloenv cptr) in
-        result_skip using S, runs, globals in
+        result_skip using runs, globals in
       let := update_R_ExitContext savecontext in
       result_skip
     else result_skip in

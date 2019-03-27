@@ -103,7 +103,7 @@ Definition do_missing (call op args rho : SEXP) : result SEXP :=
           result_success rval
     else result_error "It can only be used for arguments.".
 
-Definition do_get (S : state) (call op args rho : SEXP) : result SEXP :=
+Definition do_get (call op args rho : SEXP) : result SEXP :=
   add%stack "do_get" in
   run%success Rf_checkArityCall globals runs op args call in
   unimplemented_function "do_get".

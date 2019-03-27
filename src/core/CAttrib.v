@@ -90,7 +90,7 @@ Definition getAttrib0 (vec name : SEXP) :=
               run%success SET_STRING_ELT s i vec_name in
               result_success true
             else result_error "Invalid type for TAG." in
-          result_success (1 + i, any) using S, runs, globals in
+          result_success (1 + i, any) using runs, globals in
         if any then
           let%success s_null := isNull s in
           run%success
@@ -112,7 +112,7 @@ Definition getAttrib0 (vec name : SEXP) :=
       else
         run%success MARK_NOT_MUTABLE s_car in
         result_rreturn s_car
-    else result_rskip using S, runs, globals in
+    else result_rskip using runs, globals in
   result_success (R_NilValue : SEXP).
 
 Definition getAttrib (vec name : SEXP) :=
@@ -162,7 +162,7 @@ Definition installAttrib vec name val :=
       ifb list_tagval s_list = name then
         set%car s := val in
         result_rreturn val
-      else result_rsuccess s using S, runs, globals in
+      else result_rsuccess s using runs, globals in
     let (S, s) := CONS globals val R_NilValue in
     set%tag s := name in
     run%success
@@ -201,7 +201,7 @@ Definition removeAttrib (vec name : SEXP) :=
       as t, _, _ do
         set%tag t := R_NilValue in
         result_skip
-      using S, runs, globals in
+      using runs, globals in
       result_success (R_NilValue : SEXP)
     else
       run%success
@@ -292,7 +292,7 @@ Definition namesgets (vec val : SEXP) :=
           let%success s := coerceVector globals runs tval_car StrSxp in
           let%success s_0 := STRING_ELT s 0 in
           run%success SET_STRING_ELT rval i s_0 in
-          result_success (1 + i, tval_cdr) using S, runs in
+          result_success (1 + i, tval_cdr) using runs in
         result_success rval
     else coerceVector globals runs val StrSxp in
   let%success val_len := xlength globals runs val in
@@ -324,7 +324,7 @@ Definition namesgets (vec val : SEXP) :=
             else
               set%tag s := R_NilValue in
               result_skip in
-          result_success (1 + i) using S, runs, globals in
+          result_success (1 + i) using runs, globals in
         result_skip
       else
         let%success vec_vec := isVector vec in
@@ -416,7 +416,7 @@ Definition copyMostAttrib (inp ans : SEXP) :=
           /\ s_tag <> R_DimNamesSymbol then
         run%success installAttrib ans s_tag s_car in
         result_skip
-      else result_skip using S, runs, globals in
+      else result_skip using runs, globals in
     if%success OBJECT inp then
       SET_OBJECT ans true in
     if%success IS_S4_OBJECT inp then

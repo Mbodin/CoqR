@@ -65,7 +65,7 @@ Definition installAttrib vec name val :=
       ifb list_tagval s_list = name then
         set%car s := val in
         result_rreturn val
-      else result_rsuccess s using S, runs, globals in
+      else result_rsuccess s using runs, globals in
     let (S, s) := CONS globals val R_NilValue in
     set%tag s := name in
     run%success
@@ -91,7 +91,7 @@ Definition copyMostAttrib (inp ans : SEXP) :=
           /\ s_tag <> R_DimNamesSymbol then
         run%success installAttrib ans s_tag s_car in
         result_skip
-      else result_skip using S, runs, globals in
+      else result_skip using runs, globals in
     if%success OBJECT inp then
       SET_OBJECT ans true in
     if%success IS_S4_OBJECT inp then
@@ -294,10 +294,10 @@ Definition coerceSymbol v type :=
       result_success (R_NilValue : SEXP) in
   result_success rval.
 
-Definition PairToVectorList (S : state) (x : SEXP) : result SEXP :=
+Definition PairToVectorList (x : SEXP) : result SEXP :=
   unimplemented_function "PairToVectorList".
 
-Definition VectorToPairList (S : state) (x : SEXP) : result SEXP :=
+Definition VectorToPairList (x : SEXP) : result SEXP :=
   add%stack "VectorToPairList" in
     let%success len := R_length globals runs x in
     
@@ -405,7 +405,7 @@ Definition coercePairList v type :=
             let%success v_car_0 := STRING_ELT v_car 0 in
             SET_STRING_ELT rval i v_car_0
           else unimplemented_function "deparse1line" in
-        result_success (1 + i) using S, runs, globals in
+        result_success (1 + i) using runs, globals in
       result_rsuccess (rval, n)
     else ifb type = VecSxp then
       let%success rval := PairToVectorList v in
@@ -453,7 +453,7 @@ Definition coercePairList v type :=
   as _, v_tag do
     ifb v_tag <> R_NilValue then
       result_success true
-    else result_success i using S, runs, globals in
+    else result_success i using runs, globals in
   run%success
     if i then
       let%success names := allocVector globals StrSxp n in
@@ -465,12 +465,12 @@ Definition coercePairList v type :=
             let%success v_tag_name := PRINTNAME v_tag in
             SET_STRING_ELT names i v_tag_name
           else result_skip in
-        result_success (1 + i) using S, runs, globals in
+        result_success (1 + i) using runs, globals in
       result_skip
     else result_skip in
   result_success rval.
 
-Definition coerceVectorList (S : state) (v : SEXP) (type : SExpType) : result SEXP :=
+Definition coerceVectorList (v : SEXP) (type : SExpType) : result SEXP :=
   unimplemented_function "coerceVectorList".
 
 Definition StringFromLogical x :=
@@ -680,7 +680,7 @@ Definition coerceToComplex v :=
     end in
   result_success ans.
 
-Definition coerceToRaw (S : state) (v : SEXP) : result SEXP :=
+Definition coerceToRaw (v : SEXP) : result SEXP :=
   unimplemented_function "coerceToRaw".
 
 Definition coerceToString v :=
@@ -944,7 +944,7 @@ Definition coerceVector v type :=
                   let%success v_car_0 := STRING_ELT v_car 0 in
                   SET_STRING_ELT ans i v_car_0
                 else unimplemented_function "deparse1line" in
-              result_success (1 + i) using S, runs, globals in
+              result_success (1 + i) using runs, globals in
             result_success ans
       | VecSxp
       | ExprSxp =>
@@ -1035,7 +1035,7 @@ Definition substitute (lang rho : SEXP) : result SEXP :=
                            do%success t := t_prexpr
                            while let%success t_type := TYPEOF t in
                                  result_success (decide (t_type = PromSxp)) do PREXPR globals t
-                           using S, runs in
+                           using runs in
                            (** make sure code will not be modified: **)
                            set%named t := named_plural in
                            result_success t
@@ -1051,7 +1051,7 @@ Definition substitute (lang rho : SEXP) : result SEXP :=
     end.
                        
                
-Definition substituteList (S : state) (el rho : SEXP) :=
+Definition substituteList (el rho : SEXP) :=
   add%stack "substituteList" in
     if%success isNull el then
         result_success el           
@@ -1111,16 +1111,16 @@ Definition substituteList (S : state) (el rho : SEXP) :=
                 while read%list _, h_cdr, _ := h in
                     result_success (decide (h_cdr <> R_NilValue))
                     do read%list _, h_cdr, _ := h in
-                    result_success h_cdr using S, runs in
+                    result_success h_cdr using runs in
                 result_success (h, res)    
             else
                 result_success (p, res) in
             read%list _, el_cdr, _ := el in
             result_success (el_cdr, p, res)
-        using S, runs in
+        using runs in
     result_success res.    
 
-Definition asCharacterFactor (S : state) (x : SEXP) : result SEXP :=
+Definition asCharacterFactor (x : SEXP) : result SEXP :=
   add%stack "asCharacterfactor" in
     let%success x_inherits := inherits2 globals runs x "factor" in
     if negb x_inherits then

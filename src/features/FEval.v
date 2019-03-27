@@ -48,7 +48,7 @@ Definition CheckFormals ls :=
       let%success ls_tag_type := TYPEOF ls_tag in
       ifb ls_tag_type <> SymSxp then
         result_error "Invalid formal argument list (not a symbol)."
-      else result_skip using S, runs, globals in
+      else result_skip using runs, globals in
     result_skip
   else result_error "Invalid formal argument list (not a list).".
 
@@ -166,7 +166,7 @@ Definition applydefine (call op args rho : SEXP) : result SEXP :=
       run%success SET_PRVALUE rhsprom rhs in
       run%success SET_PRCODE rhsprom rhs in
       read%list _, lhs_cdr, _ := lhs in
-      result_success (lhs_cdr, expr_cdr_car) using S, runs in
+      result_success (lhs_cdr, expr_cdr_car) using runs in
     read%list expr_car, expr_cdr, _ := expr in
     let%success afun :=
       let%success expr_car_type := TYPEOF expr_car in
@@ -300,7 +300,7 @@ Definition do_begin (call op args rho : SEXP) : result SEXP :=
     along args
     as args_car, _ do
       let%success s := eval globals runs args_car rho in
-      result_success s using S, runs, globals in
+      result_success s using runs, globals in
     result_success s
   else result_success (R_NilValue : SEXP).
 
@@ -366,7 +366,7 @@ Definition do_while (call op args rho : SEXP) : result SEXP :=
   let%success bgn := BodyHasBraces body in
   let%success cntxt :=
     begincontext globals Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue in
-  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using runs in
   run%success
     ifb jmp <> Ctxt_Break then
       do%let while
@@ -376,7 +376,7 @@ Definition do_while (call op args rho : SEXP) : result SEXP :=
         result_success (decide (al <> 0))
       do
         run%success eval globals runs body rho in
-        result_skip using S, runs
+        result_skip using runs
     else result_skip in
   run%success endcontext globals runs cntxt in
   result_success (R_NilValue : SEXP).
@@ -433,7 +433,7 @@ Definition do_for (call op args rho : SEXP) : result SEXP :=
         run%success DECREMENT_REFCNT val in (** Not sure if this works for val **)
         result_success (R_NilValue : SEXP) in
 
-    set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+    set%longjump context_cjmpbuf cntxt as jmp using runs in
     ifb jmp = Ctxt_Break then for_break
     else ifb jmp = Ctxt_Next then result_not_implemented "goto for_next"
     else
@@ -498,12 +498,12 @@ Definition do_repeat (call op args rho : SEXP) : result SEXP :=
   let body := args_car in
   let%success cntxt :=
     begincontext globals Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue in
-  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using runs in
   run%success
     ifb jmp <> Ctxt_Break then
       do%let whileb True do
         run%success eval globals runs body rho in
-        result_skip using S, runs
+        result_skip using runs
     else result_skip in
   run%success endcontext globals runs cntxt in
   result_success (R_NilValue : SEXP).
@@ -566,7 +566,7 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
     ifb expr_type = LangSxp \/ expr_type = SymSxp \/ expr_bc then
       let%success cntxt :=
         begincontext globals Ctxt_Return (context_call (R_GlobalContext S)) env rho args op in
-      set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+      set%longjump context_cjmpbuf cntxt as jmp using runs in
       let%success expr :=
         ifb jmp = empty_context_type then
           eval globals runs expr env
@@ -583,7 +583,7 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
       let%success n := LENGTH globals expr in
       let%success cntxt :=
         begincontext globals Ctxt_Return (context_call (R_GlobalContext S)) env rho args op in
-      set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+      set%longjump context_cjmpbuf cntxt as jmp using runs in
       let%success tmp :=
         ifb jmp <> empty_context_type then
           do%let tmp := R_NilValue : SEXP

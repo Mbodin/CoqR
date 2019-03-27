@@ -74,7 +74,7 @@ Definition asS4 s (flag : bool) (complete : int) :=
         result_rskip in
     result_success s.
 
-Definition R_possible_dispatch (S : state) (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
+Definition R_possible_dispatch (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
   unimplemented_function "R_possible_dispatch".
 
 End Parameterised.

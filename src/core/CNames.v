@@ -52,21 +52,24 @@ Definition install name_ : result SEXP :=
     Instead, it is represented as a single list, and not
     as [HSIZE] different lists.
     This approach is slower, but equivalent. **)
+  get%state S in
   fold%return
-  along R_SymbolTable
+  along R_SymbolTable S
   as sym_car, _ do
     let%success str_sym := PRINTNAME sym_car in
     let%success str_name_ := CHAR str_sym in
     ifb name_ = str_name_ then
       result_rreturn sym_car
-    else result_rskip using S, runs, globals in
+    else result_rskip using runs, globals in
   ifb name_ = ""%string then
     result_error "Attempt to use zero-length variable name."
   else
-    let (S, str) := mkChar globals name_ in
+    let%success str := mkChar globals name_ in
     let%success sym := mkSYMSXP globals str R_UnboundValue in
-    let (S, SymbolTable) := CONS globals sym (R_SymbolTable S) in
-    let := update_R_SymbolTable SymbolTable in
+    get%state S in
+    let%success SymbolTable := CONS globals sym (R_SymbolTable S) in
+    get%state S in
+    set%state update_R_SymbolTable S SymbolTable in
     result_success sym.
 
 (** We here choose to model [installChar] as its specification

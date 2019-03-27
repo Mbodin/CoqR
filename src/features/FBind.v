@@ -53,7 +53,7 @@ Definition HasNames x :=
       let%success x_tag_n := isNull x_tag in
       if negb x_tag_n then
         result_rreturn true
-      else result_rsuccess x_cdr using S, runs in
+      else result_rsuccess x_cdr using runs in
     result_success false
   else result_success false.
 
@@ -164,7 +164,7 @@ Definition AnswerType x (recurse usenames : bool) data (call : SEXP) :=
               let%success hn := HasNames x_car in
               result_success (BindData_with_ans_nnames data hn)
           else result_success data in
-        runs_AnswerType runs x_car recurse usenames data call using S, runs, globals
+        runs_AnswerType runs x_car recurse usenames data call using runs, globals
     else
       let data :=
         BindData_with_ans_flags data
@@ -229,7 +229,7 @@ Definition c_Extract_opt (ans call : SEXP) :=
             set%cdr last := next in
             result_success ans in
         result_success (recurse, usenames, ans, last, n_recurse, n_usenames)
-    else result_success (recurse, usenames, ans, a, n_recurse, n_usenames) using S, runs, globals in
+    else result_success (recurse, usenames, ans, a, n_recurse, n_usenames) using runs, globals in
   result_success (ans, recurse, usenames).
 
 Definition ListAnswer x (recurse : bool) data call :=
@@ -294,13 +294,13 @@ Definition ListAnswer x (recurse : bool) data call :=
       fold%let data := data
       along x
       as x_car, _ do
-        runs_ListAnswer runs x_car recurse data call using S, runs, globals
+        runs_ListAnswer runs x_car recurse data call using runs, globals
     else
       fold%let data := data
       along x
       as x_car, _ do
         let%success x_car := lazy_duplicate x_car in
-        LIST_ASSIGN data x_car using S, runs, globals
+        LIST_ASSIGN data x_car using runs, globals
   | _ =>
     let%success x := lazy_duplicate x in
     LIST_ASSIGN data x
@@ -315,7 +315,7 @@ Definition StringAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_StringAnswer runs x_car data call using S, runs, globals
+      runs_StringAnswer runs x_car data call using runs, globals
   | ExprSxp
   | VecSxp =>
     let%success len := XLENGTH x in
@@ -342,7 +342,7 @@ Definition LogicalAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_LogicalAnswer runs x_car data call using S, runs, globals
+      runs_LogicalAnswer runs x_car data call using runs, globals
   | ExprSxp
   | VecSxp =>
     let%success len := XLENGTH x in
@@ -378,7 +378,7 @@ Definition IntegerAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_IntegerAnswer runs x_car data call using S, runs, globals
+      runs_IntegerAnswer runs x_car data call using runs, globals
   | ExprSxp
   | VecSxp =>
     let%success len := XLENGTH x in
@@ -413,7 +413,7 @@ Definition RealAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_RealAnswer runs x_car data call using S, runs, globals
+      runs_RealAnswer runs x_car data call using runs, globals
   | VecSxp
   | ExprSxp =>
     let%success len := XLENGTH x in
@@ -463,7 +463,7 @@ Definition ComplexAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_ComplexAnswer runs x_car data call using S, runs, globals
+      runs_ComplexAnswer runs x_car data call using runs, globals
   | ExprSxp
   | VecSxp =>
     let%success len := XLENGTH x in
@@ -520,7 +520,7 @@ Definition RawAnswer x data call :=
     fold%let data := data
     along x
     as x_car, _ do
-      runs_RawAnswer runs x_car data call using S, runs, globals
+      runs_RawAnswer runs x_car data call using runs, globals
   | ExprSxp
   | VecSxp =>
     let%success len := XLENGTH x in
@@ -548,7 +548,7 @@ Definition do_c_dftl (call op args env : SEXP) : result SEXP :=
           let%success hn := HasNames t_car in
           result_success (BindData_with_ans_nnames data hn)
       else result_success data in
-    AnswerType t_car recurse usenames data call using S, runs, globals in
+    AnswerType t_car recurse usenames data call using runs, globals in
   let mode :=
     if nth_bit 9 (BindData_ans_flags data) ltac:(nbits_ok) then ExprSxp
     else if nth_bit 8 (BindData_ans_flags data) ltac:(nbits_ok) then VecSxp
@@ -570,7 +570,7 @@ Definition do_c_dftl (call op args env : SEXP) : result SEXP :=
           fold%let data := data
           along args
           as args_car, _ do
-            ListAnswer args_car false data call using S, runs, globals
+            ListAnswer args_car false data call using runs, globals
         else ListAnswer args recurse data call in
       let%success len := xlength globals runs ans in
       result_success (BindData_with_ans_length data len)
@@ -593,7 +593,7 @@ Definition do_c_dftl (call op args env : SEXP) : result SEXP :=
       fold%success (nameData, data) := (tt, data)
       along args
       as args_car, _ do
-        unimplemented_function "NewExtractNames" using S, runs, globals in
+        unimplemented_function "NewExtractNames" using runs, globals in
       run%success setAttrib globals runs ans R_NamesSymbol (BindData_ans_names data) in
       result_success data
     else result_success data in

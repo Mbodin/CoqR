@@ -120,7 +120,7 @@ Definition replaceCall vfun val args rhs :=
     set%car ptmp := args_car in
     set%tag ptmp := args_tag in
     read%list _, ptmp_cdr, _ := ptmp in
-    result_success ptmp_cdr using S, runs, globals in
+    result_success ptmp_cdr using runs, globals in
   set%car ptmp := rhs in
   set%tag ptmp := R_valueSym in
   set%type tmp := LangSxp in
@@ -172,7 +172,7 @@ Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
   let body := clo_body op_clo in
   (** JIT functions have been ignored here. **)
   let%success R_srcef := getAttrib globals runs op R_SrcrefSymbol in
-  set%longjump context_cjmpbuf cntxt as jmp using S, runs in
+  set%longjump context_cjmpbuf cntxt as jmp using runs in
   let%success cntxt_returnValue :=
     ifb jmp <> empty_context_type then
       if match context_jumptarget cntxt with
@@ -217,7 +217,7 @@ Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP 
             run%success SET_MISSING a 2 ltac:(nbits_ok) in
             result_skip
           else result_skip in
-        result_success a_cdr using S, runs, globals in
+        result_success a_cdr using runs, globals in
       run%success
         ifb suppliedvars <> R_NilValue then
            addMissingVarsToNewEnv globals runs newrho suppliedvars
@@ -265,7 +265,7 @@ Definition promiseArgs (el rho : SEXP) : result SEXP :=
               result_skip
             else result_skip in
           result_success tail
-        using S, runs, globals in
+        using runs, globals in
         result_success (ans, tail)
       else ifb h <> R_MissingArg then
         result_error "‘...’ used in an incorrect context."
@@ -286,7 +286,7 @@ Definition promiseArgs (el rho : SEXP) : result SEXP :=
       let tail := tail_cdr in
       set%tag tail := el_tag in
       result_success (ans, tail)
-  using S, runs, globals in
+  using runs, globals in
   read%list _, ans_cdr, _ := ans in
   result_success ans_cdr.
 
@@ -349,7 +349,7 @@ Definition evalList (el rho call : SEXP) n :=
               result_skip
             else result_skip in
           result_success ev
-        using S, runs, globals in
+        using runs, globals in
         result_success (n, head, tail)
       else ifb h <> R_MissingArg then
         result_error "‘...’ used in an incorrect context."
@@ -371,10 +371,10 @@ Definition evalList (el rho call : SEXP) n :=
           result_skip
         else result_skip in
       result_success (n, head, ev)
-  using S, runs, globals in
+  using runs, globals in
   result_success head.
 
-Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
+Definition evalListKeepMissing (el rho : SEXP) : result SEXP :=
   add%stack "evalListKeepMissing" in
   fold%success (head, tail) := (R_NilValue : SEXP, R_NilValue : SEXP)
   along el
@@ -402,7 +402,7 @@ Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
               set%cdr tail := ev in
               result_success head in
           run%success COPY_TAG ev h in
-          result_success (head, ev) using S, runs, globals
+          result_success (head, ev) using runs, globals
       else ifb h <> R_MissingArg then
         result_error "‘...’ used in an incorrect context."
       else result_success (head, tail)
@@ -425,7 +425,7 @@ Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
           set%cdr tail := ev in
           result_success head in
       run%success COPY_TAG ev el in
-      result_success (head, ev) using S, runs, globals in
+      result_success (head, ev) using runs, globals in
   fold%success
   along head
   as _, _, head_list do
@@ -433,7 +433,7 @@ Definition evalListKeepMissing (S : state) (el rho : SEXP) : result SEXP :=
     let el_car := list_carval head_list in
     ifb el_cdr <> R_NilValue then
       DECREMENT_LINKS el_car
-    else result_skip using S, runs, globals in
+    else result_skip using runs, globals in
   result_success head.
 
 Definition evalArgs el rho (dropmissing : bool) call n :=
@@ -470,7 +470,7 @@ Definition DispatchGroup group (call op args rho : SEXP)
             along args
             as s, _, _ do
               set%tag s := R_NilValue in
-              result_skip using S, runs, globals
+              result_skip using runs, globals
           else result_skip in
         let%success op_hm := R_has_methods op in
         let%success value := R_possible_dispatch call op args rho false in
@@ -532,7 +532,7 @@ Definition DispatchOrEval (call op : SEXP) (generic : string) (args rho : SEXP)
           else result_rsuccess (x, dots)
         else
           let%success r := runs_eval runs args_car rho in
-          result_rreturn (r, false) using S, runs, globals in
+          result_rreturn (r, false) using runs, globals in
       result_success (x, dots) in
   run%exit
     if%success isObject x then

@@ -61,7 +61,7 @@ Definition R_envHasNoSpecialSymbols (env : SEXP) :=
   as frame_car, frame_tag do
     if%success IS_SPECIAL_SYMBOL frame_tag then
       result_success false
-    else result_success b using S, runs, globals.
+    else result_success b using runs, globals.
 
 Definition SET_FRAME x v :=
   add%stack "SET_FRAME" in
@@ -104,7 +104,7 @@ Definition addMissingVarsToNewEnv (env addVars : SEXP) :=
       fold%success aprev := addVars
       along addVars_cdr
       as a, _, _ do
-        result_success a using S, runs, globals in
+        result_success a using runs, globals in
       read%env _, env_env := env in
       set%cdr aprev := env_frame env_env in
       run%success SET_FRAME env addVars in
@@ -123,8 +123,8 @@ Definition addMissingVarsToNewEnv (env addVars : SEXP) :=
               else
                 set_cdr s_cdr sprev (fun =>
                   result_success (addVars, s_cdr, sprev))
-            else result_success (addVars, s_cdr, s) using S, runs in
-        result_skip using S, runs, globals.
+            else result_success (addVars, s_cdr, s) using runs in
+        result_skip using runs, globals.
 
 Definition FRAME_LOCK_BIT := 14.
 
@@ -251,7 +251,7 @@ Definition defineVar (symbol value rho : SEXP) : result unit :=
         run%success SET_BINDING_VALUE frame value in
         run%success SET_MISSING frame 0 ltac:(nbits_ok) in
         result_rreturn tt
-      else result_rskip using S, runs, globals in
+      else result_rskip using runs, globals in
     if%success FRAME_IS_LOCKED rho then
       result_error "Can not add a binding to a locked environment."
     else
@@ -283,7 +283,7 @@ Definition setVarInFrame (rho symbol value : SEXP) :=
         run%success SET_BINDING_VALUE frame value in
         run%success SET_MISSING frame 0 ltac:(nbits_ok) in
         result_rreturn symbol
-      else result_rskip using S, runs, globals in
+      else result_rskip using runs, globals in
       result_success (R_NilValue : SEXP).
 
 Definition setVar (symbol value rho : SEXP) :=
@@ -297,7 +297,7 @@ Definition setVar (symbol value rho : SEXP) :=
     else
       read%env rho_, rho_env := rho in
       result_rsuccess (env_enclos rho_env)
-  using S, runs in
+  using runs in
   defineVar symbol value R_GlobalEnv.
 
 Definition findVarInFrame3 rho symbol (doGet : bool) :=
@@ -322,7 +322,7 @@ Definition findVarInFrame3 rho symbol (doGet : bool) :=
         ifb list_tagval frame_list = symbol then
           let%success r := BINDING_VALUE frame in
           result_rreturn r
-        else result_rskip using S, runs, globals in
+        else result_rskip using runs, globals in
       result_success (R_UnboundValue : SEXP).
 
 Definition findVarInFrame rho symbol :=
@@ -388,7 +388,7 @@ Definition findVar symbol rho :=
         result_rreturn vl
       else
         read%env _, rho_env := rho in
-        result_rsuccess (env_enclos rho_env) using S, runs in
+        result_rsuccess (env_enclos rho_env) using runs in
     result_success (R_UnboundValue : SEXP).
 
 Definition findVarLocInFrame (rho symbol : SEXP) :=
@@ -407,7 +407,7 @@ Definition findVarLocInFrame (rho symbol : SEXP) :=
     as frame, _, frame_list do
       ifb list_tagval frame_list = symbol then
         result_rreturn frame
-      else result_rskip using S, runs, globals in
+      else result_rskip using runs, globals in
     result_success (R_NilValue : SEXP).
 
 Definition R_findVarLocInFrame rho symbol :=
@@ -440,7 +440,7 @@ Definition RemoveFromList (thing list : SEXP) :=
           set%cdr last := list_cdrval next_list in
           set%cdr next := R_NilValue in
           result_rreturn (Some list)
-        else result_rsuccess next using S, runs, globals in
+        else result_rsuccess next using runs, globals in
       result_success None.
 
 
@@ -468,7 +468,7 @@ Definition ddVal symbol :=
     unimplemented_function "strtol"
   else result_success 0.
 
-Definition ddfindVar (S : state) (symbol rho : SEXP) : result SEXP :=
+Definition ddfindVar (symbol rho : SEXP) : result SEXP :=
   unimplemented_function "ddfindVar".
 
 
@@ -481,7 +481,7 @@ Definition findFun3 symbol rho (call : SEXP) : result SEXP :=
             result_success (decide (rho <> R_EmptyEnv /\ special)) do
         read%env _, rho_env := rho in
         result_success (env_enclos rho_env)
-      using S, runs in
+      using runs in
       result_success rho
     else result_success rho in
   do%return rho := rho
@@ -505,7 +505,7 @@ Definition findFun3 symbol rho (call : SEXP) : result SEXP :=
       else result_rskip in
     read%env _, rho_env := rho in
     result_rsuccess (env_enclos rho_env)
-  using S, runs in
+  using runs in
   let%success str_symbol := PRINTNAME symbol in
   let%success str_symbol_ := CHAR str_symbol in
   result_error ("Could not find function “" ++ str_symbol_ ++ "”.").
@@ -520,7 +520,7 @@ Definition findRootPromise p :=
       let%success p_type := TYPEOF p in
       result_success (decide (p_type = PromSxp))
     do
-      PREXPR globals p using S, runs in
+      PREXPR globals p using runs in
     result_success p
   else result_success p.
 

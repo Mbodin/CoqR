@@ -36,7 +36,7 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition complex_binary (S : state) (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition complex_binary (code : int) (s1 s2 : SEXP) : result SEXP :=
   unimplemented_function "complex_binary".
 
 Definition complex_unary (code : int) s1 :=
@@ -56,7 +56,7 @@ Definition complex_unary (code : int) s1 :=
     result_success ans
     else result_error "Invalid unary operator.".
 
-Definition complex_math1 (S : state) (call op args env : SEXP) : result SEXP :=
+Definition complex_math1 (call op args env : SEXP) : result SEXP :=
   unimplemented_function "complex_math1".
 
 End Parameters.
