@@ -30,6 +30,26 @@ Open Scope monad_scope.
 
 (** * Generic Monads **)
 
+(** ** Getting the current state. **)
+
+Definition get_state A (cont : state -> result A) : result A :=
+  fun S => cont S S.
+
+(** Getting the current state. **)
+Notation "'get%state' S 'in' cont" :=
+  (get_state (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** Replacing the current state by another one. **)
+Definition set_state A S (cont : result A) : result A :=
+  fun _ => cont S.
+
+Notation "'set%state' S 'in' cont" :=
+  (set_state S cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+
 (** ** Function definitions **)
 
 (** When entering a function, we mark it using this function.
@@ -136,7 +156,8 @@ Definition if_defined_msg msg (A B : Type) (o : option A) (f : A -> result B) : 
 Definition if_defined := if_defined_msg "".
 
 Definition if_success_defined_msg msg (A B : Type) (o : state -> option A) (f : A -> result B) : result B :=
-  fun S => if_defined_msg msg (o S) f S.
+  get%state S in
+  if_defined_msg msg (o S) f.
 
 Definition if_success_defined := if_success_defined_msg "".
 
@@ -250,13 +271,24 @@ Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'w
 (** The notation [write%defined p := p_] writes the object [p_] in the
   place given by the pointer [p]. **)
 Notation "'write%defined' p ':=' p_ 'in' cont" :=
-  (let%success%defined S := write_SExp p p_ with "write%defined" in fun _ => (cont : result _) S)
+  (let%success%defined S := write_SExp p p_ with "write%defined" in set%state S in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The notation [read%defined p_ := p] reads the object pointer by [p],
   giving it the name [p_]. **)
 Notation "'read%defined' p_ ':=' p 'in' cont" :=
   (let%success%defined p_ := read_SExp p with "read%defined" in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition let_alloc A p_ cont : result A :=
+  get%state S in
+  let (S, p) := alloc_SExp p_ S in
+  set%state S in
+  cont p.
+
+(** Allocates a new memory cell. **)
+Notation "'let%alloc' p ':=' p_ 'in' cont" :=
+  (let_alloc p_ (fun p => cont))
   (at level 50, left associativity) : monad_scope.
 
 
@@ -585,7 +617,7 @@ Definition write_nth_cell_VectorChar A e n c cont : result A :=
   read%VectorChar e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorChar" in
   write%defined e := SExpRec_VectorChar e_ in
-  cont S.
+  cont.
 
 Notation "'write%Char' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorChar e n c cont)
@@ -631,7 +663,7 @@ Definition write_VectorLogical A e v cont : result A :=
   read%VectorLogical e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
   write%defined e := SExpRec_VectorLogical e_ in
-  cont S.
+  cont.
 
 Notation "'write%VectorLogical' e ':=' v 'in' cont" :=
   (write_VectorLogical e v cont)
@@ -641,7 +673,7 @@ Definition write_nth_cell_VectorLogical A e n c cont : result A :=
   read%VectorLogical e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorLogical" in
   write%defined e := SExpRec_VectorLogical e_ in
-  cont S.
+  cont.
 
 Notation "'write%Logical' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorLogical e n c cont)
@@ -687,7 +719,7 @@ Definition write_VectorInteger A e v cont : result A :=
   read%VectorInteger e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
   write%defined e := SExpRec_VectorInteger e_ in
-  cont S.
+  cont.
 
 Notation "'write%VectorInteger' e ':=' v 'in' cont" :=
   (write_VectorInteger e v cont)
@@ -697,7 +729,7 @@ Definition write_nth_cell_VectorInteger A e n c cont : result A :=
   read%VectorInteger e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorInteger" in
   write%defined e := SExpRec_VectorInteger e_ in
-  cont S.
+  cont.
 
 Notation "'write%Integer' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorInteger e n c cont)
@@ -743,7 +775,7 @@ Definition write_VectorReal A e v cont : result A :=
   read%VectorReal e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
   write%defined e := SExpRec_VectorReal e_ in
-  cont S.
+  cont.
 
 Notation "'write%VectorReal' e ':=' v 'in' cont" :=
   (write_VectorReal e v cont)
@@ -753,7 +785,7 @@ Definition write_nth_cell_VectorReal A e n c cont : result A :=
   read%VectorReal e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorReal" in
   write%defined e := SExpRec_VectorReal e_ in
-  cont S.
+  cont.
 
 Notation "'write%Real' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorReal e n c cont)
@@ -799,7 +831,7 @@ Definition write_VectorComplex A e v cont : result A :=
   read%VectorComplex e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
   write%defined e := SExpRec_VectorComplex e_ in
-  cont S.
+  cont.
 
 Notation "'write%VectorComplex' e ':=' v 'in' cont" :=
   (write_VectorComplex e v cont)
@@ -809,7 +841,7 @@ Definition write_nth_cell_VectorComplex A e n c cont : result A :=
   read%VectorComplex e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorComplex" in
   write%defined e := SExpRec_VectorComplex e_ in
-  cont S.
+  cont.
 
 Notation "'write%Complex' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorComplex e n c cont)
@@ -855,7 +887,7 @@ Definition write_VectorPointer A e v cont : result A :=
   read%VectorPointer e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
   write%defined e := SExpRec_VectorPointer e_ in
-  cont S.
+  cont.
 
 Notation "'write%VectorPointer' e ':=' v 'in' cont" :=
   (write_VectorPointer e v cont)
@@ -865,7 +897,7 @@ Definition write_nth_cell_VectorPointer A e n c cont : result A :=
   read%VectorPointer e_ := e in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorPointer" in
   write%defined e := SExpRec_VectorPointer e_ in
-  cont S.
+  cont.
 
 Notation "'write%Pointer' e 'at' n ':=' c 'in' cont" :=
   (write_nth_cell_VectorPointer e n c cont)

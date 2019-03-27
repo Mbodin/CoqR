@@ -99,8 +99,8 @@ Definition duplicate_list s deep :=
   fold%success val := (R_NilValue : SEXP)
   along s
   as _, _ do
-    let (S, val) := CONS globals R_NilValue val in
-    result_success val using S, runs, globals in
+    let%success val := CONS globals R_NilValue val in
+    result_success val using runs, globals in
   fold%success vp := val
   along s
   as s, _, s_list do
@@ -110,7 +110,7 @@ Definition duplicate_list s deep :=
     set%tag vp := list_tagval s_list in
     run%success DUPLICATE_ATTRIB vp s deep in
     read%list _, vp_cdr, _ := vp in
-    result_success vp_cdr using S, runs, globals in
+    result_success vp_cdr using runs, globals in
   result_success val.
 
 (** The following two functions are actually from main/memory.c. They
@@ -177,7 +177,7 @@ Definition duplicate1 s deep :=
       let t_ :=
         make_SExpRec_clo R_NilValue
           (clo_formals s_clo) (clo_body s_clo) (clo_env s_clo) in
-      let (S, t) := alloc_SExp t_ in
+      let%alloc t := t_ in
       run%success DUPLICATE_ATTRIB t s deep in
       (** JIT functions have been ignored here. **)
       result_rsuccess t
@@ -397,7 +397,7 @@ Definition R_cycle_detected s child :=
           ifb el_attrib <> R_NilValue /\ r then
             result_rreturn true
           else result_rskip
-      using S, runs, globals in
+      using runs, globals in
       result_success false
     else
       if%success isVectorList child then
@@ -405,7 +405,7 @@ Definition R_cycle_detected s child :=
         do%let r := false
         for e in%array VecSxp_data child_ do
           if r then result_success r
-          else runs_R_cycle_detected runs s e using
+          else runs_R_cycle_detected runs s e
       else result_success false.
 
 End Parameterised.

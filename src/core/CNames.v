@@ -40,7 +40,7 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition mkSymMarker pname :=
   add%stack "mkSymMarker" in
-  let (S, ans) := alloc_SExp (make_SExpRec_sym R_NilValue pname NULL R_NilValue) in
+  let%alloc ans := make_SExpRec_sym R_NilValue pname NULL R_NilValue in
   write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue in
   result_success ans.
 

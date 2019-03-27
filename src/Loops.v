@@ -1035,7 +1035,7 @@ Definition set_longjump runs (A : Type) mask (cjmpbuf : nat) (f : context_type -
     end.
 
 Notation "'set%longjump' cjmpbuf 'as' ret 'using' runs 'in' cont" :=
-  (set_longjump runs empty_context_type cjmpbuf (fun S ret => cont))
+  (set_longjump runs empty_context_type cjmpbuf (fun ret => cont))
   (at level 50, left associativity) : monad_scope.
 
 

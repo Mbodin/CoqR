@@ -37,21 +37,22 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition CONS (car cdr : SEXP) : state -> state * SEXP :=
+Definition CONS (car cdr : SEXP) : result SEXP :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
-  alloc_SExp e_.
+  let%alloc e := e_ in
+  result_success e.
 
 Definition CONS_NR := CONS.
 
-Fixpoint allocList_aux n p S :=
+Fixpoint allocList_aux n p :=
   match n with
-  | 0 => (S, p)
+  | 0 => result_success p
   | S n =>
-    let (S, p) := allocList_aux n p S in
-    CONS R_NilValue p S
+    let%success p := allocList_aux n p in
+    CONS R_NilValue p
   end.
 
-Definition allocList (n : nat) : state -> state * SEXP :=
+Definition allocList (n : nat) : result SEXP :=
   allocList_aux n R_NilValue.
 
 Definition SET_ATTRIB x v :=
@@ -129,7 +130,7 @@ Definition SET_SYMVALUE x v :=
   This is a relatively frequent scheme in R source code. **)
 Definition NewEnvironment (namelist valuelist rho : SEXP) : result SEXP :=
   add%stack "NewEnvironment" in
-  let (S, newrho) := alloc_SExp (make_SExpRec_env R_NilValue valuelist rho) in
+  let%alloc newrho := make_SExpRec_env R_NilValue valuelist rho in
   do%success (v, n) := (valuelist, namelist)
   whileb v <> R_NilValue /\ n <> R_NilValue do
     read%list _, n_cdr, n_tag := n in
@@ -142,7 +143,7 @@ Definition NewEnvironment (namelist valuelist rho : SEXP) : result SEXP :=
 Definition mkPromise (expr rho : SEXP) : result SEXP :=
   add%stack "mkPromise" in
   set%named expr := named_plural in
-  let (S, s) := alloc_SExp (make_SExpRec_prom R_NilValue R_UnboundValue expr rho) in
+  let%alloc s := make_SExpRec_prom R_NilValue R_UnboundValue expr rho in
   result_success s.
 
 Definition R_mkEVPROMISE_NR expr val :=
@@ -155,10 +156,10 @@ Definition R_mkEVPROMISE_NR expr val :=
   implementable in Coq.  This is thus a loosy translation. **)
 Definition allocFormalsList l :=
   add%stack "allocFormalsList" in
-  let (S, res) :=
-    fold_left (fun _ (Sres : _ * SEXP) =>
-        let (S, res) := Sres in
-        CONS R_NilValue res) (S, R_NilValue : SEXP) l in
+  let%success res :=
+    fold_left (fun _ Sres =>
+        let%success res := Sres in
+        CONS R_NilValue res) (result_success (R_NilValue : SEXP)) l in
   do%success n := res
   for sym in%list l do
     set%tag n := sym in

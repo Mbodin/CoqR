@@ -48,7 +48,7 @@ Definition mkPRIMSXP (offset : nat) (type : bool) : result SEXP :=
   else
     read%Pointer result := mkPRIMSXP_primCache at offset in
     ifb result = R_NilValue then
-      let (S, result) := alloc_SExp (make_SExpRec_prim R_NilValue offset type) in
+      let%alloc result := make_SExpRec_prim R_NilValue offset type in
       write%Pointer mkPRIMSXP_primCache at offset := result in
       result_success result
     else
@@ -72,7 +72,7 @@ Definition mkCLOSXP (formals body rho : SEXP) :=
       ifb rho = R_NilValue then
         (R_GlobalEnv : SEXP)
       else rho in
-    let (S, c) := alloc_SExp (make_SExpRec_clo R_NilValue formals body env) in
+    let%alloc c := make_SExpRec_clo R_NilValue formals body env in
     result_success c
   end.
 
@@ -91,7 +91,7 @@ Definition iSDDName (name : SEXP) :=
 Definition mkSYMSXP (name value : SEXP) :=
   add%stack "mkSYMSXP" in
   let%success i := iSDDName name in
-  let (S, c) := alloc_SExp (make_SExpRec_sym R_NilValue name value R_NilValue) in
+  let%alloc c := make_SExpRec_sym R_NilValue name value R_NilValue in
   run%success SET_DDVAL c i in
   result_success c.
 

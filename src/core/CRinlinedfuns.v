@@ -44,33 +44,41 @@ Local Coercion int_to_double : Z >-> double.
   below are thus slightly different from their C counterparts.  The
   [repeat] function of Coq can be used to initialise their data. **)
 
-Definition alloc_vector_char v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_char R_NilValue v_data).
+Definition alloc_vector_char v_data : result SEXP :=
+  let%alloc r := make_SExpRec_char R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_lgl v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_lgl R_NilValue v_data).
+Definition alloc_vector_lgl v_data : result SEXP :=
+  let%alloc r := make_SExpRec_lgl R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_int v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_int R_NilValue v_data).
+Definition alloc_vector_int v_data : result SEXP :=
+  let%alloc r := make_SExpRec_int R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_real v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_real R_NilValue v_data).
+Definition alloc_vector_real v_data : result SEXP :=
+  let%alloc r := make_SExpRec_real R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_cplx v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_cplx R_NilValue v_data).
+Definition alloc_vector_cplx v_data : result SEXP :=
+  let%alloc r := make_SExpRec_cplx R_NilValue v_data in
+  result_success r.
 
 (** The following allocators uses pointers. Note that the original
   [allocVector] function initialises them to [R_NilValue] (and not
   [NULL], for instance) by default. **)
 
-Definition alloc_vector_str v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_str R_NilValue v_data).
+Definition alloc_vector_str v_data : result SEXP :=
+  let%alloc r := make_SExpRec_str R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_vec v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_vec R_NilValue v_data).
+Definition alloc_vector_vec v_data : result SEXP :=
+  let%alloc r := make_SExpRec_vec R_NilValue v_data in
+  result_success r.
 
-Definition alloc_vector_expr v_data : state * SEXP :=
-  alloc_SExp (make_SExpRec_expr R_NilValue v_data).
+Definition alloc_vector_expr v_data : result SEXP :=
+  let%alloc r := make_SExpRec_expr R_NilValue v_data in
+  result_success r.
 
 (** We however propose the following smart constructor, based on
   [allocVector]/[allocVector3] from main/memory.c. **)
@@ -81,9 +89,8 @@ Definition allocVector type (length : nat) :=
   ifb (length : int) > R_XLEN_T_MAX then
     result_error "Vector is too large"
   else
-    let alloc {T} (allocator : state -> ArrayList.array T -> state * SEXP) (base : T) :=
-      let (S, v) := allocator (ArrayList.from_list (repeat base length)) in
-      result_success v in
+    let alloc {T} (allocator : ArrayList.array T -> result SEXP) (base : T) :=
+      allocator (ArrayList.from_list (repeat base length)) in
     match type with
     | NilSxp =>
       result_success (R_NilValue : SEXP)
@@ -108,11 +115,11 @@ Definition allocVector type (length : nat) :=
     | LangSxp =>
       ifb length = 0 then result_success (R_NilValue : SEXP)
       else
-        let (S, s) := allocList globals length in
+        let%success s := allocList globals length in
         set%type s := LangSxp in
         result_success s
     | ListSxp =>
-      let (S, s) := allocList globals length in
+      let%success s := allocList globals length in
       result_success s
     | _ => result_error "Invalid type in vector allocation."
     end.
@@ -124,13 +131,13 @@ Definition ScalarLogical x : SEXP :=
     R_TrueValue
   else R_FalseValue.
 
-Definition ScalarInteger x : state * SEXP :=
+Definition ScalarInteger x : result SEXP :=
   alloc_vector_int (ArrayList.from_list [x]).
 
-Definition ScalarReal x : state * SEXP :=
+Definition ScalarReal x : result SEXP :=
   alloc_vector_real (ArrayList.from_list [x]).
 
-Definition ScalarComplex x : state * SEXP :=
+Definition ScalarComplex x : result SEXP :=
   alloc_vector_cplx (ArrayList.from_list [x]).
 
 Definition ScalarString (x : SEXP) : result SEXP :=
@@ -139,7 +146,7 @@ Definition ScalarString (x : SEXP) : result SEXP :=
   ifb x_type <> CharSxp then
     result_error "The given argument is not of type ‘CharSxp’."
   else
-    let (S, s) := alloc_vector_str (ArrayList.from_list [x]) in
+    let%success s := alloc_vector_str (ArrayList.from_list [x]) in
     result_success s.
 
 Definition isPairList s :=
@@ -169,7 +176,7 @@ Definition isVectorList s :=
 (** The following function is actually from main/altrep.c. It has been
   placed here to solve a circular file dependency. **)
 
-Definition ALTREP_LENGTH (S : state) (x : SEXP) : result nat :=
+Definition ALTREP_LENGTH (x : SEXP) : result nat :=
   unimplemented_function "ALTREP_LENGTH".
 
 Definition XLENGTH_EX x :=
@@ -210,7 +217,7 @@ Definition xlength s :=
     do%success (s, i) := (s, 0)
     whileb s <> NULL /\ s <> R_NilValue do
       read%list _, s_cdr, _ := s in
-      result_success (s_cdr, 1 + i) using S, runs in
+      result_success (s_cdr, 1 + i) using runs in
     result_success i
   | EnvSxp =>
     unimplemented_function "Rf_envlength"
@@ -241,7 +248,7 @@ Definition R_length s :=
     do%success (s, i) := (s, 0)
     whileb s <> NULL /\ s <> R_NilValue do
       read%list _, s_cdr, _ := s in
-      result_success (s_cdr, 1 + i) using S, runs in
+      result_success (s_cdr, 1 + i) using runs in
     result_success i
   | EnvSxp =>
     unimplemented_function "Rf_envlength"
@@ -378,7 +385,7 @@ Definition SET_SCALAR_DVAL x v :=
 
 Definition lcons car cdr :=
   add%stack "lcons" in
-  let (S, e) := CONS globals car cdr in
+  let%success e := CONS globals car cdr in
   set%type e := LangSxp in
   result_success e.
 
@@ -388,23 +395,23 @@ Definition list1 s :=
   CONS globals s R_NilValue.
 
 Definition list2 s t :=
-  let (S, l) := list1 t in
+  let%success l := list1 t in
   CONS globals s l.
 
 Definition list3 s t u :=
-  let (S, l) := list2 t u in
+  let%success l := list2 t u in
   CONS globals s l.
 
 Definition list4 s t u v :=
-  let (S, l) := list3 t u v in
+  let%success l := list3 t u v in
   CONS globals s l.
 
 Definition list5 s t u v w :=
-  let (S, l) := list4 t u v w in
+  let%success l := list4 t u v w in
   CONS globals s l.
 
 Definition list6 s t u v w x :=
-  let (S, l) := list5 t u v w x in
+  let%success l := list5 t u v w x in
   CONS globals s l.
 
 Definition lang1 s :=
@@ -413,27 +420,27 @@ Definition lang1 s :=
 
 Definition lang2 s t :=
   add%stack "lang2" in
-  let (S, l) := list1 t in
+  let%success l := list1 t in
   lcons s l.
 
 Definition lang3 s t u :=
   add%stack "lang3" in
-  let (S, l) := list2 t u in
+  let%success l := list2 t u in
   lcons s l.
 
 Definition lang4 s t u v :=
   add%stack "lang4" in
-  let (S, l) := list3 t u v in
+  let%success l := list3 t u v in
   lcons s l.
 
 Definition lang5 s t u v w :=
   add%stack "lang5" in
-  let (S, l) := list4 t u v w in
+  let%success l := list4 t u v w in
   lcons s l.
 
 Definition lang6 s t u v w x :=
   add%stack "lang6" in
-  let (S, l) := list5 t u v w x in
+  let%success l := list5 t u v w x in
   lcons s l.
 
 
@@ -450,7 +457,7 @@ Definition LOGICAL_ELT x i :=
     read%Logical x_i := x at i in
     result_success x_i.
 
-Definition ALTINTEGER_ELT (S : state) (x : SEXP) (i : nat) : result int :=
+Definition ALTINTEGER_ELT (x : SEXP) (i : nat) : result int :=
   unimplemented_function "ALTINTEGER_ELT".
 
 Definition INTEGER_ELT x i :=
@@ -461,7 +468,7 @@ Definition INTEGER_ELT x i :=
     read%Integer x_i := x at i in
     result_success x_i.
 
-Definition ALTREAL_ELT (S : state) (x : SEXP) (i : nat) : result double :=
+Definition ALTREAL_ELT (x : SEXP) (i : nat) : result double :=
   unimplemented_function "ALTREAL_ELT".
 
 Definition REAL_ELT x i :=
@@ -472,7 +479,7 @@ Definition REAL_ELT x i :=
     read%Real x_i := x at i in
     result_success x_i.
 
-Definition ALTCOMPLEX_ELT (S : state) (x : SEXP) (i : nat) : result Rcomplex :=
+Definition ALTCOMPLEX_ELT (x : SEXP) (i : nat) : result Rcomplex :=
   unimplemented_function "ALTCOMPLEX_ELT".
 
 Definition COMPLEX_ELT x i :=
