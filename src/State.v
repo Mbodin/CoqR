@@ -111,7 +111,7 @@ Qed.
 (** ** Operations **)
 
 (** Allocate a new cell and provide it an initial value **)
-Definition alloc_memory_SExp_nat (S : memory) (e_ : SExpRec) : memory * nat.
+Definition alloc_memory_SExp_nat (e_ : SExpRec) (S : memory) : memory * nat.
   refine (let p := stream_head (state_fresh_locations S) in ({|
       state_heap_SExp := write S p e_ ;
       state_fresh_locations := stream_tail (state_fresh_locations S) |},
@@ -122,12 +122,12 @@ Definition alloc_memory_SExp_nat (S : memory) (e_ : SExpRec) : memory * nat.
   - introv D. repeat rewrite stream_tail_nth. applys* state_fresh_locations_different.
 Defined.
 
-Definition alloc_memory_SExp S e_ : memory * SEXP :=
-  let (S, p) := alloc_memory_SExp_nat S e_ in
+Definition alloc_memory_SExp e_ S : memory * SEXP :=
+  let (S, p) := alloc_memory_SExp_nat e_ S in
   (S, Some p).
 
 (** Writes a value in the state. Might return [None] if the cell is not already allocated. **)
-Definition write_memory_SExp_nat (S : memory) (e : nat) (e_ : SExpRec) : option memory.
+Definition write_memory_SExp_nat (e : nat) (e_ : SExpRec) (S : memory) : option memory.
   refine (match read_option S e as r return r = _ -> _ with
           | None => fun _ => None
           | Some _ => fun Eq => Some {|
@@ -141,41 +141,41 @@ Definition write_memory_SExp_nat (S : memory) (e : nat) (e_ : SExpRec) : option 
   - apply* state_fresh_locations_different.
 Defined.
 
-Definition write_memory_SExp (S : memory) (e : SEXP) (e_ : SExpRec) :=
+Definition write_memory_SExp (e : SEXP) (e_ : SExpRec) (S : memory) :=
   match e with
   | None => None
-  | Some e => write_memory_SExp_nat S e e_
+  | Some e => write_memory_SExp_nat e e_ S
   end.
 
-Definition read_SExp_nat (S : memory) (e : nat) : option SExpRec :=
+Definition read_SExp_nat (e : nat) (S : memory) : option SExpRec :=
   read_option S e.
 
 (** Reads a value in the state. **)
-Definition read_SExp (S : memory) (e : SEXP) :=
+Definition read_SExp (e : SEXP) (S : memory) :=
   match e with
   | None => None
-  | Some e => read_SExp_nat S e
+  | Some e => read_SExp_nat e S
   end.
 
 (** ** Operation properties **)
 
 Lemma read_SExp_NULL : forall S,
-  read_SExp S NULL = None.
+  read_SExp NULL S = None.
 Proof. reflexivity. Qed.
 
 Lemma alloc_memory_SExp_nat_read_SExp : forall S S' e_ e,
-  alloc_memory_SExp_nat S e_ = (S', e) ->
-  read_SExp S' (Some e) = Some e_.
+  alloc_memory_SExp_nat e_ S = (S', e) ->
+  read_SExp (Some e) S' = Some e_.
 Proof. introv Eq. inverts Eq. do 2 unfolds. simpl. rewrite~ read_option_write_same. Qed.
 
 Lemma alloc_memory_SExp_read_SExp : forall S S' e_ e,
-  alloc_memory_SExp S e_ = (S', e) ->
-  read_SExp S' e = Some e_.
+  alloc_memory_SExp e_ S = (S', e) ->
+  read_SExp e S' = Some e_.
 Proof. introv Eq. inverts Eq. applys* alloc_memory_SExp_nat_read_SExp. Qed.
 
 Lemma destruct_write_memory_SExp_nat_None : forall (S : memory) e e_,
   read_option S e = None ->
-  write_memory_SExp_nat S e e_ = None.
+  write_memory_SExp_nat e e_ S = None.
 Proof.
   introv E. unfolds.
   asserts R: (forall T P (x : option T) (f1 : None = x -> P None) (f2 : forall v, Some v = x -> _)
@@ -192,7 +192,7 @@ Proof.
 Qed.
 
 Lemma destruct_write_memory_SExp_nat_None_inv : forall (S : memory) e e_,
-  write_memory_SExp_nat S e e_ = None ->
+  write_memory_SExp_nat e e_ S = None ->
   read_option S e = None.
 Proof.
   introv E. unfolds in E.
@@ -210,7 +210,7 @@ Qed.
 Lemma destruct_write_memory_SExp_nat : forall (S : memory) e e_ v,
   read_option S e = Some v ->
   exists S',
-    write_memory_SExp_nat S e e_ = Some S'
+    write_memory_SExp_nat e e_ S = Some S'
     /\ (S' : heap _ _) = write S e e_
     /\ memory_same_except_for_memory S S'.
 Proof.
@@ -228,7 +228,7 @@ Proof.
 Qed.
 
 Lemma destruct_write_memory_SExp_nat_inv : forall (S S' : memory) e e_,
-  write_memory_SExp_nat S e e_ = Some S' ->
+  write_memory_SExp_nat e e_ S = Some S' ->
   exists v, read_option S e = Some v.
 Proof.
   introv W. destruct read_option eqn: R; autos*.
@@ -236,8 +236,8 @@ Proof.
 Qed.
 
 Lemma write_memory_SExp_nat_read_SExp_same : forall S S' e_ e,
-  write_memory_SExp_nat S e e_ = Some S' ->
-  read_SExp S' (Some e) = Some e_.
+  write_memory_SExp_nat e e_ S = Some S' ->
+  read_SExp (Some e) S' = Some e_.
 Proof.
   introv E. simpl. forwards (v&E'): destruct_write_memory_SExp_nat_inv E.
   forwards (S2&E1&E2&_): destruct_write_memory_SExp_nat E'.
@@ -245,14 +245,14 @@ Proof.
 Qed.
 
 Lemma write_memory_SExp_read_SExp_same : forall S S' e_ e,
-  write_memory_SExp S e e_ = Some S' ->
-  read_SExp S' e = Some e_.
+  write_memory_SExp e e_ S = Some S' ->
+  read_SExp e S' = Some e_.
 Proof. introv E. destruct e; tryfalse. applys~ write_memory_SExp_nat_read_SExp_same E. Qed.
 
 Lemma write_memory_SExp_nat_read_SExp : forall S S' e_ e e',
-  write_memory_SExp_nat S e e_ = Some S' ->
+  write_memory_SExp_nat e e_ S = Some S' ->
   e <> e' ->
-  read_SExp S' (Some e') = read_SExp S (Some e').
+  read_SExp (Some e') S' = read_SExp (Some e') S.
 Proof.
   introv E D. simpl. forwards (v&E'): destruct_write_memory_SExp_nat_inv E.
   forwards (S2&E1&E2&_): destruct_write_memory_SExp_nat E'.
@@ -260,9 +260,9 @@ Proof.
 Qed.
 
 Lemma write_memory_SExp_read_SExp : forall S S' e_ e e',
-  write_memory_SExp S e e_ = Some S' ->
+  write_memory_SExp e e_ S = Some S' ->
   e <> e' ->
-  read_SExp S' e' = read_SExp S e'.
+  read_SExp e' S' = read_SExp e' S.
 Proof.
   introv E D. destruct e; tryfalse. destruct e'.
   + applys~ write_memory_SExp_nat_read_SExp E.
@@ -270,29 +270,29 @@ Proof.
 Qed.
 
 Lemma read_SExp_write_memory_SExp_nat : forall S e_ e'_ e,
-  read_SExp S (Some e) = Some e_ ->
-  exists S', write_memory_SExp_nat S e e'_ = Some S'.
+  read_SExp (Some e) S = Some e_ ->
+  exists S', write_memory_SExp_nat e e'_ S = Some S'.
 Proof.
   introv E. simpl in E. forwards (S'&E1&E2): destruct_write_memory_SExp_nat E.
   exists S'. rewrite~ E1.
 Qed.
 
 Lemma read_SExp_write_memory_SExp : forall S e_ e'_ e,
-  read_SExp S e = Some e_ ->
-  exists S', write_memory_SExp S e e'_ = Some S'.
+  read_SExp e S = Some e_ ->
+  exists S', write_memory_SExp e e'_ S = Some S'.
 Proof. introv E. destruct e; tryfalse. applys~ read_SExp_write_memory_SExp_nat E. Qed.
 
 Lemma read_SExp_write_memory_SExp_None : forall S e'_ e,
-  read_SExp S e = None ->
-  write_memory_SExp S e e'_ = None.
+  read_SExp e S = None ->
+  write_memory_SExp e e'_ S = None.
 Proof.
   introv E. unfolds. destruct~ e.
   applys~ destruct_write_memory_SExp_nat_None E.
 Qed.
 
 Lemma write_memory_SExp_read_SExp_None : forall S e'_ e,
-  write_memory_SExp S e e'_ = None ->
-  read_SExp S e = None.
+  write_memory_SExp e e'_ S = None ->
+  read_SExp e S = None.
 Proof.
   introv E. unfolds in E. destruct~ e.
   applys~ destruct_write_memory_SExp_nat_None_inv E.
@@ -300,7 +300,7 @@ Qed.
 
 Lemma read_SExp_equiv : forall S1 S2 e,
   memory_equiv S1 S2 ->
-  read_SExp S1 e = read_SExp S2 e.
+  read_SExp e S1 = read_SExp e S2.
 Proof.
   introv E. destruct~ e. simpl. unfolds.
   apply~ heap_equiv_read_option. applys~ memory_equiv_heap E.
@@ -308,8 +308,8 @@ Qed.
 
 Lemma alloc_memory_SExp_equiv : forall S1 S2 S1' S2' e_ e1 e2,
   memory_equiv S1 S2 ->
-  alloc_memory_SExp S1 e_ = (S1', e1) ->
-  alloc_memory_SExp S2 e_ = (S2', e2) ->
+  alloc_memory_SExp e_ S1 = (S1', e1) ->
+  alloc_memory_SExp e_ S2 = (S2', e2) ->
   e1 = e2 /\ memory_equiv S1' S2'.
 Proof.
   introv E A1 A2. splits.
@@ -325,8 +325,8 @@ Qed.
 
 Lemma write_memory_SExp_equiv : forall S1 S2 S1' S2' e e_,
   memory_equiv S1 S2 ->
-  write_memory_SExp S1 e e_ = Some S1' ->
-  write_memory_SExp S2 e e_ = Some S2' ->
+  write_memory_SExp e e_ S1 = Some S1' ->
+  write_memory_SExp e e_ S2 = Some S2' ->
   memory_equiv S1' S2'.
 Proof.
   introv E W1 W2. destruct e; tryfalse. simpls.
@@ -343,10 +343,10 @@ Proof.
 Qed.
 
 Lemma write_memory_SExp_nat_write_memory_SExp_nat_eq : forall S1 S2 S3 p p_1 p_2,
-  write_memory_SExp_nat S1 p p_1 = Some S2 ->
-  write_memory_SExp_nat S2 p p_2 = Some S3 ->
+  write_memory_SExp_nat p p_1 S1 = Some S2 ->
+  write_memory_SExp_nat p p_2 S2 = Some S3 ->
   exists S3',
-    write_memory_SExp_nat S1 p p_2 = Some S3'
+    write_memory_SExp_nat p p_2 S1 = Some S3'
     /\ memory_equiv S3 S3'.
 Proof.
   introv W1 W2. forwards (v1&R1): destruct_write_memory_SExp_nat_inv W1.
@@ -365,10 +365,10 @@ Proof.
 Qed.
 
 Lemma write_memory_SExp_write_memory_SExp_eq : forall S1 S2 S3 p p_1 p_2,
-  write_memory_SExp S1 p p_1 = Some S2 ->
-  write_memory_SExp S2 p p_2 = Some S3 ->
+  write_memory_SExp p p_1 S1 = Some S2 ->
+  write_memory_SExp p p_2 S2 = Some S3 ->
   exists S3',
-    write_memory_SExp S1 p p_2 = Some S3'
+    write_memory_SExp p p_2 S1 = Some S3'
     /\ memory_equiv S3 S3'.
 Proof.
   introv W1 W2. destruct p as [p|]; tryfalse. simpls.
@@ -377,11 +377,11 @@ Qed.
 
 Lemma write_memory_SExp_nat_write_memory_SExp_nat_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  write_memory_SExp_nat S1 p1 p_1 = Some S2 ->
-  write_memory_SExp_nat S2 p2 p_2 = Some S3 ->
+  write_memory_SExp_nat p1 p_1 S1 = Some S2 ->
+  write_memory_SExp_nat p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_memory_SExp_nat S1 p2 p_2 = Some S2'
-    /\ write_memory_SExp_nat S2' p1 p_1 = Some S3'
+    write_memory_SExp_nat p2 p_2 S1 = Some S2'
+    /\ write_memory_SExp_nat p1 p_1 S2' = Some S3'
     /\ memory_equiv S3 S3'.
 Proof.
   introv D W1 W2. forwards (v1&R1): destruct_write_memory_SExp_nat_inv W1.
@@ -407,11 +407,11 @@ Qed.
 
 Lemma write_memory_SExp_write_memory_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  write_memory_SExp S1 p1 p_1 = Some S2 ->
-  write_memory_SExp S2 p2 p_2 = Some S3 ->
+  write_memory_SExp p1 p_1 S1 = Some S2 ->
+  write_memory_SExp p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_memory_SExp S1 p2 p_2 = Some S2'
-    /\ write_memory_SExp S2' p1 p_1 = Some S3'
+    write_memory_SExp p2 p_2 S1 = Some S2'
+    /\ write_memory_SExp p1 p_1 S2' = Some S3'
     /\ memory_equiv S3 S3'.
 Proof.
   introv D W1 W2. destruct p1 as [p1|], p2 as [p2|]; tryfalse. simpls.
@@ -419,10 +419,10 @@ Proof.
 Qed.
 
 Lemma alloc_memory_SExp_nat_write_memory_SExp_nat_eq : forall S1 S2 S3 p p_1 p_2,
-  alloc_memory_SExp_nat S1 p_1 = (S2, p) ->
-  write_memory_SExp_nat S2 p p_2 = Some S3 ->
+  alloc_memory_SExp_nat p_1 S1 = (S2, p) ->
+  write_memory_SExp_nat p p_2 S2 = Some S3 ->
   exists S3',
-    alloc_memory_SExp_nat S1 p_2 = (S3', p)
+    alloc_memory_SExp_nat p_2 S1 = (S3', p)
     /\ memory_equiv S3 S3'.
 Proof.
   introv A W. forwards (v&R): destruct_write_memory_SExp_nat_inv W.
@@ -439,10 +439,10 @@ Proof.
 Qed.
 
 Lemma alloc_memory_SExp_write_memory_SExp_eq : forall S1 S2 S3 p p_1 p_2,
-  alloc_memory_SExp S1 p_1 = (S2, p) ->
-  write_memory_SExp S2 p p_2 = Some S3 ->
+  alloc_memory_SExp p_1 S1 = (S2, p) ->
+  write_memory_SExp p p_2 S2 = Some S3 ->
   exists S3',
-    alloc_memory_SExp S1 p_2 = (S3', p)
+    alloc_memory_SExp p_2 S1 = (S3', p)
     /\ memory_equiv S3 S3'.
 Proof.
   introv A W. destruct p as [p|]; tryfalse. simpls.
@@ -453,11 +453,11 @@ Qed.
 
 Lemma alloc_memory_SExp_nat_write_memory_SExp_nat_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  alloc_memory_SExp_nat S1 p_1 = (S2, p1) ->
-  write_memory_SExp_nat S2 p2 p_2 = Some S3 ->
+  alloc_memory_SExp_nat p_1 S1 = (S2, p1) ->
+  write_memory_SExp_nat p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_memory_SExp_nat S1 p2 p_2 = Some S2'
-    /\ alloc_memory_SExp_nat S2' p_1 = (S3', p1)
+    write_memory_SExp_nat p2 p_2 S1 = Some S2'
+    /\ alloc_memory_SExp_nat p_1 S2' = (S3', p1)
     /\ memory_equiv S3 S3'.
 Proof.
   introv D A W. forwards (v&R): destruct_write_memory_SExp_nat_inv W.
@@ -484,11 +484,11 @@ Qed.
 
 Lemma alloc_memory_SExp_write_memory_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  alloc_memory_SExp S1 p_1 = (S2, p1) ->
-  write_memory_SExp S2 p2 p_2 = Some S3 ->
+  alloc_memory_SExp p_1 S1 = (S2, p1) ->
+  write_memory_SExp p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_memory_SExp S1 p2 p_2 = Some S2'
-    /\ alloc_memory_SExp S2' p_1 = (S3', p1)
+    write_memory_SExp p2 p_2 S1 = Some S2'
+    /\ alloc_memory_SExp p_1 S2' = (S3', p1)
     /\ memory_equiv S3 S3'.
 Proof.
   introv D A W. destruct p1 as [p1|], p2 as [p2|]; tryfalse. simpls.
@@ -1166,18 +1166,18 @@ Definition update_R_asymSymbol S asl := {|
 
 (** Wrapping up with the functions defined in the previous section. **)
 
-Definition alloc_SExp (S : state) e_ :=
-  let (m, e) := alloc_memory_SExp S e_ in
+Definition alloc_SExp e_ (S : state) :=
+  let (m, e) := alloc_memory_SExp e_ S in
   (state_with_memory S m, e).
 
-Definition write_SExp (S : state) e e_ :=
-  match write_memory_SExp S e e_ with
+Definition write_SExp e e_ (S : state) :=
+  match write_memory_SExp e e_ S with
   | Some m => Some (state_with_memory S m)
   | None => None
   end.
 
 Lemma alloc_SExp_state_same_except_for_memory : forall S S' e e_,
-  alloc_SExp S e_ = (S', e) ->
+  alloc_SExp e_ S = (S', e) ->
   state_same_except_for_memory S S'.
 Proof.
   introv A. unfolds in A. destruct alloc_memory_SExp. inverts A.
@@ -1185,7 +1185,7 @@ Proof.
 Qed.
 
 Lemma write_SExp_state_same_except_for_memory : forall S S' e e_,
-  write_SExp S e e_ = Some S' ->
+  write_SExp e e_ S = Some S' ->
   state_same_except_for_memory S S'.
 Proof.
   introv W. unfolds in W. destruct write_memory_SExp; inverts W.
@@ -1193,90 +1193,90 @@ Proof.
 Qed.
 
 Lemma write_read_SExp_None : forall S p e_,
-  write_SExp S p e_ = None ->
-  read_SExp S p = None.
+  write_SExp p e_ S = None ->
+  read_SExp p S = None.
 Proof.
   introv E. unfolds in E. destruct write_memory_SExp eqn: E'; inverts E.
   applys~ write_memory_SExp_read_SExp_None E'.
 Qed.
 
 Lemma read_write_SExp_None : forall (S : state) p e_,
-  read_SExp S p = None ->
-  write_SExp S p e_ = None.
+  read_SExp p S = None ->
+  write_SExp p e_ S = None.
 Proof. introv E. unfolds. rewrite~ read_SExp_write_memory_SExp_None. Qed.
 
 Lemma alloc_read_SExp_Some : forall S1 S2 e e_,
-  alloc_SExp S1 e_ = (S2, e) ->
-  read_SExp S2 e = Some e_.
+  alloc_SExp e_ S1 = (S2, e) ->
+  read_SExp e S2 = Some e_.
 Proof.
   introv E. unfolds in E. destruct alloc_memory_SExp eqn: E'. inverts E.
   apply~ alloc_memory_SExp_read_SExp. rewrite* E'.
 Qed.
 
 Lemma alloc_write_SExp_not_None : forall S1 S2 e e1_ e2_,
-  alloc_SExp S1 e1_ = (S2, e) ->
-  write_SExp S2 e e2_ <> None.
+  alloc_SExp e1_ S1 = (S2, e) ->
+  write_SExp e e2_ S2 <> None.
 Proof.
   introv E1 E2. lets E3: write_read_SExp_None E2.
   lets E4: alloc_read_SExp_Some E1. rewrite E3 in E4. inverts E4.
 Qed.
 
 Lemma read_write_SExp_eq : forall (S S' : state) p e_,
-  write_SExp S p e_ = Some S' ->
-  read_SExp S' p = Some e_.
+  write_SExp p e_ S = Some S' ->
+  read_SExp p S' = Some e_.
 Proof.
   introv W. unfolds in W. destruct write_memory_SExp eqn:E; inverts W.
   apply* write_memory_SExp_read_SExp_same.
 Qed.
 
 Lemma read_write_SExp_neq : forall (S S' : state) p1 p2 e_,
-  write_SExp S p1 e_ = Some S' ->
+  write_SExp p1 e_ S = Some S' ->
   p1 <> p2 ->
-  read_SExp S' p2 = read_SExp S p2.
+  read_SExp p2 S' = read_SExp p2 S.
 Proof.
   introv W D. unfolds in W. destruct write_memory_SExp eqn:E; inverts W.
   applys* write_memory_SExp_read_SExp D.
 Qed.
 
 Lemma alloc_read_SExp_neq : forall S1 S2 e1 e2 e_,
-  alloc_SExp S1 e_ = (S2, e2) ->
+  alloc_SExp e_ S1 = (S2, e2) ->
   e1 <> e2 ->
-  read_SExp S2 e1 = read_SExp S1 e1.
+  read_SExp e1 S2 = read_SExp e1 S1.
 Proof.
   introv A D. inverts A. unfolds. simpl. destruct~ e1.
   unfolds read_SExp_nat. simpl. apply* read_option_write.
 Qed.
 
 Lemma alloc_read_SExp_fresh : forall S S' e e_,
-  alloc_SExp S e_ = (S', e) ->
-  read_SExp S e = None.
+  alloc_SExp e_ S = (S', e) ->
+  read_SExp e S = None.
 Proof.
   introv A. inverts A. simpl. apply not_indom_read_option.
   rewrite stream_head_nth. apply* state_fresh_locations_fresh.
 Qed.
 
 Lemma alloc_read_SExp_eq : forall S S' e e_,
-  alloc_SExp S e_ = (S', e) ->
-  read_SExp S' e = Some e_.
+  alloc_SExp e_ S = (S', e) ->
+  read_SExp e S' = Some e_.
 Proof. introv A. inverts A. apply read_option_write_same. Qed.
 
 Lemma alloc_read_SExp_diff : forall S S' p p' p_ p'_,
-  alloc_SExp S p_ = (S', p) ->
-  read_SExp S p' = Some p'_ ->
+  alloc_SExp p_ S = (S', p) ->
+  read_SExp p' S = Some p'_ ->
   p <> p'.
 Proof. introv A E N. substs. rewrite (alloc_read_SExp_fresh A) in E. inverts~ E. Qed.
 
 Lemma read_write_SExp_Some : forall (S : state) p p_ p_',
-  read_SExp S p = Some p_ ->
-  exists S', write_SExp S p p_' = Some S'.
+  read_SExp p S = Some p_ ->
+  exists S', write_SExp p p_' S = Some S'.
 Proof.
   introv E. unfolds write_SExp. lets (S'&E'): read_SExp_write_memory_SExp E.
   rewrite* E'.
 Qed.
 
 Lemma write_read_SExp_Some : forall S S' p p_,
-  write_SExp S p p_ = Some S' ->
-  exists p_', read_SExp S p = Some p_'.
+  write_SExp p p_ S = Some S' ->
+  exists p_', read_SExp p S = Some p_'.
 Proof.
   introv W. destruct read_SExp eqn: R.
   - exists*.
@@ -1284,18 +1284,18 @@ Proof.
 Qed.
 
 Lemma write_SExp_NULL : forall S p_,
-  write_SExp S NULL p_ = None.
+  write_SExp NULL p_ S = None.
 Proof. reflexivity. Qed.
 
 Lemma alloc_SExp_equiv : forall S1 S2 S1' S2' e1 e2 e_,
   state_equiv S1 S2 ->
-  alloc_SExp S1 e_ = (S1', e1) ->
-  alloc_SExp S2 e_ = (S2', e2) ->
+  alloc_SExp e_ S1 = (S1', e1) ->
+  alloc_SExp e_ S2 = (S2', e2) ->
   e1 = e2 /\ state_equiv S1' S2'.
 Proof.
   introv E A1 A2. unfolds alloc_SExp.
-  destruct (alloc_memory_SExp S1) as [S1'' e1'] eqn: A1'. inverts A1.
-  destruct (alloc_memory_SExp S2) as [S2'' e2'] eqn: A2'. inverts A2.
+  destruct (alloc_memory_SExp _ S1) as [S1'' e1'] eqn: A1'. inverts A1.
+  destruct (alloc_memory_SExp _ S2) as [S2'' e2'] eqn: A2'. inverts A2.
   forwards~ (Ee&ES): alloc_memory_SExp_equiv A1' A2'.
   - applys~ state_equiv_memory E.
   - subst. splits~. constructors~.
@@ -1308,13 +1308,13 @@ Qed.
 
 Lemma write_SExp_equiv : forall S1 S2 S1' S2' e e_,
   state_equiv S1 S2 ->
-  write_SExp S1 e e_ = Some S1' ->
-  write_SExp S2 e e_ = Some S2' ->
+  write_SExp e e_ S1 = Some S1' ->
+  write_SExp e e_ S2 = Some S2' ->
   state_equiv S1' S2'.
 Proof.
   introv E W1 W2. unfolds write_SExp.
-  destruct (write_memory_SExp S1) eqn: W1'; inverts W1.
-  destruct (write_memory_SExp S2) eqn: W2'; inverts W2.
+  destruct (write_memory_SExp _ _ S1) eqn: W1'; inverts W1.
+  destruct (write_memory_SExp _ _ S2) eqn: W2'; inverts W2.
   forwards~ ES: write_memory_SExp_equiv W1' W2'.
   - applys~ state_equiv_memory E.
   - subst. constructors~.
@@ -1327,9 +1327,9 @@ Qed.
 
 Lemma write_SExp_equiv_exists : forall S1 S2 S1' e e_,
   state_equiv S1 S2 ->
-  write_SExp S1 e e_ = Some S1' ->
+  write_SExp e e_ S1 = Some S1' ->
   exists S2',
-    write_SExp S2 e e_ = Some S2'
+    write_SExp e e_ S2 = Some S2'
     /\ state_equiv S1' S2'.
 Proof.
   introv E W1. forwards (e_'&Ee_): write_read_SExp_Some W1.
@@ -1339,15 +1339,15 @@ Proof.
 Qed.
 
 Lemma write_SExp_write_SExp_eq : forall S1 S2 S3 p p_1 p_2,
-  write_SExp S1 p p_1 = Some S2 ->
-  write_SExp S2 p p_2 = Some S3 ->
+  write_SExp p p_1 S1 = Some S2 ->
+  write_SExp p p_2 S2 = Some S3 ->
   exists S3',
-    write_SExp S1 p p_2 = Some S3'
+    write_SExp p p_2 S1 = Some S3'
     /\ state_equiv S3 S3'.
 Proof.
   introv W1 W2. unfolds write_SExp.
-  destruct (write_memory_SExp S1 p p_1) eqn: W1'; tryfalse.
-  destruct (write_memory_SExp S2 p p_2) eqn: W2'; tryfalse.
+  destruct (write_memory_SExp _ _ S1) eqn: W1'; tryfalse.
+  destruct (write_memory_SExp _ _ S2) eqn: W2'; tryfalse.
   inverts W1. inverts W2.
   forwards~ (S3'&W'&E): write_memory_SExp_write_memory_SExp_eq W1' W2'.
   rewrite W'. eexists. splits*. constructors~.
@@ -1360,16 +1360,16 @@ Qed.
 
 Lemma write_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  write_SExp S1 p1 p_1 = Some S2 ->
-  write_SExp S2 p2 p_2 = Some S3 ->
+  write_SExp p1 p_1 S1 = Some S2 ->
+  write_SExp p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_SExp S1 p2 p_2 = Some S2'
-    /\ write_SExp S2' p1 p_1 = Some S3'
+    write_SExp p2 p_2 S1 = Some S2'
+    /\ write_SExp p1 p_1 S2' = Some S3'
     /\ state_equiv S3 S3'.
 Proof.
   introv D W1 W2. unfolds write_SExp.
-  destruct (write_memory_SExp S1 p1 p_1) eqn: W1'; tryfalse.
-  destruct (write_memory_SExp S2 p2 p_2) eqn: W2'; tryfalse.
+  destruct (write_memory_SExp _ _ S1) eqn: W1'; tryfalse.
+  destruct (write_memory_SExp _ _ S2) eqn: W2'; tryfalse.
   inverts W1. inverts W2.
   forwards~ (S2'&S3'&W1&W2&E): write_memory_SExp_write_memory_SExp_neq W1' W2'.
   rewrite W1. do 2 eexists. splits*.
@@ -1384,14 +1384,14 @@ Proof.
 Qed.
 
 Lemma alloc_SExp_write_SExp_eq : forall S1 S2 S3 p p_1 p_2,
-  alloc_SExp S1 p_1 = (S2, p) ->
-  write_SExp S2 p p_2 = Some S3 ->
+  alloc_SExp p_1 S1 = (S2, p) ->
+  write_SExp p p_2 S2 = Some S3 ->
   exists S3',
-    alloc_SExp S1 p_2 = (S3', p)
+    alloc_SExp p_2 S1 = (S3', p)
     /\ state_equiv S3 S3'.
 Proof.
   introv A W. unfolds write_SExp.
-  destruct (write_memory_SExp S2 p p_2) eqn: W'; tryfalse. inverts W.
+  destruct (write_memory_SExp _ _ S2) eqn: W'; tryfalse. inverts W.
   forwards~ (S3'&A'&E): alloc_memory_SExp_write_memory_SExp_eq W'.
   - inverts A. reflexivity.
   - unfolds alloc_SExp. rewrite A'. eexists. splits*.
@@ -1405,15 +1405,15 @@ Qed.
 
 Lemma alloc_SExp_write_SExp_neq : forall S1 S2 S3 p1 p2 p_1 p_2,
   p1 <> p2 ->
-  alloc_SExp S1 p_1 = (S2, p1) ->
-  write_SExp S2 p2 p_2 = Some S3 ->
+  alloc_SExp p_1 S1 = (S2, p1) ->
+  write_SExp p2 p_2 S2 = Some S3 ->
   exists S2' S3',
-    write_SExp S1 p2 p_2 = Some S2'
-    /\ alloc_SExp S2' p_1 = (S3', p1)
+    write_SExp p2 p_2 S1 = Some S2'
+    /\ alloc_SExp p_1 S2' = (S3', p1)
     /\ state_equiv S3 S3'.
 Proof.
   introv D A W. unfolds write_SExp.
-  destruct (write_memory_SExp S2 p2 p_2) eqn: W'; tryfalse. inverts W.
+  destruct (write_memory_SExp _ _ S2) eqn: W'; tryfalse. inverts W.
   forwards~ (S2'&S3'&W&A'&E): alloc_memory_SExp_write_memory_SExp_neq D W'.
   - inverts A. reflexivity.
   - rewrite W. do 2 eexists. splits*.

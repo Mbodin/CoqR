@@ -42,14 +42,14 @@ Definition add_stack_leaving A (name : string) (cont : unit -> A) := cont tt.
 (** The main function. **)
 Definition add_stack (A : Type) fname : result A -> result A :=
   add_stack_entering fname (fun _ r =>
-    add_stack_leaving fname (fun _ =>
-      match r with
-      | result_success S0 a => result_success S0 a
-      | result_longjump S0 n t => result_longjump S0 n t
-      | result_error_stack S0 stack s =>
-        result_error_stack S0 (fname :: stack) s
-      | result_impossible_stack S0 stack s =>
-        result_impossible_stack S0 (fname :: stack) s
+    add_stack_leaving fname (fun _ => fun S =>
+      match r S with
+      | result_success a S0 => result_success a S0
+      | result_longjump n t S0 => result_longjump n t S0
+      | result_error_stack stack s S0 =>
+        result_error_stack (fname :: stack) s S0
+      | result_impossible_stack stack s S0 =>
+        result_impossible_stack (fname :: stack) s S0
       | result_not_implemented_stack stack s =>
         result_not_implemented_stack (fname :: stack) s
       | result_bottom S0 => result_bottom S0
@@ -69,95 +69,124 @@ Arguments unimplemented_function [A].
 (** ** [let]-monads **)
 
 (** The monad for result.  This is a usual monadic binder. **)
-Definition if_success (A B : Type) (r : result A) (f : state -> A -> result B) : result B :=
-  match r with
-  | result_success S0 a => f S0 a
-  | result_longjump S0 n t => result_longjump S0 n t
-  | result_error_stack S0 stack s => result_error_stack S0 stack s
-  | result_impossible_stack S0 stack s => result_impossible_stack S0 stack s
+Definition if_success (A B : Type) (r : result A) (f : A -> result B) : result B := fun S =>
+  match r S with
+  | result_success a S0 => f a S0
+  | result_longjump n t S0 => result_longjump n t S0
+  | result_error_stack stack s S0 => result_error_stack stack s S0
+  | result_impossible_stack stack s S0 => result_impossible_stack stack s S0
   | result_not_implemented_stack stack s => result_not_implemented_stack stack s
   | result_bottom S0 => result_bottom S0
   end.
 
 (** We provide the [let%success] notation.  It takes a result and evaluate it.
   Some tuple notations are accepted for convenience. **)
-Notation "'let%success' a ':=' r 'using' S 'in' cont" :=
-  (if_success r (fun S a => cont))
+Notation "'let%success' a ':=' r 'in' cont" :=
+  (if_success r (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let (a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3, a4) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3, a4, a5, a6) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3, a4, a5, a6, a7) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ',' a8 ')' ':=' r 'using' S 'in' cont" :=
-  (let%success x := r using S in
+Notation "'let%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ',' a7 ',' a8 ')' ':=' r 'in' cont" :=
+  (let%success x := r in
    let '(a1, a2, a3, a4, a5, a6, a7, a8) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
 
 (** Similar to [if_success], but option types.  Success is given when the
   option type is defined. **)
-Definition if_defined_msg msg (A B : Type) S (o : option A) (f : A -> result B) : result B :=
+Definition if_defined_msg msg (A B : Type) (o : option A) (f : A -> result B) : result B :=
   match o with
   | Some x => f x
   | None =>
     let msg :=
       ifb msg = ""%string then ""%string else (" (" ++ msg ++ ")")%string in
     add%stack "if_defined" ++ msg in
-    result_impossible S "Undefined result."
+    result_impossible "Undefined result."
   end.
 
 Definition if_defined := if_defined_msg "".
 
+Definition if_success_defined_msg msg (A B : Type) (o : state -> option A) (f : A -> result B) : result B :=
+  fun S => if_defined_msg msg (o S) f S.
+
+Definition if_success_defined := if_success_defined_msg "".
+
 (** Similar to [let%success], the [let%defined] notation takes an option type.
   Some tuple notations also have been defined for convenience. **)
-Notation "'let%defined' a ':=' o 'using' S 'in' cont" :=
-  (if_defined S o (fun a => cont))
+Notation "'let%defined' a ':=' o 'in' cont" :=
+  (if_defined o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'using' S 'in' cont" :=
-  (let%defined x := o using S in
+Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'in' cont" :=
+  (let%defined x := o in
    let (a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'using' S 'in' cont" :=
-  (let%defined x := o using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'in' cont" :=
+  (let%defined x := o in
    let '(a1, a2, a3) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'using' S 'in' cont" :=
-  (let%defined x := o using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'in' cont" :=
+  (let%defined x := o in
    let '(a1, a2, a3, a4) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'using' S 'in' cont" :=
-  (let%defined x := o using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'in' cont" :=
+  (let%defined x := o in
+   let '(a1, a2, a3, a4, a5) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' a ':=' o 'in' cont" :=
+  (if_success_defined o (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ')' ':=' o 'in' cont" :=
+  (let%success%defined x := o in
+   let (a1, a2) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'in' cont" :=
+  (let%success%defined x := o in
+   let '(a1, a2, a3) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'in' cont" :=
+  (let%success%defined x := o in
+   let '(a1, a2, a3, a4) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'in' cont" :=
+  (let%success%defined x := o in
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -165,27 +194,51 @@ Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'using' S 
   it can be frustrating not to know which it is.  We provide the [with "msg"]
   notation to add a message that will be printed when debugging if the
   [let%defined] failed (that is, it received [None]). **)
-Notation "'let%defined' a ':=' o 'with' msg 'using' S 'in' cont" :=
-  (if_defined_msg msg S o (fun a => cont))
+Notation "'let%defined' a ':=' o 'with' msg 'in' cont" :=
+  (if_defined_msg msg o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'with' msg 'using' S 'in' cont" :=
-  (let%defined x := o with msg using S in
+Notation "'let%defined' '(' a1 ',' a2 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%defined x := o with msg in
    let (a1, a2) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'with' msg 'using' S 'in' cont" :=
-  (let%defined x := o with msg using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%defined x := o with msg in
    let '(a1, a2, a3) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'with' msg 'using' S 'in' cont" :=
-  (let%defined x := o with msg using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%defined x := o with msg in
    let '(a1, a2, a3, a4) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'with' msg 'using' S 'in' cont" :=
-  (let%defined x := o with msg using S in
+Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%defined x := o with msg in
+   let '(a1, a2, a3, a4, a5) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' a ':=' o 'with' msg 'in' cont" :=
+  (if_success_defined_msg msg o (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%success%defined x := o with msg in
+   let (a1, a2) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%success%defined x := o with msg in
+   let '(a1, a2, a3) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%success%defined x := o with msg in
+   let '(a1, a2, a3, a4) := x in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'with' msg 'in' cont" :=
+  (let%success%defined x := o with msg in
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -196,14 +249,14 @@ Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'with' msg
 
 (** The notation [write%defined p := p_] writes the object [p_] in the
   place given by the pointer [p]. **)
-Notation "'write%defined' p ':=' p_ 'using' S 'in' cont" :=
-  (let%defined S := write_SExp S p p_ with "write%defined" using S in cont)
+Notation "'write%defined' p ':=' p_ 'in' cont" :=
+  (let%success%defined S := write_SExp p p_ with "write%defined" in fun _ => (cont : result _) S)
   (at level 50, left associativity) : monad_scope.
 
 (** The notation [read%defined p_ := p] reads the object pointer by [p],
   giving it the name [p_]. **)
-Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
-  (let%defined p_ := read_SExp S p with "read%defined" using S in cont)
+Notation "'read%defined' p_ ':=' p 'in' cont" :=
+  (let%success%defined p_ := read_SExp p with "read%defined" in cont)
   (at level 50, left associativity) : monad_scope.
 
 
@@ -212,24 +265,24 @@ Notation "'read%defined' p_ ':=' p 'using' S 'in' cont" :=
 (** The monadic binder [run%success] is equivalent to [let%success],
   but doesn’t bind any new term.  This is practical when we only care
   of the side-effects of an imperative function, but not its result. **)
-Notation "'run%success' c 'using' S 'in' cont" :=
-  (let%success _ := c using S in cont)
+Notation "'run%success' c 'in' cont" :=
+  (let%success _ := c in cont)
   (at level 50, left associativity) : monad_scope.
 
-(** The result [result_skip S] returns an arbitrary value which is not
-  meant to be bound.  Its type is [result unit]. **)
-Definition result_skip S :=
-  result_success S tt.
+(** The result [result_skip] returns an arbitrary value which is not
+  meant to be bound. **)
+Definition result_skip : result unit :=
+  result_success tt.
 
 (** When a function returns (through the monad) a boolean, a common
   operation is to case-analysis on it.  This function provides this
   notation shortcut. **)
-Definition if_then_else_success A (b : result bool) (c1 c2 : state -> result A) :=
-  let%success b := b using S in
-  if b then c1 S else c2 S.
+Definition if_then_else_success A (b : result bool) (c1 c2 : result A) :=
+  let%success b := b in
+  if b then c1 else c2.
 
-Notation "'if%success' b 'using' S 'then' c1 'else' c2" :=
-  (if_then_else_success b (fun S => c1) (fun S => c2))
+Notation "'if%success' b 'then' c1 'else' c2" :=
+  (if_then_else_success b c1 c2)
   (at level 50, left associativity) : monad_scope.
 
 (** Sometimes (typically in the precense of side-effects), we don’t
@@ -237,13 +290,12 @@ Notation "'if%success' b 'using' S 'then' c1 'else' c2" :=
   assuming that the [then] clause returns a [result unit]. **)
 Definition if_then_success A b c cont : result A :=
   run%success
-    if%success b using S then
-      c S
-    else result_skip S using S in
-  cont S.
+    if%success b then c
+    else result_skip in
+  cont.
 
-Notation "'if%success' b 'using' S 'then' c 'in' cont" :=
-  (if_then_success b (fun S => c) (fun S => cont))
+Notation "'if%success' b 'then' c 'in' cont" :=
+  (if_then_success b c cont)
   (at level 50, left associativity) : monad_scope.
 
 (** Sometimes, a monadic function returns an option type (of the
@@ -251,14 +303,14 @@ Notation "'if%success' b 'using' S 'then' c 'in' cont" :=
   pattern-match it while providing a binding for the matched
   returned value. **)
 Definition if_option_defined A B (c : result (option A)) cont_then cont_else : result B :=
-  let%success ans := c using S in
+  let%success ans := c in
   match ans with
   | Some ans => cont_then S ans
   | None => cont_else S
   end.
 
-Notation "'if%defined' ans ':=' c 'using' S 'then' cont_then 'else' cont_else" :=
-  (if_option_defined c (fun S ans => cont_then) (fun S => cont_else))
+Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=
+  (if_option_defined c (fun ans => cont_then) cont_else)
   (at level 50, left associativity) : monad_scope.
 
 
@@ -277,96 +329,96 @@ Notation "'if%defined' ans ':=' c 'using' S 'then' cont_then 'else' cont_else" :
   be useful.  Of course, such statement will fail if given an object [e_]
   of the wrong kind. **)
 
-Definition if_is_prim A S (e_ : SExpRec) (cont : NonVector_SExpRec -> PrimSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_prim, vector test" using S in
-  let%defined e_prim := get_primSxp e_ with "if_is_prim, prim test" using S in
+Definition if_is_prim A (e_ : SExpRec) (cont : NonVector_SExpRec -> PrimSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_prim, vector test" in
+  let%defined e_prim := get_primSxp e_ with "if_is_prim, prim test" in
   cont e_ e_prim.
 
-Notation "'let%prim' a_ ',' a_prim ':=' e_ 'using' S 'in' cont" :=
-  (if_is_prim S e_ (fun a_ a_prim => cont))
+Notation "'let%prim' a_ ',' a_prim ':=' e_ 'in' cont" :=
+  (if_is_prim e_ (fun a_ a_prim => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition if_is_sym A S (e_ : SExpRec) (cont : NonVector_SExpRec -> SymSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_sym, vector test" using S in
-  let%defined e_sym := get_symSxp e_ with "if_is_sym, sym test" using S in
+Definition if_is_sym A (e_ : SExpRec) (cont : NonVector_SExpRec -> SymSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_sym, vector test" in
+  let%defined e_sym := get_symSxp e_ with "if_is_sym, sym test" in
   cont e_ e_sym.
 
-Notation "'let%sym' a_ ',' a_sym ':=' e_ 'using' S 'in' cont" :=
-  (if_is_sym S e_ (fun a_ a_sym => cont))
+Notation "'let%sym' a_ ',' a_sym ':=' e_ 'in' cont" :=
+  (if_is_sym e_ (fun a_ a_sym => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition if_is_list A S (e_ : SExpRec) (cont : NonVector_SExpRec -> ListSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_list, vector test" using S in
-  let%defined e_list := get_listSxp e_ with "if_is_list, list test" using S in
+Definition if_is_list A (e_ : SExpRec) (cont : NonVector_SExpRec -> ListSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_list, vector test" in
+  let%defined e_list := get_listSxp e_ with "if_is_list, list test" in
   cont e_ e_list.
 
-Notation "'let%list' a_ ',' a_list ':=' e_ 'using' S 'in' cont" :=
-  (if_is_list S e_ (fun a_ a_list => cont))
+Notation "'let%list' a_ ',' a_list ':=' e_ 'in' cont" :=
+  (if_is_list e_ (fun a_ a_list => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition if_is_env A S (e_ : SExpRec) (cont : NonVector_SExpRec -> EnvSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_env, vector test" using S in
-  let%defined e_env := get_envSxp e_ with "if_is_env, env test" using S in
+Definition if_is_env A (e_ : SExpRec) (cont : NonVector_SExpRec -> EnvSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_env, vector test" in
+  let%defined e_env := get_envSxp e_ with "if_is_env, env test" in
   cont e_ e_env.
 
-Notation "'let%env' a_ ',' a_env ':=' e_ 'using' S 'in' cont" :=
-  (if_is_env S e_ (fun a_ a_env => cont))
+Notation "'let%env' a_ ',' a_env ':=' e_ 'in' cont" :=
+  (if_is_env e_ (fun a_ a_env => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition if_is_clo A S (e_ : SExpRec) (cont : NonVector_SExpRec -> CloSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_clo, vector test" using S in
-  let%defined e_clo := get_cloSxp e_ with "if_is_clo, clo test" using S in
+Definition if_is_clo A (e_ : SExpRec) (cont : NonVector_SExpRec -> CloSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_clo, vector test" in
+  let%defined e_clo := get_cloSxp e_ with "if_is_clo, clo test" in
   cont e_ e_clo.
 
-Notation "'let%clo' a_ ',' a_clo ':=' e_ 'using' S 'in' cont" :=
-  (if_is_clo S e_ (fun a_ a_clo => cont))
+Notation "'let%clo' a_ ',' a_clo ':=' e_ 'in' cont" :=
+  (if_is_clo e_ (fun a_ a_clo => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition if_is_prom A S (e_ : SExpRec) (cont : NonVector_SExpRec -> PromSxp_struct -> result A) : result A :=
-  let%defined e_ := get_NonVector e_ with "if_is_prom, vector test" using S in
-  let%defined e_prom := get_promSxp e_ with "if_is_prom, prom test" using S in
+Definition if_is_prom A (e_ : SExpRec) (cont : NonVector_SExpRec -> PromSxp_struct -> result A) : result A :=
+  let%defined e_ := get_NonVector e_ with "if_is_prom, vector test" in
+  let%defined e_prom := get_promSxp e_ with "if_is_prom, prom test" in
   cont e_ e_prom.
 
-Notation "'let%prom' a_ ',' a_prom ':=' e_ 'using' S 'in' cont" :=
-  (if_is_prom S e_ (fun a_ a_prom => cont))
+Notation "'let%prom' a_ ',' a_prom ':=' e_ 'in' cont" :=
+  (if_is_prom e_ (fun a_ a_prom => cont))
   (at level 50, left associativity) : monad_scope.
 
 
 (** The functions [read_as_*], and their equivalent notation
   [read%* e_, e_* := e] combines [read%defined] and [let%*]. **)
 
-Definition read_as_prim A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_prim" using S in
-  let%prim e_, e_prim := e_ using S in
+Definition read_as_prim A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_prim" in
+  let%prim e_, e_prim := e_ in
   cont e_ e_prim.
 
-Notation "'read%prim' e_ ',' e_prim ':=' e 'using' S 'in' cont" :=
-  (read_as_prim S e (fun e_ e_prim => cont))
+Notation "'read%prim' e_ ',' e_prim ':=' e 'in' cont" :=
+  (read_as_prim e (fun e_ e_prim => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_sym A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_sym" using S in
-  let%sym e_, e_sym := e_ using S in
+Definition read_as_sym A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_sym" in
+  let%sym e_, e_sym := e_ in
   cont e_ e_sym.
 
-Notation "'read%sym' e_ ',' e_sym ':=' e 'using' S 'in' cont" :=
-  (read_as_sym S e (fun e_ e_sym => cont))
+Notation "'read%sym' e_ ',' e_sym ':=' e 'in' cont" :=
+  (read_as_sym e (fun e_ e_sym => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_list A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_list" using S in
-  let%list e_, e_list := e_ using S in
+Definition read_as_list A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_list" in
+  let%list e_, e_list := e_ in
   cont e_ e_list.
 
-Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
-  (read_as_list S e (fun e_ e_list => cont))
+Notation "'read%list' e_ ',' e_list ':=' e 'in' cont" :=
+  (read_as_list e (fun e_ e_list => cont))
   (at level 50, left associativity) : monad_scope.
 
 (** As lists are a very frequent case of basic language element,
@@ -379,50 +431,50 @@ Notation "'read%list' e_ ',' e_list ':=' e 'using' S 'in' cont" :=
   [read%list e_car, e_cdr, e_tag := e] only binds these last
   three. **)
 
-Definition read_as_list_all A S (e : SEXP) cont : result A :=
-  read%list e_, e_list := e using S in
+Definition read_as_list_all A (e : SEXP) cont : result A :=
+  read%list e_, e_list := e in
   cont e_ (list_carval e_list) (list_cdrval e_list) (list_tagval e_list).
 
-Notation "'read%list' e_ ',' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' cont" :=
-  (read_as_list_all S e (fun e_ e_car e_cdr e_tag => cont))
+Notation "'read%list' e_ ',' e_car ',' e_cdr ',' e_tag ':=' e 'in' cont" :=
+  (read_as_list_all e (fun e_ e_car e_cdr e_tag => cont))
     (at level 50, left associativity) : monad_scope.
 
-Definition read_as_list_components A S (e : SEXP) cont : result A :=
-  read%list _, e_car, e_cdr, e_tag := e using S in
+Definition read_as_list_components A (e : SEXP) cont : result A :=
+  read%list _, e_car, e_cdr, e_tag := e in
   cont e_car e_cdr e_tag.
 
-Notation "'read%list' e_car ',' e_cdr ',' e_tag ':=' e 'using' S 'in' cont" :=
-  (read_as_list_components S e (fun e_car e_cdr e_tag => cont))
+Notation "'read%list' e_car ',' e_cdr ',' e_tag ':=' e 'in' cont" :=
+  (read_as_list_components e (fun e_car e_cdr e_tag => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_env A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_env" using S in
-  let%env e_, e_env := e_ using S in
+Definition read_as_env A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_env" in
+  let%env e_, e_env := e_ in
   cont e_ e_env.
 
-Notation "'read%env' e_ ',' e_env ':=' e 'using' S 'in' cont" :=
-  (read_as_env S e (fun e_ e_env => cont))
+Notation "'read%env' e_ ',' e_env ':=' e 'in' cont" :=
+  (read_as_env e (fun e_ e_env => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_clo A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_clo" using S in
-  let%clo e_, e_clo := e_ using S in
+Definition read_as_clo A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_clo" in
+  let%clo e_, e_clo := e_ in
   cont e_ e_clo.
 
-Notation "'read%clo' e_ ',' e_clo ':=' e 'using' S 'in' cont" :=
-  (read_as_clo S e (fun e_ e_clo => cont))
+Notation "'read%clo' e_ ',' e_clo ':=' e 'in' cont" :=
+  (read_as_clo e (fun e_ e_clo => cont))
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_prom A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_prom" using S in
-  let%prom e_, e_prom := e_ using S in
+Definition read_as_prom A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_prom" in
+  let%prom e_, e_prom := e_ in
   cont e_ e_prom.
 
-Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
-  (read_as_prom S e (fun e_ e_prom => cont))
+Notation "'read%prom' e_ ',' e_prom ':=' e 'in' cont" :=
+  (read_as_prom e (fun e_ e_prom => cont))
   (at level 50, left associativity) : monad_scope.
 
 
@@ -433,12 +485,12 @@ Notation "'read%prom' e_ ',' e_prom ':=' e 'using' S 'in' cont" :=
   [read%cell c := v_ at n] reads the [n]th cell of the vector [v_], binding it
   to [c]. **)
 
-Definition read_cell_Vector_SExpRec A B S (v_ : Vector_SExpRec A) n cont : result B :=
-  let%defined c := ArrayList.read_option v_ n with "read_cell_Vector_SExpRec" using S in
+Definition read_cell_Vector_SExpRec A B (v_ : Vector_SExpRec A) n cont : result B :=
+  let%defined c := ArrayList.read_option v_ n with "read_cell_Vector_SExpRec" in
   cont c.
 
-Notation "'read%cell' c ':=' v_ 'at' n 'using' S 'in' cont" :=
-  (read_cell_Vector_SExpRec S v_ n (fun c => cont))
+Notation "'read%cell' c ':=' v_ 'at' n 'in' cont" :=
+  (read_cell_Vector_SExpRec v_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
 (** The following function is a variant of [read%cell], but with a default value. **)
@@ -477,30 +529,30 @@ Definition update_Vector_SExpRec_cell A (v_ : Vector_SExpRec A) n c :=
   by a [let%defined] monadic binder).  The most frequent patterns
   are [read%* c := e at n] and [write%* e at n := c]. **)
 
-Definition let_VectorChar A S e_ cont : result A :=
-  let%defined e_vector := get_VectorChar e_ with "let_VectorChar" using S in
-  cont S e_vector.
-
-Notation "'let%VectorChar' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorChar S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorChar A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorChar" using S in
-  let%VectorChar e_vector := e_ using S in
+Definition let_VectorChar A e_ cont : result A :=
+  let%defined e_vector := get_VectorChar e_ with "let_VectorChar" in
   cont e_vector.
 
-Notation "'read%VectorChar' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorChar S e (fun e_ => cont))
+Notation "'let%VectorChar' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorChar e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorChar A S e_ n cont : result A :=
-  let%VectorChar e_ := e_ using S in
-  read%cell c := e_ at n using S in
+Definition read_as_VectorChar A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorChar" in
+  let%VectorChar e_vector := e_ in
+  cont e_vector.
+
+Notation "'read%VectorChar' e_ ':=' e 'in' cont" :=
+  (read_as_VectorChar e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorChar A e_ n cont : result A :=
+  let%VectorChar e_ := e_ in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorChar S e_ n (fun c => cont))
+Notation "'let%Char' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorChar e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
 (** The character case is a little special as C strings ends with a ['\0']
@@ -508,315 +560,315 @@ Notation "'let%Char' c ':=' e_ 'at' n 'using' S 'in' cont" :=
   To avoid making the code too cumbersome, we thus add here the exception
   that when reading just after the array, we get the empty character ["000"%char]. **)
 
-Definition read_nth_cell_Char A S e n cont : result A :=
-  read%VectorChar e_ := e using S in
+Definition read_nth_cell_Char A e n cont : result A :=
+  read%VectorChar e_ := e in
   ifb n = VecSxp_length e_ then cont "000"%char
   else
-    read%cell c := e_ at n using S in
+    read%cell c := e_ at n in
     cont c.
 
-Notation "'read%Char' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Char S e n (fun c => cont))
+Notation "'read%Char' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Char e n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition write_VectorChar A S e v cont : result A :=
-  read%VectorChar e_ := e using S in
+Definition write_VectorChar A e v cont : result A :=
+  read%VectorChar e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorChar e_ using S in
+  write%defined e := SExpRec_VectorChar e_ in
+  cont.
+
+Notation "'write%VectorChar' e ':=' v 'in' cont" :=
+  (write_VectorChar e v cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorChar A e n c cont : result A :=
+  read%VectorChar e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorChar" in
+  write%defined e := SExpRec_VectorChar e_ in
   cont S.
 
-Notation "'write%VectorChar' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorChar S e v (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_nth_cell_VectorChar A S e n c cont : result A :=
-  read%VectorChar e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorChar" using S in
-  write%defined e := SExpRec_VectorChar e_ using S in
-  cont S.
-
-Notation "'write%Char' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorChar S e n c (fun S => cont))
+Notation "'write%Char' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorChar e n c cont)
   (at level 50, left associativity) : monad_scope.
 
 
-Definition let_VectorLogical A S e_ cont : result A :=
-  let%defined e_vector := get_VectorLogical e_ with "let_VectorLogical" using S in
-  cont S e_vector.
-
-Notation "'let%VectorLogical' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorLogical S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorLogical A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorLogical" using S in
-  let%VectorLogical e_vector := e_ using S in
+Definition let_VectorLogical A e_ cont : result A :=
+  let%defined e_vector := get_VectorLogical e_ with "let_VectorLogical" in
   cont e_vector.
 
-Notation "'read%VectorLogical' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorLogical S e (fun e_ => cont))
+Notation "'let%VectorLogical' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorLogical e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorLogical A S e_ n cont : result A :=
-  let%VectorLogical e_ := e_ using S in
-  read%cell c := e_ at n using S in
-  cont c.
-
-Notation "'let%Logical' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorLogical S e_ n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_nth_cell_Logical A S e n cont : result A :=
-  read%VectorLogical e_ := e using S in
-  read%cell c := e_ at n using S in
-  cont c.
-
-Notation "'read%Logical' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Logical S e n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_VectorLogical A S e v cont : result A :=
-  read%VectorLogical e_ := e using S in
-  let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorLogical e_ using S in
-  cont S.
-
-Notation "'write%VectorLogical' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorLogical S e v (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_nth_cell_VectorLogical A S e n c cont : result A :=
-  read%VectorLogical e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorLogical" using S in
-  write%defined e := SExpRec_VectorLogical e_ using S in
-  cont S.
-
-Notation "'write%Logical' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorLogical S e n c (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-
-Definition let_VectorInteger A S e_ cont : result A :=
-  let%defined e_vector := get_VectorInteger e_ with "let_VectorInteger" using S in
-  cont S e_vector.
-
-Notation "'let%VectorInteger' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorInteger S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorInteger A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorInteger" using S in
-  let%VectorInteger e_vector := e_ using S in
+Definition read_as_VectorLogical A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorLogical" in
+  let%VectorLogical e_vector := e_ in
   cont e_vector.
 
-Notation "'read%VectorInteger' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorInteger S e (fun e_ => cont))
+Notation "'read%VectorLogical' e_ ':=' e 'in' cont" :=
+  (read_as_VectorLogical e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorInteger A S e_ n cont : result A :=
-  let%VectorInteger e_ := e_ using S in
-  read%cell c := e_ at n using S in
+Definition read_nth_cell_VectorLogical A e_ n cont : result A :=
+  let%VectorLogical e_ := e_ in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'let%Integer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorInteger S e_ n (fun c => cont))
+Notation "'let%Logical' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorLogical e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_Integer A S e n cont : result A :=
-  read%VectorInteger e_ := e using S in
-  read%cell c := e_ at n using S in
+Definition read_nth_cell_Logical A e n cont : result A :=
+  read%VectorLogical e_ := e in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'read%Integer' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Integer S e n (fun c => cont))
+Notation "'read%Logical' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Logical e n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition write_VectorInteger A S e v cont : result A :=
-  read%VectorInteger e_ := e using S in
+Definition write_VectorLogical A e v cont : result A :=
+  read%VectorLogical e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorInteger e_ using S in
+  write%defined e := SExpRec_VectorLogical e_ in
   cont S.
 
-Notation "'write%VectorInteger' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorInteger S e v (fun S => cont))
+Notation "'write%VectorLogical' e ':=' v 'in' cont" :=
+  (write_VectorLogical e v cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_nth_cell_VectorInteger A S e n c cont : result A :=
-  read%VectorInteger e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorInteger" using S in
-  write%defined e := SExpRec_VectorInteger e_ using S in
+Definition write_nth_cell_VectorLogical A e n c cont : result A :=
+  read%VectorLogical e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorLogical" in
+  write%defined e := SExpRec_VectorLogical e_ in
   cont S.
 
-Notation "'write%Integer' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorInteger S e n c (fun S => cont))
+Notation "'write%Logical' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorLogical e n c cont)
   (at level 50, left associativity) : monad_scope.
 
 
-Definition let_VectorReal A S e_ cont : result A :=
-  let%defined e_vector := get_VectorReal e_ with "let_VectorReal" using S in
-  cont S e_vector.
-
-Notation "'let%VectorReal' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorReal S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorReal A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorReal" using S in
-  let%VectorReal e_vector := e_ using S in
+Definition let_VectorInteger A e_ cont : result A :=
+  let%defined e_vector := get_VectorInteger e_ with "let_VectorInteger" in
   cont e_vector.
 
-Notation "'read%VectorReal' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorReal S e (fun e_ => cont))
+Notation "'let%VectorInteger' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorInteger e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorReal A S e_ n cont : result A :=
-  let%VectorReal e_ := e_ using S in
-  read%cell c := e_ at n using S in
-  cont c.
-
-Notation "'let%Real' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorReal S e_ n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_nth_cell_Real A S e n cont : result A :=
-  read%VectorReal e_ := e using S in
-  read%cell c := e_ at n using S in
-  cont c.
-
-Notation "'read%Real' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Real S e n (fun c => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_VectorReal A S e v cont : result A :=
-  read%VectorReal e_ := e using S in
-  let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorReal e_ using S in
-  cont S.
-
-Notation "'write%VectorReal' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorReal S e v (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition write_nth_cell_VectorReal A S e n c cont : result A :=
-  read%VectorReal e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorReal" using S in
-  write%defined e := SExpRec_VectorReal e_ using S in
-  cont S.
-
-Notation "'write%Real' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorReal S e n c (fun S => cont))
-  (at level 50, left associativity) : monad_scope.
-
-
-Definition let_VectorComplex A S e_ cont : result A :=
-  let%defined e_vector := get_VectorComplex e_ with "let_VectorComplex" using S in
-  cont S e_vector.
-
-Notation "'let%VectorComplex' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorComplex S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorComplex A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorComplex" using S in
-  let%VectorComplex e_vector := e_ using S in
+Definition read_as_VectorInteger A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorInteger" in
+  let%VectorInteger e_vector := e_ in
   cont e_vector.
 
-Notation "'read%VectorComplex' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorComplex S e (fun e_ => cont))
+Notation "'read%VectorInteger' e_ ':=' e 'in' cont" :=
+  (read_as_VectorInteger e (fun e_ => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorComplex A S e_ n cont : result A :=
-  let%VectorComplex e_ := e_ using S in
-  read%cell c := e_ at n using S in
+Definition read_nth_cell_VectorInteger A e_ n cont : result A :=
+  let%VectorInteger e_ := e_ in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'let%Complex' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorComplex S e_ n (fun c => cont))
+Notation "'let%Integer' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorInteger e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_Complex A S e n cont : result A :=
-  read%VectorComplex e_ := e using S in
-  read%cell c := e_ at n using S in
+Definition read_nth_cell_Integer A e n cont : result A :=
+  read%VectorInteger e_ := e in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'read%Complex' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Complex S e n (fun c => cont))
+Notation "'read%Integer' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Integer e n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition write_VectorComplex A S e v cont : result A :=
-  read%VectorComplex e_ := e using S in
+Definition write_VectorInteger A e v cont : result A :=
+  read%VectorInteger e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorComplex e_ using S in
+  write%defined e := SExpRec_VectorInteger e_ in
   cont S.
 
-Notation "'write%VectorComplex' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorComplex S e v (fun S => cont))
+Notation "'write%VectorInteger' e ':=' v 'in' cont" :=
+  (write_VectorInteger e v cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_nth_cell_VectorComplex A S e n c cont : result A :=
-  read%VectorComplex e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorComplex" using S in
-  write%defined e := SExpRec_VectorComplex e_ using S in
+Definition write_nth_cell_VectorInteger A e n c cont : result A :=
+  read%VectorInteger e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorInteger" in
+  write%defined e := SExpRec_VectorInteger e_ in
   cont S.
 
-Notation "'write%Complex' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorComplex S e n c (fun S => cont))
+Notation "'write%Integer' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorInteger e n c cont)
   (at level 50, left associativity) : monad_scope.
 
 
-Definition let_VectorPointer A S e_ cont : result A :=
-  let%defined e_vector := get_VectorPointer e_ with "let_VectorPointer" using S in
-  cont S e_vector.
-
-Notation "'let%VectorPointer' e_vector ':=' e_ 'using' S 'in' cont" :=
-  (let_VectorPointer S e_ (fun S e_vector => cont))
-  (at level 50, left associativity) : monad_scope.
-
-Definition read_as_VectorPointer A S (e : SEXP) cont : result A :=
-  let%defined e_ := read_SExp S e with "read_as_VectorPointer" using S in
-  let%VectorPointer e_vector := e_ using S in
+Definition let_VectorReal A e_ cont : result A :=
+  let%defined e_vector := get_VectorReal e_ with "let_VectorReal" in
   cont e_vector.
 
-Notation "'read%VectorPointer' e_ ':=' e 'using' S 'in' cont" :=
-  (read_as_VectorPointer S e (fun e_ => cont))
+Notation "'let%VectorReal' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorReal e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_VectorPointer A S e_ n cont : result A :=
-  let%VectorPointer e_ := e_ using S in
-  read%cell c := e_ at n using S in
+Definition read_as_VectorReal A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorReal" in
+  let%VectorReal e_vector := e_ in
+  cont e_vector.
+
+Notation "'read%VectorReal' e_ ':=' e 'in' cont" :=
+  (read_as_VectorReal e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorReal A e_ n cont : result A :=
+  let%VectorReal e_ := e_ in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'let%Pointer' c ':=' e_ 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_VectorPointer S e_ n (fun c => cont))
+Notation "'let%Real' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorReal e_ n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_nth_cell_Pointer A S e n cont : result A :=
-  read%VectorPointer e_ := e using S in
-  read%cell c := e_ at n using S in
+Definition read_nth_cell_Real A e n cont : result A :=
+  read%VectorReal e_ := e in
+  read%cell c := e_ at n in
   cont c.
 
-Notation "'read%Pointer' c ':=' e 'at' n 'using' S 'in' cont" :=
-  (read_nth_cell_Pointer S e n (fun c => cont))
+Notation "'read%Real' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Real e n (fun c => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition write_VectorPointer A S e v cont : result A :=
-  read%VectorPointer e_ := e using S in
+Definition write_VectorReal A e v cont : result A :=
+  read%VectorReal e_ := e in
   let e_ := update_Vector_SExpRec e_ v in
-  write%defined e := SExpRec_VectorPointer e_ using S in
+  write%defined e := SExpRec_VectorReal e_ in
   cont S.
 
-Notation "'write%VectorPointer' e ':=' v 'using' S 'in' cont" :=
-  (write_VectorPointer S e v (fun S => cont))
+Notation "'write%VectorReal' e ':=' v 'in' cont" :=
+  (write_VectorReal e v cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_nth_cell_VectorPointer A S e n c cont : result A :=
-  read%VectorPointer e_ := e using S in
-  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorPointer" using S in
-  write%defined e := SExpRec_VectorPointer e_ using S in
+Definition write_nth_cell_VectorReal A e n c cont : result A :=
+  read%VectorReal e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorReal" in
+  write%defined e := SExpRec_VectorReal e_ in
   cont S.
 
-Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
-  (write_nth_cell_VectorPointer S e n c (fun S => cont))
+Notation "'write%Real' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorReal e n c cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition let_VectorComplex A e_ cont : result A :=
+  let%defined e_vector := get_VectorComplex e_ with "let_VectorComplex" in
+  cont e_vector.
+
+Notation "'let%VectorComplex' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorComplex e_ (fun e_vector => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_as_VectorComplex A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorComplex" in
+  let%VectorComplex e_vector := e_ in
+  cont e_vector.
+
+Notation "'read%VectorComplex' e_ ':=' e 'in' cont" :=
+  (read_as_VectorComplex e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorComplex A e_ n cont : result A :=
+  let%VectorComplex e_ := e_ in
+  read%cell c := e_ at n in
+  cont c.
+
+Notation "'let%Complex' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorComplex e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Complex A e n cont : result A :=
+  read%VectorComplex e_ := e in
+  read%cell c := e_ at n in
+  cont c.
+
+Notation "'read%Complex' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Complex e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_VectorComplex A e v cont : result A :=
+  read%VectorComplex e_ := e in
+  let e_ := update_Vector_SExpRec e_ v in
+  write%defined e := SExpRec_VectorComplex e_ in
+  cont S.
+
+Notation "'write%VectorComplex' e ':=' v 'in' cont" :=
+  (write_VectorComplex e v cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorComplex A e n c cont : result A :=
+  read%VectorComplex e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorComplex" in
+  write%defined e := SExpRec_VectorComplex e_ in
+  cont S.
+
+Notation "'write%Complex' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorComplex e n c cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+Definition let_VectorPointer A e_ cont : result A :=
+  let%defined e_vector := get_VectorPointer e_ with "let_VectorPointer" in
+  cont e_vector.
+
+Notation "'let%VectorPointer' e_vector ':=' e_ 'in' cont" :=
+  (let_VectorPointer e_ (fun e_vector => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_as_VectorPointer A (e : SEXP) cont : result A :=
+  let%success%defined e_ := read_SExp e with "read_as_VectorPointer" in
+  let%VectorPointer e_vector := e_ in
+  cont e_vector.
+
+Notation "'read%VectorPointer' e_ ':=' e 'in' cont" :=
+  (read_as_VectorPointer e (fun e_ => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_VectorPointer A e_ n cont : result A :=
+  let%VectorPointer e_ := e_ in
+  read%cell c := e_ at n in
+  cont c.
+
+Notation "'let%Pointer' c ':=' e_ 'at' n 'in' cont" :=
+  (read_nth_cell_VectorPointer e_ n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition read_nth_cell_Pointer A e n cont : result A :=
+  read%VectorPointer e_ := e in
+  read%cell c := e_ at n in
+  cont c.
+
+Notation "'read%Pointer' c ':=' e 'at' n 'in' cont" :=
+  (read_nth_cell_Pointer e n (fun c => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_VectorPointer A e v cont : result A :=
+  read%VectorPointer e_ := e in
+  let e_ := update_Vector_SExpRec e_ v in
+  write%defined e := SExpRec_VectorPointer e_ in
+  cont S.
+
+Notation "'write%VectorPointer' e ':=' v 'in' cont" :=
+  (write_VectorPointer e v cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_nth_cell_VectorPointer A e n c cont : result A :=
+  read%VectorPointer e_ := e in
+  let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorPointer" in
+  write%defined e := SExpRec_VectorPointer e_ in
+  cont S.
+
+Notation "'write%Pointer' e 'at' n ':=' c 'in' cont" :=
+  (write_nth_cell_VectorPointer e n c cont)
   (at level 50, left associativity) : monad_scope.
 
 
@@ -826,91 +878,90 @@ Notation "'write%Pointer' e 'at' n ':=' c 'using' S 'in' cont" :=
 
 (** Mapping on-place the content of a pointer is a frequent scheme.
   Here is a monad binder for it. **)
-Definition map_pointer (A : Type) S (map : SExpRec -> SExpRec) (p : SEXP)
-    (cont : state -> result A) : result A :=
+Definition map_pointer (A : Type) (map : SExpRec -> SExpRec) (p : SEXP) (cont : result A) : result A :=
   add%stack "map_pointer" in
-  read%defined p_ := p using S in
-  write%defined p := map p_ using S in
-  cont S.
+  read%defined p_ := p in
+  write%defined p := map p_ in
+  cont.
 
-Notation "'map%pointer' p 'with' map 'using' S 'in' cont" :=
-  (map_pointer S map p (fun S => cont))
+Notation "'map%pointer' p 'with' map 'in' cont" :=
+  (map_pointer map p cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following two functions enable to respectively map and set
   the [gp] field of objects from a pointer. **)
-Notation "'map%gp' p 'with' f 'using' S 'in' cont" :=
-  (map%pointer p with map_gp f using S in cont)
+Notation "'map%gp' p 'with' f 'in' cont" :=
+  (map%pointer p with map_gp f in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'set%gp' p 'with' v 'using' S 'in' cont" :=
-  (map%pointer p with set_gp v using S in cont)
+Notation "'set%gp' p 'with' v 'in' cont" :=
+  (map%pointer p with set_gp v in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following function enables to set the [attrib] field of
   objects from a pointer. **)
-Notation "'set%attrib' p ':=' a 'using' S 'in' cont" :=
-  (map%pointer p with set_attrib a using S in cont)
+Notation "'set%attrib' p ':=' a 'in' cont" :=
+  (map%pointer p with set_attrib a in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following function enables to set the [obj] field of
   objects from a pointer. **)
-Notation "'set%obj' p ':=' o 'using' S 'in' cont" :=
-  (map%pointer p with set_obj o using S in cont)
+Notation "'set%obj' p ':=' o 'in' cont" :=
+  (map%pointer p with set_obj o in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following function enables to set the [named] field of
   objects from a pointer. **)
-Notation "'set%named' p ':=' n 'using' S 'in' cont" :=
-  (map%pointer p with set_named n using S in cont)
+Notation "'set%named' p ':=' n 'in' cont" :=
+  (map%pointer p with set_named n in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following function enables to set the [type] field of
   objects from a pointer. **)
-Notation "'set%type' p ':=' t 'using' S 'in' cont" :=
-  (map%pointer p with set_type t using S in cont)
+Notation "'set%type' p ':=' t 'in' cont" :=
+  (map%pointer p with set_type t in cont)
   (at level 50, left associativity) : monad_scope.
 
 
 (** Updating a list. **)
-Definition map_list A S f (p : SEXP) (cont : state -> result A) : result A :=
+Definition map_list A f (p : SEXP) (cont : result A) : result A :=
   add%stack "map_list" in
-  read%list p_, p_list := p using S in
+  read%list p_, p_list := p in
   let p_ := {|
       NonVector_SExpRec_header := p_ ;
       NonVector_SExpRec_data := f p_list
     |} in
-  write%defined p := p_ using S in
-  cont S.
+  write%defined p := p_ in
+  cont.
 
-Notation "'map%list' p 'with' map 'using' S 'in' cont" :=
-  (map_list S map p (fun S => cont))
+Notation "'map%list' p 'with' map 'in' cont" :=
+  (map_list map p cont)
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the first element (car) of a list. **)
-Definition set_car A S car (p : SEXP) (f : state -> result A) : result A :=
+Definition set_car A car (p : SEXP) (cont : result A) : result A :=
   add%stack "set_car" in
-  map%list p with set_car_list car using S in f S.
+  map%list p with set_car_list car in cont.
 
-Notation "'set%car' p ':=' car 'using' S 'in' cont" :=
-  (set_car S car p (fun S => cont))
+Notation "'set%car' p ':=' car 'in' cont" :=
+  (set_car car p cont)
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tail (cdr) of a list. **)
-Definition set_cdr A S cdr (p : SEXP) (f : state -> result A) : result A :=
+Definition set_cdr A cdr (p : SEXP) (cont : result A) : result A :=
   add%stack "set_cdr" in
-  map%list p with set_cdr_list cdr using S in f S.
+  map%list p with set_cdr_list cdr in cont.
 
-Notation "'set%cdr' p ':=' cdr 'using' S 'in' cont" :=
-  (set_cdr S cdr p (fun S => cont))
+Notation "'set%cdr' p ':=' cdr 'in' cont" :=
+  (set_cdr cdr p cont)
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tag of a list. **)
-Definition set_tag A S tag (p : SEXP) (f : state -> result A) : result A :=
+Definition set_tag A tag (p : SEXP) (cont : result A) : result A :=
   add%stack "set_tag" in
-  map%list p with set_tag_list tag using S in f S.
+  map%list p with set_tag_list tag in cont.
 
-Notation "'set%tag' p ':=' tag 'using' S 'in' cont" :=
-  (set_tag S tag p (fun S => cont))
+Notation "'set%tag' p ':=' tag 'in' cont" :=
+  (set_tag tag p cont)
   (at level 50, left associativity) : monad_scope.
 

@@ -24,19 +24,22 @@ Require Import Rinternals State.
 (** * Monadic Type **)
 
 (** A monad type for results. **)
-Inductive result (A : Type) :=
-  | result_success : state -> A -> result A (** The program resulted in this state with this result. **)
-  | result_longjump : state -> nat -> context_type -> result A (** The program yielded a call to [LONGJMP] with these arguments. **)
-  | result_error_stack : state -> list string -> string -> result A (** The program resulted in the following error (not meant to be caught). **)
-  | result_impossible_stack : state -> list string -> string -> result A (** This result should never happen. We provide a string and a call stack to help debugging. **)
-  | result_not_implemented_stack : list string -> string -> result A (** The result relies on a feature not yet implemented. **)
-  | result_bottom : state -> result A (** We went out of fuel during the computation. **)
+Inductive rresult (A : Type) :=
+  | result_success : A -> state -> rresult A (** The program resulted in this state with this result. **)
+  | result_longjump : nat -> context_type -> state -> rresult A (** The program yielded a call to [LONGJMP] with these arguments. **)
+  | result_error_stack : list string -> string -> state -> rresult A (** The program resulted in the following error (not meant to be caught). **)
+  | result_impossible_stack : list string -> string -> state -> rresult A (** This result should never happen. We provide a string and a call stack to help debugging. **)
+  | result_not_implemented_stack : list string -> string -> rresult A (** The result relies on a feature not yet implemented. **)
+  | result_bottom : state -> rresult A (** We went out of fuel during the computation. **)
   .
 Arguments result_longjump [A].
 Arguments result_error_stack [A].
 Arguments result_impossible_stack [A].
 Arguments result_not_implemented_stack [A].
-Arguments result_bottom [A].
+Arguments result_bottom {A}.
+
+(** We wrap [rresult] in a state monad. **)
+Definition result A := state -> rresult A.
 
 (** A precision about [result_not_implemented] and [result_error]:
   if the C source code of R throw a not-implemented error, we consider
@@ -61,20 +64,20 @@ Arguments result_bottom [A].
   return [result_impossible]. **)
 
 
-Definition result_error (A : Type) S msg : result A :=
-  result_error_stack S nil msg.
+Definition result_error (A : Type) msg : result A :=
+  result_error_stack nil msg.
 Arguments result_error [A].
 
-Definition result_impossible (A : Type) S msg : result A :=
-  result_impossible_stack S nil msg.
+Definition result_impossible (A : Type) msg : result A :=
+  result_impossible_stack nil msg.
 Arguments result_impossible [A].
 
 Definition result_not_implemented (A : Type) msg : result A :=
-  result_not_implemented_stack nil msg.
+  fun S => result_not_implemented_stack nil msg.
 Arguments result_not_implemented [A].
 
 Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (result_impossible arbitrary "[arbitrary]").
+  fun _ => prove_Inhab (result_impossible "[arbitrary]").
 
 
 (** * [FUNTAB] **)
