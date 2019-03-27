@@ -163,7 +163,7 @@ Definition installAttrib vec name val :=
         set%car s := val in
         result_rreturn val
       else result_rsuccess s using runs, globals in
-    let (S, s) := CONS globals val R_NilValue in
+    let%success s := CONS globals val R_NilValue in
     set%tag s := name in
     run%success
       ifb vec_attr = R_NilValue then
@@ -303,7 +303,7 @@ Definition namesgets (vec val : SEXP) :=
     else result_success val in
   run%success checkNames vec val in
   if%success isOneDimensionalArray vec then
-    let (S, val) := CONS globals val R_NilValue in
+    let%success val := CONS globals val R_NilValue in
     run%success runs_setAttrib runs vec R_DimNamesSymbol val in
     result_success vec
   else

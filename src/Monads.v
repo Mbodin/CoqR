@@ -337,8 +337,8 @@ Notation "'if%success' b 'then' c 'in' cont" :=
 Definition if_option_defined A B (c : result (option A)) cont_then cont_else : result B :=
   let%success ans := c in
   match ans with
-  | Some ans => cont_then S ans
-  | None => cont_else S
+  | Some ans => cont_then ans
+  | None => cont_else
   end.
 
 Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=

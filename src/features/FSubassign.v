@@ -44,7 +44,7 @@ Definition R_DispatchOrEvalSP call op generic args rho :=
       if negb x_obj then
         let%success elkm :=
           evalListKeepMissing globals runs args_cdr rho in
-        let (S, ans) := CONS_NR globals x elkm in
+        let%success ans := CONS_NR globals x elkm in
         run%success DECREMENT_LINKS x in
         result_rreturn (false, ans)
       else unimplemented_function "R_mkEVPROMISE_NR"

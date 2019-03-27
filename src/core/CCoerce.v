@@ -66,7 +66,7 @@ Definition installAttrib vec name val :=
         set%car s := val in
         result_rreturn val
       else result_rsuccess s using runs, globals in
-    let (S, s) := CONS globals val R_NilValue in
+    let%success s := CONS globals val R_NilValue in
     set%tag s := name in
     run%success
       ifb vec_attr = R_NilValue then
@@ -301,7 +301,7 @@ Definition VectorToPairList (x : SEXP) : result SEXP :=
   add%stack "VectorToPairList" in
     let%success len := R_length globals runs x in
     
-    let (S, xnew) := allocList globals len in 
+    let%success xnew := allocList globals len in 
     let%success xnames := runs_getAttrib runs x R_NamesSymbol in
     let named := decide (xnames <> R_NilValue) in
     
@@ -421,28 +421,28 @@ Definition coercePairList v type :=
             read%list vp_car, vp_cdr, _ := vp in
             let%success vp_car_lgl := asLogical vp_car in
             write%Logical rval at i := vp_car_lgl in
-            result_success vp_cdr using
+            result_success vp_cdr
         | IntSxp =>
           do%let vp := v
           for i from 0 to n - 1 do
             read%list vp_car, vp_cdr, _ := vp in
             let%success vp_car_lgl := asInteger vp_car in
             write%Integer rval at i := vp_car_lgl in
-            result_success vp_cdr using
+            result_success vp_cdr
         | RealSxp =>
           do%let vp := v
           for i from 0 to n - 1 do
             read%list vp_car, vp_cdr, _ := vp in
             let%success vp_car_lgl := asReal vp_car in
             write%Real rval at i := vp_car_lgl in
-            result_success vp_cdr using
+            result_success vp_cdr
         | CplxSxp =>
           do%let vp := v
           for i from 0 to n - 1 do
             read%list vp_car, vp_cdr, _ := vp in
             let%success vp_car_lgl := asComplex vp_car in
             write%Complex rval at i := vp_car_lgl in
-            result_success vp_cdr using
+            result_success vp_cdr
         | RawSxp => result_not_implemented "Raw case."
         | _ => result_error "Unimplemented type."
         end in
@@ -478,7 +478,7 @@ Definition StringFromLogical x :=
   ifb x = NA_LOGICAL then
     result_success (NA_STRING : SEXP)
   else
-    let (S, r) := mkChar globals (EncodeLogical x) in
+    let%success r := mkChar globals (EncodeLogical x) in
     result_success r.
 
 Definition StringFromInteger x :=
@@ -535,28 +535,28 @@ Definition coerceToLogical v :=
         let%success v_i := INTEGER_ELT v i in
         let%success pa_i := LogicalFromInteger v_i in
         write%Logical ans at i := pa_i in
-        result_skip using
+        result_skip
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
         let%success pa_i := LogicalFromReal v_i in
         write%Logical ans at i := pa_i in
-        result_skip using
+        result_skip
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
         let%success pa_i := LogicalFromComplex v_i in
         write%Logical ans at i := pa_i in
-        result_skip using
+        result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
         let%success pa_i := LogicalFromString v_i in
         write%Logical ans at i := pa_i in
-        result_skip using
+        result_skip
     | RawSxp => result_not_implemented "Raw case."
     | _ =>
       result_error "Unimplemented type."
@@ -576,26 +576,26 @@ Definition coerceToInteger v :=
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
         write%Integer ans at i := IntegerFromLogical v_i in
-        result_skip using
+        result_skip
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
         write%Integer ans at i := IntegerFromReal v_i in
-        result_skip using
+        result_skip
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
         write%Integer ans at i := IntegerFromComplex v_i in
-        result_skip using
+        result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
         let%success pa_i := IntegerFromString v_i in
         write%Integer ans at i := pa_i in
-        result_skip using
+        result_skip
     | RawSxp => result_not_implemented "Raw case."
     | _ =>
       result_error "Unimplemented type."
@@ -615,26 +615,26 @@ Definition coerceToReal v :=
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
         write%Real ans at i := RealFromLogical v_i in
-        result_skip using
+        result_skip
     | IntSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := INTEGER_ELT v i in
         write%Real ans at i := RealFromInteger v_i in
-        result_skip using
+        result_skip
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
         write%Real ans at i := RealFromComplex v_i in
-        result_skip using
+        result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
         let%success pa_i := RealFromString v_i in
         write%Real ans at i := pa_i in
-        result_skip using
+        result_skip
     | RawSxp => result_not_implemented "Raw case."
     | _ =>
       result_error "Unimplemented type."
@@ -654,26 +654,26 @@ Definition coerceToComplex v :=
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
         write%Complex ans at i := ComplexFromLogical v_i in
-        result_skip using
+        result_skip
     | IntSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := INTEGER_ELT v i in
         write%Complex ans at i := ComplexFromInteger v_i in
-        result_skip using
+        result_skip
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
         write%Complex ans at i := ComplexFromReal v_i in
-        result_skip using
+        result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
         let%success pa_i := ComplexFromString v_i in
         write%Complex ans at i := pa_i in
-        result_skip using
+        result_skip
     | RawSxp => result_not_implemented "Raw case."
     | _ =>
       result_error "Unimplemented type."
@@ -696,25 +696,25 @@ Definition coerceToString v :=
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
         let%success s_i := StringFromLogical v_i in
-        SET_STRING_ELT ans i s_i using
+        SET_STRING_ELT ans i s_i
     | IntSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := INTEGER_ELT v i in
         let%success s_i := StringFromInteger v_i in
-        SET_STRING_ELT ans i s_i using
+        SET_STRING_ELT ans i s_i
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
         let%success s_i := StringFromReal globals v_i in
-        SET_STRING_ELT ans i s_i using
+        SET_STRING_ELT ans i s_i
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
         let%success s_i := StringFromComplex v_i in
-        SET_STRING_ELT ans i s_i using
+        SET_STRING_ELT ans i s_i
     | RawSxp => result_not_implemented "Raw case."
     | _ =>
       result_error "Unimplemented type."
@@ -735,35 +735,35 @@ Definition coerceToExpression v :=
           for i from 0 to n - 1 do
             let%success v_i := LOGICAL_ELT v i in
             run%success SET_VECTOR_ELT ans i (ScalarLogical globals v_i) in
-            result_skip using
+            result_skip
         | IntSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := INTEGER_ELT v i in
-            let (S, s_i) := ScalarInteger globals v_i in
+            let%success s_i := ScalarInteger globals v_i in
             run%success SET_VECTOR_ELT ans i s_i in
-            result_skip using
+            result_skip
         | RealSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := REAL_ELT v i in
-            let (S, s_i) := ScalarReal globals v_i in
+            let%success s_i := ScalarReal globals v_i in
             run%success SET_VECTOR_ELT ans i s_i in
-            result_skip using
+            result_skip
         | CplxSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := COMPLEX_ELT v i in
-            let (S, s_i) := ScalarComplex globals v_i in
+            let%success s_i := ScalarComplex globals v_i in
             run%success SET_VECTOR_ELT ans i s_i in
-            result_skip using
+            result_skip
         | StrSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := STRING_ELT v i in
             let%success s_i := ScalarString globals v_i in
             run%success SET_VECTOR_ELT ans i s_i in
-            result_skip using
+            result_skip
         | RawSxp => result_not_implemented "Raw case."
         | _ =>
           result_error "Unimplemented type."
@@ -788,35 +788,35 @@ Definition coerceToVectorList v :=
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
         run%success SET_VECTOR_ELT ans i (ScalarLogical globals v_i) in
-        result_skip using
+        result_skip
     | IntSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := INTEGER_ELT v i in
-        let (S, s_i) := ScalarInteger globals v_i in
+        let%success s_i := ScalarInteger globals v_i in
         run%success SET_VECTOR_ELT ans i s_i in
-        result_skip using
+        result_skip
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
-        let (S, s_i) := ScalarReal globals v_i in
+        let%success s_i := ScalarReal globals v_i in
         run%success SET_VECTOR_ELT ans i s_i in
-        result_skip using
+        result_skip
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
-        let (S, s_i) := ScalarComplex globals v_i in
+        let%success s_i := ScalarComplex globals v_i in
         run%success SET_VECTOR_ELT ans i s_i in
-        result_skip using
+        result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
         let%success s_i := ScalarString globals v_i in
         run%success SET_VECTOR_ELT ans i s_i in
-        result_skip using
+        result_skip
     | RawSxp => result_not_implemented "Raw case."
     | ListSxp
     | LangSxp =>
@@ -840,7 +840,7 @@ Definition coerceToVectorList v :=
 Definition coerceToPairList v :=
   add%stack "coerceToPairList" in
   let%success n := LENGTH globals v in
-  let (S, ans) := allocList globals n in
+  let%success ans := allocList globals n in
   do%success ansp := ans
   for i from 0 to n - 1 do
     read%list _, ansp_cdr, _ := ansp in
@@ -1090,7 +1090,7 @@ Definition substituteList (el rho : SEXP) :=
                 if%success isLanguage globals el then
                     LCONS globals h R_NilValue
                 else
-                    let (S, h) := CONS globals h R_NilValue in
+                    let%success h := CONS globals h R_NilValue in
                     result_success h
                 in
                 set%tag h := el_tag in

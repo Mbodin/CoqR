@@ -53,13 +53,13 @@ Definition mkNA :=
 
 Definition NewList :=
   add%stack "NewList" in
-  let (S, s) := CONS globals R_NilValue R_NilValue in
+  let%success s := CONS globals R_NilValue R_NilValue in
   set%car s := s in
   result_success s.
 
 Definition GrowList l s :=
   add%stack "GrowList" in
-  let (S, tmp) := CONS globals s R_NilValue in
+  let%success tmp := CONS globals s R_NilValue in
   read%list l_car, _, _ := l in
   set%cdr l_car := tmp in
   set%car l := tmp in

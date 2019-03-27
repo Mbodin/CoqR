@@ -391,7 +391,7 @@ Definition do_makevector (call op args rho : SEXP) : result SEXP :=
       ifb (len : int) > INT_MAX then 
         result_error "too long for a pairlist"
       else
-        let (S, s) := allocList globals len in
+        let%success s := allocList globals len in
         result_success s                 
     | _ => result_error ("vector: cannot make a vector of mode given.")
     end in

@@ -121,8 +121,8 @@ Definition addMissingVarsToNewEnv (env addVars : SEXP) :=
                 run%success SET_FRAME env addVars in
                 result_success (addVars, s_cdr, sprev)
               else
-                set_cdr s_cdr sprev (fun =>
-                  result_success (addVars, s_cdr, sprev))
+                set%cdr s_cdr := sprev in
+                result_success (addVars, s_cdr, sprev)
             else result_success (addVars, s_cdr, s) using runs in
         result_skip using runs, globals.
 
@@ -255,7 +255,7 @@ Definition defineVar (symbol value rho : SEXP) : result unit :=
     if%success FRAME_IS_LOCKED rho then
       result_error "Can not add a binding to a locked environment."
     else
-      let (S, l) := CONS globals value (env_frame rho_env) in
+      let%success l := CONS globals value (env_frame rho_env) in
       run%success SET_FRAME rho l in
       set%tag l := symbol in
       result_skip.

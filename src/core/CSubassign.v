@@ -283,7 +283,7 @@ Definition VECTOR_ASSIGN_LOOP indx n ny (CODE : state -> nat -> nat -> result un
             let ii := Z.to_nat ii - 1 in
             run%success CODE iny ii in
             result_success (ifb (iny + 1 = ny) then 0 else iny)
-        using
+
     else
         do%let iny := 0
         for i from 0 to n - 1 do
@@ -439,7 +439,7 @@ Definition VectorAssign (call rho x s y : SEXP) :=
     | 1313 =>	(* integer   <- integer	  *)
       run%success
       let code iny ii :=
-          let%success y_iny := INTEGER_ELT y iny in  
+          let%success y_iny := INTEGER_ELT y iny in
           write%Integer x at ii := y_iny in result_skip
       in
       VECTOR_ASSIGN_LOOP indx n ny code
@@ -450,9 +450,9 @@ Definition VectorAssign (call rho x s y : SEXP) :=
       let code iny ii :=
           let%success iy := INTEGER_ELT y iny in
           ifb iy = NA_INTEGER then
-              write%Real x at ii := NA_REAL in result_skip          
-          else    
-              write%Real x at ii := iy in result_skip   
+              write%Real x at ii := NA_REAL in result_skip
+          else
+              write%Real x at ii := iy in result_skip
       in
       VECTOR_ASSIGN_LOOP indx n ny code
       in result_skip
@@ -462,11 +462,11 @@ Definition VectorAssign (call rho x s y : SEXP) :=
       run%success
       let code iny ii :=
           let%success y_iny := REAL_ELT y iny in
-          write%Real x at ii := y_iny in result_skip   
+          write%Real x at ii := y_iny in result_skip
       in
       VECTOR_ASSIGN_LOOP indx n ny code
       in result_skip
-     
+
 
     | 1510	(* complex   <- logical	  *)
     | 1513 =>	(* complex   <- integer	  *)

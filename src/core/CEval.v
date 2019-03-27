@@ -106,7 +106,7 @@ Definition asLogicalNoNA (s call : SEXP) :=
 Definition replaceCall vfun val args rhs :=
   add%stack "replaceCall" in
   let%success args_len := R_length globals runs args in
-  let (S, tmp) := allocList globals (3 + args_len) in
+  let%success tmp := allocList globals (3 + args_len) in
   let ptmp := tmp in
   set%car ptmp := vfun in
   read%list _, ptmp_cdr, _ := ptmp in
@@ -179,16 +179,19 @@ Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
          | None => true
          | Some _ => false
          end then
-        ifb R_ReturnedValue = R_RestartToken then
+        get%state S in
+        ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
-          let := state_with_context cntxt in
-          let := update_R_ReturnedValue R_NilValue in
+          get%state S in
+          set%state state_with_context S cntxt in
+          set%state update_R_ReturnedValue S R_NilValue in
           runs_eval runs body newrho
         else result_success (R_ReturnedValue S)
       else result_success NULL
     else runs_eval runs body newrho in
   let cntxt := context_with_returnValue cntxt cntxt_returnValue in
-  let := state_with_context cntxt in
+  get%state S in
+  set%state state_with_context S cntxt in
   run%success endcontext globals runs cntxt in
   result_success (context_returnValue cntxt).
 
@@ -225,6 +228,7 @@ Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP 
       if%success R_envHasNoSpecialSymbols globals runs newrho then
         SET_NO_SPECIAL_SYMBOLS newrho in
       let%success val :=
+        get%state S in
         R_execClosure call newrho
           (ifb context_callflag (R_GlobalContext S) = Ctxt_Generic then
              context_sysparent (R_GlobalContext S)
@@ -234,7 +238,7 @@ Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP 
 
 Definition promiseArgs (el rho : SEXP) : result SEXP :=
   add%stack "promiseArgs" in
-  let (S, tail) := CONS globals R_NilValue R_NilValue in
+  let%success tail := CONS globals R_NilValue R_NilValue in
   fold%success (ans, tail) := (tail, tail)
   along el
   as el_car, el_tag do
@@ -248,13 +252,13 @@ Definition promiseArgs (el rho : SEXP) : result SEXP :=
           let%success h_car_type := TYPEOF h_car in
           run%success
             ifb h_car_type = PromSxp \/ h_car = R_MissingArg then
-              let (S, l) := CONS globals h_car R_NilValue in
+              let%success l := CONS globals h_car R_NilValue in
               set%cdr tail := l in
               result_skip
             else
               let%success prom :=
                 mkPromise globals h_car rho in
-              let (S, l) := CONS globals prom R_NilValue in
+              let%success l := CONS globals prom R_NilValue in
               set%cdr tail := l in
               result_skip in
           read%list _, tail_cdr, _ := tail in
@@ -271,7 +275,7 @@ Definition promiseArgs (el rho : SEXP) : result SEXP :=
         result_error "‘...’ used in an incorrect context."
       else result_success (ans, tail)
     else ifb el_car = R_MissingArg then
-      let (S, l) := CONS globals R_MissingArg R_NilValue in
+      let%success l := CONS globals R_MissingArg R_NilValue in
       set%cdr tail := l in
       read%list _, tail_cdr, _ := tail in
       let tail := tail_cdr in
@@ -280,7 +284,7 @@ Definition promiseArgs (el rho : SEXP) : result SEXP :=
     else
       let%success prom :=
         mkPromise globals el_car rho in
-      let (S, l) := CONS globals prom R_NilValue in
+      let%success l := CONS globals prom R_NilValue in
       set%cdr tail := l in
       read%list _, tail_cdr, _ := tail in
       let tail := tail_cdr in
@@ -336,7 +340,7 @@ Definition evalList (el rho call : SEXP) n :=
         as h_car, h_tag
         do
           let%success tmp_ev := runs_eval runs h_car rho in
-          let (S, ev) := CONS_NR globals tmp_ev R_NilValue in
+          let%success ev := CONS_NR globals tmp_ev R_NilValue in
           let%success head :=
             ifb head = R_NilValue then
               result_success ev
@@ -358,7 +362,7 @@ Definition evalList (el rho call : SEXP) n :=
       result_error "Argument is empty."
     else
       let%success ev := runs_eval runs el_car rho in
-      let (S, ev) := CONS_NR globals ev R_NilValue in
+      let%success ev := CONS_NR globals ev R_NilValue in
       let%success head :=
         ifb head = R_NilValue then
           result_success ev
@@ -394,7 +398,7 @@ Definition evalListKeepMissing (el rho : SEXP) : result SEXP :=
               result_success (R_MissingArg : SEXP)
             else runs_eval runs h_car rho in
           run%success INCREMENT_LINKS val in
-          let (S, ev) := CONS_NR globals val R_NilValue in
+          let%success ev := CONS_NR globals val R_NilValue in
           let%success head :=
             ifb head = R_NilValue then
               result_success ev
@@ -417,7 +421,7 @@ Definition evalListKeepMissing (el rho : SEXP) : result SEXP :=
         ifb el_cdr <> R_NilValue then
           INCREMENT_LINKS val
         else result_skip in
-      let (S, ev) := CONS_NR globals val R_NilValue in
+      let%success ev := CONS_NR globals val R_NilValue in
       let%success head :=
         ifb head = R_NilValue then
           result_success ev
@@ -545,7 +549,7 @@ Definition DispatchOrEval (call op : SEXP) (generic : string) (args rho : SEXP)
       else
         read%list _, args_cdr, args_tag := args in
         let%success r := evalArgs args_cdr rho dropmissing call 1 in
-        let (S, ans) := CONS_NR globals x r in
+        let%success ans := CONS_NR globals x r in
         let%success t := CreateTag globals runs args_tag in
         set%tag ans := t in
         result_success ans
@@ -646,6 +650,7 @@ Definition eval (e rho : SEXP) :=
           let%success op :=
             ifb e_car_type = SymSxp then
               let%success ecall :=
+                get%state S in
                 ifb context_callflag (R_GlobalContext S) = Ctxt_CCode then
                   result_success (context_call (R_GlobalContext S))
                 else result_success e in
@@ -695,7 +700,7 @@ Definition evalseq expr rho (forcelocal : bool) tmploc :=
       if%success MAYBE_SHARED nval then
         shallow_duplicate globals runs nval
       else result_success nval in
-    let (S, r) := CONS_NR globals nval expr in
+    let%success r := CONS_NR globals nval expr in
     result_success r
 
   else if%success isLanguage globals expr then
@@ -718,7 +723,7 @@ Definition evalseq expr rho (forcelocal : bool) tmploc :=
             shallow_duplicate globals runs nval
           else result_success nval
       else result_success nval in
-    let (S, r) := CONS_NR globals nval val in
+    let%success r := CONS_NR globals nval val in
     result_success r
   else result_error "Target of assignment expands to non-language object.".
 

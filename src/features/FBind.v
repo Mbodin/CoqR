@@ -137,7 +137,7 @@ Definition AnswerType x (recurse usenames : bool) data (call : SEXP) :=
             let%success hn := HasNames x_i in
             result_success (BindData_with_ans_nnames data hn)
           else result_success data in
-        runs_AnswerType runs x_i recurse usenames data call using
+        runs_AnswerType runs x_i recurse usenames data call
     else
       let data :=
         ifb x_t = ExprSxp then
@@ -245,36 +245,36 @@ Definition ListAnswer x (recurse : bool) data call :=
     do%let data := data
     for i from 0 to len - 1 do
       read%Logical x_i := x at i in
-      LIST_ASSIGN data (ScalarLogical globals x_i) using
+      LIST_ASSIGN data (ScalarLogical globals x_i)
   | RawSxp => result_not_implemented "Raw case."
   | IntSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Integer x_i := x at i in
-      let (S, si) := ScalarInteger globals x_i in
-      LIST_ASSIGN data si using
+      let%success si := ScalarInteger globals x_i in
+      LIST_ASSIGN data si
   | RealSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Real x_i := x at i in
-      let (S, sr) := ScalarReal globals x_i in
-      LIST_ASSIGN data sr using
+      let%success sr := ScalarReal globals x_i in
+      LIST_ASSIGN data sr
   | CplxSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Complex x_i := x at i in
-      let (S, sc) := ScalarComplex globals x_i in
-      LIST_ASSIGN data sc using
+      let%success sc := ScalarComplex globals x_i in
+      LIST_ASSIGN data sc
   | StrSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := STRING_ELT x i in
       let%success ss := ScalarString globals x_i in
-      LIST_ASSIGN data ss using
+      LIST_ASSIGN data ss
   | VecSxp
   | ExprSxp =>
     let%success len := XLENGTH x in
@@ -282,13 +282,13 @@ Definition ListAnswer x (recurse : bool) data call :=
       do%let data := data
       for i from 0 to len - 1 do
         let%success x_i := VECTOR_ELT x i in
-        runs_ListAnswer runs x_i recurse data call using
+        runs_ListAnswer runs x_i recurse data call
     else
       do%let data := data
       for i from 0 to len - 1 do
         let%success x_i := VECTOR_ELT x i in
         let%success x_i := lazy_duplicate x_i in
-        LIST_ASSIGN data x_i using
+        LIST_ASSIGN data x_i
   | ListSxp =>
     if recurse then
       fold%let data := data
@@ -322,7 +322,7 @@ Definition StringAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_StringAnswer runs x_i data call using
+      runs_StringAnswer runs x_i data call
   | _ =>
     let%success x := coerceVector globals runs x StrSxp in
     let%success len := XLENGTH x in
@@ -330,7 +330,7 @@ Definition StringAnswer x data call :=
     for i from 0 to len - 1 do
       let%success x_i := STRING_ELT x i in
       run%success SET_STRING_ELT (BindData_ans_ptr data) (BindData_ans_length data) x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   end.
 
 Definition LogicalAnswer x data call :=
@@ -349,14 +349,14 @@ Definition LogicalAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_LogicalAnswer runs x_i data call using
+      runs_LogicalAnswer runs x_i data call
   | LglSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Logical x_i := x at i in
       write%Logical BindData_ans_ptr data at BindData_ans_length data := x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | IntSxp =>
     let%success len := XLENGTH x in
     do%let data := data
@@ -364,7 +364,7 @@ Definition LogicalAnswer x data call :=
       read%Integer v := x at i in
       write%Logical BindData_ans_ptr data at BindData_ans_length data :=
         ifb v = NA_INTEGER then NA_LOGICAL else decide (v <> 0) in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | RawSxp => result_not_implemented "Raw case."
   | _ => result_error "Unimplemented type."
   end.
@@ -385,21 +385,21 @@ Definition IntegerAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_IntegerAnswer runs x_i data call using
+      runs_IntegerAnswer runs x_i data call
   | LglSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Logical x_i := x at i in
       write%Integer BindData_ans_ptr data at BindData_ans_length data := x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | IntSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Integer x_i := x at i in
       write%Integer BindData_ans_ptr data at BindData_ans_length data := x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | RawSxp => result_not_implemented "Raw case."
   | _ => result_error "Unimplemented type."
   end.
@@ -420,14 +420,14 @@ Definition RealAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_RealAnswer runs x_i data call using
+      runs_RealAnswer runs x_i data call
   | RealSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Real x_i := x at i in
       write%Real BindData_ans_ptr data at BindData_ans_length data := x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | LglSxp =>
     let%success len := XLENGTH x in
     do%let data := data
@@ -438,7 +438,7 @@ Definition RealAnswer x data call :=
         result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
       else
         write%Real BindData_ans_ptr data at BindData_ans_length data := xi in
-        result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+        result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | IntSxp =>
     let%success len := XLENGTH x in
     do%let data := data
@@ -449,7 +449,7 @@ Definition RealAnswer x data call :=
         result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
       else
         write%Real BindData_ans_ptr data at BindData_ans_length data := xi in
-        result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+        result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | RawSxp => result_not_implemented "Raw case."
   | _ => result_error "Unimplemented type."
   end.
@@ -470,21 +470,21 @@ Definition ComplexAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_ComplexAnswer runs x_i data call using
+      runs_ComplexAnswer runs x_i data call
   | RealSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Real x_i := x at i in
       write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex x_i 0 in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | CplxSxp =>
     let%success len := XLENGTH x in
     do%let data := data
     for i from 0 to len - 1 do
       read%Complex x_i := x at i in
       write%Complex BindData_ans_ptr data at BindData_ans_length data := x_i in
-      result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+      result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | LglSxp =>
     let%success len := XLENGTH x in
     do%let data := data
@@ -495,7 +495,7 @@ Definition ComplexAnswer x data call :=
         result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
       else
         write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex xi 0 in
-        result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+        result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | IntSxp =>
     let%success len := XLENGTH x in
     do%let data := data
@@ -506,7 +506,7 @@ Definition ComplexAnswer x data call :=
         result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
       else
         write%Complex BindData_ans_ptr data at BindData_ans_length data := make_Rcomplex xi 0 in
-        result_success (BindData_with_ans_length data (1 + BindData_ans_length data)) using
+        result_success (BindData_with_ans_length data (1 + BindData_ans_length data))
   | RawSxp => result_not_implemented "Raw case."
   | _ => result_error "Unimplemented type."
   end.
@@ -527,7 +527,7 @@ Definition RawAnswer x data call :=
     do%let data := data
     for i from 0 to len - 1 do
       let%success x_i := VECTOR_ELT x i in
-      runs_RawAnswer runs x_i data call using
+      runs_RawAnswer runs x_i data call
   | RawSxp => result_not_implemented "Raw case."
   | _ => result_error "Unimplemented type."
   end.

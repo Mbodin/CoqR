@@ -63,7 +63,7 @@ Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
           ifb n1 <= n2 then
             do%let for i from 0 to n - 1 do
               write%Integer ans at i := in1 + i in
-              result_skip using
+              result_skip
           else
             do%let for i from 0 to n - 1 do
               write%Integer ans at i := in1 - i in
@@ -75,7 +75,7 @@ Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
           ifb n1 <= n2 then
             do%let for i from 0 to n - 1 do
               write%Real ans at i := Double.add n1 (i : double) in
-              result_skip using
+              result_skip
           else
             do%let for i from 0 to n - 1 do
               write%Real ans at i := Double.sub n1 (i : double) in

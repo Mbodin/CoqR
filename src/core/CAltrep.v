@@ -48,7 +48,7 @@ Local Coercion int_to_double : Z >-> double.
 Definition new_compact_intseq n (n1 inc : int) :=
   add%stack "new_compact_intseq" in
   ifb n = 1 then
-    let (S, r) := ScalarInteger globals n1 in
+    let%success r := ScalarInteger globals n1 in
     result_success r
   else ifb inc <> 1 /\ inc <> (-1)%Z then
     result_error "Compact sequences can only have an increment of -1 or 1."
@@ -67,7 +67,7 @@ Definition new_compact_intseq n (n1 inc : int) :=
 Definition new_compact_realseq n (n1 inc : double) :=
   add%stack "new_compact_realseq" in
   ifb n = 1 then
-    let (S, r) := ScalarReal globals n1 in
+    let%success r := ScalarReal globals n1 in
     result_success r
   else ifb inc <> 1 /\ inc <> (-1)%Z then
     result_error "Compact sequences can only have an increment of -1 or 1."

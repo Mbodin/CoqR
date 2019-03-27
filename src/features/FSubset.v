@@ -91,7 +91,7 @@ Definition R_DispatchOrEvalSP call op generic args rho :=
       if negb x_obj then
         let%success elkm :=
           evalListKeepMissing globals runs args_cdr rho in
-        let (S, ans) := CONS_NR globals x elkm in
+        let%success ans := CONS_NR globals x elkm in
         run%success DECREMENT_LINKS x in
         result_rreturn (false, ans)
       else unimplemented_function "R_mkEVPROMISE_NR"
@@ -400,14 +400,14 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
           let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
             let%success x_imu := REAL_ELT x (Z.to_nat (i - 1)) in
-            let (S, r) := ScalarReal globals x_imu in
+            let%success r := ScalarReal globals x_imu in
             result_rreturn r
           else result_rskip
         | IntSxp =>
           let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
             let%success x_imu := INTEGER_ELT x (Z.to_nat (i - 1)) in
-            let (S, r) := ScalarInteger globals x_imu in
+            let%success r := ScalarInteger globals x_imu in
             result_rreturn r
           else result_rskip
         | LglSxp =>
@@ -420,7 +420,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
           let%success len := XLENGTH x in
           ifb i >= 1 /\ i <= len then
             let%success x_imu := COMPLEX_ELT x (Z.to_nat (i - 1)) in
-            let (S, r) := ScalarComplex globals x_imu in
+            let%success r := ScalarComplex globals x_imu in
             result_rreturn r
           else result_rskip
         | RawSxp => result_not_implemented "Raw case."
@@ -451,14 +451,14 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
               let%success len := XLENGTH x in
               ifb k <= len then
                 let%success x_k := REAL_ELT x k in
-                let (S, r) := ScalarReal globals x_k in
+                let%success r := ScalarReal globals x_k in
                 result_rreturn r
               else result_rskip
             | IntSxp =>
               let%success len := XLENGTH x in
               ifb k <= len then
                 let%success x_k := INTEGER_ELT x k in
-                let (S, r) := ScalarInteger globals x_k in
+                let%success r := ScalarInteger globals x_k in
                 result_rreturn r
               else result_rskip
             | LglSxp =>
@@ -471,7 +471,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
               let%success len := XLENGTH x in
               ifb k <= len then
                 let%success x_k := COMPLEX_ELT x k in
-                let (S, r) := ScalarComplex globals x_k in
+                let%success r := ScalarComplex globals x_k in
                 result_rreturn r
               else result_rskip
             | RawSxp => result_not_implemented "Raw case."
@@ -530,7 +530,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
             let%success len := R_length globals runs ans in
             ifb ~ drop \/ len > 1 then
               let%success nm := getAttrib globals runs ans R_NamesSymbol in
-              let (S, attr) := ScalarInteger globals len in
+              let%success attr := ScalarInteger globals len in
               run%success
                 let%success dim_names := getAttrib globals runs dim R_NamesSymbol in
                 let%success dim_names_null := isNull dim_names in
@@ -562,7 +562,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
       ifb type = LangSxp then
         let ax := ans in
         let%success ax_len := LENGTH globals ax in
-        let (S, ans) := allocList globals ax_len in
+        let%success ans := allocList globals ax_len in
         run%success
           ifb ax_len > 0 then
             set%type ans := LangSxp in

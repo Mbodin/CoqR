@@ -588,7 +588,7 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
         ifb jmp <> empty_context_type then
           do%let tmp := R_NilValue : SEXP
           for i from 0 to n - 1 do
-            unimplemented_function "getSrcref" using
+            unimplemented_function "getSrcref"
         else
           let tmp := R_ReturnedValue in
           ifb tmp = R_RestartToken then

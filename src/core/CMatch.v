@@ -221,7 +221,7 @@ Definition matchArgs_dots dots supplied :=
     else
       result_success i using runs, globals in
   ifb i <> 0 then
-    let (S, a) := allocList globals i in
+    let%success a := allocList globals i in
     set%type a := DotSxp in
     fold%success f := a
     along supplied
@@ -245,11 +245,11 @@ Definition matchArgs_check supplied :=
   as _, b_, b_list do
     ifb argused b_ = 0 then
       ifb last = R_NilValue then
-        let (S, unused) := CONS globals (list_carval b_list) R_NilValue in
+        let%success unused := CONS globals (list_carval b_list) R_NilValue in
         set%tag unused := list_tagval b_list in
         result_success (unused, unused)
       else
-        let (S, l) := CONS globals (list_carval b_list) R_NilValue in
+        let%success l := CONS globals (list_carval b_list) R_NilValue in
         set%cdr last := l in
         read%list _, last_cdr, _ := last in
         let last := last_cdr in
@@ -267,7 +267,7 @@ Definition matchArgs formals supplied (call : SEXP) :=
   fold%success (actuals, argi) := (R_NilValue : SEXP, 0)
   along formals
   as _, _ do
-    let (S, actuals) := CONS_NR globals R_MissingArg actuals in
+    let%success actuals := CONS_NR globals R_MissingArg actuals in
     run%success SET_MISSING actuals 1 ltac:(nbits_ok) in
     result_success (actuals, 1 + argi) using runs, globals in
   (** A call to [memset] has been inlined here.

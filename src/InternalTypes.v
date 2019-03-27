@@ -89,7 +89,6 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
 
 (** All function in the array [R_FunTab] have the same type. **)
 Definition function_code :=
-  state ->
   SEXP -> (** call **)
   SEXP -> (** op **)
   SEXP -> (** args **)

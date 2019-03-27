@@ -119,7 +119,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           read%Integer x1 := px1 at i1 in
           read%Integer x2 := px2 at i2 in
           write%Integer pa at i := R_integer_plus x1 x2 in
-          result_skip using
+          result_skip
       else ifb code = MINUSOP then
         let pa := ans in
         let px1 := s1 in
@@ -131,7 +131,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           read%Integer x1 := px1 at i1 in
           read%Integer x2 := px2 at i2 in
           write%Integer pa at i := R_integer_minus x1 x2 in
-          result_skip using
+          result_skip
       else ifb code = TIMESOP then
         let pa := ans in
         let px1 := s1 in
@@ -143,7 +143,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           read%Integer x1 := px1 at i1 in
           read%Integer x2 := px2 at i2 in
           write%Integer pa at i := R_integer_times x1 x2 in
-          result_skip using
+          result_skip
       else ifb code = DIVOP then
         let pa := ans in
         let px1 := s1 in
@@ -155,7 +155,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           read%Integer x1 := px1 at i1 in
           read%Integer x2 := px2 at i2 in
           write%Real pa at i := R_integer_divide x1 x2 in
-          result_skip using
+          result_skip
       else ifb code = POWOP then
         let pa := ans in
         let px1 := s1 in
@@ -172,7 +172,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           else ifb x1 = NA_INTEGER \/ x2 = NA_INTEGER then
             write%Real pa at i := NA_REAL in
             result_skip
-          else unimplemented_function "R_POW" using
+          else unimplemented_function "R_POW"
       else ifb code = MODOP then
         let pa := ans in
         let px1 := s1 in
@@ -190,7 +190,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
             ifb x1 >= 0 /\ x2 > 0 then
               write%Integer pa at i := (x1 mod x2)%Z in
               result_skip
-            else unimplemented_function "myfmod" using
+            else unimplemented_function "myfmod"
       else ifb code = IDIVOP then
         let pa := ans in
         let px1 := s1 in
@@ -204,7 +204,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
           ifb x1 = NA_INTEGER \/ x2 = NA_INTEGER \/ x2 = 0 then
             write%Integer pa at i := NA_INTEGER in
             result_skip
-          else unimplemented_function "floor" using
+          else unimplemented_function "floor"
       else result_skip in
     let%success s1_attr := ATTRIB s1 in
     let%success s2_attr := ATTRIB s2 in
@@ -244,21 +244,21 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               write%Real da at i := Double.add dx_i tmp in
-              result_skip using
+              result_skip
           else ifb n1 = 1 then
             read%Real tmp := dx at 0 in
             do%let
             for i from 0 to n - 1 do
               read%Real dy_i := dy at i in
               write%Real da at i := Double.add tmp dy_i in
-              result_skip using
+              result_skip
           else ifb n1 = n2 then
             do%let
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               read%Real dy_i := dy at i in
               write%Real da at i := Double.add dx_i dy_i in
-              result_skip using
+              result_skip
           else
             do%let
             for i from 0 to n - 1 do
@@ -267,7 +267,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
               read%Real dx_i1 := dx at i1 in
               read%Real dy_i2 := dy at i2 in
               write%Real da at i := Double.add dx_i1 dy_i2 in
-              result_skip using
+              result_skip
         else ifb s1_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -279,7 +279,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Integer px1_i1 := px1 at i1 in
             read%Real px2_i2 := px2 at i2 in
             write%Real da at i := Double.add (px1_i1 : double) px2_i2 in
-            result_skip using
+            result_skip
         else ifb s2_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -291,7 +291,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Real px1_i1 := px1 at i1 in
             read%Integer px2_i2 := px2 at i2 in
             write%Real da at i := Double.add px1_i1 (px2_i2 : double) in
-            result_skip using
+            result_skip
         else result_skip
       else ifb code = MINUSOP then
         let%success s1_type := TYPEOF s1 in
@@ -306,21 +306,21 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               write%Real da at i := Double.sub dx_i tmp in
-              result_skip using
+              result_skip
           else ifb n1 = 1 then
             read%Real tmp := dx at 0 in
             do%let
             for i from 0 to n - 1 do
               read%Real dy_i := dy at i in
               write%Real da at i := Double.sub tmp dy_i in
-              result_skip using
+              result_skip
           else ifb n1 = n2 then
             do%let
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               read%Real dy_i := dy at i in
               write%Real da at i := Double.sub dx_i dy_i in
-              result_skip using
+              result_skip
           else
             do%let
             for i from 0 to n - 1 do
@@ -329,7 +329,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
               read%Real dx_i1 := dx at i1 in
               read%Real dy_i2 := dy at i2 in
               write%Real da at i := Double.sub dx_i1 dy_i2 in
-              result_skip using
+              result_skip
         else ifb s1_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -341,7 +341,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Integer px1_i1 := px1 at i1 in
             read%Real px2_i2 := px2 at i2 in
             write%Real da at i := Double.sub (px1_i1 : double) px2_i2 in
-            result_skip using
+            result_skip
         else ifb s2_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -353,7 +353,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Real px1_i1 := px1 at i1 in
             read%Integer px2_i2 := px2 at i2 in
             write%Real da at i := Double.sub px1_i1 (px2_i2 : double) in
-            result_skip using
+            result_skip
         else result_skip
       else ifb code = TIMESOP then
         let%success s1_type := TYPEOF s1 in
@@ -368,21 +368,21 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               write%Real da at i := Double.mult dx_i tmp in
-              result_skip using
+              result_skip
           else ifb n1 = 1 then
             read%Real tmp := dx at 0 in
             do%let
             for i from 0 to n - 1 do
               read%Real dy_i := dy at i in
               write%Real da at i := Double.mult tmp dy_i in
-              result_skip using
+              result_skip
           else ifb n1 = n2 then
             do%let
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               read%Real dy_i := dy at i in
               write%Real da at i := Double.mult dx_i dy_i in
-              result_skip using
+              result_skip
           else
             do%let
             for i from 0 to n - 1 do
@@ -391,7 +391,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
               read%Real dx_i1 := dx at i1 in
               read%Real dy_i2 := dy at i2 in
               write%Real da at i := Double.mult dx_i1 dy_i2 in
-              result_skip using
+              result_skip
         else ifb s1_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -403,7 +403,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Integer px1_i1 := px1 at i1 in
             read%Real px2_i2 := px2 at i2 in
             write%Real da at i := Double.mult (px1_i1 : double) px2_i2 in
-            result_skip using
+            result_skip
         else ifb s2_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -415,7 +415,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Real px1_i1 := px1 at i1 in
             read%Integer px2_i2 := px2 at i2 in
             write%Real da at i := Double.mult px1_i1 (px2_i2 : double) in
-            result_skip using
+            result_skip
         else result_skip
       else ifb code = DIVOP then
         let%success s1_type := TYPEOF s1 in
@@ -430,21 +430,21 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               write%Real da at i := Double.div dx_i tmp in
-              result_skip using
+              result_skip
           else ifb n1 = 1 then
             read%Real tmp := dx at 0 in
             do%let
             for i from 0 to n - 1 do
               read%Real dy_i := dy at i in
               write%Real da at i := Double.div tmp dy_i in
-              result_skip using
+              result_skip
           else ifb n1 = n2 then
             do%let
             for i from 0 to n - 1 do
               read%Real dx_i := dx at i in
               read%Real dy_i := dy at i in
               write%Real da at i := Double.div dx_i dy_i in
-              result_skip using
+              result_skip
           else
             do%let
             for i from 0 to n - 1 do
@@ -453,7 +453,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
               read%Real dx_i1 := dx at i1 in
               read%Real dy_i2 := dy at i2 in
               write%Real da at i := Double.div dx_i1 dy_i2 in
-              result_skip using
+              result_skip
         else ifb s1_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -465,7 +465,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Integer px1_i1 := px1 at i1 in
             read%Real px2_i2 := px2 at i2 in
             write%Real da at i := Double.div (px1_i1 : double) px2_i2 in
-            result_skip using
+            result_skip
         else ifb s2_type = IntSxp then
           let da := ans in
           let px1 := s1 in
@@ -477,7 +477,7 @@ Definition real_binary (code : int) s1 s2 : result SEXP :=
             read%Real px1_i1 := px1 at i1 in
             read%Integer px2_i2 := px2 at i2 in
             write%Real da at i := Double.div px1_i1 (px2_i2 : double) in
-            result_skip using
+            result_skip
         else result_skip
       else ifb code = POWOP then
         unimplemented_function "R_POW"
@@ -700,7 +700,7 @@ Definition logical_unary (code : int) s1 :=
         ifb x = NA_INTEGER then NA_INTEGER
         else ifb x = 0 then 0 else -x) px)
     else result_error "Invalid unary operator." in
-  let (S, ans) := alloc_vector_int globals pa in
+  let%success ans := alloc_vector_int globals pa in
   run%success
     ifb names <> R_NilValue then
       run%success setAttrib globals runs ans R_NamesSymbol names in
@@ -845,7 +845,7 @@ Definition do_arith (call op args env : SEXP) : result SEXP :=
                 run%success SET_SCALAR_IVAL ans (R_integer_times i1 i2) in
                 result_rreturn ans
               else ifb op_val = DIVOP then
-                let (S, ans) := ScalarReal globals (R_integer_divide i1 i2) in
+                let%success ans := ScalarReal globals (R_integer_divide i1 i2) in
                 result_rreturn ans
               else result_rskip
             else result_rskip

@@ -106,11 +106,11 @@ Definition do_getconnection (call op args env : SEXP) : result SEXP :=
     result_error "There is no such connection."
   else
     let%defined con := nth_option (Z.to_nat what) (R_Connections S) in
-    let (S, ans) := ScalarInteger globals what in
+    let%success ans := ScalarInteger globals what in
     let%success class := allocVector globals StrSxp 2 in
-    let (S, class0) := mkChar globals (Rconnection_class con) in
+    let%success class0 := mkChar globals (Rconnection_class con) in
     write%Pointer class at 0 := class0 in
-    let (S, class1) := mkChar globals "connection" in
+    let%success class1 := mkChar globals "connection" in
     write%Pointer class at 1 := class1 in
     run%success classgets globals runs ans class in
     run%success

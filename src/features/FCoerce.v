@@ -270,31 +270,31 @@ Definition do_isna (call op args rho : SEXP) : result SEXP :=
         for i from 0 to n - 1 do
           let%success x_i := LOGICAL_ELT x i in
           write%Logical ans at i := decide (x_i = NA_LOGICAL) in
-          result_skip using
+          result_skip
       | IntSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := INTEGER_ELT x i in
           write%Logical ans at i := decide (x_i = NA_INTEGER) in
-          result_skip using
+          result_skip
       | RealSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := REAL_ELT x i in
           write%Logical ans at i := ISNAN x_i in
-          result_skip using
+          result_skip
       | CplxSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := COMPLEX_ELT x i in
           write%Logical ans at i := ISNAN (Rcomplex_r x_i) || ISNAN (Rcomplex_i x_i) in
-          result_skip using
+          result_skip
       | StrSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := STRING_ELT x i in
           write%Logical ans at i := decide (x_i = NA_STRING) in
-          result_skip using
+          result_skip
       | ListSxp =>
         do%success x := x
         for i from 0 to n - 1 do
@@ -306,12 +306,12 @@ Definition do_isna (call op args rho : SEXP) : result SEXP :=
         do%let
         for i from 0 to n - 1 do
           let%success s := VECTOR_ELT x i in
-          LIST_VEC_NA s i using
+          LIST_VEC_NA s i
       | RawSxp =>
         do%let
         for i from 0 to n - 1 do
           write%Logical ans at i := false in
-          result_skip using
+          result_skip
       | NilSxp => result_skip
       | _ => result_error "Non-(list or vector)."
       end in
@@ -344,19 +344,19 @@ Definition do_isnan (call op args rho : SEXP) : result SEXP :=
         do%let
         for i from 0 to n - 1 do
           write%Logical ans at i := false in
-          result_skip using
+          result_skip
       | RealSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := REAL_ELT x i in
           write%Logical ans at i := R_IsNaN x_i in
-          result_skip using
+          result_skip
       | CplxSxp =>
         do%let
         for i from 0 to n - 1 do
           let%success x_i := COMPLEX_ELT x i in
           write%Logical ans at i := R_IsNaN (Rcomplex_r x_i) || R_IsNaN (Rcomplex_i x_i) in
-          result_skip using
+          result_skip
       | _ => result_error "Default method not implemented for this type."
       end in
     run%success copyDimAndNames globals runs x ans in
@@ -437,7 +437,7 @@ Definition do_substitute (call op args rho : SEXP) : result SEXP :=
         result_error "invalid environment specified"
     else
         let%success argList_car_duplicate := duplicate globals runs argList_car in
-        let (S, t) := CONS globals argList_car_duplicate R_NilValue in
+        let%success t := CONS globals argList_car_duplicate R_NilValue in
         let%success s := substituteList globals runs t env in
         read%list s_car, _, _ := s in
         result_success s_car

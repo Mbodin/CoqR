@@ -410,7 +410,7 @@ Definition do_length (call op args env : SEXP) : result SEXP :=
     else
     (** Assuming LONG_VECTOR_SUPPORT is false **)
         let%success x_length := R_length globals runs x in
-        let (S, s_x) := ScalarInteger globals x_length in
+        let%success s_x := ScalarInteger globals x_length in
             result_success s_x.
 
 End Parameters.
