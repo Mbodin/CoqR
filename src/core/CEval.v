@@ -182,16 +182,14 @@ Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
         get%state S in
         ifb R_ReturnedValue S = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
-          get%state S in
-          set%state state_with_context S cntxt in
-          set%state update_R_ReturnedValue S R_NilValue in
+          map%state state_with_context cntxt in
+          map%state update_R_ReturnedValue R_NilValue in
           runs_eval runs body newrho
         else result_success (R_ReturnedValue S)
       else result_success NULL
     else runs_eval runs body newrho in
   let cntxt := context_with_returnValue cntxt cntxt_returnValue in
-  get%state S in
-  set%state state_with_context S cntxt in
+  map%state state_with_context cntxt in
   run%success endcontext globals runs cntxt in
   result_success (context_returnValue cntxt).
 

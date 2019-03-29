@@ -68,8 +68,7 @@ Definition install name_ : result SEXP :=
     let%success sym := mkSYMSXP globals str R_UnboundValue in
     get%state S in
     let%success SymbolTable := CONS globals sym (R_SymbolTable S) in
-    get%state S in
-    set%state update_R_SymbolTable S SymbolTable in
+    map%state update_R_SymbolTable SymbolTable in
     result_success sym.
 
 (** We here choose to model [installChar] as its specification

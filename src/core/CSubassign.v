@@ -270,7 +270,7 @@ Definition gi indx i :=
         result_success indx_i.
 
 
-Definition VECTOR_ASSIGN_LOOP indx n ny (CODE : state -> nat -> nat -> result unit) :=
+Definition VECTOR_ASSIGN_LOOP indx n ny (CODE : nat -> nat -> result unit) :=
   add%stack "VECTOR_ASSIGN_LOOP" in
     let%success indx_type := TYPEOF indx in
     ifb indx_type = IntSxp then
@@ -293,8 +293,7 @@ Definition VECTOR_ASSIGN_LOOP indx n ny (CODE : state -> nat -> nat -> result un
             else
             let ii := Z.to_nat ii - 1 in
             run%success CODE iny ii in
-            result_success (ifb (iny + 1 = ny) then 0 else iny)
-        using.
+            result_success (ifb (iny + 1 = ny) then 0 else iny).
 
 Definition VectorAssign (call rho x s y : SEXP) :=
   add%stack "VectorAssign" in

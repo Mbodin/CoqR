@@ -30,7 +30,7 @@ Open Scope monad_scope.
 
 (** * Generic Monads **)
 
-(** ** Getting the current state. **)
+(** ** Manipulating the current state. **)
 
 Definition get_state A (cont : state -> result A) : result A :=
   fun S => cont S S.
@@ -48,6 +48,14 @@ Notation "'set%state' S 'in' cont" :=
   (set_state S cont)
   (at level 50, left associativity) : monad_scope.
 
+Definition map_state A (f : state -> state) (cont : result A) : result A :=
+  get%state S in
+  set%state f S in
+  cont.
+
+Notation "'map%state' S 'in' cont" :=
+  (map_state S cont)
+  (at level 50, left associativity) : monad_scope.
 
 
 (** ** Function definitions **)

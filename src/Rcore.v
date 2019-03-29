@@ -60,8 +60,8 @@ Require Export CSubscript.
 Require Export CSubassign.
 
 (** Evaluates the expression in the global environment. **)
-Definition eval_global globals runs S e :=
+Definition eval_global globals runs e :=
   add%stack "eval_global" in
-  eval globals runs S e (read_globals globals R_GlobalEnv).
+  eval globals runs e (read_globals globals R_GlobalEnv).
 
 Optimize Heap.

@@ -994,9 +994,9 @@ Record state := make_state {
     R_ExitContext : option context ;
     R_SymbolTable : SEXP ;
     R_ReturnedValue : SEXP ;
-    R_Connections : list Rconnection (** Simply [Connections] in main/connections.c. **) ;
+    R_Connections : list Rconnection (** Simply named [Connections] in main/connections.c. **) ;
     R_OutputCon : nat ;
-    R_asymSymbol : list SEXP (** Simply [asymSymbol] in main/eval.c. **)
+    R_asymSymbol : list SEXP (** Simply named [asymSymbol] in main/eval.c. **)
   }.
 
 Definition R_GlobalContext := state_context.
@@ -1071,7 +1071,7 @@ Proof.
   - applys~ state_same_except_for_memory_sym R.
 Qed.
 
-Definition state_with_memory S m := {|
+Definition state_with_memory m S := {|
     state_memory := m ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1083,10 +1083,10 @@ Definition state_with_memory S m := {|
   |}.
 
 Lemma state_same_except_for_memory_state_with_memory : forall S m,
-  state_same_except_for_memory S (state_with_memory S m).
+  state_same_except_for_memory S (state_with_memory m S).
 Proof. introv. destruct S. constructors~. Qed.
 
-Definition state_with_context S c := {|
+Definition state_with_context c S := {|
     state_memory := state_memory S ;
     state_context := c ;
     R_ExitContext := R_ExitContext S ;
@@ -1097,7 +1097,7 @@ Definition state_with_context S c := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_ExitContext S c := {|
+Definition update_R_ExitContext c S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := c ;
@@ -1108,7 +1108,7 @@ Definition update_R_ExitContext S c := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_SymbolTable S p := {|
+Definition update_R_SymbolTable p S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1119,7 +1119,7 @@ Definition update_R_SymbolTable S p := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_ReturnedValue S p := {|
+Definition update_R_ReturnedValue p S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1130,7 +1130,7 @@ Definition update_R_ReturnedValue S p := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_Connections S cs := {|
+Definition update_R_Connections cs S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1141,7 +1141,7 @@ Definition update_R_Connections S cs := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_OutputCon S outputCon := {|
+Definition update_R_OutputCon outputCon S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1152,7 +1152,7 @@ Definition update_R_OutputCon S outputCon := {|
     R_asymSymbol := R_asymSymbol S
   |}.
 
-Definition update_R_asymSymbol S asl := {|
+Definition update_R_asymSymbol asl S := {|
     state_memory := state_memory S ;
     state_context := state_context S ;
     R_ExitContext := R_ExitContext S ;
@@ -1168,11 +1168,11 @@ Definition update_R_asymSymbol S asl := {|
 
 Definition alloc_SExp e_ (S : state) :=
   let (m, e) := alloc_memory_SExp e_ S in
-  (state_with_memory S m, e).
+  (state_with_memory m S, e).
 
 Definition write_SExp e e_ (S : state) :=
   match write_memory_SExp e e_ S with
-  | Some m => Some (state_with_memory S m)
+  | Some m => Some (state_with_memory m S)
   | None => None
   end.
 
