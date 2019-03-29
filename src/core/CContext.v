@@ -39,10 +39,10 @@ Local Coercion int_to_double : Z >-> double.
 (** Instead of updating a context given as its first argument, it returns it. **)
 Definition begincontext flags syscall env sysp promargs callfun :=
   add%stack "begincontext" in
-  get%state S in
+  read%state GlobalContext := R_GlobalContext in
   let cptr := {|
-     context_nextcontext := Some (R_GlobalContext S) ;
-     context_cjmpbuf := 1 + context_cjmpbuf (R_GlobalContext S) ;
+     context_nextcontext := Some GlobalContext ;
+     context_cjmpbuf := 1 + context_cjmpbuf GlobalContext ;
      context_callflag := flags ;
      context_promargs := promargs ;
      context_callfun := callfun ;
@@ -76,8 +76,8 @@ Fixpoint first_jump_target_loop c cptr mask :=
 
 Definition first_jump_target cptr mask :=
   add%stack "first_jump_target" in
-  get%state S in
-  first_jump_target_loop (R_GlobalContext S) cptr mask.
+  read%state GlobalContext := R_GlobalContext in
+  first_jump_target_loop GlobalContext cptr mask.
 
 Fixpoint R_run_onexits_loop c cptr :=
   (** In the original program, the pointers [c] and [cptr] are directly compared.
@@ -88,8 +88,7 @@ Fixpoint R_run_onexits_loop c cptr :=
     run%success
       ifb context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue then
         let s := context_conexit c in
-        get%state S in
-        let savecontext := R_ExitContext S in
+        read%state savecontext := R_ExitContext in
         let c := context_with_conexit c R_NilValue in
         let c := context_with_returnValue c NULL in
         map%state update_R_ExitContext (Some c) in
@@ -105,8 +104,8 @@ Fixpoint R_run_onexits_loop c cptr :=
         result_skip
       else result_skip in
     run%success
-      get%state S in
-      if match R_ExitContext S with
+      read%state ExitContext := R_ExitContext in
+      if match ExitContext with
          | None => false
          | Some ce => decide (context_cjmpbuf ce = context_cjmpbuf c)
          end then
@@ -120,8 +119,8 @@ Fixpoint R_run_onexits_loop c cptr :=
 
 Definition R_run_onexits cptr :=
   add%stack "R_run_onexits" in
-  get%state S in
-  R_run_onexits_loop (R_GlobalContext S) cptr.
+  read%state GlobalContext := R_GlobalContext in
+  R_run_onexits_loop GlobalContext cptr.
 
 Definition R_restore_globals (cptr : context) :=
   add%stack "R_restore_globals" in
@@ -134,8 +133,8 @@ Definition R_jumpctxt A targetcptr mask val : result A :=
   map%state update_R_ReturnedValue val in
   map%state state_with_context cptr in
   run%success
-    get%state S in
-    R_restore_globals (R_GlobalContext S) in
+    read%state GlobalContext := R_GlobalContext in
+    R_restore_globals GlobalContext in
   result_longjump (context_cjmpbuf cptr) mask.
 Arguments R_jumpctxt [A].
 
@@ -145,8 +144,7 @@ Definition endcontext cptr :=
   run%success
     ifb context_cloenv cptr <> R_NilValue /\ context_conexit cptr <> R_NilValue then
       let s := context_conexit cptr in
-      get%state S in
-      let savecontext := R_ExitContext S in
+      read%state savecontext := R_ExitContext in
       let cptr := context_with_conexit cptr R_NilValue in
       let cptr := context_with_jumptarget cptr None in
       map%state update_R_ExitContext (Some cptr) in
@@ -162,8 +160,8 @@ Definition endcontext cptr :=
       result_skip
     else result_skip in
   run%success
-    get%state S in
-    if match R_ExitContext S with
+    read%state ExitContext := R_ExitContext in
+    if match ExitContext with
        | None => false
        | Some ce => decide (context_cjmpbuf ce = context_cjmpbuf cptr)
        end then
@@ -174,8 +172,8 @@ Definition endcontext cptr :=
     match jmptarget with
     | None => result_skip
     | Some jmptarget =>
-      get%state S in
-      R_jumpctxt jmptarget (context_jumpmask cptr) (R_ReturnedValue S)
+      read%state ReturnedValue := R_ReturnedValue in
+      R_jumpctxt jmptarget (context_jumpmask cptr) ReturnedValue
     end in
   let%defined c := context_nextcontext cptr in
   map%state state_with_context c in
@@ -196,11 +194,11 @@ Arguments findcontext_loop [A].
 
 Definition findcontext A mask env val : result A :=
   add%stack "findcontext" in
-  get%state S in
+  read%state GlobalContext := R_GlobalContext in
   ifb context_type_mask Ctxt_Loop mask then
-    findcontext_loop (R_GlobalContext S) env mask Ctxt_Loop val "No loop for break/next, jumping to top level."
+    findcontext_loop GlobalContext env mask Ctxt_Loop val "No loop for break/next, jumping to top level."
   else
-    findcontext_loop (R_GlobalContext S) env mask mask val "No function to return from, jumping to top level.".
+    findcontext_loop GlobalContext env mask mask val "No function to return from, jumping to top level.".
 Arguments findcontext [A].
 
 End Parameterised.

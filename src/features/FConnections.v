@@ -38,10 +38,11 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition getConnection (n : int) :=
   add%stack "getConnection" in
-  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
+  read%state Connections := R_Connections in
+  ifb n < 0 \/ n >= length Connections \/ n = NA_INTEGER then
     result_error "Invalid connection."
   else
-    let%defined c := nth_option (Z.to_nat n) (R_Connections S) in
+    let%defined c := nth_option (Z.to_nat n) Connections in
     result_success c.
 
 (** The following six functions execute the interpretation function
@@ -52,10 +53,11 @@ Definition getConnection (n : int) :=
 
 Definition putConnection (n : int) c :=
   add%stack "putConnection" in
-  ifb n < 0 \/ n >= length (R_Connections S) \/ n = NA_INTEGER then
+  read%state Connections := R_Connections in
+  ifb n < 0 \/ n >= length Connections \/ n = NA_INTEGER then
     result_error "Invalid connection."
   else
-    let := update_R_Connections (update (Z.to_nat n) c (R_Connections S)) in
+    map%state update_R_Connections (update (Z.to_nat n) c Connections) in
     result_skip.
 
 Definition run_open n :=
@@ -100,12 +102,13 @@ Definition do_getconnection (call op args env : SEXP) : result SEXP :=
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
   let%success what := asInteger globals args_car in
+  read%state Connections := R_Connections in
   ifb what = NA_INTEGER then
     result_error "There is no connection NA."
-  else ifb what < 0 \/ what >= length (R_Connections S) then
+  else ifb what < 0 \/ what >= length Connections then
     result_error "There is no such connection."
   else
-    let%defined con := nth_option (Z.to_nat what) (R_Connections S) in
+    let%defined con := nth_option (Z.to_nat what) Connections in
     let%success ans := ScalarInteger globals what in
     let%success class := allocVector globals StrSxp 2 in
     let%success class0 := mkChar globals (Rconnection_class con) in

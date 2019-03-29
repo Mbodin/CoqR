@@ -343,7 +343,8 @@ Definition do_envir (call op args rho : SEXP) : result SEXP :=
     read%clo _, args_car_clo := args_car in
     result_success (clo_env args_car_clo)
   else ifb args_car = R_NilValue then
-    result_success (context_sysparent (R_GlobalContext S))
+    read%state GlobalContext := R_GlobalContext in
+    result_success (context_sysparent GlobalContext)
   else getAttrib globals runs args_car R_DotEnvSymbol.
 
 

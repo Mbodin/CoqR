@@ -48,7 +48,7 @@ Require Export FSubassign.
 (** * Closing the Loop **)
 
 Definition dummy_function name (_ : Globals) (_ : runs_type)
-    (S : state) (call op args rho : SEXP) : result SEXP :=
+    (call op args rho : SEXP) : result SEXP :=
   unimplemented_function name.
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
@@ -58,26 +58,26 @@ Defined.
 Fixpoint runs max_step globals : runs_type :=
   match max_step with
   | O => {|
-      runs_while_loop := fun _ S _ _ _ => result_bottom S ;
-      runs_set_longjump := fun _ S _ _ _ => result_bottom S ;
-      runs_eval := fun S _ _ => result_bottom S ;
-      runs_getAttrib := fun S _ _ => result_bottom S ;
-      runs_setAttrib := fun S _ _ _ => result_bottom S ;
-      runs_R_cycle_detected := fun S _ _ => result_bottom S ;
-      runs_duplicate1 := fun S _ _ => result_bottom S ;
-      runs_stripAttrib := fun S _ _ => result_bottom S ;
-      runs_evalseq := fun S _ _ _ _ => result_bottom S ;
-      runs_R_isMissing := fun S _ _ => result_bottom S ;
-      runs_AnswerType := fun S _ _ _ _ _ => result_bottom S ;
-      runs_ListAnswer := fun S _ _ _ _ => result_bottom S ;
-      runs_StringAnswer := fun S _ _ _ => result_bottom S ;
-      runs_LogicalAnswer := fun S _ _ _ => result_bottom S ;
-      runs_IntegerAnswer := fun S _ _ _ => result_bottom S ;
-      runs_RealAnswer := fun S _ _ _ => result_bottom S ;
-      runs_ComplexAnswer := fun S _ _ _ => result_bottom S ;
-      runs_RawAnswer := fun S _ _ _ => result_bottom S ;
-      runs_substitute := fun S _ _ => result_bottom S ;
-      runs_substituteList := fun S _ _ => result_bottom S ;
+      runs_while_loop := fun _ _ _ _ => result_bottom ;
+      runs_set_longjump := fun _ _ _ _ => result_bottom ;
+      runs_eval := fun _ _ => result_bottom ;
+      runs_getAttrib := fun _ _ => result_bottom ;
+      runs_setAttrib := fun _ _ _ => result_bottom ;
+      runs_R_cycle_detected := fun _ _ => result_bottom ;
+      runs_duplicate1 := fun _ _ => result_bottom ;
+      runs_stripAttrib := fun _ _ => result_bottom ;
+      runs_evalseq := fun _ _ _ _ => result_bottom ;
+      runs_R_isMissing := fun _ _ => result_bottom ;
+      runs_AnswerType := fun _ _ _ _ _ => result_bottom ;
+      runs_ListAnswer := fun _ _ _ _ => result_bottom ;
+      runs_StringAnswer := fun _ _ _ => result_bottom ;
+      runs_LogicalAnswer := fun _ _ _ => result_bottom ;
+      runs_IntegerAnswer := fun _ _ _ => result_bottom ;
+      runs_RealAnswer := fun _ _ _ => result_bottom ;
+      runs_ComplexAnswer := fun _ _ _ => result_bottom ;
+      runs_RawAnswer := fun _ _ _ => result_bottom ;
+      runs_substitute := fun _ _ => result_bottom ;
+      runs_substituteList := fun _ _ => result_bottom ;
       runs_R_FunTab := None
     |}
   | S max_step =>

@@ -52,9 +52,9 @@ Definition install name_ : result SEXP :=
     Instead, it is represented as a single list, and not
     as [HSIZE] different lists.
     This approach is slower, but equivalent. **)
-  get%state S in
+  read%state SymbolTable := R_SymbolTable in
   fold%return
-  along R_SymbolTable S
+  along SymbolTable
   as sym_car, _ do
     let%success str_sym := PRINTNAME sym_car in
     let%success str_name_ := CHAR str_sym in
@@ -66,8 +66,8 @@ Definition install name_ : result SEXP :=
   else
     let%success str := mkChar globals name_ in
     let%success sym := mkSYMSXP globals str R_UnboundValue in
-    get%state S in
-    let%success SymbolTable := CONS globals sym (R_SymbolTable S) in
+    read%state SymbolTable := R_SymbolTable in
+    let%success SymbolTable := CONS globals sym SymbolTable in
     map%state update_R_SymbolTable SymbolTable in
     result_success sym.
 

@@ -38,7 +38,7 @@ Local Coercion int_to_double : Z >-> double.
 
 
 
-Definition xcopyWithRecycle {A B} (GETELT : state -> SEXP -> nat -> result B) (SETELT : state -> SEXP -> nat -> B -> result A) (dst src : SEXP) (dstart n nsrc : int) :=
+Definition xcopyWithRecycle {A B} (GETELT : SEXP -> nat -> result B) (SETELT : SEXP -> nat -> B -> result A) (dst src : SEXP) (dstart n nsrc : int) :=
   add%stack "xcopyWithRecycle_1" in
     ifb nsrc >= n then
         do%success 

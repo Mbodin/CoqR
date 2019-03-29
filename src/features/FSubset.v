@@ -715,7 +715,7 @@ Definition do_subset2_dflt (call op args rho : SEXP) : result SEXP :=
             let%success x_isNewList := isNewList globals x in
             let%success x_isExpression := isExpression x in
             let%success x_isList := isList globals x in
-            let%success x_isLanguage := isLanguage globals x using  in
+            let%success x_isLanguage := isLanguage globals x in
             ifb offset < 0 /\ (x_isNewList \/ x_isExpression \/ x_isList \/ x_isLanguage) then
                 result_rreturn (R_NilValue : SEXP)
             else

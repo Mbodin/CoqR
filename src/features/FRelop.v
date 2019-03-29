@@ -90,7 +90,7 @@ Definition NR_HELPER T1 T2 (op : T1 -> T2 -> bool) ans n n1 n2 read1 read2 (ISNA
       result_skip
     else
       write%Logical ans at i := op x1 x2 in
-      result_skip using.
+      result_skip.
 
 Definition NUMERIC_RELOP_int (code : int) ans n n1 n2 read1 read2 (ISNA1 ISNA2 : int -> bool) :=
   add%stack "NUMERIC_RELOP_int" in

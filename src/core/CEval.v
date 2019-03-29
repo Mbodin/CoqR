@@ -179,13 +179,13 @@ Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
          | None => true
          | Some _ => false
          end then
-        get%state S in
-        ifb R_ReturnedValue S = R_RestartToken then
+        read%state ReturnedValue := R_ReturnedValue in
+        ifb ReturnedValue = R_RestartToken then
           let cntxt := context_with_callflag cntxt Ctxt_Return in
           map%state state_with_context cntxt in
           map%state update_R_ReturnedValue R_NilValue in
           runs_eval runs body newrho
-        else result_success (R_ReturnedValue S)
+        else result_success ReturnedValue
       else result_success NULL
     else runs_eval runs body newrho in
   let cntxt := context_with_returnValue cntxt cntxt_returnValue in
@@ -226,10 +226,10 @@ Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP 
       if%success R_envHasNoSpecialSymbols globals runs newrho then
         SET_NO_SPECIAL_SYMBOLS newrho in
       let%success val :=
-        get%state S in
+        read%state GlobalContext := R_GlobalContext in
         R_execClosure call newrho
-          (ifb context_callflag (R_GlobalContext S) = Ctxt_Generic then
-             context_sysparent (R_GlobalContext S)
+          (ifb context_callflag GlobalContext = Ctxt_Generic then
+             context_sysparent GlobalContext
            else rho)
           rho arglist op in
       result_success val.
@@ -648,9 +648,9 @@ Definition eval (e rho : SEXP) :=
           let%success op :=
             ifb e_car_type = SymSxp then
               let%success ecall :=
-                get%state S in
-                ifb context_callflag (R_GlobalContext S) = Ctxt_CCode then
-                  result_success (context_call (R_GlobalContext S))
+                read%state GlobalContext := R_GlobalContext in
+                ifb context_callflag GlobalContext = Ctxt_CCode then
+                  result_success (context_call GlobalContext)
                 else result_success e in
               findFun3 globals runs e_car rho ecall
             else runs_eval runs e_car rho in

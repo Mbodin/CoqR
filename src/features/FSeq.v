@@ -67,7 +67,7 @@ Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
           else
             do%let for i from 0 to n - 1 do
               write%Integer ans at i := in1 - i in
-              result_skip using in
+              result_skip in
         result_success ans
       else
         let%success ans := allocVector globals RealSxp n in
@@ -79,9 +79,8 @@ Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
           else
             do%let for i from 0 to n - 1 do
               write%Real ans at i := Double.sub n1 (i : double) in
-              result_skip using in
-        result_success ans
-      in
+              result_skip in
+        result_success ans in
     result_success ans.
 
 Definition do_colon (call op args rho : SEXP) : result SEXP :=

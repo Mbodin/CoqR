@@ -188,10 +188,11 @@ Definition applydefine (call op args rho : SEXP) : result SEXP :=
     run%success SET_TEMPVARLOC_FROM_CAR tmploc lhs in
     let%success expr :=
       let%success R_asymSymbol_op :=
-        ifb op_val < 0 \/ op_val >= length (R_asymSymbol S) then
+        read%state asymSymbol := R_asymSymbol in
+        ifb op_val < 0 \/ op_val >= length asymSymbol then
           result_error "Out of bound access to R_asymSymbol."
         else
-          let%defined sym := nth_option (Z.to_nat op_val) (R_asymSymbol S) in
+          let%defined sym := nth_option (Z.to_nat op_val) asymSymbol in
           result_success sym in
       read%list _, lhs_cdr, _ := lhs in
       read%list _, expr_cdr_cdr, _ := expr_cdr in
@@ -565,15 +566,16 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
     let%success expr_bc := isByteCode expr in
     ifb expr_type = LangSxp \/ expr_type = SymSxp \/ expr_bc then
       let%success cntxt :=
-        begincontext globals Ctxt_Return (context_call (R_GlobalContext S)) env rho args op in
+        read%state GlobalContext := R_GlobalContext in
+        begincontext globals Ctxt_Return (context_call GlobalContext) env rho args op in
       set%longjump context_cjmpbuf cntxt as jmp using runs in
       let%success expr :=
         ifb jmp = empty_context_type then
           eval globals runs expr env
         else
-          let expr := R_ReturnedValue in
+          read%state expr := R_ReturnedValue in
           ifb expr = R_RestartToken then
-            let := state_with_context (context_with_callflag cntxt Ctxt_Return) in
+            map%state state_with_context (context_with_callflag cntxt Ctxt_Return) in
             result_error "Restarts not supported in ‘eval’."
           else result_success expr in
       run%success endcontext globals runs cntxt in
@@ -582,7 +584,8 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
       let%success srcrefs := getBlockSrcrefs expr in
       let%success n := LENGTH globals expr in
       let%success cntxt :=
-        begincontext globals Ctxt_Return (context_call (R_GlobalContext S)) env rho args op in
+        read%state GlobalContext := R_GlobalContext in
+        begincontext globals Ctxt_Return (context_call GlobalContext) env rho args op in
       set%longjump context_cjmpbuf cntxt as jmp using runs in
       let%success tmp :=
         ifb jmp <> empty_context_type then
@@ -590,9 +593,9 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
           for i from 0 to n - 1 do
             unimplemented_function "getSrcref"
         else
-          let tmp := R_ReturnedValue in
+          read%state tmp := R_ReturnedValue in
           ifb tmp = R_RestartToken then
-            let := state_with_context (context_with_callflag cntxt Ctxt_Return) in
+            map%state state_with_context (context_with_callflag cntxt Ctxt_Return) in
             result_error "Restarts not supported in ‘eval’."
           else result_success tmp in
       run%success endcontext globals runs cntxt in

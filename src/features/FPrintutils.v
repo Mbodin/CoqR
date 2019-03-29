@@ -38,7 +38,7 @@ Local Coercion int_to_double : Z >-> double.
 (** This function is inspired from [Rprintf]. **)
 Definition Rprint str :=
   add%stack "Rprint" in
-  let con_num := R_OutputCon in
+  read%state con_num := R_OutputCon in
   run_print con_num str.
 
 End Parameters.

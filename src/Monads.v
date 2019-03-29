@@ -48,6 +48,7 @@ Notation "'set%state' S 'in' cont" :=
   (set_state S cont)
   (at level 50, left associativity) : monad_scope.
 
+(** Update the state. **)
 Definition map_state A (f : state -> state) (cont : result A) : result A :=
   get%state S in
   set%state f S in
@@ -55,6 +56,15 @@ Definition map_state A (f : state -> state) (cont : result A) : result A :=
 
 Notation "'map%state' S 'in' cont" :=
   (map_state S cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** Extract a state componenent. **)
+Definition read_state A B (f : state -> A) (cont : A -> result B) : result B :=
+  get%state S in
+  cont (f S).
+
+Notation "'read%state' a ':=' f 'in' cont" :=
+  (read_state f (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
 
@@ -164,8 +174,8 @@ Definition if_defined_msg msg (A B : Type) (o : option A) (f : A -> result B) : 
 Definition if_defined := if_defined_msg "".
 
 Definition if_success_defined_msg msg (A B : Type) (o : state -> option A) (f : A -> result B) : result B :=
-  get%state S in
-  if_defined_msg msg (o S) f.
+  read%state v := o in
+  if_defined_msg msg v f.
 
 Definition if_success_defined := if_success_defined_msg "".
 

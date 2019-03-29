@@ -56,7 +56,7 @@ Definition do_parentframe (call op args rho : SEXP) : result SEXP :=
   ifb n = NA_INTEGER \/ n < 1 then
     result_error "Invalid ‘n’ value."
   else
-    let cptr := R_GlobalContext in
+    read%state cptr := R_GlobalContext in
     let t := context_sysparent cptr in
     result_success (do_parentframe_loop cptr t n).
 
