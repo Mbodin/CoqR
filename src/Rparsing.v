@@ -43,160 +43,160 @@ Local Coercion read_globals : GlobalVariable >-> SEXP.
 Variable runs : runs_type.
 
 
-Definition xxunary S op arg :=
+Definition xxunary op arg :=
   add%stack "xxunary" in
-  lang2 globals S op arg.
+  lang2 globals op arg.
 
-Definition xxbinary S n1 n2 n3 :=
+Definition xxbinary n1 n2 n3 :=
   add%stack "xxbinary" in
-  lang3 globals S n1 n2 n3.
+  lang3 globals n1 n2 n3.
 
-Definition xxparen S n1 n2 :=
+Definition xxparen n1 n2 :=
   add%stack "xxparen" in
-  lang2 globals S n1 n2.
+  lang2 globals n1 n2.
 
-Definition xxdefun S fname formals body :=
+Definition xxdefun fname formals body :=
   add%stack "xxdefun" in
-  read%list _, formals_cdr, _ := formals using S in
+  read%list _, formals_cdr, _ := formals in
   let srcref := R_NilValue : SEXP in
-  lang4 globals S fname formals_cdr body srcref.
+  lang4 globals fname formals_cdr body srcref.
 
-Definition xxexprlist S a1 a2 :=
+Definition xxexprlist a1 a2 :=
   add%stack "xxexprlist" in
-  set%type a2 := LangSxp using S in
-  set%car a2 := a1 using S in
-  result_success S a2.
+  set%type a2 := LangSxp in
+  set%car a2 := a1 in
+  result_success a2.
 
-Definition xxexprlist0 S :=
+Definition xxexprlist0 :=
   add%stack "xxexprlist0" in
-  NewList globals S.
+  NewList globals.
 
-Definition xxexprlist1 S expr :=
+Definition xxexprlist1 expr :=
   add%stack "xxexprlist1" in
-  let%success tmp := NewList globals S using S in
-  GrowList globals S tmp expr.
+  let%success tmp := NewList globals in
+  GrowList globals tmp expr.
 
-Definition xxexprlist2 S exprlist expr :=
+Definition xxexprlist2 exprlist expr :=
   add%stack "xxexprlist2" in
-  GrowList globals S exprlist expr.
+  GrowList globals exprlist expr.
 
-Definition xxfuncall S expr args :=
+Definition xxfuncall expr args :=
   add%stack "xxfuncall" in
   let%success expr :=
-    if%success isString S expr using S then
-      let%success expr_0 := STRING_ELT S expr 0 using S in
-      installTrChar globals runs S expr_0
-    else result_success S expr using S in
-  read%list _, args_cdr, _ := args using S in
-  read%list args_cdr_car, _, args_cdr_tag := args_cdr using S in
-  let%success args_len := R_length globals runs S args_cdr using S in
+    if%success isString expr then
+      let%success expr_0 := STRING_ELT expr 0 in
+      installTrChar globals runs expr_0
+    else result_success expr in
+  read%list _, args_cdr, _ := args in
+  read%list args_cdr_car, _, args_cdr_tag := args_cdr in
+  let%success args_len := R_length globals runs args_cdr in
   ifb args_len = 1 /\ args_cdr_car = R_MissingArg /\ args_cdr_tag = R_NilValue then
-    lang1 globals S expr
+    lang1 globals expr
   else
-    lcons globals S expr args_cdr.
+    lcons globals expr args_cdr.
 
-Definition xxcond S expr : result SEXP :=
+Definition xxcond expr : result SEXP :=
   add%stack "xxcond" in
-  result_success S expr.
+  result_success expr.
 
-Definition xxifcond S expr : result SEXP :=
+Definition xxifcond expr : result SEXP :=
   add%stack "xxifcond" in
-  result_success S expr.
+  result_success expr.
 
-Definition xxif S ifsym cond expr :=
+Definition xxif ifsym cond expr :=
   add%stack "xxif" in
-  lang3 globals S ifsym cond expr.
+  lang3 globals ifsym cond expr.
 
-Definition xxifelse S ifsym cond ifexpr elseexpr :=
+Definition xxifelse ifsym cond ifexpr elseexpr :=
   add%stack "xxifelse" in
-  lang4 globals S ifsym cond ifexpr elseexpr.
+  lang4 globals ifsym cond ifexpr elseexpr.
 
-Definition xxforcond S sym expr :=
+Definition xxforcond sym expr :=
   add%stack "xxforcond" in
-  lcons globals S sym expr.
+  lcons globals sym expr.
 
-Definition xxfor S forsym forcond body :=
+Definition xxfor forsym forcond body :=
   add%stack "xxfor" in
-  read%list forcond_car, forcond_cdr, _ := forcond using S in
-  lang4 globals S forsym forcond_car forcond_cdr body.
+  read%list forcond_car, forcond_cdr, _ := forcond in
+  lang4 globals forsym forcond_car forcond_cdr body.
 
-Definition xxwhile S whilesym cond body :=
+Definition xxwhile whilesym cond body :=
   add%stack "xxwhile" in
-  lang3 globals S whilesym cond body.
+  lang3 globals whilesym cond body.
 
-Definition xxrepeat S repeatsym body :=
+Definition xxrepeat repeatsym body :=
   add%stack "xxrepeat" in
-  lang2 globals S repeatsym body.
+  lang2 globals repeatsym body.
 
-Definition xxnxtbrk S keyword :=
+Definition xxnxtbrk keyword :=
   add%stack "xxnxtbrk" in
-  lang1 globals S keyword.
+  lang1 globals keyword.
 
-Definition xxsubscript S a1 a2 a3 :=
+Definition xxsubscript a1 a2 a3 :=
   add%stack "xxsubscript" in
-  read%list _, a3_cdr, _ := a3 using S in
-  let (S, l) := CONS globals S a1 a3_cdr in
-  lcons globals S a2 l.
+  read%list _, a3_cdr, _ := a3 in
+  let%success l := CONS globals a1 a3_cdr in
+  lcons globals a2 l.
 
-Definition xxsub0 S :=
+Definition xxsub0 :=
   add%stack "xxsub0" in
-  lang2 globals S R_MissingArg R_NilValue.
+  lang2 globals R_MissingArg R_NilValue.
 
-Definition xxsub1 S expr :=
+Definition xxsub1 expr :=
   add%stack "xxsub1" in
-  TagArg globals runs S expr R_NilValue.
+  TagArg globals runs expr R_NilValue.
 
-Definition xxsymsub0 S sym :=
+Definition xxsymsub0 sym :=
   add%stack "xxsymsub0" in
-  TagArg globals runs S R_MissingArg sym.
+  TagArg globals runs R_MissingArg sym.
 
-Definition xxsymsub1 S sym expr :=
+Definition xxsymsub1 sym expr :=
   add%stack "xxsymsub1" in
-  TagArg globals runs S expr sym.
+  TagArg globals runs expr sym.
 
-Definition xxnullsub0 S :=
+Definition xxnullsub0 :=
   add%stack "xxnullsub0" in
-  let%success ans := install globals runs S "NULL" using S in
-  TagArg globals runs S R_MissingArg ans.
+  let%success ans := install globals runs "NULL" in
+  TagArg globals runs R_MissingArg ans.
 
-Definition xxnullsub1 S expr :=
+Definition xxnullsub1 expr :=
   add%stack "xxnullsub1" in
-  let%success ans := install globals runs S "NULL" using S in
-  TagArg globals runs S expr ans.
+  let%success ans := install globals runs "NULL" in
+  TagArg globals runs expr ans.
 
-Definition xxnullformal S :=
+Definition xxnullformal :=
   add%stack "xxnullformal" in
-  result_success S (R_NilValue : SEXP).
+  result_success (R_NilValue : SEXP).
 
-Definition xxfirstformal0 S sym :=
+Definition xxfirstformal0 sym :=
   add%stack "xxfirstformal0" in
-  FirstArg globals S R_MissingArg sym.
+  FirstArg globals R_MissingArg sym.
 
-Definition xxfirstformal1 S sym expr :=
+Definition xxfirstformal1 sym expr :=
   add%stack "xxfirstformal1" in
-  FirstArg globals S expr sym.
+  FirstArg globals expr sym.
 
-Definition xxaddformal0 S formlist sym :=
+Definition xxaddformal0 formlist sym :=
   add%stack "xxaddformal0" in
-  let%success _ := CheckFormalArgs globals runs S formlist sym using S in
-  NextArg globals S formlist R_MissingArg sym.
+  let%success _ := CheckFormalArgs globals runs formlist sym in
+  NextArg globals formlist R_MissingArg sym.
 
-Definition xxaddformal1 S formlist sym expr :=
+Definition xxaddformal1 formlist sym expr :=
   add%stack "xxaddformal1" in
-  let%success _ := CheckFormalArgs globals runs S formlist sym using S in
-  NextArg globals S formlist expr sym.
+  let%success _ := CheckFormalArgs globals runs formlist sym in
+  NextArg globals formlist expr sym.
 
-Definition xxsublist1 S sub :=
+Definition xxsublist1 sub :=
   add%stack "xxsublist1" in
-  read%list sub_car, sub_cdr, _ := sub using S in
-  read%list sub_cdr_car, _, _ := sub_cdr using S in
-  FirstArg globals S sub_car sub_cdr_car.
+  read%list sub_car, sub_cdr, _ := sub in
+  read%list sub_cdr_car, _, _ := sub_cdr in
+  FirstArg globals sub_car sub_cdr_car.
 
-Definition xxsublist2 S sublist sub :=
+Definition xxsublist2 sublist sub :=
   add%stack "xxsublist2" in
-  read%list sub_car, sub_cdr, _ := sub using S in
-  read%list sub_cdr_car, _, _ := sub_cdr using S in
-  NextArg globals S sublist sub_car sub_cdr_car.
+  read%list sub_car, sub_cdr, _ := sub in
+  read%list sub_cdr_car, _, _ := sub_cdr in
+  NextArg globals sublist sub_car sub_cdr_car.
 
 End Parameters.
 

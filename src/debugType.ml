@@ -19,13 +19,13 @@
 open Extract
 
 type funtype =
-  | Result_unit of (globals -> runs_type -> state -> unit result)
-  | Result_bool of (globals -> runs_type -> state -> bool result)
-  | Result_int of (globals -> runs_type -> state -> int result)
-  | Result_int_list of (globals -> runs_type -> state -> int list result)
-  | Result_float of (globals -> runs_type -> state -> float result)
-  | Result_string of (globals -> runs_type -> state -> char list result)
-  | Result_pointer of (globals -> runs_type -> state -> sEXP result)
+  | Result_unit of (globals -> runs_type -> unit result)
+  | Result_bool of (globals -> runs_type -> bool result)
+  | Result_int of (globals -> runs_type -> int result)
+  | Result_int_list of (globals -> runs_type -> int list result)
+  | Result_float of (globals -> runs_type -> float result)
+  | Result_string of (globals -> runs_type -> char list result)
+  | Result_pointer of (globals -> runs_type -> sEXP result)
 
   | Argument_unit of (unit -> funtype)
   | Argument_bool of (bool -> funtype)

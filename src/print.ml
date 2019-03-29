@@ -598,16 +598,16 @@ let print_stack pr_stack stack =
 
 let print_result verbose pr_stack r cont =
   match r with
-  | Result_success (s, g) ->
+  | Result_success (g, s) ->
     if verbose then print_endline "Success." ;
     cont (Some s) (Some g)
-  | Result_longjump (s, i, cs) ->
+  | Result_longjump (i, cs, s) ->
     print_endline ("Impossible! Please report. A long jump reached the top level (target jump buffer: " ^ string_of_int i ^ ").") ;
     cont (Some s) None
-  | Result_error_stack (s, stack, str) ->
+  | Result_error_stack (stack, str, s) ->
     print_endline ("Error: " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont (Some s) None
-  | Result_impossible_stack (s, stack, str) ->
+  | Result_impossible_stack (stack, str, s) ->
     print_endline ("Impossible! Please report. " ^ char_list_to_string str ^ print_stack pr_stack stack) ;
     cont (Some s) None
   | Result_not_implemented_stack (stack, str) ->

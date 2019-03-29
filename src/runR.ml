@@ -266,7 +266,7 @@ let startR _ =
       Extract.setup_Rmainloop !max_steps Extract.empty_state
     ) else (
       let (s, globals) = load_state !initial_state in
-      Extract.Result_success (s, globals)) in
+      Extract.Result_success (globals, s)) in
   Print.print_defined !verbose !print_stack initialising_function Extract.empty_state (fun s globals ->
     if !show_state_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->

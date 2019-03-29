@@ -40,7 +40,7 @@ Variable runs : runs_type.
   returning the corresponding values. **)
 
 (** [InitConnections], from main/connections.c **)
-Definition InitConnections S :=
+Definition InitConnections :=
   let stdin := newterminal "stdin" "r" in
   let stdout :=
     let c := newterminal "stdout" "w" in
@@ -52,12 +52,12 @@ Definition InitConnections S :=
     let c := Rconnection_with_print c stderr_print in
     let c := Rconnection_with_fflush c stderr_flush in
     c in
-  let S := update_R_Connections S [stdin ; stdout ; stderr] in
-  let S := update_R_OutputCon S 1 in
-  S.
+  map%state update_R_Connections [stdin ; stdout ; stderr] in
+  map%state update_R_OutputCon 1 in
+  result_skip.
 
 (** A special part of [InitMemory] about [R_NilValue], from main/memory.c **)
-Definition init_R_NilValue S :=
+Definition init_R_NilValue :=
   add%stack "init_R_NilValue" in
   let nil_obj := {|
       NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp false) NULL ;
@@ -67,7 +67,7 @@ Definition init_R_NilValue S :=
           list_tagval := NULL
       |}
     |} in
-  let (S, R_NilValue) := alloc_SExp S nil_obj in
+  let%alloc R_NilValue := nil_obj in
   let nil_obj := {|
       NonVector_SExpRec_header := make_SExpRecHeader (build_SxpInfo NilSxp false) R_NilValue ;
       NonVector_SExpRec_data := {|
@@ -76,29 +76,29 @@ Definition init_R_NilValue S :=
           list_tagval := R_NilValue
       |}
     |} in
-  write%defined R_NilValue := nil_obj using S in
-  set%named R_NilValue := named_plural using S in
-  result_success S R_NilValue.
+  write%defined R_NilValue := nil_obj in
+  set%named R_NilValue := named_plural in
+  result_success R_NilValue.
 
 (** The second part of [InitMemory], from main/memory.c **)
-Definition InitMemory S :=
+Definition InitMemory :=
   add%stack "InitMemory" in
-  let (S, R_TrueValue) := mkTrue globals S in
-  let (S, R_FalseValue) := mkFalse globals S in
-  let (S, R_LogicalNAValue) := alloc_vector_lgl globals S (ArrayList.from_list [NA_LOGICAL]) in
-  result_success S (R_TrueValue, R_FalseValue, R_LogicalNAValue).
+  let%success R_TrueValue := mkTrue globals in
+  let%success R_FalseValue := mkFalse globals in
+  let%success R_LogicalNAValue := alloc_vector_lgl globals (ArrayList.from_list [NA_LOGICAL]) in
+  result_success (R_TrueValue, R_FalseValue, R_LogicalNAValue).
 
 (** [InitBaseEnv], from main/envir.c **)
-Definition InitBaseEnv S :=
+Definition InitBaseEnv :=
   add%stack "InitBaseEnv" in
   let%success R_EmptyEnv :=
-    NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
+    NewEnvironment globals runs R_NilValue R_NilValue R_NilValue in
   let%success R_BaseEnv :=
-    NewEnvironment globals runs S R_NilValue R_NilValue R_EmptyEnv using S in
-  result_success S (R_EmptyEnv, R_BaseEnv).
+    NewEnvironment globals runs R_NilValue R_NilValue R_EmptyEnv in
+  result_success (R_EmptyEnv, R_BaseEnv).
 
 (** [SymbolShortcuts], from main/names.c **)
-Definition SymbolShortcuts S :=
+Definition SymbolShortcuts :=
   add%stack "SymbolShortcuts" in
   let decl v n := (v, n) : GlobalVariable * string in
   let L := [
@@ -159,86 +159,87 @@ Definition SymbolShortcuts S :=
   for sym_str in%list L do
     let (sym, str) := sym_str : _ * _ in
     let%success p :=
-      install globals runs S str using S in
-    result_success S ((sym, p) :: L') using S in
-  result_success S (LibList.rev L'). (* The table has been reversed during the loop. *)
+      install globals runs str in
+    result_success ((sym, p) :: L') in
+  result_success (LibList.rev L'). (* The table has been reversed during the loop. *)
 
 (** The beginning of [InitNames], from main/names.c **)
-Definition InitNames_shorcuts S :=
+Definition InitNames_shorcuts :=
   add%stack "InitNames_shorcuts" in
-  let%success R_UnboundValue := mkSymMarker globals S R_NilValue using S in
-  let (S, str) := mkChar globals S "" in
-  let%success R_MissingArg := mkSymMarker globals S str using S in
-  let (S, str) := mkChar globals S "" in
-  let%success R_RestartToken := mkSymMarker globals S str using S in
+  let%success R_UnboundValue := mkSymMarker globals R_NilValue in
+  let%success str := mkChar globals "" in
+  let%success R_MissingArg := mkSymMarker globals str in
+  let%success str := mkChar globals "" in
+  let%success R_RestartToken := mkSymMarker globals str in
   (** Some ignored global values: [R_InBCInterpreter], [R_CurrentExpression] **)
-  let (S, NA_STRING) := alloc_vector_char globals S (ArrayList.from_list (string_to_list "NA")) in
-  run%success SET_CACHED S NA_STRING true using S in
-  let (S, R_BlankString) := mkChar globals S "" in
-  let%success R_BlankScalarString := ScalarString globals S R_BlankString using S in
+  let%success NA_STRING := alloc_vector_char globals (ArrayList.from_list (string_to_list "NA")) in
+  run%success SET_CACHED NA_STRING true in
+  let%success R_BlankString := mkChar globals "" in
+  let%success R_BlankScalarString := ScalarString globals R_BlankString in
   let R_SymbolTable := R_NilValue in
-  let S := update_R_SymbolTable S R_SymbolTable in
-  result_success S (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString).
+  map%state update_R_SymbolTable R_SymbolTable in
+  result_success (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
-Definition mkPRIMSXP_init S :=
+Definition mkPRIMSXP_init :=
   add%stack "mkPRIMSXP_init" in
-  let%success R_FunTab := get_R_FunTab runs S using S in
+  let%success R_FunTab := get_R_FunTab runs in
   let FunTabSize := ArrayList.length R_FunTab in
-  let (S, primCache) :=
-    alloc_vector_vec globals S (ArrayList.from_list (repeat (R_NilValue : SEXP) FunTabSize)) in
-  result_success S primCache.
+  let%success primCache :=
+    alloc_vector_vec globals (ArrayList.from_list (repeat (R_NilValue : SEXP) FunTabSize)) in
+  result_success primCache.
 
 (** The end of [InitNames], from main/names.c **)
-Definition InitNames_install S :=
+Definition InitNames_install :=
   add%stack "InitNames_install" in
-  let%success R_FunTab := get_R_FunTab runs S using S in
+  let%success R_FunTab := get_R_FunTab runs in
   do%success i := 0
   for c in%array R_FunTab do
-    run%success installFunTab globals runs S c i using S in
-    result_success S (1 + i) using S in
+    run%success installFunTab globals runs c i in
+    result_success (1 + i) in
   do%success for c in%list Spec_name do
-    let%success sym := install globals runs S c using S in
-    SET_SPECIAL_SYMBOL S sym true using S in
-  result_skip S.
+    let%success sym := install globals runs c in
+    SET_SPECIAL_SYMBOL sym true in
+  result_skip.
 
 (** Called from [InitNames], defined in main/eval.c **)
-Definition R_initAssignSymbols S :=
+Definition R_initAssignSymbols :=
   add%stack "R_initAssignSymbols" in
-  let S := update_R_asymSymbol S (repeat NULL (length asym)) in
+  map%state update_R_asymSymbol (repeat NULL (length asym)) in
   do%success
   for i from 0 to (length asym)%Z - 1 do
-    let%defined c := nth_option i asym using S in
-    let%success sym := install globals runs S c using S in
-    let S := update_R_asymSymbol S (update i sym (R_asymSymbol S)) in
-    result_skip S using S in
-  let (S, si1099) := ScalarInteger globals S 1099 in
+    let%defined c := nth_option i asym in
+    let%success sym := install globals runs c in
+    read%state asymSymbol := R_asymSymbol in
+    map%state update_R_asymSymbol (update i sym asymSymbol) in
+    result_skip in
+  let%success si1099 := ScalarInteger globals 1099 in
   let%success R_ReplaceFunsTable :=
-    R_NewHashedEnv globals runs S R_EmptyEnv si1099 using S in
-  let%success R_SubsetSym := install globals runs S "[" using S in
-  let%success R_SubassignSym := install globals runs S "[<-" using S in
-  let%success R_Subset2Sym := install globals runs S "[[" using S in
-  let%success R_Subassign2Sym := install globals runs S "[[<-" using S in
-  let%success R_DollarGetsSymbol := install globals runs S "$<-" using S in
-  let%success R_valueSym := install globals runs S "value" using S in
-  let%success R_AssignSym := install globals runs S "<-" using S in
-  result_success S (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_valueSym, R_AssignSym).
+    R_NewHashedEnv globals runs R_EmptyEnv si1099 in
+  let%success R_SubsetSym := install globals runs "[" in
+  let%success R_SubassignSym := install globals runs "[<-" in
+  let%success R_Subset2Sym := install globals runs "[[" in
+  let%success R_Subassign2Sym := install globals runs "[[<-" in
+  let%success R_DollarGetsSymbol := install globals runs "$<-" in
+  let%success R_valueSym := install globals runs "value" in
+  let%success R_AssignSym := install globals runs "<-" in
+  result_success (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_valueSym, R_AssignSym).
 
 (** [InitGlobalEnv], from main/envir.c **)
-Definition InitGlobalEnv S :=
+Definition InitGlobalEnv :=
   add%stack "InitGlobalEnv" in
   let%success R_NamespaceSymbol :=
-     install globals runs S ".__NAMESPACE__." using S in
+     install globals runs ".__NAMESPACE__." in
   let%success R_GlobalEnv :=
-    NewEnvironment globals runs S R_NilValue R_NilValue R_BaseEnv using S in
+    NewEnvironment globals runs R_NilValue R_NilValue R_BaseEnv in
   let R_MethodsNamespace := R_GlobalEnv in
   let%success R_BaseNamespace :=
-    NewEnvironment globals runs S R_NilValue R_NilValue R_GlobalEnv using S in
+    NewEnvironment globals runs R_NilValue R_NilValue R_GlobalEnv in
   let%success BaseNamespaceEnvSym :=
-    install globals runs S ".BaseNamespaceEnv" using S in
+    install globals runs ".BaseNamespaceEnv" in
   read%sym BaseNamespaceEnvSym_, BaseNamespaceEnvSym_sym :=
-    BaseNamespaceEnvSym using S in
+    BaseNamespaceEnvSym in
   let BaseNamespaceEnvSym_sym := {|
       sym_pname := sym_pname BaseNamespaceEnvSym_sym ;
       sym_value := R_BaseNamespace ;
@@ -248,26 +249,25 @@ Definition InitGlobalEnv S :=
       NonVector_SExpRec_header := NonVector_SExpRec_header BaseNamespaceEnvSym_ ;
       NonVector_SExpRec_data := BaseNamespaceEnvSym_sym
     |} in
-  write%defined BaseNamespaceEnvSym := BaseNamespaceEnvSym_ using S in
+  write%defined BaseNamespaceEnvSym := BaseNamespaceEnvSym_ in
   let%success R_BaseNamespaceName :=
-    let (S, str) :=
-      mkChar globals S "base" in
-    ScalarString globals S str using S in
+    let%success str := mkChar globals "base" in
+    ScalarString globals str in
   let%success R_NamespaceRegistry :=
-    NewEnvironment globals runs S R_NilValue R_NilValue R_NilValue using S in
+    NewEnvironment globals runs R_NilValue R_NilValue R_NilValue in
   run%success
-    defineVar globals runs S R_BaseSymbol R_BaseNamespace R_NamespaceRegistry using S in
-  result_success S (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace,
+    defineVar globals runs R_BaseSymbol R_BaseNamespace R_NamespaceRegistry in
+  result_success (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace,
                     R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)
-(*Definition InitOptions runs S :=
+(*Definition InitOptions runs :=
   add%stack "InitOptions" in
   result_not_implemented.*)
 
 (** [InitTypeTables], from main/util.c **)
-Definition InitTypeTables S :=
+Definition InitTypeTables :=
   add%stack "InitTypeTables" in
   do%success L := nil
   for type from 0 to MAX_NUM_SEXPTYPE - 1 do
@@ -277,66 +277,66 @@ Definition InitTypeTables S :=
       ifb (j <> -1)%Z then
         match nth_option (Z.to_nat j) TypeTable with
         | Some (cstr, _) =>
-          let (S, rchar) := mkChar globals S cstr in
-          let%success rstr := ScalarString globals S rchar using S in
-          set%named rstr := named_plural using S in
-          let%success rsym := install globals runs S cstr using S in
-          result_success S (make_Type2Table_type cstr rchar rstr rsym :: L)
-        | None => result_impossible S "Out of bound."
+          let%success rchar := mkChar globals cstr in
+          let%success rstr := ScalarString globals rchar in
+          set%named rstr := named_plural in
+          let%success rsym := install globals runs cstr in
+          result_success (make_Type2Table_type cstr rchar rstr rsym :: L)
+        | None => result_impossible "Out of bound."
         end
-      else result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
+      else result_success (make_Type2Table_type "" NULL NULL NULL :: L)
     | None =>
-      result_success S (make_Type2Table_type "" NULL NULL NULL :: L)
-    end using S in
+      result_success (make_Type2Table_type "" NULL NULL NULL :: L)
+    end in
   let table := LibList.rev L in (* The table has been computed backward. *)
-  result_success S (ArrayList.from_list table).
+  result_success (ArrayList.from_list table).
 
 (** [InitS3DefaulTypes], from main/attrib.c **)
 (* FIXME: Do we want to model it? *)
-(*Definition InitS3DefaulTypes runs S :=
+(*Definition InitS3DefaulTypes runs :=
   add%stack "InitS3DefaulTypes" in
   result_not_implemented.*)
 
 (** The initialisation of [do_attr_do_attr_formals], done in C in
   [do_attr], from main/attrib.c **)
-Definition do_attr_init S :=
+Definition do_attr_init :=
   add%stack "do_attr_init" in
-  let%success x := install globals runs S "x" using S in
-  let%success which := install globals runs S "which" using S in
-  allocFormalsList3 globals S x which R_ExactSymbol.
+  let%success x := install globals runs "x" in
+  let%success which := install globals runs "which" in
+  allocFormalsList3 globals x which R_ExactSymbol.
 
 (** The initialisation of [do_attrgets_do_attrgets_formals], done in C
   in [do_attrgets], from main/attrib.c **)
-Definition do_attrgets_init S :=
+Definition do_attrgets_init :=
   add%stack "do_attrgets_init" in
-  let%success x := install globals runs S "x" using S in
-  let%success which := install globals runs S "which" using S in
-  let%success value := install globals runs S "value" using S in
-  allocFormalsList3 globals S x which value.
+  let%success x := install globals runs "x" in
+  let%success which := install globals runs "which" in
+  let%success value := install globals runs "value" in
+  allocFormalsList3 globals x which value.
 
 (** The initialisation of [do_substitute_do_substitute_formals], done in
   C in [do_substitute], from main/coerce.c **)
-Definition do_substitute_init S :=
+Definition do_substitute_init :=
   add%stack "do_substitute_init" in
-  let%success expr := install globals runs S "expr" using S in
-  let%success env := install globals runs S "env" using S in
-  allocFormalsList2 globals S expr env.
+  let%success expr := install globals runs "expr" in
+  let%success env := install globals runs "env" in
+  allocFormalsList2 globals expr env.
 
 (** The initialisation of [do_usemethod_do_usemethod_formals], done in
   C in [do_usemethod], from main/objects.c **)
-Definition do_usemethod_init S :=
+Definition do_usemethod_init :=
   add%stack "do_usemethod_init" in
-  let%success generic := install globals runs S "generic" using S in
-  let%success object := install globals runs S "object" using S in
-  allocFormalsList2 globals S generic object.
+  let%success generic := install globals runs "generic" in
+  let%success object := install globals runs "object" in
+  allocFormalsList2 globals generic object.
 
 
 (** A special part of [setup_Rmainloop] about [R_Toplevel], from main/main.c **)
-Definition init_R_Toplevel S :=
+Definition init_R_Toplevel :=
   add%stack "init_R_Toplevel" in
   let%success (R_EmptyEnv, R_BaseEnv) :=
-    InitBaseEnv S using S in
-  result_success S {|
+    InitBaseEnv in
+  result_success {|
       context_nextcontext := None ;
       context_cjmpbuf := 1 ;
       context_callflag := Ctxt_TopLevel ;
@@ -367,40 +367,40 @@ End Globals.
   value depends on global variables. We are thus taking as argument the
   [max_step] argument from [runs], and recomputing it at each step with
   the updated [globals]. **)
-Definition setup_Rmainloop max_step S : result Globals :=
+Definition setup_Rmainloop max_step : result Globals :=
   add%stack "setup_Rmainloop" in
   let decl x p := (x, p) : GlobalVariable * SEXP in
   let globals := empty_Globals in
-  let S := InitConnections S in
+  run%success InitConnections in
   let%success NilValue :=
-    init_R_NilValue S using S in
+    init_R_NilValue in
   let globals := {{ globals with [ decl R_NilValue NilValue ] }} in
   let%success (TrueValue, FalseValue, LogicalNAValue) :=
-    InitMemory globals S using S in
+    InitMemory globals in
   let globals := {{ globals with [ decl R_TrueValue TrueValue ;
                                    decl R_FalseValue FalseValue ;
                                    decl R_LogicalNAValue LogicalNAValue ] }} in
   let%success (EmptyEnv, BaseEnv) :=
-    InitBaseEnv globals (runs max_step globals) S using S in
+    InitBaseEnv globals (runs max_step globals) in
   let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
                                    decl R_BaseEnv BaseEnv ] }} in
   let%success (UnboundValue, MissingArg, RestartToken, NA_string, BlankString, BlankScalarString) :=
-    InitNames_shorcuts globals S using S in
+    InitNames_shorcuts globals in
   let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
                                    decl R_MissingArg MissingArg ;
                                    decl R_RestartToken RestartToken ;
                                    decl NA_STRING NA_string ;
                                    decl R_BlankString BlankString ;
                                    decl R_BlankScalarString BlankScalarString ] }} in
-  let%success L := SymbolShortcuts globals (runs max_step globals) S using S in
+  let%success L := SymbolShortcuts globals (runs max_step globals) in
   let globals := {{ globals with L }} in
   let%success primCache :=
-    mkPRIMSXP_init globals (runs max_step globals) S using S in
+    mkPRIMSXP_init globals (runs max_step globals) in
   let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
   run%success
-    InitNames_install globals (runs max_step globals) S using S in
+    InitNames_install globals (runs max_step globals) in
   let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, valueSym, AssignSym) :=
-    R_initAssignSymbols globals (runs max_step globals) S using S in
+    R_initAssignSymbols globals (runs max_step globals) in
   let globals := {{ globals with [ decl R_ReplaceFunsTable ReplaceFunsTable ;
                                    decl R_SubsetSym SubsetSym ;
                                    decl R_SubassignSym SubassignSym ;
@@ -412,7 +412,7 @@ Definition setup_Rmainloop max_step S : result Globals :=
   (* TODO: [initializeDDVALSymbols], [R_initialize_bcode], [R_init_altrep]. *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
-    InitGlobalEnv globals (runs max_step globals) S using S in
+    InitGlobalEnv globals (runs max_step globals) in
   let globals := {{ globals with [ decl R_NamespaceSymbol NamespaceSymbol ;
                                    decl R_GlobalEnv GlobalEnv ;
                                    decl R_MethodsNamespace MethodsNamespace ;
@@ -420,30 +420,30 @@ Definition setup_Rmainloop max_step S : result Globals :=
                                    decl R_BaseNamespaceName BaseNamespaceName ;
                                    decl R_NamespaceRegistry NamespaceRegistry] }} in
   (* TODO: [InitOptions]. *)
-  let%success Type2Table := InitTypeTables globals (runs max_step globals) S using S in
+  let%success Type2Table := InitTypeTables globals (runs max_step globals) in
   let globals := Globals_with_Type2Table globals Type2Table in
   (* TODO: [InitS3DefaulTypes]. *)
   let%success R_Toplevel :=
-    init_R_Toplevel globals (runs max_step globals) S using S in
+    init_R_Toplevel globals (runs max_step globals) in
   (* TODO: [Init_R_Variables]. *)
-  let S := state_with_context S R_Toplevel in
-  let S := update_R_ExitContext S None in
-  let S := update_R_ReturnedValue S NULL in
+  map%state state_with_context R_Toplevel in
+  map%state update_R_ExitContext None in
+  map%state update_R_ReturnedValue NULL in
   (* TODO: Some more initialisation. *)
   let%success do_attr_formals :=
-    do_attr_init globals (runs max_step globals) S using S in
+    do_attr_init globals (runs max_step globals) in
   let globals := {{ globals with [ decl do_attr_do_attr_formals do_attr_formals ] }} in
   let%success do_attrgets_formals :=
-    do_attrgets_init globals (runs max_step globals) S using S in
+    do_attrgets_init globals (runs max_step globals) in
   let globals := {{ globals with [ decl do_attrgets_do_attrgets_formals do_attrgets_formals ] }} in
   let%success do_substitute_formals :=
-    do_substitute_init globals (runs max_step globals) S using S in
+    do_substitute_init globals (runs max_step globals) in
   let globals := {{ globals with [ decl do_substitute_do_substitute_formals do_substitute_formals ] }} in
   let%success do_usemethod_formals :=
-    do_usemethod_init globals (runs max_step globals) S using S in
+    do_usemethod_init globals (runs max_step globals) in
   let globals := {{ globals with [ decl do_usemethod_do_usemethod_formals do_usemethod_formals ] }} in
   let globals := flatten_Globals globals in (** Removing the now useless closures. **)
-  result_success S globals.
+  result_success globals.
 
 
 (** * Initial State and Memory **)

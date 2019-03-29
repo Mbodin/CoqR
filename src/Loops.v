@@ -1047,7 +1047,7 @@ Notation "'set%longjump' cjmpbuf 'as' ret 'using' runs 'in' cont" :=
 
 Definition for_list A B (a : A) (l : list B) body :=
   fold_left (fun i (r : result A) =>
-      let%success a := r  in
+      let%success a := r in
       body a i)
     (result_success a) l.
 

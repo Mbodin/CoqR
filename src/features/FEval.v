@@ -448,7 +448,7 @@ Definition do_for (call op args rho : SEXP) : result SEXP :=
                    run%success defineVar globals runs sym val_i rho in
                    result_success val
         | ListSxp => read%list val_car, _, _ := val in
-                    set%named val_car := named_plural  in
+                    set%named val_car := named_plural in
                     run%success defineVar globals runs sym val_car rho in
                     result_success val_car
         | _ => let%success v :=

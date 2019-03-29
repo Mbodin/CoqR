@@ -94,15 +94,15 @@ rule lex = parse
 
   (** ** Special Symbols **)
   | "NULL"              { eatLines := false ; NULL_CONST nilValue }
-  | "NA"                { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkNA)) }
-  | "TRUE"              { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkTrue)) }
-  | "FALSE"             { eatLines := false ; NUM_CONST (tuple_to_result (no_runs mkFalse)) }
-  | "Inf"               { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s (ArrayList.from_list [r_PosInf])))) }
-  | "NaN"               { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s (ArrayList.from_list [r_NaN])))) }
-  | "NA_integer_"       { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_int g s (ArrayList.from_list [nA_INTEGER])))) }
-  | "NA_real_"          { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_real g s (ArrayList.from_list [nA_REAL])))) }
-  | "NA_character_"     { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_str g s (ArrayList.from_list [read_globals g NA_STRING])))) }
-  | "NA_complex_"       { eatLines := false ; NUM_CONST (tuple_to_result (no_runs (fun g s -> alloc_vector_cplx g s (ArrayList.from_list [make_Rcomplex nA_REAL nA_REAL])))) }
+  | "NA"                { eatLines := false ; NUM_CONST (no_runs mkNA) }
+  | "TRUE"              { eatLines := false ; NUM_CONST (no_runs mkTrue) }
+  | "FALSE"             { eatLines := false ; NUM_CONST (no_runs mkFalse) }
+  | "Inf"               { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_real g (ArrayList.from_list [r_PosInf]))) }
+  | "NaN"               { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_real g (ArrayList.from_list [r_NaN]))) }
+  | "NA_integer_"       { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_int g (ArrayList.from_list [nA_INTEGER]))) }
+  | "NA_real_"          { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_real g (ArrayList.from_list [nA_REAL]))) }
+  | "NA_character_"     { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_str g (ArrayList.from_list [read_globals g NA_STRING]))) }
+  | "NA_complex_"       { eatLines := false ; NUM_CONST (no_runs (fun g -> alloc_vector_cplx g (ArrayList.from_list [make_Rcomplex nA_REAL nA_REAL]))) }
   | "function"          { eatLines := true ; FUNCTION (install_and_save "function") }
   | "while"             { eatLines := true ; WHILE (install_and_save "while") }
   | "repeat"            { eatLines := true ; REPEAT (install_and_save "repeat") }
@@ -206,9 +206,9 @@ and string enclos rev = parse
   | string_enclosing as c           { if c = enclos then (
                                         eatLines := false ;
                                         if enclos = '`' then
-                                          SYMBOL (fun g r s -> install g r s (List.rev rev))
+                                          SYMBOL (fun g r -> install g r (List.rev rev))
                                         else
-                                          STR_CONST (tuple_to_result (no_runs (fun g s -> mkString g s (List.rev rev))))
+                                          STR_CONST (no_runs (fun g -> mkString g (List.rev rev)))
                                       ) else string enclos (c :: rev) lexbuf }
 
   | '\\' _                          { raise (SyntaxError ("Unrecognised escape in character string: " ^ Lexing.lexeme lexbuf)) }

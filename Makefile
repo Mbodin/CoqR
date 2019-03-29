@@ -65,7 +65,7 @@ src/initial.state: src/runR.native
 	${AT}# Note: the following command may take some time to execute.
 	${AT}src/runR.native -non-interactive -final-state $@ > /dev/null
 
-Rlib/bootstrapping.state: src/initial.state Rlib/bootstrapping.R
+Rlib/bootstrapping.state: src/initial.state src/runR.native Rlib/bootstrapping.R
 	${AT}cat Rlib/bootstrapping.R \
 		| src/runR.native -initial-state $< -final-state $@ \
 		> /dev/null
@@ -139,7 +139,7 @@ bisect/initial.state: bisect/runR.native
 	${AT}# Note: the following command may take some time to execute.
 	${AT}bisect/runR.native -non-interactive -final-state $@ > /dev/null
 
-Rlib/bootstrapping_bisect.state: bisect/initial.state Rlib/bootstrapping.R
+Rlib/bootstrapping_bisect.state: bisect/initial.state bisect/runR.native Rlib/bootstrapping.R
 	${AT}cat Rlib/bootstrapping.R \
 		| bisect/runR.native -initial-state $< -final-state $@ \
 		> /dev/null

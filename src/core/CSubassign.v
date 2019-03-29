@@ -386,7 +386,7 @@ Definition VectorAssign (call rho x s y : SEXP) :=
 
     let stretch := 1 in
     let%success (indx, stretch) := makeSubscript globals runs x s stretch R_NilValue in
-    let%success n := xlength globals runs indx  in
+    let%success n := xlength globals runs indx in
     let%success y_xlength := xlength globals runs y in
     run%success
     ifb y_xlength > 1 then
