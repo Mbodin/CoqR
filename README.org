@@ -68,7 +68,8 @@ More information about this project can be found in the following papers:
 
 Here follows a quick description of the main files of interest:
  - =src/Rinternals.v= describes the internal structures used by R thorough its source code;
- - the =src/core/= folder contains translations of the main functions of R;
+ - the =src/core/= folder contains translations of the main functions of R
+   (these functions were called “nucleus functions” in our second paper);
  - the =src/features/= folder contains translations of additional functions of R (typically
    present in the default heap);
  - =src/Invariants.v= defines some invariants of R’s structures;
@@ -124,8 +125,8 @@ We can now install the required packages.
 
 We can now clone the project.
 #+BEGIN_SRC bash
-    git clone https://github.com/Mbodin/proveR.git proveR
-    cd proveR
+    git clone https://github.com/Mbodin/CoqR.git CoqR
+    cd CoqR
     git submodule update --init
 #+END_SRC
 
