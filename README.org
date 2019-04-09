@@ -238,7 +238,8 @@ imperative loops in Coq.
 
 *** =core/=
 
-This folder contains Coq translations of various core functions of R from its C code.
+This folder contains Coq translations of various core functions
+(that has been called “nucleus functions” at some point) of R from its C code.
 This folder is organised by the corresponding file name in the C source code of R.
 
 The core functions of R are the ones used thoroughly in R source code.
