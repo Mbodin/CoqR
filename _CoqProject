@@ -78,10 +78,11 @@
 ./src/Rparsing.v
 ./src/Extraction.v
 
-./src/RfeaturesAux.v
-./src/MonadTactics.v
-./src/Path.v
-./src/Invariants.v
-./src/InvariantsAux.v
-./src/InvariantsTactics.v
-./src/InvariantsProofs.v
+#./src/RfeaturesAux.v
+#./src/MonadTactics.v
+#./src/Path.v
+#./src/Invariants.v
+#./src/InvariantsAux.v
+#./src/InvariantsTactics.v
+#./src/InvariantsProofs.v
+

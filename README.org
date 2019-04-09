@@ -181,7 +181,7 @@ The following invocation uses it in the context of this R interpreter.
 This will generate =bisect.out= files during the computation.
 To translate these files into a readable report, run the following command.
 This will create some files in the =bisect/= folder,
-and in particular =bisect/index.html= providing a coverage report.
+and in particular =bisect/report/index.html= providing a coverage report.
 #+BEGIN_SRC bash
     make report
 #+END_SRC
