@@ -193,6 +193,21 @@ and in particular =bisect/report/index.html= providing a coverage report.
     make report
 #+END_SRC
 
+Note that =make run= does not include the R libraries:
+it only includes what is defined in C in GNU R.
+Executing the R files of the base library can take some time, but it will lead to the usual R environment.
+To include this libraries, use the following invocation.
+Note that the first time that this invocation will be performed, all of the base library will be executed, which will take quite a large amount of time.
+Once this library will have been executed, the final state will be stored and cached.
+#+BEGIN_SRC bash
+    make lrun
+#+END_SRC
+
+If you want to also run Bisect with the R libraries, use the following invocation.
+#+BEGIN_SRC bash
+    make lrun_bisect
+#+END_SRC
+
 
 * Files Description
 

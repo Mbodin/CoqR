@@ -60,6 +60,9 @@ all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping
 run: src/runR.native src/initial.state
 	${AT}src/runR.native -initial-state src/initial.state
 
+lrun: src/runR.native Rlib/base.state
+	${AT}src/runR.native -initial-state Rlib/base.state
+
 # Precomputes the initial state.
 src/initial.state: src/runR.native
 	${AT}# Note: the following command may take some time to execute.
@@ -67,6 +70,11 @@ src/initial.state: src/runR.native
 
 Rlib/bootstrapping.state: src/initial.state src/runR.native Rlib/bootstrapping.R
 	${AT}cat Rlib/bootstrapping.R \
+		| src/runR.native -initial-state $< -final-state $@ \
+		> /dev/null
+
+Rlib/base.state: Rlib/bootstrapping.state src/runR.native
+	${AT}cat Rlib/base/*.R \
 		| src/runR.native -initial-state $< -final-state $@ \
 		> /dev/null
 
@@ -134,6 +142,9 @@ bisect/runR.native: bisect/extract.ml bisect/extract.mli ${subst src/,bisect/,${
 run_bisect: bisect/runR.native bisect/initial.state
 	${AT}bisect/runR.native -initial-state bisect/initial.state
 
+lrun_bisect: src/runR.native Rlib/base_bisect.state
+	${AT}src/runR.native -initial-state Rlib/base_bisect.state
+
 # Precomputes the initial state.
 bisect/initial.state: bisect/runR.native
 	${AT}# Note: the following command may take some time to execute.
@@ -141,6 +152,11 @@ bisect/initial.state: bisect/runR.native
 
 Rlib/bootstrapping_bisect.state: bisect/initial.state bisect/runR.native Rlib/bootstrapping.R
 	${AT}cat Rlib/bootstrapping.R \
+		| bisect/runR.native -initial-state $< -final-state $@ \
+		> /dev/null
+
+Rlib/base_bisect.state: Rlib/bootstrapping_bisect.state bisect/runR.native
+	${AT}cat Rlib/base/*.R \
 		| bisect/runR.native -initial-state $< -final-state $@ \
 		> /dev/null
 
