@@ -198,7 +198,7 @@ Fixpoint runs max_step globals : runs_type :=
               rdecl "isdebugged" (dummy_function "do_debug") (2)%Z eval11 (1)%Z PP_FUNCALL PREC_FN false ;
               rdecl "debugonce" (dummy_function "do_debug") (3)%Z eval111 (3)%Z PP_FUNCALL PREC_FN false ;
               rdecl "Recall" (dummy_function "do_recall") (0)%Z eval210 (-1)%Z PP_FUNCALL PREC_FN false ;
-              rdecl "delayedAssign" (dummy_function "do_delayed") (0)%Z eval111 (4)%Z PP_FUNCALL PREC_FN false ;
+              rdecl "delayedAssign" do_delayed (0)%Z eval111 (4)%Z PP_FUNCALL PREC_FN false ;
               rdecl "makeLazy" (dummy_function "do_makelazy") (0)%Z eval111 (5)%Z PP_FUNCALL PREC_FN false ;
               rdecl "identical" (dummy_function "do_identical") (0)%Z eval11 (8)%Z PP_FUNCALL PREC_FN false ;
               rdecl "C_tryCatchHelper" (dummy_function "do_tryCatchHelper") (0)%Z eval11 (-1)%Z PP_FUNCALL PREC_FN false ;

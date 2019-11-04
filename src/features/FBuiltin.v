@@ -410,6 +410,42 @@ Definition do_makevector (call op args rho : SEXP) : result SEXP :=
       result_not_implemented "Raw case"
     else result_skip in 
     result_success s.
-    
+
+Definition do_delayed (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_delayed" in
+  run%success Rf_checkArityCall globals runs op args call in
+  let%success name :=
+    read%list args_car, _, _ := args in
+    let%success args_car_str := isString args_car in
+    let%success args_car_len := LENGTH globals args_car in
+    ifb ~ args_car_str \/ args_car_len = 0 then
+      result_error "invalid first argument"
+    else
+      let%success args_car_0 := STRING_ELT args_car 0 in
+      installTrChar globals runs args_car_0 in
+  read%list expr, args, _ := args in
+  read%list eenv, args, _ := args in
+  run%success
+    if%success isNull eenv then
+      result_error "use of NULL environment is defunct"
+    else
+      let%success eenv_env := isEnvironment eenv in
+      ifb ~ eenv_env then
+        result_error "invalid eval.env argument"
+      else result_skip in
+  read%list aenv, args, _ := args in
+  run%success
+    if%success isNull aenv then
+      result_error "use of NULL environment is defunct"
+    else
+      let%success aenv_env := isEnvironment aenv in
+      ifb ~ aenv_env then
+        result_error "invalid assign.env argument"
+      else result_skip in
+  run%success
+    let%success promise := mkPromise globals expr eenv in
+    defineVar globals runs name promise aenv in
+  result_success (R_NilValue : SEXP).
+
 End Parameters.
 

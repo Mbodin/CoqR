@@ -7,7 +7,7 @@ This project is a Coq formalisation of the R programming language,
 or more accurately, of the core of a R programming language.
 It follows principles strongly inspired from the [[http://jscert.org/][JSCert project]]:
  - the code is as close as possible from a reference specification
-   (in this case, the source of [[https://www.r-project.org/][GNU R]]).
+   (in this case, the source of [[https://www.r-project.org/][GNU R]]—a mirror can be found [[https://github.com/wch/r-source][here]]).
    The formalisation has been written in a monadic form,
    which enables a line-to-line correspondance with the original source.
    We believe that anyone can check the code similarity after a short training period.
@@ -76,6 +76,13 @@ Here follows a quick description of the main files of interest:
  - =src/InvariantProofs.v= contains proofs that the invariants defined in =src/Invariants.v=
    are conserved along the execution.
 
+Note that as we try to be as close as possible to the original source code of R,
+we are limited in term of how much comment we can write:
+most of the algorithm of this project were by construction not designed by us!
+This means that most comments in this project are merely pointers to the original source code of GNU R.
+For instance, the file =src/features/FArithmetic.v= corresponds
+to the file [[https://github.com/wch/r-source/blob/trunk/src/main/arithmetic.c][`arithmetic.c`]]
+from the actual GNU R source code.
 
 * Building the Project
 
