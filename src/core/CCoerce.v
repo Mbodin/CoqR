@@ -299,39 +299,39 @@ Definition PairToVectorList (x : SEXP) : result SEXP :=
 
 Definition VectorToPairList (x : SEXP) : result SEXP :=
   add%stack "VectorToPairList" in
-    let%success len := R_length globals runs x in
-    
-    let%success xnew := allocList globals len in 
-    let%success xnames := runs_getAttrib runs x R_NamesSymbol in
-    let named := decide (xnames <> R_NilValue) in
-    
-    do%success xptr := xnew
-    for i from 0 to len - 1 do
-                                                                                 
-        let%success x_i := VECTOR_ELT x i in
-        let%success x_named := NAMED x in                      
-        run%success RAISE_NAMED x_i x_named in
-               
-        set%car xptr := x_i in
-        
-        let%success xnames_i := STRING_ELT xnames i in
-        let%success xnames_i_char := CHAR xnames_i in
-        let xnames_i_char_0 := LibOption.unsome_default "000"%char (String.get 0 xnames_i_char) in 
-        ifb named /\  xnames_i_char_0 <> "000"%char then
-            let%success xnames_i_install := installTrChar globals runs xnames_i in
-            set%tag xptr := xnames_i_install in
-            read%list _, xptr_cdr, _ := xptr in
-            result_success xptr_cdr      
-        else  
-            read%list _, xptr_cdr, _ := xptr in
-            result_success xptr_cdr
-    in
-    ifb len > 0 then
-        run%success copyMostAttrib x xnew in
-        result_success xnew
+  let%success len := R_length globals runs x in
+
+  let%success xnew := allocList globals len in
+  let%success xnames := runs_getAttrib runs x R_NamesSymbol in
+  let named := decide (xnames <> R_NilValue) in
+
+  do%success xptr := xnew
+  for i from 0 to len - 1 do
+
+    let%success x_i := VECTOR_ELT x i in
+    let%success x_named := NAMED x in
+    run%success RAISE_NAMED x_i x_named in
+
+    set%car xptr := x_i in
+
+    let%success xnames_i := STRING_ELT xnames i in
+    let%success xnames_i_char := CHAR xnames_i in
+    let xnames_i_char_0 := LibOption.unsome_default "000"%char (String.get 0 xnames_i_char) in
+    ifb named /\  xnames_i_char_0 <> "000"%char then
+      let%success xnames_i_install := installTrChar globals runs xnames_i in
+      set%tag xptr := xnames_i_install in
+      read%list _, xptr_cdr, _ := xptr in
+      result_success xptr_cdr
     else
-        result_success xnew.  
-                     
+      read%list _, xptr_cdr, _ := xptr in
+      result_success xptr_cdr
+  in
+  ifb len > 0 then
+    run%success copyMostAttrib x xnew in
+    result_success xnew
+  else
+    result_success xnew.
+
 Definition ComplexFromString (x : SEXP) :=
   add%stack "ComplexFromString" in
   if%success
@@ -1021,112 +1021,111 @@ Definition copyDimAndNames x ans :=
 
 Definition substitute (lang rho : SEXP) : result SEXP :=
   add%stack "substitute" in
-    let%success lang_type := TYPEOF lang in
-    match lang_type with
-    | PromSxp => let%success lang_prexpr := PREXPR globals lang in
-                runs_substitute runs lang_prexpr rho
-    | SymSxp => ifb rho <> R_NilValue then
-                   let%success t := findVarInFrame3 globals runs rho lang true in
-                   ifb t <> R_UnboundValue then
-                       let%success t_type := TYPEOF t in
+  let%success lang_type := TYPEOF lang in
+  match lang_type with
+  | PromSxp => let%success lang_prexpr := PREXPR globals lang in
+               runs_substitute runs lang_prexpr rho
+  | SymSxp => ifb rho <> R_NilValue then
+                let%success t := findVarInFrame3 globals runs rho lang true in
+                ifb t <> R_UnboundValue then
+                  let%success t_type := TYPEOF t in
 
-                       ifb t_type = PromSxp then
-                           let%success t_prexpr := PREXPR globals t in
-                           do%success t := t_prexpr
-                           while let%success t_type := TYPEOF t in
-                                 result_success (decide (t_type = PromSxp)) do PREXPR globals t
-                           using runs in
-                           (** make sure code will not be modified: **)
-                           set%named t := named_plural in
-                           result_success t
-                       else ifb t_type = DotSxp then
-                           result_error "'...' used in an incorrect context"
-                       else ifb rho <> R_GlobalEnv then
-                           result_success t
-                       else result_success lang                 
-                   else result_success lang
-               else result_success lang
-    | LangSxp => runs_substituteList runs lang rho
-    | _ => result_success lang
-    end.
-                       
-               
+                  ifb t_type = PromSxp then
+                    let%success t_prexpr := PREXPR globals t in
+                    do%success t := t_prexpr
+                    while let%success t_type := TYPEOF t in
+                      result_success (decide (t_type = PromSxp)) do PREXPR globals t
+                    using runs in
+                    (** make sure code will not be modified: **)
+                    set%named t := named_plural in
+                    result_success t
+                  else ifb t_type = DotSxp then
+                    result_error "'...' used in an incorrect context"
+                  else ifb rho <> R_GlobalEnv then
+                    result_success t
+                  else result_success lang
+                else result_success lang
+             else result_success lang
+  | LangSxp => runs_substituteList runs lang rho
+  | _ => result_success lang
+  end.
+
+
 Definition substituteList (el rho : SEXP) :=
   add%stack "substituteList" in
-    if%success isNull el then
-        result_success el           
-    else
-        do%success (el, p, res) := (el, R_NilValue : SEXP, R_NilValue : SEXP)
-        whileb el <> R_NilValue do
-            (**
-               walk along the pairlist, substituting elements.
-	       res is the result
-	       p is the current last element
-	       h is the element currently being processed
-           **)
-            let%success h :=  
-            read%list el_car, el_cdr, el_tag := el in
+  if%success isNull el then
+      result_success el
+  else
+    do%success (el, p, res) := (el, R_NilValue : SEXP, R_NilValue : SEXP)
+    whileb el <> R_NilValue do
+      (** walk along the pairlist, substituting elements.
+          res is the result
+          p is the current last element
+          h is the element currently being processed
+       **)
+      let%success h :=
+      read%list el_car, el_cdr, el_tag := el in
 
-            ifb el_car = R_DotsSymbol then
-                let%success h :=
-                ifb rho = R_NilValue then
-                    result_success (R_UnboundValue : SEXP) (** so there is no substitution below **)
-                else
-                    findVarInFrame3 globals runs rho el_car true
-                in
-                ifb h = R_UnboundValue then
-                    LCONS globals R_DotsSymbol R_NilValue
-                else ifb h = R_NilValue \/ h = R_MissingArg then
-                    result_success (R_NilValue : SEXP)
-                else
-                    let%success h_type := TYPEOF h in
-                    ifb h_type = DotSxp then
-                        runs_substituteList runs h R_NilValue
-                    else
-                        result_error "'...' used in an incorrect context"
-            else 
-                let%success h := substitute el_car rho in
-                let%success h :=
-                if%success isLanguage globals el then
-                    LCONS globals h R_NilValue
-                else
-                    let%success h := CONS globals h R_NilValue in
-                    result_success h
-                in
-                set%tag h := el_tag in
-                result_success h
-            in
+      ifb el_car = R_DotsSymbol then
+        let%success h :=
+        ifb rho = R_NilValue then
+          result_success (R_UnboundValue : SEXP) (** so there is no substitution below **)
+        else
+          findVarInFrame3 globals runs rho el_car true
+        in
+        ifb h = R_UnboundValue then
+          LCONS globals R_DotsSymbol R_NilValue
+        else ifb h = R_NilValue \/ h = R_MissingArg then
+          result_success (R_NilValue : SEXP)
+        else
+          let%success h_type := TYPEOF h in
+          ifb h_type = DotSxp then
+            runs_substituteList runs h R_NilValue
+          else
+            result_error "'...' used in an incorrect context"
+      else
+        let%success h := substitute el_car rho in
+        let%success h :=
+        if%success isLanguage globals el then
+          LCONS globals h R_NilValue
+        else
+          let%success h := CONS globals h R_NilValue in
+          result_success h
+        in
+        set%tag h := el_tag in
+        result_success h
+      in
 
-            let%success (p, res) :=       
-            ifb h <> R_NilValue then
-                let%success res :=
-                ifb res = R_NilValue then
-                    result_success h
-                else
-                    set%cdr p := h in
-                    result_success res
-                in
-                (** now set 'p': dots might have expanded to a list of length > 1 **)
-                do%success h := h
-                while read%list _, h_cdr, _ := h in
-                    result_success (decide (h_cdr <> R_NilValue))
-                    do read%list _, h_cdr, _ := h in
-                    result_success h_cdr using runs in
-                result_success (h, res)    
-            else
-                result_success (p, res) in
-            read%list _, el_cdr, _ := el in
-            result_success (el_cdr, p, res)
-        using runs in
-    result_success res.    
+      let%success (p, res) :=
+      ifb h <> R_NilValue then
+        let%success res :=
+        ifb res = R_NilValue then
+          result_success h
+        else
+          set%cdr p := h in
+          result_success res
+        in
+        (** now set 'p': dots might have expanded to a list of length > 1 **)
+        do%success h := h
+        while read%list _, h_cdr, _ := h in
+          result_success (decide (h_cdr <> R_NilValue))
+          do read%list _, h_cdr, _ := h in
+          result_success h_cdr using runs in
+        result_success (h, res)
+      else
+        result_success (p, res) in
+      read%list _, el_cdr, _ := el in
+      result_success (el_cdr, p, res)
+    using runs in
+  result_success res.
 
 Definition asCharacterFactor (x : SEXP) : result SEXP :=
   add%stack "asCharacterfactor" in
-    let%success x_inherits := inherits2 globals runs x "factor" in
-    if negb x_inherits then
-      result_error "attempting to coerce non-factor"
-    else
-      result_not_implemented "asCharacterfactor".
+  let%success x_inherits := inherits2 globals runs x "factor" in
+  if negb x_inherits then
+    result_error "attempting to coerce non-factor"
+  else
+    result_not_implemented "asCharacterfactor".
 
 End Parameterised.
 

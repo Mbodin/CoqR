@@ -948,7 +948,7 @@ Ltac get_safe_SExpRec_unfolded S e_ cont :=
       cont OKe_'
     | safe_SExpRec_gen _ _ _ => cont OKe_
     end).
-  
+
 
 (** ** [move_along_path_step] **)
 

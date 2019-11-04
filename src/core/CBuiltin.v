@@ -43,36 +43,36 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition asVecSize (x : SEXP)  :=
   add%stack "asVecSize" in
-    let%success x_isVectorAtomic := isVectorAtomic x in
-    let%success x_LENGTH := LENGTH globals x in
-    ifb x_isVectorAtomic /\ x_LENGTH >= 1 then
-        let%success x_type := TYPEOF x in
-        match x_type with
-        | IntSxp => read%Integer res := x at 0 in
-                   ifb res = NA_INTEGER then
-                       result_error "vector size cannot be NA"
-                   else
-                       result_success res
-        | RealSxp => read%Real d := x at 0 in
-                    if ISNAN d then
-                        result_error "vector size cannot be NA/NaN"
-                    else if negb (R_FINITE d) then
-                        result_error "vector size cannot be infinite"
-                    else ifb d > R_XLEN_T_MAX then
-                        result_error "vector size specified is too large"
-                    else result_success (Double.double_to_int_zero d)
-         | StrSxp => let%success d := asReal globals x in
-                     if ISNAN d then
-                         result_error "vector size cannot be NA/NaN"
-                     else if negb (R_FINITE d) then
-                         result_error "vector size cannot be infinite"
-                     else ifb d > R_XLEN_T_MAX then
-                         result_error "vector size specified is too large"
-                     else result_success (Double.double_to_int_zero d)
-         | _ => result_error "invalid type for argument"
-         end                   
-    else
-        result_error "-999 code status".
+  let%success x_isVectorAtomic := isVectorAtomic x in
+  let%success x_LENGTH := LENGTH globals x in
+  ifb x_isVectorAtomic /\ x_LENGTH >= 1 then
+    let%success x_type := TYPEOF x in
+    match x_type with
+    | IntSxp => read%Integer res := x at 0 in
+                ifb res = NA_INTEGER then
+                  result_error "vector size cannot be NA"
+                else
+                  result_success res
+    | RealSxp => read%Real d := x at 0 in
+                if ISNAN d then
+                  result_error "vector size cannot be NA/NaN"
+                else if negb (R_FINITE d) then
+                  result_error "vector size cannot be infinite"
+                else ifb d > R_XLEN_T_MAX then
+                  result_error "vector size specified is too large"
+                else result_success (Double.double_to_int_zero d)
+     | StrSxp => let%success d := asReal globals x in
+                 if ISNAN d then
+                   result_error "vector size cannot be NA/NaN"
+                 else if negb (R_FINITE d) then
+                   result_error "vector size cannot be infinite"
+                 else ifb d > R_XLEN_T_MAX then
+                   result_error "vector size specified is too large"
+                 else result_success (Double.double_to_int_zero d)
+     | _ => result_error "invalid type for argument"
+     end
+  else
+    result_error "-999 code status".
 
 Definition R_IsImportsEnv env :=
   add%stack "R_IsImportsEnv" in

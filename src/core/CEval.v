@@ -727,11 +727,11 @@ Definition evalseq expr rho (forcelocal : bool) tmploc :=
 
 Definition GET_BINDING_CELL (symbol rho : SEXP) : result SEXP :=
   add%stack "GET_BINDING_CELL" in
-    ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
-        result_success (R_NilValue : SEXP)
-    else
-        let%success loc := R_findVarLocInFrame globals runs rho symbol in
-        result_success (if negb (R_VARLOC_IS_NULL loc) then loc else R_NilValue).
-        
+  ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
+    result_success (R_NilValue : SEXP)
+  else
+    let%success loc := R_findVarLocInFrame globals runs rho symbol in
+    result_success (if negb (R_VARLOC_IS_NULL loc) then loc else R_NilValue).
+
 End Parameterised.
 

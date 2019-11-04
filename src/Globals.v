@@ -82,7 +82,7 @@ Inductive GlobalVariable :=
   | R_NamespaceRegistry
   | R_NamespaceSymbol
   | R_NamesSymbol
-  | R_NameSymbol 
+  | R_NameSymbol
   | R_NaRmSymbol
   | R_NilValue
   | R_PackageSymbol

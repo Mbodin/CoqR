@@ -1149,7 +1149,7 @@ Proof.
   introv E W. forwards E': read_write_SExp_eq W.
   gen p'. pcofix IH. introv OKp. pfold. rewrite safe_pointer_rewrite in OKp. constructors.
   - (** pointer_bound **)
-    applys* bound_write W. applys pointer_bound OKp. 
+    applys* bound_write W. applys pointer_bound OKp.
   - (** no_null_pointer_along_path_step **)
     introv NE M. applys no_null_pointer_along_path_step OKp NE.
     unfolds move_along_path_step. tests: (p' = p).

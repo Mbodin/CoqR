@@ -222,13 +222,13 @@ Definition BODY_EXPR e :=
 
 Definition R_data_class  (obj : SEXP)  (singleString : bool) : result SEXP :=
   add%stack "R_data_class" in
-    result_not_implemented "R_data_class"
+  result_not_implemented "R_data_class"
 .
 
 Definition R_data_class2 (obj : SEXP) : result SEXP :=
   add%stack "R_data_class2" in
-    result_not_implemented "R_data_class2".
-        
+  result_not_implemented "R_data_class2".
+
 (** ** objects.c **)
 
 (** The function names of this section correspond to the function names
@@ -236,26 +236,26 @@ Definition R_data_class2 (obj : SEXP) : result SEXP :=
 
 Definition inherits2 x what :=
   add%stack "inherits2" in
-    if%success OBJECT x then
-        let%success klass :=
-        if%success IS_S4_OBJECT x then
-            R_data_class2 x
-        else 
-            R_data_class x false
-        in
-        let%success nclass := R_length globals runs klass in
-        do%exit
-        for i from 0 to nclass - 1 do
-            let%success klass_i := STRING_ELT klass i in
-            let%success klass_i_char := CHAR klass_i in
-            ifb klass_i_char = what then
-                result_rreturn true
-            else
-                result_rskip
-        in
-        result_success false
+  if%success OBJECT x then
+    let%success klass :=
+    if%success IS_S4_OBJECT x then
+      R_data_class2 x
     else
-        result_success false.
+      R_data_class x false
+    in
+    let%success nclass := R_length globals runs klass in
+    do%exit
+    for i from 0 to nclass - 1 do
+      let%success klass_i := STRING_ELT klass i in
+      let%success klass_i_char := CHAR klass_i in
+      ifb klass_i_char = what then
+        result_rreturn true
+      else
+        result_rskip
+    in
+    result_success false
+  else
+    result_success false.
 
 End Parameterised.
 

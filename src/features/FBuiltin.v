@@ -41,17 +41,17 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition do_body (call op args rho : SEXP) : result SEXP :=
   add%stack "do_body" in
-    run%success Rf_checkArityCall globals runs op args call in
-    read%list args_car, _, _ := args in
-    let%success args_car_type := TYPEOF args_car in
-    ifb args_car_type = CloSxp then
-        let%success b := BODY_EXPR globals args_car in
-        let%success args_car_named := NAMED args_car in
-        set%named b := args_car_named in
-        result_success b
-    else
-        (** A warning message has been left out **)
-        result_success (R_NilValue : SEXP).
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, _, _ := args in
+  let%success args_car_type := TYPEOF args_car in
+  ifb args_car_type = CloSxp then
+      let%success b := BODY_EXPR globals args_car in
+      let%success args_car_named := NAMED args_car in
+      set%named b := args_car_named in
+      result_success b
+  else
+      (** A warning message has been left out **)
+      result_success (R_NilValue : SEXP).
 
 Definition do_makelist (call op args rho : SEXP) : result SEXP :=
   add%stack "do_makelist" in
@@ -350,66 +350,66 @@ Definition do_envir (call op args rho : SEXP) : result SEXP :=
 
 Definition do_makevector (call op args rho : SEXP) : result SEXP :=
   add%stack "do_makevector" in
-    run%success Rf_checkArityCall globals runs op args call in
-    read%list args_car, args_cdr, _ := args in
-    read%list args_cdr_car, _, _ := args_cdr in
-    let%success args_cdr_car_length := R_length globals runs args_cdr_car in
-    ifb args_cdr_car_length <> 1 then
-        result_error "invalid 'length' argument"
+  run%success Rf_checkArityCall globals runs op args call in
+  read%list args_car, args_cdr, _ := args in
+  read%list args_cdr_car, _, _ := args_cdr in
+  let%success args_cdr_car_length := R_length globals runs args_cdr_car in
+  ifb args_cdr_car_length <> 1 then
+      result_error "invalid 'length' argument"
+  else
+  let%success len := asVecSize globals args_cdr_car in
+  ifb len < 0 then
+      result_error "invalid 'length' argument"
+  else
+  let len := Z.to_nat len in
+  let%success s := coerceVector globals runs args_car StrSxp in
+  let%success s_length := R_length globals runs s in
+  ifb s_length <> 1 then
+      result_error "invalid 'mode' argument"
+  else
+  let%success s_0 := STRING_ELT s 0 in
+  let%success s_0_char := CHAR s_0 in
+  let mode := str2type s_0_char in
+  let%success mode :=
+     ifb (** The original C code compared [mode] to [-1] of type [SEXPTYPE],
+           which is stored on 5 bits and thus equivalent to [31], that is,
+           to [FreeSxp]. **)
+         mode = FreeSxp
+         /\ s_0_char = "double"%string then
+       result_success RealSxp
+     else result_success mode in
+  let%success s :=
+  match mode with
+  | LglSxp
+  | IntSxp
+  | RealSxp
+  | CplxSxp
+  | StrSxp
+  | ExprSxp
+  | VecSxp
+  | RawSxp => allocVector globals mode len
+  | ListSxp =>
+    ifb (len : int) > INT_MAX then
+      result_error "too long for a pairlist"
     else
-    let%success len := asVecSize globals args_cdr_car in
-    ifb len < 0 then
-        result_error "invalid 'length' argument"
-    else
-    let len := Z.to_nat len in
-    let%success s := coerceVector globals runs args_car StrSxp in
-    let%success s_length := R_length globals runs s in
-    ifb s_length <> 1 then
-        result_error "invalid 'mode' argument"
-    else
-    let%success s_0 := STRING_ELT s 0 in
-    let%success s_0_char := CHAR s_0 in
-    let mode := str2type s_0_char in
-    let%success mode :=
-       ifb (** The original C code compared [mode] to [-1] of type [SEXPTYPE],
-             which is stored on 5 bits and thus equivalent to [31], that is,
-             to [FreeSxp]. **)
-           mode = FreeSxp
-           /\ s_0_char = "double"%string then
-         result_success RealSxp
-       else result_success mode in
-    let%success s :=
-    match mode with
-    | LglSxp
-    | IntSxp
-    | RealSxp
-    | CplxSxp
-    | StrSxp
-    | ExprSxp
-    | VecSxp
-    | RawSxp => allocVector globals mode len 
-    | ListSxp =>
-      ifb (len : int) > INT_MAX then 
-        result_error "too long for a pairlist"
-      else
-        let%success s := allocList globals len in
-        result_success s                 
-    | _ => result_error ("vector: cannot make a vector of mode given.")
-    end in
-    run%success 
-    ifb mode = IntSxp \/ mode = LglSxp then
-      write%VectorInteger s := ArrayList.from_list (repeat (0 : int) len) in
-      result_skip
-    else ifb mode = RealSxp then
-      write%VectorReal s := ArrayList.from_list (repeat (0 : double) len) in
-      result_skip
-    else ifb mode = CplxSxp then
-      write%VectorComplex s := ArrayList.from_list (repeat (make_Rcomplex 0 0) len) in
-      result_skip
-    else ifb mode = RawSxp then
-      result_not_implemented "Raw case"
-    else result_skip in 
-    result_success s.
+      let%success s := allocList globals len in
+      result_success s
+  | _ => result_error ("vector: cannot make a vector of mode given.")
+  end in
+  run%success
+  ifb mode = IntSxp \/ mode = LglSxp then
+    write%VectorInteger s := ArrayList.from_list (repeat (0 : int) len) in
+    result_skip
+  else ifb mode = RealSxp then
+    write%VectorReal s := ArrayList.from_list (repeat (0 : double) len) in
+    result_skip
+  else ifb mode = CplxSxp then
+    write%VectorComplex s := ArrayList.from_list (repeat (make_Rcomplex 0 0) len) in
+    result_skip
+  else ifb mode = RawSxp then
+    result_not_implemented "Raw case"
+  else result_skip in
+  result_success s.
 
 Definition do_delayed (call op args rho : SEXP) : result SEXP :=
   add%stack "do_delayed" in

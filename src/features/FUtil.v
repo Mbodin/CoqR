@@ -87,7 +87,7 @@ Definition nrows s :=
     ifb s_isVector \/ s_isList then
         let%success t := getAttrib globals runs s R_DimSymbol in
         ifb t = R_NilValue then
-            LENGTH globals s 
+            LENGTH globals s
         else
             read%Integer t_0 := t at 0 in
             result_success (Z.to_nat t_0)

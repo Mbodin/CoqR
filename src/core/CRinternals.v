@@ -290,9 +290,9 @@ Definition isNull s :=
 
 Definition isExpression s :=
   add%stack "isExpression" in
-    let%success s_type := TYPEOF s in
-    result_success (decide (s_type = ExprSxp)).
-                      
+  let%success s_type := TYPEOF s in
+  result_success (decide (s_type = ExprSxp)).
+
 Definition isComplex s :=
   add%stack "isComplex" in
   let%success s_type := TYPEOF s in
