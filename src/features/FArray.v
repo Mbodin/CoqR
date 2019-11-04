@@ -44,14 +44,16 @@ Definition xcopyWithRecycle {A B} (GETELT : SEXP -> nat -> result B) (SETELT : S
     do%success
     for i from 0 to n - 1 do
       let%success src_i := GETELT src i in
-      SETELT dst (Z.to_nat dstart + i) src_i
+      run%success SETELT dst (Z.to_nat dstart + i) src_i in
+      result_skip
     in result_skip
   else
   ifb nsrc = 1 then
     let%success val := GETELT src 0 in
     do%success
     for i from 0 to n - 1 do
-      SETELT dst (Z.to_nat dstart + i) val
+      run%success SETELT dst (Z.to_nat dstart + i) val in
+      result_skip
     in result_skip
   else
     let sidx := 0%Z in

@@ -278,7 +278,7 @@ Definition ExtractSubset (x indx call : SEXP) :=
           SET_STRING_ELT result i x_ii
         else (* out of bounds or NA *)
           SET_STRING_ELT result i NA_STRING
-      inesult_skip
+      in result_skip
     else
       do%success
       for i from 0 to n - 1 do
