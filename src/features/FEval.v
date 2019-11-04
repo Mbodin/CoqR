@@ -412,9 +412,9 @@ Definition do_for (call op args rho : SEXP) : result SEXP :=
     let%success val_isNull := isNull val in
     let%success n :=
     ifb val_isList \/ val_isNull then
-        R_length globals runs val
+      R_length globals runs val
     else
-        LENGTH globals val
+      LENGTH globals val
     in
 
     let%success val_type := TYPEOF val in
@@ -430,65 +430,65 @@ Definition do_for (call op args rho : SEXP) : result SEXP :=
     let v := R_NilValue in
     let%success cntxt := begincontext globals Ctxt_Loop R_NilValue rho R_BaseEnv R_NilValue R_NilValue in
     let for_break :=
-        run%success endcontext globals runs cntxt in
-        run%success DECREMENT_REFCNT val in (** Not sure if this works for val **)
-        result_success (R_NilValue : SEXP) in
+      run%success endcontext globals runs cntxt in
+      run%success DECREMENT_REFCNT val in (** Not sure if this works for val **)
+      result_success (R_NilValue : SEXP) in
 
     set%longjump context_cjmpbuf cntxt as jmp using runs in
     ifb jmp = Ctxt_Break then for_break
     else ifb jmp = Ctxt_Next then result_not_implemented "goto for_next"
     else
-    do%success val := val
-    for i from 0 to n - 1 do
+      do%success val := val
+      for i from 0 to n - 1 do
         let%success val :=
         match val_type with
         | ExprSxp
         | VecSxp => let%success val_i := VECTOR_ELT val i in
-                   set%named val_i := named_plural in
-                   run%success defineVar globals runs sym val_i rho in
-                   result_success val
+                    set%named val_i := named_plural in
+                    run%success defineVar globals runs sym val_i rho in
+                    result_success val
         | ListSxp => read%list val_car, _, _ := val in
-                    set%named val_car := named_plural in
-                    run%success defineVar globals runs sym val_car rho in
-                    result_success val_car
+                     set%named val_car := named_plural in
+                     run%success defineVar globals runs sym val_car rho in
+                     result_success val_car
         | _ => let%success v :=
-              match val_type with
-              | LglSxp => let%success v := ALLOC_LOOP_VAR v val_type in
-                         read%Logical val_i := val at i in
-                         write%Logical v at 0 := val_i in
-                         result_success v
-              | IntSxp => let%success v := ALLOC_LOOP_VAR v val_type in
-                         read%Integer val_i := val at i in
-                         write%Integer v at 0 := val_i in
-                         result_success v
-              | RealSxp => let%success v := ALLOC_LOOP_VAR v val_type in
-                          read%Real val_i := val at i in
-                          write%Real v at 0 := val_i in
-                          result_success v
-              | CplxSxp => let%success v := ALLOC_LOOP_VAR v val_type in
-                          read%Complex val_i := val at i in
-                          write%Complex v at 0 := val_i in
-                          result_success v
-              | StrSxp => let%success v := ALLOC_LOOP_VAR v val_type in
-                         let%success val_i := STRING_ELT val i in
-                         run%success SET_STRING_ELT v 0 val_i in
-                         result_success v
-              | RawSxp => result_not_implemented "Raw case not implemented"
-              | _ => result_error "invalid for() loop sequence"
-              end
-              in
-              read%list cell_car, _, _ := cell in
-              run%success
-              ifb cell_car = R_UnboundValue then
-                  defineVar globals runs sym v rho
-              else
-                  run%success SET_BINDING_VALUE globals runs cell v in
-                  defineVar globals runs sym v rho
-              in result_success val
+               match val_type with
+               | LglSxp => let%success v := ALLOC_LOOP_VAR v val_type in
+                           read%Logical val_i := val at i in
+                           write%Logical v at 0 := val_i in
+                           result_success v
+               | IntSxp => let%success v := ALLOC_LOOP_VAR v val_type in
+                           read%Integer val_i := val at i in
+                           write%Integer v at 0 := val_i in
+                           result_success v
+               | RealSxp => let%success v := ALLOC_LOOP_VAR v val_type in
+                            read%Real val_i := val at i in
+                            write%Real v at 0 := val_i in
+                            result_success v
+               | CplxSxp => let%success v := ALLOC_LOOP_VAR v val_type in
+                            read%Complex val_i := val at i in
+                            write%Complex v at 0 := val_i in
+                            result_success v
+               | StrSxp => let%success v := ALLOC_LOOP_VAR v val_type in
+                           let%success val_i := STRING_ELT val i in
+                           run%success SET_STRING_ELT v 0 val_i in
+                           result_success v
+               | RawSxp => result_not_implemented "Raw case not implemented"
+               | _ => result_error "invalid for() loop sequence"
+               end
+               in
+               read%list cell_car, _, _ := cell in
+               run%success
+               ifb cell_car = R_UnboundValue then
+                 defineVar globals runs sym v rho
+               else
+                 run%success SET_BINDING_VALUE globals runs cell v in
+                 defineVar globals runs sym v rho
+               in result_success val
         end
-        in
-        run%success eval globals runs body rho in
-        result_success val
+      in
+      run%success eval globals runs body rho in
+      result_success val
     in
     for_break.
 
@@ -604,6 +604,74 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
       eval globals runs expr rho
     else result_success expr in
   result_success expr.
+
+Definition R_forceAndCall (e : SEXP) (n : int) (rho : SEXP) : result SEXP :=
+  add%stack "R_forceAndCall" in
+  read%list e_car, e_cdr, _ := e in
+  let%success fun_ :=
+    let%success e_car_type := TYPEOF e_car in
+    ifb e_car_type = SymSxp then
+      findFun globals runs e_car rho
+    else
+      eval globals runs e_car rho in
+  let%success fun_type := TYPEOF fun_ in
+  let%success tmp :=
+    ifb fun_type = SpecialSxp then
+      (* let%success flag := PRIMPRINT fun_ in *)
+      (* R_Visible = flag != 1 *)
+      let%success f := PRIMFUN runs fun_ in
+      let%success tmp := f e fun_ e_cdr rho in
+      (* if (flag < 2) R_Visible = flag != 1 *)
+      result_success tmp
+    else ifb fun_type = BuiltinSxp then
+      (* let%success flag := PRIMPRINT fun_ in *)
+      let%success tmp := evalList globals runs e_cdr rho e 0 in
+      (* if (flag < 2) R_Visible = flag != 1 *)
+      let%success tmp :=
+        let R_Profiling := false in
+        let%success fun_infos := PPINFO runs fun_ in
+        ifb R_Profiling \/ PPinfo_kind fun_infos = PP_FOREIGN then
+          let%success cntxt :=
+            begincontext globals Ctxt_Builtin e R_BaseEnv R_BaseEnv R_NilValue R_NilValue in
+          let%success f := PRIMFUN runs fun_ in
+          let%success tmp := f e fun_ tmp rho in
+          run%success endcontext globals runs cntxt in
+          result_success tmp
+        else
+          let%success f := PRIMFUN runs fun_ in
+          f e fun_ tmp rho in
+      (* if (flag < 2) R_Visible = flag != 1 *)
+      result_success tmp
+    else ifb fun_type = CloSxp then
+      let%success tmp := promiseArgs globals runs e_cdr rho in
+      do%success (a, i) := (tmp, 0 : int)
+      whileb i < n /\ a <> R_NilValue do
+        read%list p, a_cdr, _ := a in
+        let%success p_type := TYPEOF p in
+        run%success
+          ifb p_type = PromSxp then
+            eval globals runs p rho
+          else ifb p = R_MissingArg then
+            result_error "argument i is empty"
+          else result_error "something weird happened" in
+        result_success (a_cdr, 1 + i)%Z using runs in
+      let pargs := tmp in
+      let%success tmp := applyClosure globals runs e fun_ pargs rho R_NilValue in
+      result_success tmp
+    else result_error "attempt to apply non-function" in
+  result_success tmp.
+
+Definition do_forceAndCall (call op args rho : SEXP) : result SEXP :=
+  add%stack "do_forceAndCall" in
+  read%list _, call_cdr, _ := call in
+  read%list call_cadr, e, _ := call_cdr in
+  let%success call_cadr_eval := eval globals runs call_cadr rho in 
+  let%success n := asInteger globals call_cadr_eval in
+  let%success e :=
+    read%list e_car, e_cdr, _ := e in
+    LCONS globals e_car e_cdr in
+  let%success val := R_forceAndCall e n rho in
+  result_success val.
 
 End Parameters.
 

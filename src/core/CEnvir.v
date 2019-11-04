@@ -510,6 +510,11 @@ Definition findFun3 symbol rho (call : SEXP) : result SEXP :=
   let%success str_symbol_ := CHAR str_symbol in
   result_error ("Could not find function “" ++ str_symbol_ ++ "”.").
 
+Definition findFun symbol rho : result SEXP :=
+  add%stack "findFun" in
+  let%success R_CurrentExpression := result_not_implemented "R_CurrentExpression" in
+  findFun3 symbol rho R_CurrentExpression.
+
 Definition findRootPromise p :=
   add%stack "findRootPromise" in
   let%success p_type := TYPEOF p in
