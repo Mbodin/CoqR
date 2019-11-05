@@ -1,0 +1,29 @@
+{
+  "name": "CoqR",
+  "version": "1.0",
+  "description": "A Coq formalisation of the R programming language",
+  "license": "GPL-2.0",
+  "esy": {
+    "build": "make",
+    "buildsInSource": "_build"
+  },
+  "scripts": {
+    "build": "make build",
+    "run": "make run",
+    "run_bisect": "make run_bisect",
+    "lrun": "make lrun",
+    "lrun_bisect": "make lrun_bisect",
+    "report": "make report"
+  },
+  "dependencies": {
+    "ocaml": "4.04.0",
+    "@opam/ocamlfind": "*",
+    "@opam/ocamlbuild": "*",
+    "@opam/menhir": "*",
+    "@opam/coq": "8.6",
+    "@opam/coq-flocq": "*",
+    "@opam/coq-paco": "*",
+    "@opam/extlib": "*",
+    "@opam/bisect": "*"
+  }
+}

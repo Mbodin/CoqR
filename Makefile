@@ -23,6 +23,10 @@ all_coq: Makefile.coq
 all_html: Makefile.coq
 	${AT}+make -f Makefile.coq html
 
+build:
+	${AT}+make tlc
+	${AT}+make
+
 doc: all_html
 
 clean: Makefile.coq clean_interp clean_random

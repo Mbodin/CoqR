@@ -86,12 +86,25 @@ from the actual GNU R source code.
 
 * Building the Project
 
-You need to install Coq and OCaml as well as some libraries.
-The simplest way to do this is using Opam.
-If you already have some of them installed in your system, it is advised
-to use the same package manager to install all packages and libraries
-(that is either your system’s package manager or Opam, but not both).
+** Using =esy=
 
+The simplest way is to use =esy=.
+One way to install it is as follows.
+#+BEGIN_SRC bash
+    sudo apt install npm
+    npm install --global esy@0.5.6
+#+END_SRC
+
+Then, typing =esy= should install the dependencies and build the project.
+
+Once compiled, the following commands are available:
+ - =esy lrun= runs the CoqR interpreter with the base libraries loaded (the loading of the base library will take some time the first time).
+ - =esy run= runs a lighter version of the CoqR interpreter without the base libraries.
+ - =esy lrun_bisect= and =esy run_bisect= are similar to the other ones, but the program is instrumented by the Bisect coverage tool.  Once the program is run on some test suites, one can call =esy report= to create a coverage report in =bisect/report/index.html=.
+
+** Using =opam=
+
+Another way is to use =opam=.
 In Debian, installing Opam, Git, as well as the other needed libraries,
 can be done as follows.
 More information for other systems can be found
