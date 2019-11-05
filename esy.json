@@ -22,6 +22,7 @@
     "@opam/ocamlbuild": "*",
     "@opam/menhir": "*",
     "@opam/coq": "8.6",
+    "@opam/coqdoc": "*",
     "@opam/coq-flocq": "*",
     "@opam/coq-paco": "*",
     "@opam/extlib": "*",
@@ -29,6 +30,32 @@
   },
   "resolutions": {
     "@opam/coq-paco": "link:lib/paco.opam",
-    "@opam/coq-flocq": "link:lib/flocq.opam"
+    "@opam/coq-flocq": "link:lib/flocq.opam",
+    "@opam/coq": {
+      "source": "coq/coq#0d1438851b",
+      "override": {
+        "build": [
+          [
+            "./configure",
+            "-configdir",
+            "#{self.lib}/coq/config",
+            "-prefix",
+            "#{self.install}",
+            "-mandir",
+            "#{self.man}",
+            "-docdir",
+            "#{self.doc}",
+            "-libdir",
+            "#{self.lib}/coq",
+            "-datadir",
+            "#{self.share}/coq",
+            "-coqide",
+            "no"
+          ],
+          ["make", "-j2"]
+        ]
+      }
+    }
   }
 }
+

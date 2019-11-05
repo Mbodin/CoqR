@@ -1,0 +1,18 @@
+esy.lock -diff
+
+Rlib/base/* linguist-vendored
+Rlib/fastr_base/** linguist-vendored
+Rlib/fastr_oracle/** linguist-vendored
+
+*.v text diff=Coq
+*.ml text diff=OCaml
+*.mli text diff=OCaml
+*.mll text diff=OCaml
+*.mly text diff=OCaml
+*.vo binary
+*.cmo binary
+*.cmi binary
+
+.env binary
+bisect*.out binary
+
