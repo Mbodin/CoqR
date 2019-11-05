@@ -16,7 +16,8 @@
     "report": "make report"
   },
   "dependencies": {
-    "ocaml": "4.04.0",
+    "ocaml": "4.4.2004",
+    "@opam/camlp5": "*",
     "@opam/ocamlfind": "*",
     "@opam/ocamlbuild": "*",
     "@opam/menhir": "*",
@@ -25,5 +26,9 @@
     "@opam/coq-paco": "*",
     "@opam/extlib": "*",
     "@opam/bisect": "*"
+  },
+  "resolutions": {
+    "@opam/coq-paco": "link:lib/paco.opam",
+    "@opam/coq-flocq": "link:lib/flocq.opam"
   }
 }
