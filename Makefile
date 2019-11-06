@@ -15,7 +15,9 @@ AT=
 %: Makefile.coq phony
 	${AT}+make -f Makefile.coq $@
 
-all: all_coq all_interp all_html random
+all: depends all_coq all_interp all_html random
+
+depends: Rlib/base.d
 
 all_coq: Makefile.coq
 	${AT}+make -f Makefile.coq all
@@ -77,10 +79,12 @@ Rlib/bootstrapping.state: src/initial.state src/runR.native Rlib/bootstrapping.R
 		| src/runR.native -initial-state $< -final-state $@ \
 		> /dev/null
 
-Rlib/base.state: Rlib/bootstrapping.state src/runR.native
-	${AT}cat Rlib/base/*.R \
-		| src/runR.native -initial-state $< -final-state $@ \
-		> /dev/null
+Rlib/base.d: Rlib/deps.pl Rlib/base/*.R
+	${AT}$< > $@
+
+Rlib/base.state: Rlib/base.d
+
+-include Rlib/base.d
 
 clean_interp:
 	${AT}rm src/runR.native || true

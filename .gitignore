@@ -19,6 +19,8 @@ html
 
 bisect*.out
 
+Rlib/base.d
+
 extract.ml
 extract.mli
 extractBisect.ml

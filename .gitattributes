@@ -1,8 +1,8 @@
 esy.lock -diff
 
 Rlib/base/* linguist-vendored
-Rlib/fastr_base/** linguist-vendored
-Rlib/fastr_oracle/** linguist-vendored
+Rlib/fastr_base/* linguist-vendored
+Rlib/fastr_oracle/* linguist-vendored
 
 *.v text diff=Coq
 *.ml text diff=OCaml
