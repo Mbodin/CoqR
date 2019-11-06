@@ -24,3 +24,6 @@ extract.mli
 extractBisect.ml
 extractBisect.mli
 
+/_esy
+/node_modules
+

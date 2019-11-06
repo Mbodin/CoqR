@@ -22,15 +22,14 @@
     "@opam/ocamlbuild": "*",
     "@opam/menhir": "*",
     "@opam/coq": "8.6",
-    "@opam/coqdoc": "*",
-    "@opam/coq-flocq": "*",
-    "@opam/coq-paco": "*",
+    "coq-flocq": "*",
+    "coq-paco": "*",
     "@opam/extlib": "*",
     "@opam/bisect": "*"
   },
   "resolutions": {
-    "@opam/coq-paco": "link:lib/paco.opam",
-    "@opam/coq-flocq": "link:lib/flocq.opam",
+    "coq-paco": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+    "coq-flocq": "git://gitlab.inria.fr/flocq/flocq.git#e6978811a24f2d373f8a3eb2d61bd35dafc5425c",
     "@opam/coq": {
       "source": "coq/coq#0d1438851b",
       "override": {
