@@ -1,5 +1,5 @@
 {
-  "checksum": "b0a136bd4ff536827a2b16ce97e95872",
+  "checksum": "796e87c48642669c1ee63c0b11482cc9",
   "root": "CoqR@link-dev:./esy.json",
   "node": {
     "ocaml@4.4.2004@d41d8cd9": {
@@ -16,6 +16,63 @@
       "dependencies": [],
       "devDependencies": []
     },
+    "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7": {
+      "id":
+        "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7",
+      "name": "coq-paco",
+      "version":
+        "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+      "source": {
+        "type": "install",
+        "source": [
+          "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450"
+        ]
+      },
+      "overrides": [
+        {
+          "dependencies": { "@opam/coq": "8.6" },
+          "buildEnv": { "COQBIN": "#{@opam/coq.bin}/" },
+          "build": [
+            [ "make", "-C", "src" ],
+            [ "make", "-C", "src", "doc" ],
+            [ "make", "-C", "src", "install-doc" ]
+          ]
+        }
+      ],
+      "dependencies": [
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+      ],
+      "devDependencies": []
+    },
+    "coq-flocq@git:git__AT__gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573@ca643097": {
+      "id":
+        "coq-flocq@git:git__AT__gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573@ca643097",
+      "name": "coq-flocq",
+      "version":
+        "git:git@gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573",
+      "source": {
+        "type": "install",
+        "source": [
+          "git:git@gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573"
+        ]
+      },
+      "overrides": [
+        {
+          "dependencies": { "@opam/coq": "8.6" },
+          "buildEnv": { "COQBIN": "#{@opam/coq.bin}" },
+          "build": [
+            [ "./autogen.sh" ],
+            [ "./configure" ],
+            [ "./remake", "--jobs=2" ],
+            [ "./remake", "install" ]
+          ]
+        }
+      ],
+      "dependencies": [
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+      ],
+      "devDependencies": []
+    },
     "CoqR@link-dev:./esy.json": {
       "id": "CoqR@link-dev:./esy.json",
       "name": "CoqR",
@@ -23,13 +80,14 @@
       "source": { "type": "link-dev", "path": ".", "manifest": "esy.json" },
       "overrides": [],
       "dependencies": [
-        "ocaml@4.4.2004@d41d8cd9", "@opam/ocamlfind@opam:1.8.1@ff07b0f9",
+        "ocaml@4.4.2004@d41d8cd9",
+        "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7",
+        "coq-flocq@git:git__AT__gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573@ca643097",
+        "@opam/ocamlfind@opam:1.8.1@ff07b0f9",
         "@opam/ocamlbuild@opam:0.14.0@6ac75d03",
         "@opam/menhir@opam:20190924@004407ff",
         "@opam/extlib@opam:1.7.6@401d0891",
-        "@opam/coq-paco@link:lib/paco.opam",
-        "@opam/coq-flocq@link:lib/flocq.opam",
-        "@opam/coq@github:coq/coq#0d1438851b@2576624a",
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
         "@opam/camlp5@opam:7.10@1abd7bce", "@opam/bisect@opam:1.3.1@0f9df846"
       ],
       "devDependencies": []
@@ -114,6 +172,28 @@
       ],
       "devDependencies": [ "ocaml@4.4.2004@d41d8cd9" ]
     },
+    "@opam/jbuilder@opam:transition@20522f05": {
+      "id": "@opam/jbuilder@opam:transition@20522f05",
+      "name": "@opam/jbuilder",
+      "version": "opam:transition",
+      "source": {
+        "type": "install",
+        "source": [ "no-source:" ],
+        "opam": {
+          "name": "jbuilder",
+          "version": "transition",
+          "path": "esy.lock/opam/jbuilder.transition"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@4.4.2004@d41d8cd9", "@opam/dune@opam:1.11.4@21d66ccd",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@4.4.2004@d41d8cd9", "@opam/dune@opam:1.11.4@21d66ccd"
+      ]
+    },
     "@opam/extlib@opam:1.7.6@401d0891": {
       "id": "@opam/extlib@opam:1.7.6@401d0891",
       "name": "@opam/extlib",
@@ -134,7 +214,7 @@
       "overrides": [],
       "dependencies": [
         "ocaml@4.4.2004@d41d8cd9", "@opam/ocamlfind@opam:1.8.1@ff07b0f9",
-        "@opam/cppo@opam:1.6.6@f4f83858",
+        "@opam/cppo@opam:1.6.5@f8ff4f1a",
         "@opam/base-bytes@opam:base@19d0c2ff",
         "@esy-ocaml/substs@0.0.1@d41d8cd9"
       ],
@@ -172,68 +252,43 @@
         "@opam/base-threads@opam:base@36803084"
       ]
     },
-    "@opam/cppo@opam:1.6.6@f4f83858": {
-      "id": "@opam/cppo@opam:1.6.6@f4f83858",
+    "@opam/cppo@opam:1.6.5@f8ff4f1a": {
+      "id": "@opam/cppo@opam:1.6.5@f8ff4f1a",
       "name": "@opam/cppo",
-      "version": "opam:1.6.6",
+      "version": "opam:1.6.5",
       "source": {
         "type": "install",
         "source": [
-          "archive:https://opam.ocaml.org/cache/sha256/e7/e7272996a7789175b87bb998efd079794a8db6625aae990d73f7b4484a07b8a0#sha256:e7272996a7789175b87bb998efd079794a8db6625aae990d73f7b4484a07b8a0",
-          "archive:https://github.com/ocaml-community/cppo/releases/download/v1.6.6/cppo-v1.6.6.tbz#sha256:e7272996a7789175b87bb998efd079794a8db6625aae990d73f7b4484a07b8a0"
+          "archive:https://opam.ocaml.org/cache/md5/1c/1cd25741d31417995b0973fe0b6f6c82#md5:1cd25741d31417995b0973fe0b6f6c82",
+          "archive:https://github.com/mjambon/cppo/archive/v1.6.5.tar.gz#md5:1cd25741d31417995b0973fe0b6f6c82"
         ],
         "opam": {
           "name": "cppo",
-          "version": "1.6.6",
-          "path": "esy.lock/opam/cppo.1.6.6"
+          "version": "1.6.5",
+          "path": "esy.lock/opam/cppo.1.6.5"
         }
       },
       "overrides": [],
       "dependencies": [
-        "ocaml@4.4.2004@d41d8cd9", "@opam/dune@opam:1.11.4@21d66ccd",
+        "ocaml@4.4.2004@d41d8cd9", "@opam/jbuilder@opam:transition@20522f05",
         "@opam/base-unix@opam:base@87d0b2eb",
         "@esy-ocaml/substs@0.0.1@d41d8cd9"
       ],
       "devDependencies": [
-        "ocaml@4.4.2004@d41d8cd9", "@opam/dune@opam:1.11.4@21d66ccd",
+        "ocaml@4.4.2004@d41d8cd9", "@opam/jbuilder@opam:transition@20522f05",
         "@opam/base-unix@opam:base@87d0b2eb"
       ]
     },
-    "@opam/coq-paco@link:lib/paco.opam": {
-      "id": "@opam/coq-paco@link:lib/paco.opam",
-      "name": "@opam/coq-paco",
-      "version": "link:lib/paco.opam",
-      "source": { "type": "link", "path": "lib", "manifest": "paco.opam" },
-      "overrides": [],
-      "dependencies": [
-        "@opam/coq@github:coq/coq#0d1438851b@2576624a",
-        "@esy-ocaml/substs@0.0.1@d41d8cd9"
-      ],
-      "devDependencies": [ "@opam/coq@github:coq/coq#0d1438851b@2576624a" ]
-    },
-    "@opam/coq-flocq@link:lib/flocq.opam": {
-      "id": "@opam/coq-flocq@link:lib/flocq.opam",
-      "name": "@opam/coq-flocq",
-      "version": "link:lib/flocq.opam",
-      "source": { "type": "link", "path": "lib", "manifest": "flocq.opam" },
-      "overrides": [],
-      "dependencies": [
-        "ocaml@4.4.2004@d41d8cd9",
-        "@opam/coq@github:coq/coq#0d1438851b@2576624a",
-        "@esy-ocaml/substs@0.0.1@d41d8cd9"
-      ],
-      "devDependencies": [
-        "ocaml@4.4.2004@d41d8cd9",
-        "@opam/coq@github:coq/coq#0d1438851b@2576624a"
-      ]
-    },
-    "@opam/coq@github:coq/coq#0d1438851b@2576624a": {
-      "id": "@opam/coq@github:coq/coq#0d1438851b@2576624a",
+    "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66": {
+      "id":
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
       "name": "@opam/coq",
-      "version": "github:coq/coq#0d1438851b",
+      "version": "github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
       "source": {
         "type": "install",
-        "source": [ "github:coq/coq#0d1438851b" ]
+        "source": [
+          "github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb"
+        ]
       },
       "overrides": [
         {
@@ -244,7 +299,9 @@
               "-docdir", "#{self.doc}", "-libdir", "#{self.lib}/coq",
               "-datadir", "#{self.share}/coq", "-coqide", "no"
             ],
-            [ "make", "-j2" ]
+            [ "make", "-j2" ],
+            [ "make", "install" ],
+            [ "make", "clean" ]
           ]
         }
       ],

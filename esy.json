@@ -28,10 +28,41 @@
     "@opam/bisect": "*"
   },
   "resolutions": {
-    "coq-paco": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
-    "coq-flocq": "git://gitlab.inria.fr/flocq/flocq.git#e6978811a24f2d373f8a3eb2d61bd35dafc5425c",
+    "coq-paco": {
+      "source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+      "override": {
+        "dependencies": {
+            "@opam/coq": "8.6"
+          },
+        "buildEnv": {
+          "COQBIN": "#{@opam/coq.bin}/"
+        },
+        "build": [
+            ["make", "-C", "src"],
+            ["make", "-C", "src", "doc"],
+            ["make", "-C", "src", "install-doc"]
+          ]
+        }
+    },
+    "coq-flocq": {
+      "source": "git:git@gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573",
+      "override": {
+         "dependencies": {
+            "@opam/coq": "8.6"
+          },
+        "buildEnv": {
+          "COQBIN": "#{@opam/coq.bin}"
+        },
+        "build": [
+            ["./autogen.sh"],
+            ["./configure"],
+            ["./remake", "--jobs=2"],
+            ["./remake", "install"]
+          ]
+        }
+    },
     "@opam/coq": {
-      "source": "coq/coq#0d1438851b",
+      "source": "coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
       "override": {
         "build": [
           [
@@ -51,7 +82,9 @@
             "-coqide",
             "no"
           ],
-          ["make", "-j2"]
+          ["make", "-j2"],
+          ["make", "install"],
+          ["make", "clean"]
         ]
       }
     }
