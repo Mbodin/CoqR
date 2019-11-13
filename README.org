@@ -95,7 +95,14 @@ One way to install it is as follows.
     npm install -g @esy-nightly/esy
 #+END_SRC
 
-Then, typing =esy= should install the dependencies and build the project.
+One can then clone the project.
+#+BEGIN_SRC bash
+    git clone https://github.com/Mbodin/CoqR.git CoqR
+    cd CoqR
+    git submodule update --init
+#+END_SRC
+
+Then, typing =esy= should install all dependencies and build the project.
 
 Once compiled, the following commands are available:
  - =esy lrun= runs the CoqR interpreter with the base libraries loaded (the loading of the base library will take some time the first time).

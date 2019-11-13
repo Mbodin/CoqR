@@ -4,11 +4,10 @@
   "description": "A Coq formalisation of the R programming language",
   "license": "GPL-2.0",
   "esy": {
-    "build": "make",
+    "build": "make build",
     "buildsInSource": "_build"
   },
   "scripts": {
-    "build": "make build",
     "run": "make run",
     "run_bisect": "make run_bisect",
     "lrun": "make lrun",

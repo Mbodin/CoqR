@@ -12,10 +12,10 @@ OCAMLFILES= \
 
 AT=
 
+all: depends all_coq all_interp all_html random
+
 %: Makefile.coq phony
 	${AT}+make -f Makefile.coq $@
-
-all: depends all_coq all_interp all_html random
 
 depends: Rlib/base.d
 
@@ -51,14 +51,10 @@ clean_all: clean clean_tlc
 	${AT}rm Rlib/bootstrapping.state || true
 
 tlc:
-	${AT}cd lib/tlc ; \
-		make ; \
-		cd ../..
+	${AT}make -C lib/tlc/src
 
 clean_tlc:
-	${AT}cd lib/tlc ; \
-		make clean ; \
-		cd ../..
+	${AT}make -C lib/tlc/src clean
 
 all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping.state
 
