@@ -29,3 +29,5 @@ extractBisect.mli
 /_esy
 /node_modules
 
+CoqMakefile.conf
+

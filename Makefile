@@ -25,10 +25,6 @@ all_coq: Makefile.coq
 all_html: Makefile.coq
 	${AT}+make -f Makefile.coq html
 
-build:
-	${AT}+make tlc
-	${AT}+make
-
 doc: all_html
 
 clean: Makefile.coq clean_interp clean_random
@@ -44,17 +40,11 @@ _CoqProject: ;
 
 Makefile: ;
 
-.PHONY: all clean clean_all doc all_interp clean_interp tlc clean_tlc run run_bisect random clean_random report
+.PHONY: all clean clean_all doc all_interp clean_interp run run_bisect random clean_random report
 
-clean_all: clean clean_tlc
+clean_all: clean
 	${AT}rm src/initial.state || true
 	${AT}rm Rlib/bootstrapping.state || true
-
-tlc:
-	${AT}make -C lib/tlc/src
-
-clean_tlc:
-	${AT}make -C lib/tlc/src clean
 
 all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping.state
 

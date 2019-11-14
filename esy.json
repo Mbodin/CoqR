@@ -4,7 +4,7 @@
   "description": "A Coq formalisation of the R programming language",
   "license": "GPL-2.0",
   "esy": {
-    "build": "make build",
+    "build": "make",
     "buildsInSource": "_build"
   },
   "scripts": {
@@ -24,9 +24,25 @@
     "coq-flocq": "2.6.1",
     "coq-paco": "*",
     "@opam/extlib": "*",
-    "@opam/bisect": "*"
+    "@opam/bisect": "*",
+    "coq-tlc": "*"
   },
   "resolutions": {
+    "coq-tlc": {
+      "source": "git:git@gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916",
+      "override": {
+        "dependencies": {
+            "@opam/coq": "8.6"
+          },
+        "buildEnv": {
+          "COQBIN": "#{@opam/coq.bin}/"
+        },
+        "build": [
+            ["make"],
+            ["make", "install"]
+          ]
+      }
+    },
     "coq-paco": {
       "source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
       "override": {

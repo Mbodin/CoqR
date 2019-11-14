@@ -1,8 +1,6 @@
 
 -arg "-w -notation-overridden"
 
--R ./lib/tlc/src TLC
-
 -R ./lib/extra Lib
 
 ./lib/extra/Common.v

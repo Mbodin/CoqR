@@ -146,7 +146,7 @@ We can thus pin it in Opam.
 
 We can now install the required packages.
 #+BEGIN_SRC bash
-    opam install ocamlbuild menhir coq coq-flocq coq-paco extlib bisect
+    opam install ocamlbuild menhir coq coq-flocq coq-paco extlib bisect coq-tlc
     eval `opam config env`
 #+END_SRC
 
@@ -157,24 +157,10 @@ We can now clone the project.
     git submodule update --init
 #+END_SRC
 
-We need to compile TLC, a Coq library used thorough the project.
-Although in theory one could install TLC by another way,
-we strongly encourage to use the version of the submodule:
-the project has only been tested with this version.
-The following line will compile the expected version of TLC.
-#+BEGIN_SRC bash
-    make tlc
-#+END_SRC
-
 The Makefile should now work.
 #+BEGIN_SRC bash
     make
 #+END_SRC
-
-It is possible that during the extraction, Coq complains that
-some opaque constants were accessed, or that some logical axioms
-were encountered.
-These comes from the TLC library and can be safely ignored.
 
 This should create the following program.
 #+BEGIN_SRC bash

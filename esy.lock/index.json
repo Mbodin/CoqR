@@ -1,5 +1,5 @@
 {
-  "checksum": "bab0e6a9f6bc1642708ca10a641852e8",
+  "checksum": "5546520551a82577c339e49ac70fb788",
   "root": "CoqR@link-dev:./esy.json",
   "node": {
     "ocaml@4.4.2004@d41d8cd9": {
@@ -15,6 +15,33 @@
       "overrides": [],
       "dependencies": [],
       "devDependencies": []
+    },
+    "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916@e2b7493a": {
+      "id":
+        "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916@e2b7493a",
+      "name": "coq-tlc",
+      "version":
+        "git:git@gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916",
+      "source": {
+        "type": "install",
+        "source": [
+          "git:git@gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916"
+        ]
+      },
+      "overrides": [
+        {
+          "dependencies": { "@opam/coq": "8.6" },
+          "buildEnv": { "COQBIN": "#{@opam/coq.bin}/" },
+          "build": [ [ "make" ], [ "make", "install" ] ]
+        }
+      ],
+      "dependencies": [
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+      ]
     },
     "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7": {
       "id":
@@ -81,6 +108,7 @@
       "overrides": [],
       "dependencies": [
         "ocaml@4.4.2004@d41d8cd9",
+        "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916@e2b7493a",
         "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7",
         "coq-flocq@git:git__AT__gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573@ca643097",
         "@opam/ocamlfind@opam:1.8.1@ff07b0f9",
