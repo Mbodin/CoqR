@@ -156,15 +156,21 @@ Extract Constant Double.lt => "(<)".
 Extract Constant Double.int_to_double => "float_of_int".
 Extract Constant Double.double_to_int_zero => "int_of_float".
 
-Extract Constant HeapList.heap "'a" "'b" => "('a, 'b) PMap.t".
-Extract Constant HeapList.empty => "Obj.magic PMap.create compare".
-Extract Constant HeapList.write => "fun h k v -> PMap.add k v h".
-Extract Constant HeapList.to_list => "fun h -> PMap.foldi (fun k v l -> (k, v) :: l) h []".
-Extract Constant HeapList.read => "fun _(*comparable*) h k -> PMap.find k h".
+Extract Constant HeapList.heap "'a" "'b" =>
+  "int ref * int (* The following time reference at this timestamp. *)".
+Extract Constant HeapList.empty => "(ref 0, 0)".
+Extract Constant HeapList.write =>
+  "fun (hr, h) k v -> assert (h = !hr) ; k := v ; incr hr ; (hr, !hr)".
+Extract Constant HeapList.to_list => "fun (hr, h) -> assert (h = !hr) ; assert false".
+Extract Constant HeapList.read => "fun _(*comparable*) (hr, h) k -> assert (h = !hr) ; !k".
 Extract Constant HeapList.read_option =>
-  "fun _(*comparable*) h k -> try Some (PMap.find k h) with Not_found -> None".
-Extract Constant HeapList.rem => "fun _(*comparable*) h k -> PMap.remove k h".
-Extract Constant HeapList.indom_decidable => "fun _(*comparable*) h k -> PMap.mem k h".
+  "fun _(*comparable*) (hr, h) k -> assert (h = !hr) ; Some !k".
+Extract Constant HeapList.rem => "fun _(*comparable*) (hr, h) k -> assert (h = !hr) ; assert false".
+Extract Constant HeapList.indom_decidable =>
+  "fun _(*comparable*) (hr, h) k -> assert (h = !hr) ; true".
+
+Extract Constant alloc_memory_SExp_nat =>
+  "fun e_ s -> let k = ref e_ in let (hr, h) = state_heap_SExp s in assert (h = !hr) ; incr hr ; ({ s with state_fresh_locations = stream_tail (state_fresh_locations s) ; state_heap_SExp = (hr, !hr) }, k)"
 
 Extract Constant ArrayList.array "'a" => "(int * (int, 'a) PMap.t)".
 Extract Constant ArrayList.length => "fst".
