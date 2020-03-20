@@ -20,7 +20,7 @@
     "report": "make report"
   },
   "dependencies": {
-    "ocaml": "4.07",
+    "ocaml": "4.7",
     "@opam/ocamlfind": "*",
     "@opam/ocamlbuild": "*",
     "@opam/menhir": "*",
@@ -34,7 +34,7 @@
   "resolutions": {
     "coq-tlc": {
       "source": "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2",
-      "override": {
+			"override": {
         "dependencies": {
             "@opam/coq": "8.6"
           },
@@ -45,11 +45,11 @@
             ["make"],
             ["make", "install"]
           ]
-      }
+			}
     },
     "coq-paco": {
       "source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
-      "override": {
+			"override": {
         "dependencies": {
             "@opam/coq": "8.6"
           },
@@ -61,15 +61,15 @@
             ["make", "-C", "src", "doc"],
             ["make", "-C", "src", "install-doc"]
           ]
-        }
+			}
     },
     "coq-flocq": {
       "source": "git:https://gitlab.inria.fr/flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573",
-      "version": "2.6.1",
-      "override": {
-         "dependencies": {
-            "@opam/coq": "8.6"
-          },
+			"override": {
+        "version": "2.6.1",
+        "dependencies": {
+		    	"@opam/coq": "8.6"
+        },
         "buildEnv": {
           "HOME": "#{self.target_dir}",
           "COQBIN": "#{@opam/coq.bin}",
@@ -82,12 +82,16 @@
             ["./remake", "--jobs=2"],
             ["./remake", "install"]
           ]
-        }
+			}
     },
     "@opam/coq": {
       "source": "coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
-			"version": "8.6",
       "override": {
+			  "version": "8.6",
+				"dependencies": {
+					"ocaml": "*",
+					"@opam/camlp5": "*"
+				},
 				"buildsInSource": true,
     		"buildEnv": {
     		  "HOME": "#{self.install}"
