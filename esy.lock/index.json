@@ -1,5 +1,5 @@
 {
-  "checksum": "2d1c39d41202a3e34fc014ff7c98e937",
+  "checksum": "c73e95fcc868763fdfe22c34be08dab7",
   "root": "CoqR@link-dev:./package.json",
   "node": {
     "ocaml@4.7.1004@d41d8cd9": {
@@ -16,16 +16,16 @@
       "dependencies": [],
       "devDependencies": []
     },
-    "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb@e2b7493a": {
+    "coq-tlc@git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2@e2b7493a": {
       "id":
-        "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb@e2b7493a",
+        "coq-tlc@git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2@e2b7493a",
       "name": "coq-tlc",
       "version":
-        "git:git@gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb",
+        "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2",
       "source": {
         "type": "install",
         "source": [
-          "git:git@gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb"
+          "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2"
         ]
       },
       "overrides": [
@@ -117,7 +117,7 @@
       "overrides": [],
       "dependencies": [
         "ocaml@4.7.1004@d41d8cd9",
-        "coq-tlc@git:git__AT__gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb@e2b7493a",
+        "coq-tlc@git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2@e2b7493a",
         "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7",
         "coq-flocq@git:git__AT__gitlab.inria.fr:flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573@766d93dd",
         "@opam/ocamlfind@opam:1.8.1@ff07b0f9",

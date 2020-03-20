@@ -1,6 +1,3 @@
-[submodule "lib/tlc"]
-	path = lib/tlc
-	url = https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git
 [submodule "compare"]
 	path = compare
 	url = https://github.com/TDiazT/Comparator-RCoq

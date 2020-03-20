@@ -34,7 +34,7 @@
   },
   "resolutions": {
     "coq-tlc": {
-      "source": "git:git@gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb",
+      "source": "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2",
       "override": {
         "dependencies": {
             "@opam/coq": "8.6"
