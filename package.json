@@ -1,125 +1,127 @@
 {
-  "name": "CoqR",
-  "version": "1.0",
-  "description": "A Coq formalisation of the R programming language",
-  "license": "GPL-2.0",
-  "esy": {
-    "build": "make",
-    "buildsInSource": "_build",
-    "buildEnv": {
-      "COQBIN": "#{@opam/coq.bin}/",
-      "COQLIB": "#{@opam/coq.lib}/coq/",
-      "COQPATH": "#{coq-flocq.install}/coq"
-    }
-  },
-  "scripts": {
-    "run": "make run",
-    "run_bisect": "make run_bisect",
-    "lrun": "make lrun",
-    "lrun_bisect": "make lrun_bisect",
-    "report": "make report"
-  },
-  "dependencies": {
-    "ocaml": "4.7",
-    "@opam/ocamlfind": "*",
-    "@opam/ocamlbuild": "*",
-    "@opam/menhir": "*",
-    "@opam/coq": "8.6",
-    "coq-flocq": "2.6.1",
-    "coq-paco": "*",
-    "@opam/extlib": "*",
-    "@opam/bisect": "*",
-    "coq-tlc": "*"
-  },
-  "resolutions": {
-    "coq-tlc": {
-      "source": "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2",
+	"name": "CoqR",
+	"version": "1.0",
+	"description": "A Coq formalisation of the R programming language",
+	"license": "GPL-2.0",
+	"esy": {
+		"build": "make",
+		"buildsInSource": "_build",
+		"buildEnv": {
+			"COQBIN": "#{@opam/coq.bin}/",
+			"COQLIB": "#{@opam/coq.lib}/coq/",
+			"COQPATH": "#{coq-flocq.install}/coq"
+		}
+	},
+	"scripts": {
+		"run": "make run",
+		"run_bisect": "make run_bisect",
+		"lrun": "make lrun",
+		"lrun_bisect": "make lrun_bisect",
+		"report": "make report"
+	},
+	"dependencies": {
+		"ocaml": "4.7",
+		"@opam/ocamlfind": "*",
+		"@opam/ocamlbuild": "*",
+		"@opam/menhir": "*",
+		"@opam/coq": "8.6",
+		"coq-flocq": "2.6.1",
+		"coq-paco": "*",
+		"@opam/extlib": "*",
+		"@opam/bisect": "*",
+		"coq-tlc": "*"
+	},
+	"resolutions": {
+		"coq-tlc": {
+			"source": "git:https://scm.gforge.inria.fr/anonscm/git/tlc/tlc.git#6c27df2",
 			"override": {
-        "dependencies": {
-            "@opam/coq": "8.6"
-          },
-        "buildEnv": {
-          "COQBIN": "#{@opam/coq.bin}/"
-        },
-        "build": [
-            ["make"],
-            ["make", "install"]
-          ]
+				"dependencies": {
+						"@opam/coq": "8.6"
+					},
+				"buildEnv": {
+					"COQBIN": "#{@opam/coq.bin}/"
+				},
+				"build": [
+						["make"],
+						["make", "install"]
+					]
 			}
-    },
-    "coq-paco": {
-      "source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+		},
+		"coq-paco": {
+			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
 			"override": {
-        "dependencies": {
-            "@opam/coq": "8.6"
-          },
-        "buildEnv": {
-          "COQBIN": "#{@opam/coq.bin}/"
-        },
-        "build": [
-            ["make", "-C", "src"],
-            ["make", "-C", "src", "doc"],
-            ["make", "-C", "src", "install-doc"]
-          ]
+				"dependencies": {
+						"@opam/coq": "8.6"
+					},
+				"buildEnv": {
+					"COQBIN": "#{@opam/coq.bin}/"
+				},
+				"build": [
+						["make", "-C", "src"],
+						["make", "-C", "src", "doc"],
+						["make", "-C", "src", "install-doc"]
+					]
 			}
-    },
-    "coq-flocq": {
-      "source": "git:https://gitlab.inria.fr/flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573",
+		},
+		"coq-flocq": {
+			"source": "git:https://gitlab.inria.fr/flocq/flocq.git#2ac98b06a4dcda13175d8f8fddab71e1c3ea7573",
 			"override": {
-        "version": "2.6.1",
-        "dependencies": {
-		    	"@opam/coq": "8.6"
-        },
-        "buildEnv": {
-          "HOME": "#{self.target_dir}",
-          "COQBIN": "#{@opam/coq.bin}",
-          "COQLIB": "#{@opam/coq.lib}/coq/",
-          "COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
-        },
-        "build": [
-            ["./autogen.sh"],
-            ["./configure"],
-            ["./remake", "--jobs=2"],
-            ["./remake", "install"]
-          ]
+				"version": "2.6.1",
+				"dependencies": {
+					"@opam/coq": "8.6"
+				},
+				"buildEnv": {
+					"HOME": "#{self.target_dir}",
+					"COQBIN": "#{@opam/coq.bin}",
+					"COQLIB": "#{@opam/coq.lib}/coq/",
+					"COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
+				},
+				"build": [
+						["./autogen.sh"],
+						["./configure"],
+						["./remake", "--jobs=2"],
+						["./remake", "install"]
+					]
 			}
-    },
-    "@opam/coq": {
-      "source": "coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
-      "override": {
-			  "version": "8.6",
+		},
+		"@opam/coq": {
+			"source": "coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
+			"override": {
+				"version": "8.6",
 				"dependencies": {
 					"ocaml": "*",
-					"@opam/camlp5": "*"
+					"@opam/camlp5": "*",
+					"@opam/ocamlfind": "*",
+					"@opam/ocamlbuild": "*"
 				},
 				"buildsInSource": true,
-    		"buildEnv": {
-    		  "HOME": "#{self.install}"
-    		},
-        "build": [
-          [
-            "./configure",
-            "-configdir",
-            "#{self.lib}/coq/config",
-            "-prefix",
-            "#{self.install}",
-            "-mandir",
-            "#{self.man}",
-            "-docdir",
-            "#{self.doc}",
-            "-libdir",
-            "#{self.lib}/coq",
-            "-datadir",
-            "#{self.share}/coq",
-            "-coqide",
-            "no"
-          ],
-          ["make", "-j2"],
-          ["make", "install"],
-          ["make", "clean"]
-        ]
-      }
-    }
-  }
+				"buildEnv": {
+					"HOME": "#{self.install}"
+				},
+				"build": [
+					[
+						"./configure",
+						"-configdir",
+						"#{self.lib}/coq/config",
+						"-prefix",
+						"#{self.install}",
+						"-mandir",
+						"#{self.man}",
+						"-docdir",
+						"#{self.doc}",
+						"-libdir",
+						"#{self.lib}/coq",
+						"-datadir",
+						"#{self.share}/coq",
+						"-coqide",
+						"no"
+					],
+					["make", "-j2"],
+					["make", "install"],
+					["make", "clean"]
+				]
+			}
+		}
+	}
 }
 

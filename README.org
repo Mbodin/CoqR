@@ -1,5 +1,5 @@
 A trustworthy Coq formalisation of the R programming language
-[[https://travis-ci.org/Mbodin/CoqR][[[https://travis-ci.org/Mbodin/CoqR.svg?branch=master]]]]
+[[https://travis-ci.org/Mbodin/CoqR][https://travis-ci.org/Mbodin/CoqR.svg?branch=master]]
 
 * Overview of the Project
 
