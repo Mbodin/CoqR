@@ -5,7 +5,12 @@
   "license": "GPL-2.0",
   "esy": {
     "build": "make",
-    "buildsInSource": "_build"
+    "buildsInSource": "_build",
+    "buildEnv": {
+      "COQBIN": "#{@opam/coq.bin}/",
+      "COQLIB": "#{@opam/coq.lib}/coq/",
+      "COQPATH": "#{coq-flocq.install}/coq"
+    }
   },
   "scripts": {
     "run": "make run",
@@ -15,7 +20,7 @@
     "report": "make report"
   },
   "dependencies": {
-    "ocaml": "4.4.2004",
+    "ocaml": "4.07",
     "@opam/camlp5": "*",
     "@opam/ocamlfind": "*",
     "@opam/ocamlbuild": "*",
@@ -29,7 +34,7 @@
   },
   "resolutions": {
     "coq-tlc": {
-      "source": "git:git@gitlab.inria.fr:charguer/tlc#4adefce5569e46f70b20b017a8bb598b61f96916",
+      "source": "git:git@gitlab.inria.fr:charguer/tlc#e7d147a5bb8b0be12128fcf86d3c049de4d6d1eb",
       "override": {
         "dependencies": {
             "@opam/coq": "8.6"
@@ -67,7 +72,10 @@
             "@opam/coq": "8.6"
           },
         "buildEnv": {
-          "COQBIN": "#{@opam/coq.bin}"
+          "HOME": "#{self.target_dir}",
+          "COQBIN": "#{@opam/coq.bin}",
+          "COQLIB": "#{@opam/coq.lib}/coq/",
+          "COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
         },
         "build": [
             ["./autogen.sh"],

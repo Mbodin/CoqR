@@ -30,7 +30,7 @@ dev-repo: "git+https://github.com/camlp5/camlp5.git"
 doc: "https://camlp5.github.io/doc/html"
 
 depends: [
-  "ocaml"       { >= "4.02" & <= "4.10.0" }
+  "ocaml"       { >= "4.02" & < "4.11" }
 ]
 
 build: [
@@ -38,15 +38,11 @@ build: [
   [make "world.opt"]
 ]
 install: [make "install"]
-remove: [
-  ["sh" "-ecx" "./configure --prefix '%{prefix}%' -libdir '%{lib}%' -mandir '%{man}%' && %{make}% uninstall"]
-  [ "rm" "-rf" "%{lib}%/camlp5" ]
-  [ "rm" "-f" "%{man}%/man1/camlp5.1" "%{man}%/man1/camlp5o.1" "%{man}%/man1/camlp5o.opt.1" "%{man}%/man1/camlp5r.1" "%{man}%/man1/camlp5r.opt.1" "%{man}%/man1/camlp5sch.1" "%{man}%/man1/mkcamlp5.1" "%{man}%/man1/mkcamlp5.opt.1" "%{man}%/man1/ocpp5.1" ]
-]
+
 url {
-  src: "https://github.com/camlp5/camlp5/archive/rel710.tar.gz"
+  src: "https://github.com/camlp5/camlp5/archive/rel711.tar.gz"
   checksum: [
-    "md5=1c396142b981c5af1af7470bb23bf0ce"
-    "sha512=faa9e88f56477162038fc80429d5839c93b3e38aec90366730babe737e2e6bb260dc39975947a6601212cc0c68f465bdbccb6337da23c07181909dfb11cf8640"
+    "md5=be98fa3f9a2df6958a8c7b8b60effc4d"
+    "sha512=109a43f0a3aaa7a3ba9bd51b1fc1273b054d32787e189b138d69b39c42642b480c13abb9e91f15e6b6e889eaf4dc422ad3ff51e4dee298fb9d8cd9a2db99c159"
   ]
 }
