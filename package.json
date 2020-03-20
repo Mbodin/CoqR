@@ -20,8 +20,8 @@
 		"report": "make report"
 	},
 	"dependencies": {
-		"ocaml": "4.7",
-		"@opam/ocamlfind": "*",
+		"ocaml": "4.4",
+		"@opam/ocamlfind": "1.6.2",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",
 		"@opam/coq": "8.6",
