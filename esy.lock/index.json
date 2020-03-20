@@ -1,5 +1,5 @@
 {
-  "checksum": "cbf6bb673b738fee707a01c5d23c7cd6",
+  "checksum": "a1d5caf70d649d0c40c80bb26cbcd738",
   "root": "CoqR@link-dev:./package.json",
   "node": {
     "ocaml@4.7.1004@d41d8cd9": {
@@ -36,11 +36,11 @@
         }
       ],
       "dependencies": [
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867",
         "@esy-ocaml/substs@0.0.1@d41d8cd9"
       ],
       "devDependencies": [
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867"
       ]
     },
     "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@f20f65a7": {
@@ -67,7 +67,7 @@
         }
       ],
       "dependencies": [
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867"
       ],
       "devDependencies": []
     },
@@ -101,7 +101,7 @@
         }
       ],
       "dependencies": [
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66"
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867"
       ],
       "devDependencies": []
     },
@@ -124,8 +124,8 @@
         "@opam/ocamlbuild@opam:0.14.0@6ac75d03",
         "@opam/menhir@opam:20200211@26571604",
         "@opam/extlib@opam:1.7.6@401d0891",
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
-        "@opam/camlp5@opam:7.11@6bcc30b9", "@opam/bisect@opam:1.3.1@0f9df846"
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867",
+        "@opam/bisect@opam:1.3.1@0f9df846"
       ],
       "devDependencies": []
     },
@@ -374,9 +374,9 @@
         "@opam/base-unix@opam:base@87d0b2eb"
       ]
     },
-    "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66": {
+    "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867": {
       "id":
-        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@c965bf66",
+        "@opam/coq@github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb@eb7dc867",
       "name": "@opam/coq",
       "version": "github:coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
       "source": {
@@ -387,6 +387,8 @@
       },
       "overrides": [
         {
+          "buildsInSource": true,
+          "buildEnv": { "HOME": "#{self.install}" },
           "build": [
             [
               "./configure", "-configdir", "#{self.lib}/coq/config",
@@ -419,28 +421,6 @@
       "overrides": [],
       "dependencies": [ "@esy-ocaml/substs@0.0.1@d41d8cd9" ],
       "devDependencies": []
-    },
-    "@opam/camlp5@opam:7.11@6bcc30b9": {
-      "id": "@opam/camlp5@opam:7.11@6bcc30b9",
-      "name": "@opam/camlp5",
-      "version": "opam:7.11",
-      "source": {
-        "type": "install",
-        "source": [
-          "archive:https://opam.ocaml.org/cache/md5/be/be98fa3f9a2df6958a8c7b8b60effc4d#md5:be98fa3f9a2df6958a8c7b8b60effc4d",
-          "archive:https://github.com/camlp5/camlp5/archive/rel711.tar.gz#md5:be98fa3f9a2df6958a8c7b8b60effc4d"
-        ],
-        "opam": {
-          "name": "camlp5",
-          "version": "7.11",
-          "path": "esy.lock/opam/camlp5.7.11"
-        }
-      },
-      "overrides": [],
-      "dependencies": [
-        "ocaml@4.7.1004@d41d8cd9", "@esy-ocaml/substs@0.0.1@d41d8cd9"
-      ],
-      "devDependencies": [ "ocaml@4.7.1004@d41d8cd9" ]
     },
     "@opam/camlp4@opam:4.07+1@4b7ca494": {
       "id": "@opam/camlp4@opam:4.07+1@4b7ca494",

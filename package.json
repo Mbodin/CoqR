@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "ocaml": "4.07",
-    "@opam/camlp5": "*",
     "@opam/ocamlfind": "*",
     "@opam/ocamlbuild": "*",
     "@opam/menhir": "*",
@@ -87,7 +86,12 @@
     },
     "@opam/coq": {
       "source": "coq/coq#0d1438851ba3a0b9f76847abc42f3bf8ad26c4cb",
+			"version": "8.6",
       "override": {
+				"buildsInSource": true,
+    		"buildEnv": {
+    		  "HOME": "#{self.install}"
+    		},
         "build": [
           [
             "./configure",
