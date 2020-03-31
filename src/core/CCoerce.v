@@ -65,7 +65,7 @@ Definition installAttrib vec name val :=
       ifb list_tagval s_list = name then
         set%car s := val in
         result_rreturn val
-      else result_rsuccess s using runs, globals in
+      else result_rsuccess s using runs in
     let%success s := CONS globals val R_NilValue in
     set%tag s := name in
     run%success
@@ -91,7 +91,7 @@ Definition copyMostAttrib (inp ans : SEXP) :=
           /\ s_tag <> R_DimNamesSymbol then
         run%success installAttrib ans s_tag s_car in
         result_skip
-      else result_skip using runs, globals in
+      else result_skip using runs in
     if%success OBJECT inp then
       SET_OBJECT ans true in
     if%success IS_S4_OBJECT inp then
@@ -405,7 +405,7 @@ Definition coercePairList v type :=
             let%success v_car_0 := STRING_ELT v_car 0 in
             SET_STRING_ELT rval i v_car_0
           else unimplemented_function "deparse1line" in
-        result_success (1 + i) using runs, globals in
+        result_success (1 + i) using runs in
       result_rsuccess (rval, n)
     else ifb type = VecSxp then
       let%success rval := PairToVectorList v in
@@ -453,7 +453,7 @@ Definition coercePairList v type :=
   as _, v_tag do
     ifb v_tag <> R_NilValue then
       result_success true
-    else result_success i using runs, globals in
+    else result_success i using runs in
   run%success
     if i then
       let%success names := allocVector globals StrSxp n in
@@ -465,7 +465,7 @@ Definition coercePairList v type :=
             let%success v_tag_name := PRINTNAME v_tag in
             SET_STRING_ELT names i v_tag_name
           else result_skip in
-        result_success (1 + i) using runs, globals in
+        result_success (1 + i) using runs in
       result_skip
     else result_skip in
   result_success rval.
@@ -944,7 +944,7 @@ Definition coerceVector v type :=
                   let%success v_car_0 := STRING_ELT v_car 0 in
                   SET_STRING_ELT ans i v_car_0
                 else unimplemented_function "deparse1line" in
-              result_success (1 + i) using runs, globals in
+              result_success (1 + i) using runs in
             result_success ans
       | VecSxp
       | ExprSxp =>

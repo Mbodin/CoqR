@@ -55,7 +55,7 @@ Local Instance funtab_cell_Inhab : Inhab funtab_cell.
   apply prove_Inhab. constructors; try typeclass; constructors; typeclass.
 Defined.
 
-Fixpoint runs max_step globals : runs_type :=
+Fixpoint runs max_step globals(*FIXME*) : runs_type :=
   match max_step with
   | O => {|
       runs_while_loop := fun _ _ _ _ => result_bottom ;
@@ -81,35 +81,35 @@ Fixpoint runs max_step globals : runs_type :=
       runs_R_FunTab := None
     |}
   | S max_step =>
-    let wrap {A B : Type} (f : Globals -> runs_type -> B -> A) (x : B) : A :=
+    let wrap {A B : Type} (f : runs_type -> B -> A) (x : B) : A :=
       (** It is important to take this additional parameter [x] as a parameter,
         to defer the computation of [runs max_step] when it is indeed needed.
         Without this, the application of [runs max_int] would overflow the
         stack. **)
-      f globals (runs max_step globals) x in
-    let wrap_dep {A : Type -> Type} (f : Globals -> runs_type -> forall B, A B) (T : Type) : A T :=
+      f (runs max_step globals) x in
+    let wrap_dep {A : Type -> Type} (f : runs_type -> forall B, A B) (T : Type) : A T :=
       (** A dependent version of [wrap]. **)
-      f globals (runs max_step globals) T in {|
-      runs_while_loop := wrap_dep (fun _ => while_loop) ;
-      runs_set_longjump := wrap_dep (fun _ => set_longjump) ;
-      runs_eval := wrap eval ;
-      runs_getAttrib := wrap getAttrib ;
-      runs_setAttrib := wrap setAttrib ;
-      runs_R_cycle_detected := wrap R_cycle_detected ;
-      runs_duplicate1 := wrap duplicate1 ;
-      runs_stripAttrib := wrap stripAttrib ;
-      runs_evalseq := wrap evalseq ;
-      runs_R_isMissing := wrap R_isMissing ;
-      runs_AnswerType := wrap AnswerType ;
-      runs_ListAnswer := wrap ListAnswer ;
-      runs_StringAnswer := wrap StringAnswer ;
+      f (runs max_step globals) T in {|
+      runs_while_loop := wrap_dep while_loop ;
+      runs_set_longjump := wrap_dep set_longjump ;
+      runs_eval := wrap (eval globals) ;
+      runs_getAttrib := wrap (getAttrib globals) ;
+      runs_setAttrib := wrap (setAttrib globals) ;
+      runs_R_cycle_detected := wrap (R_cycle_detected globals) ;
+      runs_duplicate1 := wrap (duplicate1 globals) ;
+      runs_stripAttrib := wrap (stripAttrib globals) ;
+      runs_evalseq := wrap (evalseq globals) ;
+      runs_R_isMissing := wrap (R_isMissing globals) ;
+      runs_AnswerType := wrap (AnswerType globals) ;
+      runs_ListAnswer := wrap (ListAnswer globals) ;
+      runs_StringAnswer := wrap (StringAnswer globals) ;
       runs_LogicalAnswer := wrap LogicalAnswer ;
       runs_IntegerAnswer := wrap IntegerAnswer ;
       runs_RealAnswer := wrap RealAnswer ;
       runs_ComplexAnswer := wrap ComplexAnswer ;
       runs_RawAnswer := wrap RawAnswer ;
-      runs_substitute := wrap substitute ;
-      runs_substituteList := wrap substituteList ;
+      runs_substitute := wrap (substitute globals) ;
+      runs_substituteList := wrap (substituteList globals) ;
       runs_R_FunTab :=
 
         let eval0 := make_funtab_eval_arg false false in

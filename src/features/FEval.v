@@ -48,7 +48,7 @@ Definition CheckFormals ls :=
       let%success ls_tag_type := TYPEOF ls_tag in
       ifb ls_tag_type <> SymSxp then
         result_error "Invalid formal argument list (not a symbol)."
-      else result_skip using runs, globals in
+      else result_skip using runs in
     result_skip
   else result_error "Invalid formal argument list (not a list).".
 
@@ -301,7 +301,7 @@ Definition do_begin (call op args rho : SEXP) : result SEXP :=
     along args
     as args_car, _ do
       let%success s := eval globals runs args_car rho in
-      result_success s using runs, globals in
+      result_success s using runs in
     result_success s
   else result_success (R_NilValue : SEXP).
 

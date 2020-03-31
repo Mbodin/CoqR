@@ -97,7 +97,7 @@ Definition do_attr (call op args env : SEXP) : result SEXP :=
                 ifb vmatch = enum_partial \/ vmatch = enum_partial2 then
                   result_rsuccess (enum_partial2, tag)
                 else result_rsuccess (enum_partial, tmp)
-              else result_rsuccess (vmatch, tag) using runs, globals in
+              else result_rsuccess (vmatch, tag) using runs in
             ifb vmatch = enum_partial2 then
               result_success (R_NilValue : SEXP)
             else

@@ -399,7 +399,7 @@ Definition do_isvector (call op args rho : SEXP) : result SEXP :=
           ifb a_tag <> R_NamesSymbol then
             write%Logical ans at 0 := false in
             result_skip
-          else result_skip using runs, globals
+          else result_skip using runs
       else result_skip in
     result_success ans.
 

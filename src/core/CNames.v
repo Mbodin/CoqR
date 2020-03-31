@@ -60,7 +60,7 @@ Definition install name_ : result SEXP :=
     let%success str_name_ := CHAR str_sym in
     ifb name_ = str_name_ then
       result_rreturn sym_car
-    else result_rskip using runs, globals in
+    else result_rskip using runs in
   ifb name_ = ""%string then
     result_error "Attempt to use zero-length variable name."
   else

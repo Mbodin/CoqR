@@ -60,7 +60,7 @@ Definition do_makelist (call op args rho : SEXP) : result SEXP :=
   as _, args_tag do
     ifb args_tag <> R_NilValue then
       result_success (1 + n, true)
-    else result_success (1 + n, havenames) using runs, globals in
+    else result_success (1 + n, havenames) using runs in
   let%success list := allocVector globals VecSxp n in
   let%success names :=
     if havenames then

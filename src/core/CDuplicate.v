@@ -100,7 +100,7 @@ Definition duplicate_list s deep :=
   along s
   as _, _ do
     let%success val := CONS globals R_NilValue val in
-    result_success val using runs, globals in
+    result_success val using runs in
   fold%success vp := val
   along s
   as s, _, s_list do
@@ -110,7 +110,7 @@ Definition duplicate_list s deep :=
     set%tag vp := list_tagval s_list in
     run%success DUPLICATE_ATTRIB vp s deep in
     read%list _, vp_cdr, _ := vp in
-    result_success vp_cdr using runs, globals in
+    result_success vp_cdr using runs in
   result_success val.
 
 (** The following two functions are actually from main/memory.c. They
@@ -397,7 +397,7 @@ Definition R_cycle_detected s child :=
           ifb el_attrib <> R_NilValue /\ r then
             result_rreturn true
           else result_rskip
-      using runs, globals in
+      using runs in
       result_success false
     else
       if%success isVectorList child then

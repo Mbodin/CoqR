@@ -178,12 +178,12 @@ Definition xxfirstformal1 sym expr :=
 
 Definition xxaddformal0 formlist sym :=
   add%stack "xxaddformal0" in
-  let%success _ := CheckFormalArgs globals runs formlist sym in
+  let%success _ := CheckFormalArgs runs formlist sym in
   NextArg globals formlist R_MissingArg sym.
 
 Definition xxaddformal1 formlist sym expr :=
   add%stack "xxaddformal1" in
-  let%success _ := CheckFormalArgs globals runs formlist sym in
+  let%success _ := CheckFormalArgs runs formlist sym in
   NextArg globals formlist expr sym.
 
 Definition xxsublist1 sub :=

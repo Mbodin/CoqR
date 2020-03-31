@@ -80,7 +80,7 @@ Definition isVectorizable (s : SEXP) :=
       let%success s_car_len := LENGTH globals s_car in
       ifb ~ s_car_iv \/ s_car_len > 1 then
         result_rreturn false
-      else result_rskip using runs, globals in
+      else result_rskip using runs in
     result_success true
   else result_success false.
 

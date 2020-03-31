@@ -102,7 +102,7 @@ Definition CheckFormalArgs formlist new :=
   as _, formlist_tag do
     ifb formlist_tag = new then
       result_error "Repeated formal argument."
-    else result_skip using runs, globals in
+    else result_skip using runs in
   result_skip.
 
 End Parameterised.

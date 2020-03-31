@@ -127,10 +127,10 @@ Definition matchArgs_first formals actuals supplied : result (list nat) :=
                 map%pointer b with set_argused 2 ltac:(nbits_ok) in
                 result_success 2
             else result_success fargusedi
-          else result_success fargusedi using runs, globals
+          else result_success fargusedi using runs
       else result_success fargusedi in
     read%list _, a_cdr, _ := a in
-    result_success (a_cdr, fargusedi :: fargusedrev) using runs, globals in
+    result_success (a_cdr, fargusedi :: fargusedrev) using runs in
   result_success (List.rev fargusedrev).
 
 (** Second pass: matching partial matches. **)
@@ -173,12 +173,12 @@ Definition matchArgs_second actuals formals supplied fargused :=
                     map%pointer b with set_argused 1 ltac:(nbits_ok) in
                     result_success 1
                 else result_success fargusedi
-              else result_success fargusedi using runs, globals in
+              else result_success fargusedi using runs in
             result_success (dots, seendots)
         else result_success (dots, seendots) in
       read%list _, a_cdr, _ := a in
       result_success (a_cdr, fargused, dots, seendots)
-    end using runs, globals in
+    end using runs in
   ifb fargused <> nil then
     result_impossible "The list/array “fargused” is bigger than it should be."
   else result_success dots.
@@ -219,7 +219,7 @@ Definition matchArgs_dots dots supplied :=
     ifb argused a_ = 0 then
       result_success (1 + i)
     else
-      result_success i using runs, globals in
+      result_success i using runs in
   ifb i <> 0 then
     let%success a := allocList globals i in
     set%type a := DotSxp in
@@ -231,7 +231,7 @@ Definition matchArgs_dots dots supplied :=
         set%tag f := list_tagval b_list in
         read%list _, f_cdr, _ := f in
         result_success f_cdr
-      else result_success f using runs, globals in
+      else result_success f using runs in
     set%car dots := a in
     result_skip
   else result_skip.
@@ -255,7 +255,7 @@ Definition matchArgs_check supplied :=
         let last := last_cdr in
         set%tag last := list_tagval b_list in
         result_success (unused, last)
-    else result_success (unused, last) using runs, globals in
+    else result_success (unused, last) using runs in
   ifb last <> R_NilValue then
     result_error "Unused argument(s)."
   else
@@ -269,14 +269,14 @@ Definition matchArgs formals supplied (call : SEXP) :=
   as _, _ do
     let%success actuals := CONS_NR globals R_MissingArg actuals in
     run%success SET_MISSING actuals 1 ltac:(nbits_ok) in
-    result_success (actuals, 1 + argi) using runs, globals in
+    result_success (actuals, 1 + argi) using runs in
   (** A call to [memset] has been inlined here.
      See the definition of [matchArgs_first] for more details. **)
   fold%success
   along supplied
   as b, _, _ do
     map%pointer b with set_argused 0 ltac:(nbits_ok) in
-    result_skip using runs, globals in
+    result_skip using runs in
   (** First pass: matching exact matches. **)
   let%success fargused := matchArgs_first formals actuals supplied in
   (** Second pass: matching partial matches. **)
@@ -305,7 +305,7 @@ Definition matchArgs_RC formals supplied call :=
       run%success INCREMENT_REFCNT (list_cdrval a_list) in
       result_skip
     else result_skip
-  using runs, globals in
+  using runs in
   result_success args.
 
 End Parameterised.

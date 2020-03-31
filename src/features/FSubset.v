@@ -135,7 +135,7 @@ Definition ExtractArg args arg_sym :=
           set%cdr prev_arg := list_cdrval arg_list in
           result_skip in
       result_rreturn (list_carval arg_list)
-    else result_rsuccess arg using runs, globals in
+    else result_rsuccess arg using runs in
   result_success (R_NilValue : SEXP).
 
 Definition ExtractDropArg el :=
@@ -512,7 +512,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
         along x
         as x_car, _ do
           run%success SET_VECTOR_ELT ax i x_car in
-          result_success (1 + i) using runs, globals in
+          result_success (1 + i) using runs in
         result_success ax
       else result_error "Object is not subsettable." in
 
@@ -571,7 +571,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
             as px, _, _ do
               let%success ax_i := VECTOR_ELT ax i in
               set%car px := ax_i in
-              result_success (1 + i) using runs, globals in
+              result_success (1 + i) using runs in
             run%success
               let%success ax_dim := getAttrib globals runs ax R_DimSymbol in
               setAttrib globals runs ans R_DimSymbol ax_dim in
@@ -844,7 +844,7 @@ Definition R_subset3_dflt (x input call : SEXP) : result SEXP :=
                               result_rreturn y
           | PARTIAL_MATCH => result_rsuccess (y, 1 + havematch)
           | NO_MATCH => result_rsuccess (xmatch, havematch)
-        end using runs, globals in
+        end using runs in
 
       ifb havematch = 1 then
       (* A warning has been formalised out here. *)

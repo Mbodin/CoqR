@@ -61,7 +61,7 @@ Definition R_envHasNoSpecialSymbols (env : SEXP) :=
   as frame_car, frame_tag do
     if%success IS_SPECIAL_SYMBOL frame_tag then
       result_success false
-    else result_success b using runs, globals.
+    else result_success b using runs.
 
 Definition SET_FRAME x v :=
   add%stack "SET_FRAME" in
@@ -104,7 +104,7 @@ Definition addMissingVarsToNewEnv (env addVars : SEXP) :=
       fold%success aprev := addVars
       along addVars_cdr
       as a, _, _ do
-        result_success a using runs, globals in
+        result_success a using runs in
       read%env _, env_env := env in
       set%cdr aprev := env_frame env_env in
       run%success SET_FRAME env addVars in
@@ -124,7 +124,7 @@ Definition addMissingVarsToNewEnv (env addVars : SEXP) :=
                 set%cdr s_cdr := sprev in
                 result_success (addVars, s_cdr, sprev)
             else result_success (addVars, s_cdr, s) using runs in
-        result_skip using runs, globals.
+        result_skip using runs.
 
 Definition FRAME_LOCK_BIT := 14.
 
@@ -251,7 +251,7 @@ Definition defineVar (symbol value rho : SEXP) : result unit :=
         run%success SET_BINDING_VALUE frame value in
         run%success SET_MISSING frame 0 ltac:(nbits_ok) in
         result_rreturn tt
-      else result_rskip using runs, globals in
+      else result_rskip using runs in
     if%success FRAME_IS_LOCKED rho then
       result_error "Can not add a binding to a locked environment."
     else
@@ -283,7 +283,7 @@ Definition setVarInFrame (rho symbol value : SEXP) :=
         run%success SET_BINDING_VALUE frame value in
         run%success SET_MISSING frame 0 ltac:(nbits_ok) in
         result_rreturn symbol
-      else result_rskip using runs, globals in
+      else result_rskip using runs in
       result_success (R_NilValue : SEXP).
 
 Definition setVar (symbol value rho : SEXP) :=
@@ -322,7 +322,7 @@ Definition findVarInFrame3 rho symbol (doGet : bool) :=
         ifb list_tagval frame_list = symbol then
           let%success r := BINDING_VALUE frame in
           result_rreturn r
-        else result_rskip using runs, globals in
+        else result_rskip using runs in
       result_success (R_UnboundValue : SEXP).
 
 Definition findVarInFrame rho symbol :=
@@ -407,7 +407,7 @@ Definition findVarLocInFrame (rho symbol : SEXP) :=
     as frame, _, frame_list do
       ifb list_tagval frame_list = symbol then
         result_rreturn frame
-      else result_rskip using runs, globals in
+      else result_rskip using runs in
     result_success (R_NilValue : SEXP).
 
 Definition R_findVarLocInFrame rho symbol :=
@@ -440,7 +440,7 @@ Definition RemoveFromList (thing list : SEXP) :=
           set%cdr last := list_cdrval next_list in
           set%cdr next := R_NilValue in
           result_rreturn (Some list)
-        else result_rsuccess next using runs, globals in
+        else result_rsuccess next using runs in
       result_success None.
 
 

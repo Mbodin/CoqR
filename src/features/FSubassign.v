@@ -69,7 +69,7 @@ Definition do_subassign_dflt (call op args rho : SEXP) : result SEXP :=
        MARK_NOT_MUTABLE x
     else
       result_skip
-  using runs, globals in
+  using runs in
 
   read%list args_car, _, _ := args in
   let%success args_car_maybeShared := MAYBE_SHARED args_car in
