@@ -301,8 +301,9 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
 (** Looping through a list is a frequent pattern in R source code.
   [fold_left_listSxp_gen] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen runs (globals : Globals) A (l : SEXP) (a : A)
+Definition fold_left_listSxp_gen runs A (l : SEXP) (a : A)
     (iterate : A -> SEXP -> SExpRec -> ListSxp_struct -> result A) : result A :=
+  get%globals globals in
   do%success (l, a) := (l, a)
   whileb l <> global_mapping globals R_NilValue
   do
@@ -312,258 +313,258 @@ Definition fold_left_listSxp_gen runs (globals : Globals) A (l : SEXP) (a : A)
   using runs in
   result_success a.
 
-Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
-  (fold_left_listSxp_gen runs globals le e (fun a l l_ l_list => iterate))
+Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
+  (fold_left_listSxp_gen runs le e (fun a l l_ l_list => iterate))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let _ := tt
    along le
    as l, l_, l_list
    do iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l, l_, l_list
    do let (a1, a2) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l, l_, l_list
    do let '(a1, a2, a3) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l, l_, l_list
    do let '(a1, a2, a3, a4) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l, l_, l_list
    do let '(a1, a2, a3, a4, a5) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l, l_, l_list
    do let '(a1, a2, a3, a4, a5, a6) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (run%success
      fold%let
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
     (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success a :=
      fold%let a := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2) :=
      fold%let (a1, a2) := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3) :=
      fold%let (a1, a2, a3) := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4) :=
      fold%let (a1, a2, a3, a4) := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5) :=
      fold%let (a1, a2, a3, a4, a5) := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5, a6) :=
      fold%let (a1, a2, a3, a4, a5, a6) := e
      along le
      as l, l_, l_list
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
 
 (** [fold_left_listSxp] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp runs globals A (l : SEXP) (a : A)
+Definition fold_left_listSxp runs A (l : SEXP) (a : A)
     (iterate : A -> SEXP -> SEXP -> result A) : result A :=
   fold%let a := a
   along l
   as _, _, l_list
   do iterate a (list_carval l_list) (list_tagval l_list)
-  using runs, globals.
+  using runs.
 
-Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
-  (fold_left_listSxp runs globals le e (fun a l_car l_tag => iterate))
+Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
+  (fold_left_listSxp runs le e (fun a l_car l_tag => iterate))
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let _ := tt
    along le
    as l_car, l_tag
    do iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l_car, l_tag
    do let (a1, a2) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l_car, l_tag
    do let '(a1, a2, a3) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l_car, l_tag
    do let '(a1, a2, a3, a4) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l_car, l_tag
    do let '(a1, a2, a3, a4, a5) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals" :=
+Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
   (fold%let x := e
    along le
    as l_car, l_tag
    do let '(a1, a2, a3, a4, a5, a6) := x in iterate
-   using runs, globals)
+   using runs)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (run%success
      fold%let _ := tt
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success a :=
      fold%let a := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2) :=
      fold%let (a1, a2) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3) :=
      fold%let (a1, a2, a3) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4) :=
      fold%let (a1, a2, a3, a4) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5) :=
      fold%let (a1, a2, a3, a4, a5) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5, a6) :=
      fold%let (a1, a2, a3, a4, a5, a6) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals in
+     using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -806,207 +807,207 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whil
   (at level 50, left associativity) : monad_scope.
 
 
-Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%exit a :=
      fold%let a := normal_result e
      along le
      as l, l_, l_list
      do get_success a (fun a => iterate)
-     using runs, globals
+     using runs
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return ret := tt
    along le
    as l, l_, l_list
    do iterate
-   using runs, globals in
+   using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l, l_, l_list
    do let (a1, a2) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l, l_, l_list
    do let (a1, a2, a3) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l, l_, l_list
    do let (a1, a2, a3, a4) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l, l_, l_list
    do let (a1, a2, a3, a4, a5) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4, a5) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l, l_, l_list
    do let (a1, a2, a3, a4, a5, a6) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4, a5, a6) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
 
-Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%exit a :=
      fold%let a := normal_result e
      along le
      as l_car, l_tag
      do get_success a (fun a => iterate)
-     using runs, globals
+     using runs
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return ret := tt
    along le
    as l_car, l_tag
    do iterate
-   using runs, globals in
+   using runs in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l_car, l_tag
    do let (a1, a2) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l_car, l_tag
    do let (a1, a2, a3) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l_car, l_tag
    do let (a1, a2, a3, a4) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l_car, l_tag
    do let (a1, a2, a3, a4, a5) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4, a5) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (fold%return a := e
    along le
    as l_car, l_tag
    do let (a1, a2, a3, a4, a5, a6) := a in iterate
-   using runs, globals in
+   using runs in
    let (a1, a2, a3, a4, a5, a6) := a in
    cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (run%success
      fold%return
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_skip
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success a :=
      fold%return a := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_success a
     in cont)
     (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' '(' a1 ',' a2 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2) :=
      fold%return (a1, a2) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_success (a1, a2)
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3) :=
      fold%return (a1, a2, a3) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_success (a1, a2, a3)
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4) :=
      fold%return (a1, a2, a3, a4) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_success (a1, a2, a3, a4)
     in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs ',' globals 'in' cont" :=
+Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%success (a1, a2, a3, a4, a5) :=
      fold%return (a1, a2, a3, a4, a5) := e
      along le
      as l_car, l_tag
      do iterate
-     using runs, globals
+     using runs
      in result_success (a1, a2, a3, a4, a5)
     in cont)
   (at level 50, left associativity) : monad_scope.

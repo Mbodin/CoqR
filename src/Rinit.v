@@ -178,7 +178,8 @@ Definition InitNames_shorcuts :=
   let%success R_BlankScalarString := ScalarString globals R_BlankString in
   let R_SymbolTable := R_NilValue in
   map%state update_R_SymbolTable R_SymbolTable in
-  result_success (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString, R_BlankScalarString).
+  result_success (R_UnboundValue, R_MissingArg, R_RestartToken, NA_STRING, R_BlankString,
+                  R_BlankScalarString).
 
 (** The initialisation of [mkPRIMSXP_PrimCache], done in C in [mkPRIMSXP],
   from main/dstruct.c called from [InitNames] from main/names.c **)
@@ -224,7 +225,8 @@ Definition R_initAssignSymbols :=
   let%success R_DollarGetsSymbol := install globals runs "$<-" in
   let%success R_valueSym := install globals runs "value" in
   let%success R_AssignSym := install globals runs "<-" in
-  result_success (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym, R_Subassign2Sym, R_DollarGetsSymbol, R_valueSym, R_AssignSym).
+  result_success (R_ReplaceFunsTable, R_SubsetSym, R_SubassignSym, R_Subset2Sym,
+                  R_Subassign2Sym, R_DollarGetsSymbol, R_valueSym, R_AssignSym).
 
 (** [InitGlobalEnv], from main/envir.c **)
 Definition InitGlobalEnv :=
@@ -258,7 +260,7 @@ Definition InitGlobalEnv :=
   run%success
     defineVar globals runs R_BaseSymbol R_BaseNamespace R_NamespaceRegistry in
   result_success (R_NamespaceSymbol, R_GlobalEnv, R_MethodsNamespace, R_BaseNamespace,
-                    R_BaseNamespaceName, R_NamespaceRegistry).
+                  R_BaseNamespaceName, R_NamespaceRegistry).
 
 (** [InitOptions], from main/options.c **)
 (* FIXME: Do we want to model it? *)

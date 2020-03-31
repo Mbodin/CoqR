@@ -19,7 +19,7 @@
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Export State Result.
+Require Export State Globals Result.
 
 
 (** The monadic type is defined in the file Result.v. **)
@@ -65,6 +65,25 @@ Definition read_state A B (f : state -> A) (cont : A -> result B) : result B :=
 
 Notation "'read%state' a ':=' f 'in' cont" :=
   (read_state f (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** Manipulating global variables. **)
+
+Definition get_globals A (cont : Globals -> result A) : result A :=
+  fun globals => cont globals globals.
+
+(** Getting the current state of global variables. **)
+Notation "'get%globals' S 'in' cont" :=
+  (get_globals (fun S => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** Replacing the current state of global variables by another one. **)
+Definition set_globals A globals (cont : result A) : result A :=
+  fun _ => cont globals.
+
+Notation "'set%globals' globals 'in' cont" :=
+  (set_globals globals cont)
   (at level 50, left associativity) : monad_scope.
 
 
