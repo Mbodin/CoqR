@@ -18,7 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Rinternals State Globals.
+Require Import Rinternals State MiscellaneousTypes Globals.
 
 
 (** * Monadic Type **)
@@ -77,7 +77,7 @@ Definition result_not_implemented (A : Type) msg : result A :=
 Arguments result_not_implemented [A].
 
 Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (fun _ => result_impossible "[arbitrary]").
+  fun _ => prove_Inhab (result_impossible "[arbitrary]").
 
 
 (** * [FUNTAB] **)

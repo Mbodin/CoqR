@@ -53,8 +53,8 @@ Record runs_type : Type := runs_type_intro {
 Definition get_R_FunTab runs :=
   add%stack "get_R_FunTab" in
   match runs_R_FunTab runs with
-  | None => result_bottom
-  | Some t => result_success t
+  | None => fun _ => result_bottom
+  | Some t => fun _ => result_success t
   end.
 
 (** An accessor for the [runs_R_FunTab] projection. **)
@@ -65,7 +65,7 @@ Definition read_R_FunTab runs n :=
     result_impossible "Out of bounds."
   else
     let c := ArrayList.read t n in
-    result_success c.
+    fun _ => result_success c.
 
 
 (** * Frequent Patterns **)

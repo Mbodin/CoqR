@@ -33,7 +33,7 @@ Open Scope monad_scope.
 (** ** Manipulating the current state. **)
 
 Definition get_state A (cont : state -> result A) : result A :=
-  fun S => cont S S.
+  fun globals S => cont S globals S.
 
 (** Getting the current state. **)
 Notation "'get%state' S 'in' cont" :=
@@ -42,7 +42,7 @@ Notation "'get%state' S 'in' cont" :=
 
 (** Replacing the current state by another one. **)
 Definition set_state A S (cont : result A) : result A :=
-  fun _ => cont S.
+  fun globals _ => cont globals S.
 
 Notation "'set%state' S 'in' cont" :=
   (set_state S cont)
@@ -80,8 +80,8 @@ Definition add_stack_leaving A (name : string) (cont : unit -> A) := cont tt.
 (** The main function. **)
 Definition add_stack (A : Type) fname : result A -> result A :=
   add_stack_entering fname (fun _ r =>
-    add_stack_leaving fname (fun _ => fun S =>
-      match r S with
+    add_stack_leaving fname (fun _ globals S =>
+      match r globals S with
       | result_success a S0 => result_success a S0
       | result_longjump n t S0 => result_longjump n t S0
       | result_error_stack stack s S0 =>
@@ -107,15 +107,16 @@ Arguments unimplemented_function [A].
 (** ** [let]-monads **)
 
 (** The monad for result.  This is a usual monadic binder. **)
-Definition if_success (A B : Type) (r : result A) (f : A -> result B) : result B := fun S =>
-  match r S with
-  | result_success a S0 => f a S0
-  | result_longjump n t S0 => result_longjump n t S0
-  | result_error_stack stack s S0 => result_error_stack stack s S0
-  | result_impossible_stack stack s S0 => result_impossible_stack stack s S0
-  | result_not_implemented_stack stack s => result_not_implemented_stack stack s
-  | result_bottom S0 => result_bottom S0
-  end.
+Definition if_success (A B : Type) (r : result A) (f : A -> result B) : result B :=
+  fun globals S =>
+    match r globals S with
+    | result_success a S0 => f a globals S0
+    | result_longjump n t S0 => result_longjump n t S0
+    | result_error_stack stack s S0 => result_error_stack stack s S0
+    | result_impossible_stack stack s S0 => result_impossible_stack stack s S0
+    | result_not_implemented_stack stack s => result_not_implemented_stack stack s
+    | result_bottom S0 => result_bottom S0
+    end.
 
 (** We provide the [let%success] notation.  It takes a result and evaluate it.
   Some tuple notations are accepted for convenience. **)
@@ -322,7 +323,7 @@ Notation "'run%success' c 'in' cont" :=
 (** The result [result_skip] returns an arbitrary value which is not
   meant to be bound. **)
 Definition result_skip : result unit :=
-  result_success tt.
+  fun _ => result_success tt.
 
 (** When a function returns (through the monad) a boolean, a common
   operation is to case-analysis on it.  This function provides this
