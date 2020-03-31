@@ -369,61 +369,74 @@ End Globals.
   value depends on global variables. We are thus taking as argument the
   [max_step] argument from [runs], and recomputing it at each step with
   the updated [globals]. **)
-Definition setup_Rmainloop max_step : result Globals :=
+Definition setup_Rmainloop max_step : result unit :=
   add%stack "setup_Rmainloop" in
   let decl x p := (x, p) : GlobalVariable * SEXP in
-  let globals := empty_Globals in
+  set%globals empty_Globals in
   run%success InitConnections in
   let%success NilValue :=
     init_R_NilValue in
-  let globals := {{ globals with [ decl R_NilValue NilValue ] }} in
+  write%globals R_NilValue := NilValue in
   let%success (TrueValue, FalseValue, LogicalNAValue) :=
+    get%globals globals in
     InitMemory globals in
-  let globals := {{ globals with [ decl R_TrueValue TrueValue ;
-                                   decl R_FalseValue FalseValue ;
-                                   decl R_LogicalNAValue LogicalNAValue ] }} in
+  write%globals [ decl R_TrueValue TrueValue ;
+                  decl R_FalseValue FalseValue ;
+                  decl R_LogicalNAValue LogicalNAValue ] in
   let%success (EmptyEnv, BaseEnv) :=
+    get%globals globals in
     InitBaseEnv globals (runs max_step globals) in
-  let globals := {{ globals with [ decl R_EmptyEnv EmptyEnv ;
-                                   decl R_BaseEnv BaseEnv ] }} in
+  write%globals [ decl R_EmptyEnv EmptyEnv ;
+                  decl R_BaseEnv BaseEnv ] in
   let%success (UnboundValue, MissingArg, RestartToken, NA_string, BlankString, BlankScalarString) :=
+    get%globals globals in
     InitNames_shorcuts globals in
-  let globals := {{ globals with [ decl R_UnboundValue UnboundValue ;
-                                   decl R_MissingArg MissingArg ;
-                                   decl R_RestartToken RestartToken ;
-                                   decl NA_STRING NA_string ;
-                                   decl R_BlankString BlankString ;
-                                   decl R_BlankScalarString BlankScalarString ] }} in
-  let%success L := SymbolShortcuts globals (runs max_step globals) in
-  let globals := {{ globals with L }} in
+  write%globals [ decl R_UnboundValue UnboundValue ;
+                  decl R_MissingArg MissingArg ;
+                  decl R_RestartToken RestartToken ;
+                  decl NA_STRING NA_string ;
+                  decl R_BlankString BlankString ;
+                  decl R_BlankScalarString BlankScalarString ] in
+  let%success L :=
+    get%globals globals in
+    SymbolShortcuts globals (runs max_step globals) in
+  write%globals L in
   let%success primCache :=
+    get%globals globals in
     mkPRIMSXP_init globals (runs max_step globals) in
-  let globals := {{ globals with [ decl mkPRIMSXP_primCache primCache ] }} in
+  write%globals mkPRIMSXP_primCache := primCache in
   run%success
+    get%globals globals in
     InitNames_install globals (runs max_step globals) in
-  let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym, DollarGetsSymbol, valueSym, AssignSym) :=
+  let%success (ReplaceFunsTable, SubsetSym, SubassignSym, Subset2Sym, Subassign2Sym,
+               DollarGetsSymbol, valueSym, AssignSym) :=
+    get%globals globals in
     R_initAssignSymbols globals (runs max_step globals) in
-  let globals := {{ globals with [ decl R_ReplaceFunsTable ReplaceFunsTable ;
-                                   decl R_SubsetSym SubsetSym ;
-                                   decl R_SubassignSym SubassignSym ;
-                                   decl R_Subset2Sym Subset2Sym ;
-                                   decl R_Subassign2Sym Subassign2Sym ;
-                                   decl R_DollarGetsSymbol DollarGetsSymbol ;
-                                   decl R_valueSym valueSym ;
-                                   decl R_AssignSym AssignSym ] }} in
+  write%globals [ decl R_ReplaceFunsTable ReplaceFunsTable ;
+                  decl R_SubsetSym SubsetSym ;
+                  decl R_SubassignSym SubassignSym ;
+                  decl R_Subset2Sym Subset2Sym ;
+                  decl R_Subassign2Sym Subassign2Sym ;
+                  decl R_DollarGetsSymbol DollarGetsSymbol ;
+                  decl R_valueSym valueSym ;
+                  decl R_AssignSym AssignSym ] in
   (* TODO: [initializeDDVALSymbols], [R_initialize_bcode], [R_init_altrep]. *)
   let%success (NamespaceSymbol, GlobalEnv, MethodsNamespace, BaseNamespace,
       BaseNamespaceName, NamespaceRegistry) :=
+    get%globals globals in
     InitGlobalEnv globals (runs max_step globals) in
-  let globals := {{ globals with [ decl R_NamespaceSymbol NamespaceSymbol ;
-                                   decl R_GlobalEnv GlobalEnv ;
-                                   decl R_MethodsNamespace MethodsNamespace ;
-                                   decl R_BaseNamespace BaseNamespace ;
-                                   decl R_BaseNamespaceName BaseNamespaceName ;
-                                   decl R_NamespaceRegistry NamespaceRegistry] }} in
+  write%globals [ decl R_NamespaceSymbol NamespaceSymbol ;
+                  decl R_GlobalEnv GlobalEnv ;
+                  decl R_MethodsNamespace MethodsNamespace ;
+                  decl R_BaseNamespace BaseNamespace ;
+                  decl R_BaseNamespaceName BaseNamespaceName ;
+                  decl R_NamespaceRegistry NamespaceRegistry] in
   (* TODO: [InitOptions]. *)
-  let%success Type2Table := InitTypeTables globals (runs max_step globals) in
-  let globals := Globals_with_Type2Table globals Type2Table in
+  let%success Type2Table :=
+    get%globals globals in
+    InitTypeTables globals (runs max_step globals) in
+  get%globals globals in
+  set%globals Globals_with_Type2Table globals Type2Table in
   (* TODO: [InitS3DefaulTypes]. *)
   let%success R_Toplevel :=
     init_R_Toplevel globals (runs max_step globals) in
@@ -434,18 +447,20 @@ Definition setup_Rmainloop max_step : result Globals :=
   (* TODO: Some more initialisation. *)
   let%success do_attr_formals :=
     do_attr_init globals (runs max_step globals) in
-  let globals := {{ globals with [ decl do_attr_do_attr_formals do_attr_formals ] }} in
+  write%globals do_attr_do_attr_formals := do_attr_formals in
   let%success do_attrgets_formals :=
     do_attrgets_init globals (runs max_step globals) in
-  let globals := {{ globals with [ decl do_attrgets_do_attrgets_formals do_attrgets_formals ] }} in
+  write%globals do_attrgets_do_attrgets_formals := do_attrgets_formals in
   let%success do_substitute_formals :=
     do_substitute_init globals (runs max_step globals) in
-  let globals := {{ globals with [ decl do_substitute_do_substitute_formals do_substitute_formals ] }} in
+  write%globals do_substitute_do_substitute_formals := do_substitute_formals in
   let%success do_usemethod_formals :=
     do_usemethod_init globals (runs max_step globals) in
-  let globals := {{ globals with [ decl do_usemethod_do_usemethod_formals do_usemethod_formals ] }} in
-  let globals := flatten_Globals globals in (** Removing the now useless closures. **)
-  result_success globals.
+  write%globals do_usemethod_do_usemethod_formals := do_usemethod_formals in
+  (** Removing the now useless closures. **)
+  get%globals globals in
+  set%globals flatten_Globals globals in
+  result_skip.
 
 
 (** * Initial State and Memory **)
@@ -482,4 +497,3 @@ Definition empty_state := {|
   |}.
 
 Optimize Heap.
-

@@ -86,6 +86,27 @@ Notation "'set%globals' globals 'in' cont" :=
   (set_globals globals cont)
   (at level 50, left associativity) : monad_scope.
 
+(** Writing in the current state of global variables. **)
+Definition write_globals A C p (cont : result A) : result A :=
+  get%globals globals in
+  let globals := {{ globals with C := p }} in
+  set%globals globals in
+  cont.
+
+Notation "'write%globals' C ':=' p 'in' cont" :=
+  (write_globals C p cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition write_globals_list A L (cont : result A) : result A :=
+  get%globals globals in
+  let globals := {{ globals with L }} in
+  set%globals globals in
+  cont.
+
+Notation "'write%globals' L 'in' cont" :=
+  (write_globals_list L cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** ** Function definitions **)
 
