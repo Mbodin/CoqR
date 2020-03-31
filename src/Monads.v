@@ -78,7 +78,11 @@ Notation "'get%globals' S 'in' cont" :=
   (get_globals (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
-(** Replacing the current state of global variables by another one. **)
+(** Replacing the current state of global variables by another one.
+  Note that the globals are not in the state of the monad: this does
+	not propagate through the [run%success] commands.
+  This monadic binder is only used in Rinit.v, where we actually have
+	to define the global variables. **)
 Definition set_globals A globals (cont : result A) : result A :=
   fun _ => cont globals.
 

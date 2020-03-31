@@ -369,7 +369,7 @@ End Globals.
   value depends on global variables. We are thus taking as argument the
   [max_step] argument from [runs], and recomputing it at each step with
   the updated [globals]. **)
-Definition setup_Rmainloop max_step : result unit :=
+Definition setup_Rmainloop_aux max_step : result Globals :=
   add%stack "setup_Rmainloop" in
   let decl x p := (x, p) : GlobalVariable * SEXP in
   set%globals empty_Globals in
@@ -459,9 +459,9 @@ Definition setup_Rmainloop max_step : result unit :=
   write%globals do_usemethod_do_usemethod_formals := do_usemethod_formals in
   (** Removing the now useless closures. **)
   get%globals globals in
-  set%globals flatten_Globals globals in
-  result_skip.
-
+	let globals := flatten_Globals globals in
+  set%globals globals in
+  result_success globals.
 
 (** * Initial State and Memory **)
 
@@ -495,5 +495,9 @@ Definition empty_state := {|
     R_OutputCon := 0 ;
     R_asymSymbol := nil
   |}.
+
+(** Calling [setup_Rmainloop] with empty arguments. **)
+Definition setup_Rmainloop max_step : rresult Globals :=
+  setup_Rmainloop_aux max_step empty_Globals empty_state.
 
 Optimize Heap.

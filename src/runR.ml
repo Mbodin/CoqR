@@ -263,7 +263,7 @@ let startR _ =
   let initialising_function =
     if !initial_state = "" then (
       if !verbose then print_endline "Initialising…" ;
-      Extract.setup_Rmainloop !max_steps Extract.empty_Globals(*TODO*) Extract.empty_state
+      Extract.setup_Rmainloop !max_steps
     ) else (
       let (s, globals) = load_state !initial_state in
       Extract.Rresult_success (globals, s)) in
