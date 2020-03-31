@@ -1,7 +1,7 @@
 (** InternalTypes.
-  This file describes central internal data types used in the source of R. **)
+  This file describes various internal data types used in the source of R. **)
 
-(* Copyright © 2018 Martin Bodin
+(* Copyright © 2020 Martin Bodin
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,86 +17,96 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Set Implicit Arguments.
-Require Import Rinternals State MiscellaneousTypes Globals.
+Require Export Rinternals Common.
+
+(** * [Type2Table] **)
+
+(** These definitions can be found in the file main/util.c. **)
+
+Record Type2Table_type := make_Type2Table_type {
+    Type2Table_cstrName : string ;
+    Type2Table_rcharName : SEXP ;
+    Type2Table_rstrName : SEXP ;
+    Type2Table_rsymName : SEXP ;
+  }.
+
+Instance Type2Table_type_Inhab : Inhab Type2Table_type.
+  apply prove_Inhab. constructors; apply arbitrary.
+Qed.
 
 
-(** * Monadic Type **)
+(** * [BindData] **)
 
-(** A monad type for results. **)
-Inductive rresult (A : Type) :=
-  | result_success : A -> state -> rresult A (** The program resulted in this state with this result. **)
-  | result_longjump : nat -> context_type -> state -> rresult A (** The program yielded a call to [LONGJMP] with these arguments. **)
-  | result_error_stack : list string -> string -> state -> rresult A (** The program resulted in the following error (not meant to be caught). **)
-  | result_impossible_stack : list string -> string -> state -> rresult A (** This result should never happen. We provide a string and a call stack to help debugging. **)
-  | result_not_implemented_stack : list string -> string -> rresult A (** The result relies on a feature not yet implemented. **)
-  | result_bottom : state -> rresult A (** We went out of fuel during the computation. **)
+(** These definitions can be found in the file main/bind.c. **)
+
+Record BindData := make_BindData {
+    BindData_ans_flags : nbits 10 ;
+    BindData_ans_ptr : SEXP ;
+    BindData_ans_length : nat ;
+    BindData_ans_names : SEXP ;
+    BindData_ans_nnames : nat
+  }.
+
+Definition BindData_with_ans_flags d f := {|
+    BindData_ans_flags := f ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_ptr d p := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := p ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_length d l := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := l ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_names d n := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := n ;
+    BindData_ans_nnames := BindData_ans_nnames d
+  |}.
+
+Definition BindData_with_ans_nnames d n := {|
+    BindData_ans_flags := BindData_ans_flags d ;
+    BindData_ans_ptr := BindData_ans_ptr d ;
+    BindData_ans_length := BindData_ans_length d ;
+    BindData_ans_names := BindData_ans_names d ;
+    BindData_ans_nnames := n
+  |}.
+
+
+(** * [pmatch] **)
+
+(** These definitions can be found in the file main/subset.c. **)
+
+Inductive pmatch :=
+  | NO_MATCH
+  | EXACT_MATCH
+  | PARTIAL_MATCH
   .
-Arguments result_longjump [A].
-Arguments result_error_stack [A].
-Arguments result_impossible_stack [A].
-Arguments result_not_implemented_stack [A].
-Arguments result_bottom {A}.
-
-(** We wrap [rresult] in a state monad. **)
-Definition result A := Globals -> state -> rresult A.
-
-(** A precision about [result_not_implemented] and [result_error]:
-  if the C source code of R throw a not-implemented error, we consider
-  this as an error thrown in the original interpreter and use the
-  constructor [result_error].
-  We only throw [result_not_implemented] when our Coq code has not
-  implemented a behaviour of R.
-  The construct [result_error] thus models the errors thrown by the
-  R program. **)
-
-(** The difference between [result_error] and [result_impossible] is
-  that [result_error] is thrown when the R interpreter throws an error
-  (usally using the [error] C function), and [result_impossible] is
-  thrown when R does not throw an error, but we know for sure that such
-  a case can never happen, or such a case would lead an undefined
-  behaviour in the original program. Typically because the C program accepts
-  an impossible case to be missing, but that Coq does not recognise this
-  case to be impossible. So if there is a possible case in which Coq
-  must return something, but that the R interpreter in C does not cover
-  this case (for instance by writting [e->type] without checking whether
-  [e] actually maps to a valid expression), the Coq interpreter will
-  return [result_impossible]. **)
-
-
-Definition result_error (A : Type) msg : result A :=
-  fun _ => result_error_stack nil msg.
-Arguments result_error [A].
-
-Definition result_impossible (A : Type) msg : result A :=
-  fun _ => result_impossible_stack nil msg.
-Arguments result_impossible [A].
-
-Definition result_not_implemented (A : Type) msg : result A :=
-  fun _ S => result_not_implemented_stack nil msg.
-Arguments result_not_implemented [A].
-
-Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (result_impossible "[arbitrary]").
-
 
 (** * [FUNTAB] **)
 
-(** This section defines the FUNTAB structure, which is used to store
-  primitive and internal functions, as well as some constructs to
-  evaluate it. Most of these constructs can be found in
-  include/Defn.h. **)
-
-(** Following GNU R, all functions in the array [R_FunTab] have the same type: they take four SEXP
-  and return an SEXP.
-  The four SEXP respectively correspond to the call, op, args, and rho parameters of each functions.
-  The most important is args, which is an R list of arguments. **)
-Definition function_code :=
-  SEXP -> (** call **)
-  SEXP -> (** op **)
-  SEXP -> (** args **)
-  SEXP -> (** rho **)
-  result SEXP.
+(** This section defines types used by the [FUNTAB] structure,
+  which is used to store primitive and internal functions, as
+  well as some constructs to evaluate it.
+  Not all definitions could be placed in this file as some
+  depends on the [result] monad: see Result.v to get the rest
+  of the definitions.
+  Most of these constructs can be found in include/Defn.h. **)
 
 (** The following type is represented in C as an integer, each of its figure
   (in base 10) representing a different bit of information. **)
@@ -183,18 +193,3 @@ Instance PPinfo_Inhab : Inhab PPinfo.
   apply prove_Inhab. constructors; typeclass.
 Qed.
 
-(** [FUNTAB] **)
-Record funtab_cell := make_funtab_cell {
-    fun_name : string ;
-    fun_cfun : function_code ;
-    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat] here. **)
-    fun_eval : funtab_eval_arg ;
-    fun_arity : int ;
-    fun_gram : PPinfo
-  }.
-
-Instance funtab_cell_Inhab : Inhab funtab_cell.
-  apply prove_Inhab. constructors; apply arbitrary.
-Qed.
-
-Definition funtab := ArrayList.array funtab_cell.

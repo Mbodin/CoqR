@@ -19,10 +19,10 @@
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Export State InternalTypes.
+Require Export State Result.
 
 
-(** The monadic type is defined in the file InternalTypes.v. **)
+(** The monadic type is defined in the file Result.v. **)
 
 Delimit Scope monad_scope with monad.
 Open Scope monad_scope.
@@ -73,24 +73,26 @@ Notation "'read%state' a ':=' f 'in' cont" :=
 (** When entering a function, we mark it using this function.
   This can then help to trace function definitions when debugging. **)
 
-(** We rely on two OCaml hooks to effectively trace functions. **)
+(** We rely on two OCaml hooks to effectively trace functions.
+  By default, these functions do nothing. **)
 Definition add_stack_entering A (name : string) (cont : unit -> A) := cont tt.
 Definition add_stack_leaving A (name : string) (cont : unit -> A) := cont tt.
 
-(** The main function. **)
+(** This function is called at the beginning of any R function, and adds
+  the given function name to the stack. **)
 Definition add_stack (A : Type) fname : result A -> result A :=
   add_stack_entering fname (fun _ r =>
     add_stack_leaving fname (fun _ globals S =>
       match r globals S with
-      | result_success a S0 => result_success a S0
-      | result_longjump n t S0 => result_longjump n t S0
-      | result_error_stack stack s S0 =>
-        result_error_stack (fname :: stack) s S0
-      | result_impossible_stack stack s S0 =>
-        result_impossible_stack (fname :: stack) s S0
-      | result_not_implemented_stack stack s =>
-        result_not_implemented_stack (fname :: stack) s
-      | result_bottom S0 => result_bottom S0
+      | rresult_success a S0 => rresult_success a S0
+      | rresult_longjump n t S0 => rresult_longjump n t S0
+      | rresult_error_stack stack s S0 =>
+        rresult_error_stack (fname :: stack) s S0
+      | rresult_impossible_stack stack s S0 =>
+        rresult_impossible_stack (fname :: stack) s S0
+      | rresult_not_implemented_stack stack s =>
+        rresult_not_implemented_stack (fname :: stack) s
+      | rresult_bottom S0 => rresult_bottom S0
       end)).
 
 Notation "'add%stack' fname 'in' cont" :=
@@ -110,12 +112,12 @@ Arguments unimplemented_function [A].
 Definition if_success (A B : Type) (r : result A) (f : A -> result B) : result B :=
   fun globals S =>
     match r globals S with
-    | result_success a S0 => f a globals S0
-    | result_longjump n t S0 => result_longjump n t S0
-    | result_error_stack stack s S0 => result_error_stack stack s S0
-    | result_impossible_stack stack s S0 => result_impossible_stack stack s S0
-    | result_not_implemented_stack stack s => result_not_implemented_stack stack s
-    | result_bottom S0 => result_bottom S0
+    | rresult_success a S0 => f a globals S0
+    | rresult_longjump n t S0 => rresult_longjump n t S0
+    | rresult_error_stack stack s S0 => rresult_error_stack stack s S0
+    | rresult_impossible_stack stack s S0 => rresult_impossible_stack stack s S0
+    | rresult_not_implemented_stack stack s => rresult_not_implemented_stack stack s
+    | rresult_bottom S0 => rresult_bottom S0
     end.
 
 (** We provide the [let%success] notation.  It takes a result and evaluate it.
@@ -323,7 +325,7 @@ Notation "'run%success' c 'in' cont" :=
 (** The result [result_skip] returns an arbitrary value which is not
   meant to be bound. **)
 Definition result_skip : result unit :=
-  fun _ => result_success tt.
+  result_success tt.
 
 (** When a function returns (through the monad) a boolean, a common
   operation is to case-analysis on it.  This function provides this

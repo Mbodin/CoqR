@@ -16,7 +16,7 @@
 ./src/State.v
 ./src/Monads.v
 ./src/InternalTypes.v
-./src/MiscellaneousTypes.v
+./src/Result.v
 ./src/Globals.v
 ./src/Loops.v
 

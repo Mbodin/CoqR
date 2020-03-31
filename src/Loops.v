@@ -53,8 +53,8 @@ Record runs_type : Type := runs_type_intro {
 Definition get_R_FunTab runs :=
   add%stack "get_R_FunTab" in
   match runs_R_FunTab runs with
-  | None => fun _ => result_bottom
-  | Some t => fun _ => result_success t
+  | None => result_bottom
+  | Some t => result_success t
   end.
 
 (** An accessor for the [runs_R_FunTab] projection. **)
@@ -65,7 +65,7 @@ Definition read_R_FunTab runs n :=
     result_impossible "Out of bounds."
   else
     let c := ArrayList.read t n in
-    fun _ => result_success c.
+    result_success c.
 
 
 (** * Frequent Patterns **)
@@ -1023,17 +1023,17 @@ Notation "'fold%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'along' le 
   [result_longjump] costructor instead of the default one. **)
 
 Definition set_longjump runs (A : Type) mask (cjmpbuf : nat) (f : context_type -> result A) : result A :=
-  fun S =>
-    match f mask S with
-    | result_success a S0 => result_success a S0
-    | result_longjump n mask S0 =>
+  fun globals S =>
+    match f mask globals S with
+    | rresult_success a S0 => rresult_success a S0
+    | rresult_longjump n mask S0 =>
       ifb cjmpbuf = n then
-        runs_set_longjump runs mask cjmpbuf f S0
-      else result_longjump n mask S0
-    | result_error_stack stack s S0 => result_error_stack stack s S0
-    | result_impossible_stack stack s S0 => result_impossible_stack stack s S0
-    | result_not_implemented_stack stack s => result_not_implemented_stack stack s
-    | result_bottom S0 => result_bottom S0
+        runs_set_longjump runs mask cjmpbuf f globals S0
+      else result_longjump n mask globals S0
+    | rresult_error_stack stack s S0 => rresult_error_stack stack s S0
+    | rresult_impossible_stack stack s S0 => rresult_impossible_stack stack s S0
+    | rresult_not_implemented_stack stack s => rresult_not_implemented_stack stack s
+    | rresult_bottom S0 => rresult_bottom S0
     end.
 
 Notation "'set%longjump' cjmpbuf 'as' ret 'using' runs 'in' cont" :=

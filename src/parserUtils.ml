@@ -43,8 +43,8 @@ let only_state (f : 'a) : 'a monad_type = fun _ _ -> f
 let install_and_save str : token_type = fun g r ->
   install g r (Print.string_to_char_list str)
 
-let null : token_type = fun _ _ s -> Result_success (nULL, s)
-let nilValue : token_type = fun g _ s -> Result_success (read_globals g (R_NilValue), s)
+let null : token_type = fun _ _ _ s -> Rresult_success (nULL, s)
+let nilValue : token_type = fun g(* FIXME *) _ g s -> Rresult_success (read_globals g (R_NilValue), s)
 
 
 (* This looks like a bug: this function should have been extracted. *)
@@ -95,7 +95,7 @@ let mkFloat str : token_type = fun g _ ->
   scalarReal g (float_of_string str)
 let mkInt n : token_type = fun g _ ->
   scalarInteger g n
-let mkComplex str : token_type = fun g _ ->
+let mkComplex str : token_type = fun g(*FIXME*) _ ->
   let c = {
       rcomplex_r = 0. ;
       rcomplex_i = float_of_string str

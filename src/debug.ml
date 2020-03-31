@@ -95,25 +95,25 @@ let parse_one_arg : (string -> 'a option) -> ('a -> string) -> 'a -> string -> (
 let rec parse_args verbose pr_stack opt readable fetch s g r cont l = function
   | Result_unit f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_unit) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s -> print_unit) (fun s _ -> cont s))
   | Result_bool f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_bool) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s -> print_bool) (fun s _ -> cont s))
   | Result_int f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_integer) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s -> print_integer) (fun s _ -> cont s))
   | Result_int_list f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s l -> "[" ^ String.concat "; " (List.map print_integer l) ^ "]") (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s l -> "[" ^ String.concat "; " (List.map print_integer l) ^ "]") (fun s _ -> cont s))
   | Result_float f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> print_float) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s -> print_float) (fun s _ -> cont s))
   | Result_string f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s -> char_list_to_string) (fun s _ -> cont s))
   | Result_pointer f ->
     cont l (fun cont s ->
-      print_and_continue verbose pr_stack opt g (f g r s) s (fun n g s p ->
+      print_and_continue verbose pr_stack opt g (f g r g s) s (fun n g s p ->
         print_pointer readable s g p ^
         if fetch then (
           indent n ^ "Pointer value: " ^

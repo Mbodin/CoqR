@@ -263,10 +263,10 @@ let startR _ =
   let initialising_function =
     if !initial_state = "" then (
       if !verbose then print_endline "Initialising…" ;
-      Extract.setup_Rmainloop !max_steps Extract.empty_state
+      Extract.setup_Rmainloop !max_steps Extract.empty_Globals(*TODO*) Extract.empty_state
     ) else (
       let (s, globals) = load_state !initial_state in
-      Extract.Result_success (globals, s)) in
+      Extract.Rresult_success (globals, s)) in
   Print.print_defined !verbose !print_stack initialising_function Extract.empty_state (fun s globals ->
     if !show_state_initial then
       print_endline (Print.print_state 2 (run_options ()) (expr_options ()) s globals)) (fun s globals ->
@@ -287,7 +287,7 @@ let startR _ =
               Extract.eval_global g r s p) in
           Print.print_and_continue !verbose !print_stack
             (!show_state_after_computation, !show_result_after_computation, run_options (), expr_options ())
-            globals (f globals (Extract.runs !max_steps globals) s) s (fun n globals s p ->
+            globals (f globals (Extract.runs !max_steps globals) globals s) s (fun n globals s p ->
               if !print_unlike_R then
                 Print.print_pointer !readable_pointers s globals p ^
                 if !fetch_result then (
