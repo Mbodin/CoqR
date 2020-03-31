@@ -109,6 +109,9 @@ Once compiled, the following commands are available:
  - =esy run= runs a lighter version of the CoqR interpreter without the base libraries.
  - =esy lrun_bisect= and =esy run_bisect= are similar to the other ones, but the program is instrumented by the Bisect coverage tool.  Once the program is run on some test suites, one can call =esy report= to create a coverage report in =bisect/report/index.html=.
 
+Note that the base libraries include quite a lot of basic definitions: it you are used using R, you may find that a lot of basic functions are missing from it.
+This is normal: all these functions are defined in the base libraries, and are thus only loaded in the =lrun= versions of the interpreter.
+
 ** Using =opam=
 
 Another way is to use =opam=.
@@ -250,10 +253,14 @@ This file may take some time to compile.
 
 *** =Monads.v=
 
-This file provides monads to manipulate R objects easily.
+This file provides monadic binders to manipulate R objects.
 
 In some ways, this file provides notations enabling to write
 imperative code in Coq with respect to memory.
+
+*** =Result.v=
+
+This file defines the monad used in Monads.v.
 
 *** =Loops.v=
 

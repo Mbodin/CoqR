@@ -94,6 +94,17 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
   return [result_impossible]. **)
 
 
+(** * [_SEXP] **)
+
+(** The [eventually A] type represents something that can be converted into
+  a [A] given the right context (corresponding to the ones of [result A]. **)
+
+Definition eventually (A : Type) := Globals -> state -> A.
+
+(** The most frequently used is [_SEXP]. **)
+Definition _SEXP := eventually SEXP.
+
+
 (** * [FUNTAB] **)
 
 (** This section defines the [FUNTAB] structure, which is used to store

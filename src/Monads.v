@@ -68,6 +68,56 @@ Notation "'read%state' a ':=' f 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
+(** ** The [eventually] monad **)
+
+Definition eventually_result A : eventually A -> result A :=
+  fun e globals S => result_success (e globals S) globals S.
+
+(** The bind operation of the monad. **)
+Definition eventually_bind A B (e : eventually A) (cont : A -> eventually B) : eventually B :=
+  fun globals S => cont (e globals S) globals S.
+
+(** The return operation of the monad. **)
+Definition eventually_ret A (a : A) : eventually A :=
+  fun _ _ => a.
+
+Notation "'let%eventually' a ':=' e 'in' cont" :=
+  (eventually_bind e (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+(** [_SEXP] can be built from [SEXP] or from any global variable.
+  These coercions will be used all the time accross the formalisation. **)
+Definition SEXP_SEXP : SEXP -> _SEXP := @eventually_ret _.
+Definition GlobalVariable_SEXP : GlobalVariable -> _SEXP :=
+  fun G globals _ => read_globals globals G.
+
+Coercion SEXP_SEXP : SEXP >-> _SEXP.
+Coercion GlobalVariable_SEXP : GlobalVariable >-> _SEXP.
+
+Definition get_eventually A B (e : eventually A) (cont : A -> result B) : result B :=
+  fun globals S => cont (e globals S) globals S.
+
+Notation "'let%fetch' a 'in' cont" :=
+  (get_eventually a (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition eventually_left A B (p : eventually A * B) : eventually (A * B) :=
+  let (e, b) := p in
+  let%eventually a := e in
+  eventually_ret (a, b).
+
+Definition eventually_right A B (p : A * eventually B) : eventually (A * B) :=
+  let (a, e) := p in
+  let%eventually b := e in
+  eventually_ret (a, b).
+
+Definition eventually_list A : list (eventually A) -> eventually (list A) :=
+  fold_left (fun a e =>
+    let%eventually a := a in
+    let%eventually l := e in
+    eventually_ret (a :: l)) (eventually_ret nil).
+
+
 (** ** Manipulating global variables. **)
 
 Definition get_globals A (cont : Globals -> result A) : result A :=
@@ -91,7 +141,8 @@ Notation "'set%globals' globals 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Writing in the current state of global variables. **)
-Definition write_globals A C p (cont : result A) : result A :=
+Definition write_globals A C (p : _SEXP) (cont : result A) : result A :=
+  let%fetch p in
   get%globals globals in
   let globals := {{ globals with C := p }} in
   set%globals globals in
@@ -101,7 +152,8 @@ Notation "'write%globals' C ':=' p 'in' cont" :=
   (write_globals C p cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_globals_list A L (cont : result A) : result A :=
+Definition write_globals_list A (L : list (_ * _SEXP)) (cont : result A) : result A :=
+  let%eventually L := eventually_list (map (@eventually_right _ _) L) in
   get%globals globals in
   let globals := {{ globals with L }} in
   set%globals globals in
@@ -333,16 +385,27 @@ Notation "'let%success%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'w
   calling the functions [write_SExp] and [read_SExp].  We provide the
   following notations for these two frequent cases. **)
 
+Definition write_defined A (p : _SEXP) p_ (cont : result A) :=
+  let%fetch p in
+  let%success%defined S := write_SExp p p_ with "write%defined" in
+  set%state S in
+  cont.
+
 (** The notation [write%defined p := p_] writes the object [p_] in the
   place given by the pointer [p]. **)
 Notation "'write%defined' p ':=' p_ 'in' cont" :=
-  (let%success%defined S := write_SExp p p_ with "write%defined" in set%state S in cont)
+  (write_defined p p_ cont)
   (at level 50, left associativity) : monad_scope.
+
+Definition read_defined A (p : _SEXP) (cont : SExpRec -> result A) :=
+  let%fetch p in
+  let%success%defined p_ := read_SExp p with "read%defined" in
+  cont p_.
 
 (** The notation [read%defined p_ := p] reads the object pointer by [p],
   giving it the name [p_]. **)
 Notation "'read%defined' p_ ':=' p 'in' cont" :=
-  (let%success%defined p_ := read_SExp p with "read%defined" in cont)
+  (read_defined p (fun p_ => cont))
   (at level 50, left associativity) : monad_scope.
 
 Definition let_alloc A p_ cont : result A :=
@@ -372,8 +435,8 @@ Definition result_skip : result unit :=
   result_success tt.
 
 (** When a function returns (through the monad) a boolean, a common
-  operation is to case-analysis on it.  This function provides this
-  notation shortcut. **)
+  operation is to case-analysis on it.
+  This function provides a notation shortcut. **)
 Definition if_then_else_success A (b : result bool) (c1 c2 : result A) :=
   let%success b := b in
   if b then c1 else c2.
@@ -489,7 +552,8 @@ Notation "'let%prom' a_ ',' a_prom ':=' e_ 'in' cont" :=
 (** The functions [read_as_*], and their equivalent notation
   [read%* e_, e_* := e] combines [read%defined] and [let%*]. **)
 
-Definition read_as_prim A (e : SEXP) cont : result A :=
+Definition read_as_prim A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_prim" in
   let%prim e_, e_prim := e_ in
   cont e_ e_prim.
@@ -499,7 +563,8 @@ Notation "'read%prim' e_ ',' e_prim ':=' e 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_sym A (e : SEXP) cont : result A :=
+Definition read_as_sym A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_sym" in
   let%sym e_, e_sym := e_ in
   cont e_ e_sym.
@@ -509,7 +574,8 @@ Notation "'read%sym' e_ ',' e_sym ':=' e 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_list A (e : SEXP) cont : result A :=
+Definition read_as_list A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_list" in
   let%list e_, e_list := e_ in
   cont e_ e_list.
@@ -528,7 +594,7 @@ Notation "'read%list' e_ ',' e_list ':=' e 'in' cont" :=
   [read%list e_car, e_cdr, e_tag := e] only binds these last
   three. **)
 
-Definition read_as_list_all A (e : SEXP) cont : result A :=
+Definition read_as_list_all A (e : _SEXP) cont : result A :=
   read%list e_, e_list := e in
   cont e_ (list_carval e_list) (list_cdrval e_list) (list_tagval e_list).
 
@@ -536,7 +602,7 @@ Notation "'read%list' e_ ',' e_car ',' e_cdr ',' e_tag ':=' e 'in' cont" :=
   (read_as_list_all e (fun e_ e_car e_cdr e_tag => cont))
     (at level 50, left associativity) : monad_scope.
 
-Definition read_as_list_components A (e : SEXP) cont : result A :=
+Definition read_as_list_components A (e : _SEXP) cont : result A :=
   read%list _, e_car, e_cdr, e_tag := e in
   cont e_car e_cdr e_tag.
 
@@ -545,7 +611,8 @@ Notation "'read%list' e_car ',' e_cdr ',' e_tag ':=' e 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_env A (e : SEXP) cont : result A :=
+Definition read_as_env A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_env" in
   let%env e_, e_env := e_ in
   cont e_ e_env.
@@ -555,7 +622,8 @@ Notation "'read%env' e_ ',' e_env ':=' e 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_clo A (e : SEXP) cont : result A :=
+Definition read_as_clo A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_clo" in
   let%clo e_, e_clo := e_ in
   cont e_ e_clo.
@@ -565,7 +633,8 @@ Notation "'read%clo' e_ ',' e_clo ':=' e 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-Definition read_as_prom A (e : SEXP) cont : result A :=
+Definition read_as_prom A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_prom" in
   let%prom e_, e_prom := e_ in
   cont e_ e_prom.
@@ -634,7 +703,8 @@ Notation "'let%VectorChar' e_vector ':=' e_ 'in' cont" :=
   (let_VectorChar e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorChar A (e : SEXP) cont : result A :=
+Definition read_as_VectorChar A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorChar" in
   let%VectorChar e_vector := e_ in
   cont e_vector.
@@ -697,7 +767,8 @@ Notation "'let%VectorLogical' e_vector ':=' e_ 'in' cont" :=
   (let_VectorLogical e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorLogical A (e : SEXP) cont : result A :=
+Definition read_as_VectorLogical A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorLogical" in
   let%VectorLogical e_vector := e_ in
   cont e_vector.
@@ -753,7 +824,8 @@ Notation "'let%VectorInteger' e_vector ':=' e_ 'in' cont" :=
   (let_VectorInteger e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorInteger A (e : SEXP) cont : result A :=
+Definition read_as_VectorInteger A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorInteger" in
   let%VectorInteger e_vector := e_ in
   cont e_vector.
@@ -809,7 +881,8 @@ Notation "'let%VectorReal' e_vector ':=' e_ 'in' cont" :=
   (let_VectorReal e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorReal A (e : SEXP) cont : result A :=
+Definition read_as_VectorReal A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorReal" in
   let%VectorReal e_vector := e_ in
   cont e_vector.
@@ -865,7 +938,8 @@ Notation "'let%VectorComplex' e_vector ':=' e_ 'in' cont" :=
   (let_VectorComplex e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorComplex A (e : SEXP) cont : result A :=
+Definition read_as_VectorComplex A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorComplex" in
   let%VectorComplex e_vector := e_ in
   cont e_vector.
@@ -921,7 +995,8 @@ Notation "'let%VectorPointer' e_vector ':=' e_ 'in' cont" :=
   (let_VectorPointer e_ (fun e_vector => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition read_as_VectorPointer A (e : SEXP) cont : result A :=
+Definition read_as_VectorPointer A (e : _SEXP) cont : result A :=
+  let%fetch e in
   let%success%defined e_ := read_SExp e with "read_as_VectorPointer" in
   let%VectorPointer e_vector := e_ in
   cont e_vector.
@@ -975,8 +1050,9 @@ Notation "'write%Pointer' e 'at' n ':=' c 'in' cont" :=
 
 (** Mapping on-place the content of a pointer is a frequent scheme.
   Here is a monad binder for it. **)
-Definition map_pointer (A : Type) (map : SExpRec -> SExpRec) (p : SEXP) (cont : result A) : result A :=
+Definition map_pointer (A : Type) (map : SExpRec -> SExpRec) (p : _SEXP) (cont : result A) : result A :=
   add%stack "map_pointer" in
+  let%fetch p in
   read%defined p_ := p in
   write%defined p := map p_ in
   cont.
@@ -1021,7 +1097,7 @@ Notation "'set%type' p ':=' t 'in' cont" :=
 
 
 (** Updating a list. **)
-Definition map_list A f (p : SEXP) (cont : result A) : result A :=
+Definition map_list A f (p : _SEXP) (cont : result A) : result A :=
   add%stack "map_list" in
   read%list p_, p_list := p in
   let p_ := {|
@@ -1036,7 +1112,7 @@ Notation "'map%list' p 'with' map 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the first element (car) of a list. **)
-Definition set_car A car (p : SEXP) (cont : result A) : result A :=
+Definition set_car A car (p : _SEXP) (cont : result A) : result A :=
   add%stack "set_car" in
   map%list p with set_car_list car in cont.
 
@@ -1045,7 +1121,7 @@ Notation "'set%car' p ':=' car 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tail (cdr) of a list. **)
-Definition set_cdr A cdr (p : SEXP) (cont : result A) : result A :=
+Definition set_cdr A cdr (p : _SEXP) (cont : result A) : result A :=
   add%stack "set_cdr" in
   map%list p with set_cdr_list cdr in cont.
 
@@ -1054,7 +1130,7 @@ Notation "'set%cdr' p ':=' cdr 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Updating the tag of a list. **)
-Definition set_tag A tag (p : SEXP) (cont : result A) : result A :=
+Definition set_tag A tag (p : _SEXP) (cont : result A) : result A :=
   add%stack "set_tag" in
   map%list p with set_tag_list tag in cont.
 
