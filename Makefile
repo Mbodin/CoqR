@@ -20,7 +20,7 @@ all: depends all_coq all_interp all_html random
 depends: Rlib/base.d
 
 all_coq: Makefile.coq
-	${AT}+make -f Makefile.coq all
+	${AT}+export HOME=`pwd`; make -f Makefile.coq all
 
 all_html: Makefile.coq
 	${AT}+make -f Makefile.coq html

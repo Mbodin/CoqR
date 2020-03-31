@@ -22,7 +22,9 @@ Require Export Monads Globals.
 
 (** * Global structure of the interpreter **)
 
-(** A structure to deal with infinite execution (which is not allowed in Coq). Inspired from JSCert. **)
+(** A structure to deal with infinite execution (which is not allowed in Coq), inspired from JSCert.
+	Each of its field correspond to a function that may loop.
+	Note the presence of [R_FunTab], which contains functions that may loop. **)
 Record runs_type : Type := runs_type_intro {
     runs_while_loop : forall A, A -> (A -> result bool) -> (A -> result A) -> result A ;
     runs_set_longjump : forall A, context_type -> nat -> (context_type -> result A) -> result A ;

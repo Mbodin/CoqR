@@ -21,7 +21,7 @@
 	},
 	"dependencies": {
 		"ocaml": "4.4",
-		"@opam/ocamlfind": "1.6.2",
+		"@opam/ocamlfind": "*",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",
 		"@opam/coq": "8.6",
@@ -39,6 +39,7 @@
 						"@opam/coq": "8.6"
 					},
 				"buildEnv": {
+				  "HOME": "#{self.target_dir}",
 					"COQBIN": "#{@opam/coq.bin}/"
 				},
 				"build": [
@@ -54,6 +55,7 @@
 						"@opam/coq": "8.6"
 					},
 				"buildEnv": {
+					"HOME": "#{self.target_dir}",
 					"COQBIN": "#{@opam/coq.bin}/"
 				},
 				"build": [
@@ -91,7 +93,7 @@
 				"dependencies": {
 					"ocaml": "*",
 					"@opam/camlp5": "*",
-					"@opam/ocamlfind": "*",
+					"@opam/ocamlfind": "1.6.2",
 					"@opam/ocamlbuild": "*"
 				},
 				"buildsInSource": true,

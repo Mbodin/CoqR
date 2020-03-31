@@ -13,8 +13,8 @@ cache:
 
 install:
   - npm install --global esy@latest
-  - esy install -vv
+  - esy install -v
 
 script:
-  - esy -vv
+  - esy -v
 

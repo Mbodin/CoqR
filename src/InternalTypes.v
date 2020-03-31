@@ -1,5 +1,5 @@
 (** InternalTypes.
-  This file describes various internal data types used in the source of R. **)
+  This file describes central internal data types used in the source of R. **)
 
 (* Copyright © 2018 Martin Bodin
 
@@ -18,7 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Rinternals State.
+Require Import Rinternals State Globals.
 
 
 (** * Monadic Type **)
@@ -39,7 +39,7 @@ Arguments result_not_implemented_stack [A].
 Arguments result_bottom {A}.
 
 (** We wrap [rresult] in a state monad. **)
-Definition result A := state -> rresult A.
+Definition result A := Globals -> state -> rresult A.
 
 (** A precision about [result_not_implemented] and [result_error]:
   if the C source code of R throw a not-implemented error, we consider
@@ -65,19 +65,19 @@ Definition result A := state -> rresult A.
 
 
 Definition result_error (A : Type) msg : result A :=
-  result_error_stack nil msg.
+  fun _ => result_error_stack nil msg.
 Arguments result_error [A].
 
 Definition result_impossible (A : Type) msg : result A :=
-  result_impossible_stack nil msg.
+  fun _ => result_impossible_stack nil msg.
 Arguments result_impossible [A].
 
 Definition result_not_implemented (A : Type) msg : result A :=
-  fun S => result_not_implemented_stack nil msg.
+  fun _ S => result_not_implemented_stack nil msg.
 Arguments result_not_implemented [A].
 
 Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (result_impossible "[arbitrary]").
+  fun _ => prove_Inhab (fun _ => result_impossible "[arbitrary]").
 
 
 (** * [FUNTAB] **)
@@ -87,7 +87,10 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
   evaluate it. Most of these constructs can be found in
   include/Defn.h. **)
 
-(** All function in the array [R_FunTab] have the same type. **)
+(** Following GNU R, all functions in the array [R_FunTab] have the same type: they take four SEXP
+  and return an SEXP.
+  The four SEXP respectively correspond to the call, op, args, and rho parameters of each functions.
+  The most important is args, which is an R list of arguments. **)
 Definition function_code :=
   SEXP -> (** call **)
   SEXP -> (** op **)
@@ -195,84 +198,3 @@ Instance funtab_cell_Inhab : Inhab funtab_cell.
 Qed.
 
 Definition funtab := ArrayList.array funtab_cell.
-
-
-(** * [Type2Table] **)
-
-(** These definitions can be found in the file main/util.c. **)
-
-Record Type2Table_type := make_Type2Table_type {
-    Type2Table_cstrName : string ;
-    Type2Table_rcharName : SEXP ;
-    Type2Table_rstrName : SEXP ;
-    Type2Table_rsymName : SEXP ;
-  }.
-
-Instance Type2Table_type_Inhab : Inhab Type2Table_type.
-  apply prove_Inhab. constructors; apply arbitrary.
-Qed.
-
-
-(** * [BindData] **)
-
-(** These definitions can be found in the file main/bind.c. **)
-
-Record BindData := make_BindData {
-    BindData_ans_flags : nbits 10 ;
-    BindData_ans_ptr : SEXP ;
-    BindData_ans_length : nat ;
-    BindData_ans_names : SEXP ;
-    BindData_ans_nnames : nat
-  }.
-
-Definition BindData_with_ans_flags d f := {|
-    BindData_ans_flags := f ;
-    BindData_ans_ptr := BindData_ans_ptr d ;
-    BindData_ans_length := BindData_ans_length d ;
-    BindData_ans_names := BindData_ans_names d ;
-    BindData_ans_nnames := BindData_ans_nnames d
-  |}.
-
-Definition BindData_with_ans_ptr d p := {|
-    BindData_ans_flags := BindData_ans_flags d ;
-    BindData_ans_ptr := p ;
-    BindData_ans_length := BindData_ans_length d ;
-    BindData_ans_names := BindData_ans_names d ;
-    BindData_ans_nnames := BindData_ans_nnames d
-  |}.
-
-Definition BindData_with_ans_length d l := {|
-    BindData_ans_flags := BindData_ans_flags d ;
-    BindData_ans_ptr := BindData_ans_ptr d ;
-    BindData_ans_length := l ;
-    BindData_ans_names := BindData_ans_names d ;
-    BindData_ans_nnames := BindData_ans_nnames d
-  |}.
-
-Definition BindData_with_ans_names d n := {|
-    BindData_ans_flags := BindData_ans_flags d ;
-    BindData_ans_ptr := BindData_ans_ptr d ;
-    BindData_ans_length := BindData_ans_length d ;
-    BindData_ans_names := n ;
-    BindData_ans_nnames := BindData_ans_nnames d
-  |}.
-
-Definition BindData_with_ans_nnames d n := {|
-    BindData_ans_flags := BindData_ans_flags d ;
-    BindData_ans_ptr := BindData_ans_ptr d ;
-    BindData_ans_length := BindData_ans_length d ;
-    BindData_ans_names := BindData_ans_names d ;
-    BindData_ans_nnames := n
-  |}.
-
-
-(** * [pmatch] **)
-
-(** These definitions can be found in the file main/subset.c. **)
-
-Inductive pmatch :=
-  | NO_MATCH
-  | EXACT_MATCH
-  | PARTIAL_MATCH
-  .
-
