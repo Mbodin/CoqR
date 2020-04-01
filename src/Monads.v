@@ -68,54 +68,123 @@ Notation "'read%state' a ':=' f 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 
-(** ** The [eventually] monad **)
+(** ** The [contextual] monad **)
 
-Definition eventually_result A : eventually A -> result A :=
+Definition contextual_result A : contextual A -> result A :=
   fun e globals S => result_success (e globals S) globals S.
 
 (** The bind operation of the monad. **)
-Definition eventually_bind A B (e : eventually A) (cont : A -> eventually B) : eventually B :=
+Definition contextual_bind A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
   fun globals S => cont (e globals S) globals S.
 
 (** The return operation of the monad. **)
-Definition eventually_ret A (a : A) : eventually A :=
+Definition contextual_ret A (a : A) : contextual A :=
   fun _ _ => a.
 
-Notation "'let%eventually' a ':=' e 'in' cont" :=
-  (eventually_bind e (fun a => cont))
+Notation "'let%contextual' a ':=' e 'in' cont" :=
+  (contextual_bind e (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
 (** [_SEXP] can be built from [SEXP] or from any global variable.
   These coercions will be used all the time accross the formalisation. **)
-Definition SEXP_SEXP : SEXP -> _SEXP := @eventually_ret _.
+Definition SEXP_SEXP : SEXP -> _SEXP := @contextual_ret _.
 Definition GlobalVariable_SEXP : GlobalVariable -> _SEXP :=
   fun G globals _ => read_globals globals G.
 
 Coercion SEXP_SEXP : SEXP >-> _SEXP.
 Coercion GlobalVariable_SEXP : GlobalVariable >-> _SEXP.
 
-Definition get_eventually A B (e : eventually A) (cont : A -> result B) : result B :=
+(** Functions about [_bool]. **)
+
+Definition bool_bool : bool -> _bool := @contextual_ret _.
+Coercion bool_bool : bool >-> _bool.
+
+(** Some types associated with coercions. **)
+Definition result_SEXP := result SEXP.
+Definition _SEXP_result_SEXP : _SEXP -> result_SEXP := @contextual_result _.
+Coercion _SEXP_result_SEXP : _SEXP >-> result_SEXP.
+
+Definition result_bool := result bool.
+Definition _bool_result_bool : _bool -> result_bool := @contextual_result _.
+Coercion _bool_result_bool : _bool >-> result_bool.
+
+(** Booleans operators over [_bool]. **)
+
+Definition contextual_and (a b : _bool) : _bool :=
+  let%contextual a := a in
+  let%contextual b := b in
+  (a && b : _bool).
+
+Infix "'&&" := contextual_and (at level 40, left associativity).
+
+Lemma contextual_and_bool : forall a b : bool,
+  a '&& b = a && b.
+Proof. reflexivity. Qed.
+
+Definition contextual_or (a b : _bool) : _bool :=
+  let%contextual a := a in
+  let%contextual b := b in
+  (a || b : _bool).
+
+Infix "'||" := contextual_or (at level 50, left associativity).
+
+Lemma contextual_or_bool : forall a b : bool,
+  a '|| b = a || b.
+Proof. reflexivity. Qed.
+
+Definition contextual_neg (b : _bool) : _bool :=
+  let%contextual b := b in
+  (negb b : _bool).
+
+Notation "'~ b" := (contextual_neg b) (at level 35, right associativity).
+
+Lemma contextual_neg_bool : forall b : bool,
+  '~ b = negb b.
+Proof. reflexivity. Qed.
+
+Definition contextual_decide P `{Decidable P} : _bool := decide P.
+Arguments contextual_decide P {_}.
+
+Notation "''decide' P" := (contextual_decide P) (at level 70, no associativity).
+
+Definition contextual_eq A `{Comparable A} (a b : contextual A) : _bool :=
+  let%contextual a := a in
+  let%contextual b := b in
+  'decide (a = b).
+
+Definition contextual_eq_SEXP : _SEXP -> _SEXP -> _bool := @contextual_eq _ _.
+
+Infix "'==" := contextual_eq_SEXP (at level 70, no associativity).
+
+Notation "a '!= b" := ('~ (a '== b)) (at level 70, no associativity).
+
+
+(** This monadic binder enables to fetch a contextual value. **)
+Definition get_contextual A B (e : contextual A) (cont : A -> result B) : result B :=
   fun globals S => cont (e globals S) globals S.
 
 Notation "'let%fetch' a 'in' cont" :=
-  (get_eventually a (fun a => cont))
+  (get_contextual a (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition eventually_left A B (p : eventually A * B) : eventually (A * B) :=
+
+(** Functions delaying contextual elements. **)
+
+Definition contextual_left A B (p : contextual A * B) : contextual (A * B) :=
   let (e, b) := p in
-  let%eventually a := e in
-  eventually_ret (a, b).
+  let%contextual a := e in
+  contextual_ret (a, b).
 
-Definition eventually_right A B (p : A * eventually B) : eventually (A * B) :=
+Definition contextual_right A B (p : A * contextual B) : contextual (A * B) :=
   let (a, e) := p in
-  let%eventually b := e in
-  eventually_ret (a, b).
+  let%contextual b := e in
+  contextual_ret (a, b).
 
-Definition eventually_list A : list (eventually A) -> eventually (list A) :=
+Definition contextual_list A : list (contextual A) -> contextual (list A) :=
   fold_left (fun a e =>
-    let%eventually a := a in
-    let%eventually l := e in
-    eventually_ret (a :: l)) (eventually_ret nil).
+    let%contextual a := a in
+    let%contextual l := e in
+    contextual_ret (a :: l)) (contextual_ret nil).
 
 
 (** ** Manipulating global variables. **)
@@ -153,7 +222,7 @@ Notation "'write%globals' C ':=' p 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 Definition write_globals_list A (L : list (_ * _SEXP)) (cont : result A) : result A :=
-  let%eventually L := eventually_list (map (@eventually_right _ _) L) in
+  let%contextual L := contextual_list (map (@contextual_right _ _) L) in
   get%globals globals in
   let globals := {{ globals with L }} in
   set%globals globals in
@@ -437,7 +506,7 @@ Definition result_skip : result unit :=
 (** When a function returns (through the monad) a boolean, a common
   operation is to case-analysis on it.
   This function provides a notation shortcut. **)
-Definition if_then_else_success A (b : result bool) (c1 c2 : result A) :=
+Definition if_then_else_success A (b : result bool) c1 c2 : result A :=
   let%success b := b in
   if b then c1 else c2.
 
@@ -457,6 +526,24 @@ Definition if_then_success A b c cont : result A :=
 Notation "'if%success' b 'then' c 'in' cont" :=
   (if_then_success b c cont)
   (at level 50, left associativity) : monad_scope.
+
+(** Similarly to [if_then_else_success] and [if_then_success], but on
+  the [contextual] monad. **)
+
+Definition if_then_else_contextual A (b : _bool) c1 c2 : result A :=
+  if%success contextual_result b then c1 else c2.
+
+Notation "'if%contextual' b 'then' c1 'else' c2" :=
+  (if_then_else_contextual b c1 c2)
+  (at level 50, left associativity) : monad_scope.
+
+Definition if_then_contextual A (b : _bool) c cont : result A :=
+  if%success contextual_result b then c in cont.
+
+Notation "'if%contextual' b 'then' c 'in' cont" :=
+  (if_then_contextual b c cont)
+  (at level 50, left associativity) : monad_scope.
+
 
 (** Sometimes, a monadic function returns an option type (of the
   overall type [result (option A)]).  This notation enables to

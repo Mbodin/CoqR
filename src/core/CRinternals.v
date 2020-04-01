@@ -24,11 +24,6 @@ Require Import Loops.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -259,7 +254,7 @@ Definition IS_SIMPLE_SCALAR x t :=
   add%stack "IS_SIMPLE_SCALAR" in
   let%success x_scal := IS_SCALAR x t in
   read%defined x_ := x in
-  result_success (decide (x_scal /\ attrib x_ = R_NilValue)).
+  (x_scal '&& (attrib x_ '== R_NilValue) : result_bool).
 
 Definition isLogical s :=
   add%stack "isLogical" in

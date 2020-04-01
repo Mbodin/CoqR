@@ -25,11 +25,6 @@ Require Import CRinternals.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -37,7 +32,7 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition CONS (car cdr : SEXP) : result SEXP :=
+Definition CONS (car cdr : _SEXP) : result_SEXP :=
   let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
   let%alloc e := e_ in
   result_success e.

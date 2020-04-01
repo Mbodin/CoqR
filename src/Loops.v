@@ -76,7 +76,7 @@ Definition read_R_FunTab runs n :=
 (** ** While **)
 
 (** A basic C-like loop **)
-Definition while_loop runs A (a : A) expr stat : result A :=
+Definition while_loop runs A (a : A) (expr : A -> result_bool) stat : result A :=
   if%success expr a then
     let%success a := stat a in
     runs_while_loop runs a expr stat
@@ -131,49 +131,49 @@ Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'while' 
 
 Notation "'do%let' a ':=' e 'whileb' expr 'do' stat 'using' runs" :=
   (do%let a := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'whileb' expr 'do' stat 'using' runs" :=
   (do%let
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'whileb' expr 'do' stat 'using' runs" :=
   (do%let (a1, a2) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'whileb' expr 'do' stat 'using' runs" :=
   (do%let (a1, a2, a3) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'whileb' expr 'do' stat 'using' runs" :=
   (do%let (a1, a2, a3, a4) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'whileb' expr 'do' stat 'using' runs" :=
   (do%let (a1, a2, a3, a4, a5) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whileb' expr 'do' stat 'using' runs" :=
   (do%let (a1, a2, a3, a4, a5, a6) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs)
   (at level 50, left associativity) : monad_scope.
@@ -242,7 +242,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
 
 Notation "'do%success' 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -250,7 +250,7 @@ Notation "'do%success' 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
 
 Notation "'do%success' a ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success a := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -258,7 +258,7 @@ Notation "'do%success' a ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" 
 
 Notation "'do%success' '(' a1 ',' a2 ')' ':=' a 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success (a1, a2) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -266,7 +266,7 @@ Notation "'do%success' '(' a1 ',' a2 ')' ':=' a 'whileb' expr 'do' stat 'using' 
 
 Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' a 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success (a1, a2, a3) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -274,7 +274,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ')' ':=' a 'whileb' expr 'do' stat '
 
 Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success (a1, a2, a3, a4) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -282,7 +282,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'whileb' expr 'do'
 
 Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success (a1, a2, a3, a4, a5) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -290,7 +290,7 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'whileb' ex
 
 Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%success (a1, a2, a3, a4, a5, a6) := a
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs in
    cont)
@@ -301,8 +301,9 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'whi
 (** Looping through a list is a frequent pattern in R source code.
   [fold_left_listSxp_gen] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate ( *i, v); v]. **)
-Definition fold_left_listSxp_gen runs A (l : SEXP) (a : A)
+Definition fold_left_listSxp_gen runs A (l : _SEXP) (a : A)
     (iterate : A -> SEXP -> SExpRec -> ListSxp_struct -> result A) : result A :=
+  let%fetch l in
   get%globals globals in
   do%success (l, a) := (l, a)
   whileb l <> global_mapping globals R_NilValue
@@ -438,7 +439,7 @@ Notation "'fold%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'a
 
 (** [fold_left_listSxp] corresponds to the C code
   [for (i = l, v = a; i != R_NilValue; i = CDR (i)) v = iterate (CAR (i), TAG (i), v); v]. **)
-Definition fold_left_listSxp runs A (l : SEXP) (a : A)
+Definition fold_left_listSxp runs A (l : _SEXP) (a : A)
     (iterate : A -> SEXP -> SEXP -> result A) : result A :=
   fold%let a := a
   along l
@@ -752,7 +753,7 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whil
 
 Notation "'do%return' a ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return a := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -760,7 +761,7 @@ Notation "'do%return' a ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :
 
 Notation "'do%return' 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -768,7 +769,7 @@ Notation "'do%return' 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
 
 Notation "'do%return' '(' a1 ',' a2 ')' ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return (a1, a2) := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -776,7 +777,7 @@ Notation "'do%return' '(' a1 ',' a2 ')' ':=' e 'whileb' expr 'do' stat 'using' r
 
 Notation "'do%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return (a1, a2, a3) := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -784,7 +785,7 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ')' ':=' e 'whileb' expr 'do' stat 'u
 
 Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return (a1, a2, a3, a4) := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -792,7 +793,7 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'whileb' expr 'do' 
 
 Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return (a1, a2, a3, a4, a5) := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)
@@ -800,7 +801,7 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'whileb' exp
 
 Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whileb' expr 'do' stat 'using' runs 'in' cont" :=
   (do%return (a1, a2, a3, a4, a5, a6) := e
-   while result_success (decide expr)
+   while 'decide expr
    do stat
    using runs
    in cont)

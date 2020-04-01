@@ -94,15 +94,16 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
   return [result_impossible]. **)
 
 
-(** * [_SEXP] **)
+(** * [contextual]: [_SEXP] and [_bool] **)
 
-(** The [eventually A] type represents something that can be converted into
+(** The [contextual A] type represents something that can be converted into
   a [A] given the right context (corresponding to the ones of [result A]. **)
 
-Definition eventually (A : Type) := Globals -> state -> A.
+Definition contextual (A : Type) := Globals -> state -> A.
 
-(** The most frequently used is [_SEXP]. **)
-Definition _SEXP := eventually SEXP.
+(** The most frequently used instances are [_SEXP] and [_bool]. **)
+Definition _SEXP := contextual SEXP.
+Definition _bool := contextual bool.
 
 
 (** * [FUNTAB] **)
