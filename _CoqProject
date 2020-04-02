@@ -13,6 +13,7 @@
 
 ./src/Rinternals.v
 ./src/RinternalsAux.v
+./src/RinternalsCons.v
 ./src/State.v
 ./src/Monads.v
 ./src/InternalTypes.v

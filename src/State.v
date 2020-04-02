@@ -112,6 +112,7 @@ Qed.
 
 (** Allocate a new cell and provide it an initial value **)
 Definition alloc_memory_SExp_nat (e_ : SExpRec) (S : memory) : memory * nat.
+Proof.
   refine (let p := stream_head (state_fresh_locations S) in ({|
       state_heap_SExp := write S p e_ ;
       state_fresh_locations := stream_tail (state_fresh_locations S) |},
@@ -128,6 +129,7 @@ Definition alloc_memory_SExp e_ S : memory * SEXP :=
 
 (** Writes a value in the state. Might return [None] if the cell is not already allocated. **)
 Definition write_memory_SExp_nat (e : nat) (e_ : SExpRec) (S : memory) : option memory.
+Proof.
   refine (match read_option S e as r return r = _ -> _ with
           | None => fun _ => None
           | Some _ => fun Eq => Some {|
@@ -533,12 +535,10 @@ Definition Ctxt_Unwind : context_type := @nat_to_nbits 8 CTXT_UNWIND ltac:(nbits
 Definition empty_context_type := Ctxt_TopLevel.
 
 Instance context_type_Comparable : Comparable context_type.
-  typeclass.
-Defined.
+Proof. typeclass. Defined.
 
 Instance context_type_Inhab : Inhab context_type.
-  apply prove_Inhab. apply empty_context_type.
-Defined.
+Proof. apply prove_Inhab. apply empty_context_type. Defined.
 
 Definition context_type_mask (t1 t2 : context_type) :=
   nbits_intersects t1 t2.
@@ -621,6 +621,7 @@ Fixpoint context_rect_jumptarget (P : context -> Type) HNone HSome c : P c :=
 Definition context_ind_jumptarget (P : context -> Prop) := context_rect_jumptarget P.
 
 Instance context_Comparable : Comparable context.
+Proof.
   applys make_comparable. intros c1.
   induction c1 using context_rect'; intros c2;
     induction c2 using context_rect'; prove_decidable_eq.
@@ -1442,6 +1443,7 @@ Proof.
 Qed.
 
 Definition empty_memory : memory.
+Proof.
   refine {|
       state_heap_SExp := empty ;
       state_fresh_locations := all_locations 0

@@ -145,8 +145,7 @@ Inductive PPkind :=
   .
 
 Instance PPkind_Comparable : Comparable PPkind.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance PPkind_Inhab : Inhab PPkind.
   apply prove_Inhab. constructors~.
@@ -175,8 +174,7 @@ Inductive PPprec :=
   .
 
 Instance PPprec_Comparable : Comparable PPprec.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance PPprecd_Inhab : Inhab PPprec.
   apply prove_Inhab. constructors~.

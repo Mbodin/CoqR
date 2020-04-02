@@ -171,6 +171,7 @@ Fixpoint list_type_ind (Pheader Pcar Ptag : _ -> Prop) S
        P l_t l_car l_tag cdr ->
        P l_t l_car l_tag p)
     l_t l_car l_tag p (HL : list_type_such_that Pheader Pcar Ptag S l_t l_car l_tag p) : P l_t l_car l_tag p.
+Proof.
   refine (
     match HL in list_type_such_that _ _ _ _ l_t l_car l_tag p return P l_t l_car l_tag p with
     | @list_type_nil _ _ _ _ p l_t l_car l_tag N =>

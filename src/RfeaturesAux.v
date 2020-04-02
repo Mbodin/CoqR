@@ -93,8 +93,7 @@ Ltac solve_eq_simple_projection :=
 (** ** [runs_while_loop] **)
 
 Definition runs_proj_while_loop : ltac:(get_type_projection runs_while_loop).
-  compute_simple_projection runs_while_loop >>.
-Defined.
+Proof. compute_simple_projection runs_while_loop >>. Defined.
 
 Lemma runs_proj_while_loop_eq : forall max_step globals,
   runs_while_loop (runs max_step globals) = runs_proj_while_loop max_step globals.
@@ -103,8 +102,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_set_longjump] **)
 
 Definition runs_proj_set_longjump : ltac:(get_type_projection runs_set_longjump).
-  compute_simple_projection runs_set_longjump >>.
-Defined.
+Proof. compute_simple_projection runs_set_longjump >>. Defined.
 
 Lemma runs_proj_set_longjump_eq : forall max_step globals,
   runs_set_longjump (runs max_step globals) = runs_proj_set_longjump max_step globals.
@@ -113,8 +111,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_R_cycle_detected] **)
 
 Definition runs_proj_R_cycle_detected : ltac:(get_type_projection runs_R_cycle_detected).
-  compute_simple_projection runs_R_cycle_detected >>.
-Defined.
+Proof. compute_simple_projection runs_R_cycle_detected >>. Defined.
 
 Lemma runs_proj_R_cycle_detected_eq : forall max_step globals,
   runs_R_cycle_detected (runs max_step globals) = runs_proj_R_cycle_detected max_step globals.
@@ -123,8 +120,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_eval] **)
 
 Definition runs_proj_eval : ltac:(get_type_projection runs_eval).
-  compute_simple_projection runs_eval >>.
-Defined.
+Proof. compute_simple_projection runs_eval >>. Defined.
 
 Lemma runs_proj_eval_eq : forall max_step globals,
   runs_eval (runs max_step globals) = runs_proj_eval max_step globals.
@@ -133,8 +129,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_getAttrib] **)
 
 Definition runs_proj_getAttrib : ltac:(get_type_projection runs_getAttrib).
-  compute_simple_projection runs_getAttrib >> getAttrib0.
-Defined.
+Proof. compute_simple_projection runs_getAttrib >> getAttrib0. Defined.
 
 Lemma runs_proj_getAttrib_eq : forall max_step globals,
   runs_getAttrib (runs max_step globals) = runs_proj_getAttrib max_step globals.
@@ -143,8 +138,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_setAttrib] **)
 
 Definition runs_proj_setAttrib : ltac:(get_type_projection runs_setAttrib).
-  compute_simple_projection runs_setAttrib >>.
-Defined.
+Proof. compute_simple_projection runs_setAttrib >>. Defined.
 
 Lemma runs_proj_setAttrib_eq : forall max_step globals,
   runs_setAttrib (runs max_step globals) = runs_proj_setAttrib max_step globals.
@@ -153,8 +147,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_duplicate1] **)
 
 Definition runs_proj_duplicate1 : ltac:(get_type_projection runs_duplicate1).
-  compute_simple_projection runs_duplicate1 >>.
-Defined.
+Proof. compute_simple_projection runs_duplicate1 >>. Defined.
 
 Lemma runs_proj_duplicate1_eq : forall max_step globals,
   runs_duplicate1 (runs max_step globals) = runs_proj_duplicate1 max_step globals.
@@ -163,8 +156,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_stripAttrib] **)
 
 Definition runs_proj_stripAttrib : ltac:(get_type_projection runs_stripAttrib).
-  compute_simple_projection runs_stripAttrib >>.
-Defined.
+Proof. compute_simple_projection runs_stripAttrib >>. Defined.
 
 Lemma runs_proj_stripAttrib_eq : forall max_step globals,
   runs_stripAttrib (runs max_step globals) = runs_proj_stripAttrib max_step globals.
@@ -173,8 +165,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_evalseq] **)
 
 Definition runs_proj_evalseq : ltac:(get_type_projection runs_evalseq).
-  compute_simple_projection runs_evalseq >>.
-Defined.
+Proof. compute_simple_projection runs_evalseq >>. Defined.
 
 Lemma runs_proj_evalseq_eq : forall max_step globals,
   runs_evalseq (runs max_step globals) = runs_proj_evalseq max_step globals.
@@ -183,8 +174,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_R_isMissing] **)
 
 Definition runs_proj_R_isMissing : ltac:(get_type_projection runs_R_isMissing).
-  compute_simple_projection runs_R_isMissing >>.
-Defined.
+Proof. compute_simple_projection runs_R_isMissing >>. Defined.
 
 (*
 Lemma runs_proj_R_isMissing_eq : forall max_step globals,
@@ -195,8 +185,7 @@ Proof. solve_eq_simple_projection. (* FIXME: Stack overflow *) Optimize Proof. Q
 (** ** [runs_AnswerType] **)
 
 Definition runs_proj_AnswerType : ltac:(get_type_projection runs_AnswerType).
-  compute_simple_projection runs_AnswerType >>.
-Defined.
+Proof. compute_simple_projection runs_AnswerType >>. Defined.
 
 Lemma runs_proj_AnswerType_eq : forall max_step globals,
   runs_AnswerType (runs max_step globals) = runs_proj_AnswerType max_step globals.
@@ -205,8 +194,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_ListAnswer] **)
 
 Definition runs_proj_ListAnswer : ltac:(get_type_projection runs_ListAnswer).
-  compute_simple_projection runs_ListAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_ListAnswer >>. Defined.
 
 Lemma runs_proj_ListAnswer_eq : forall max_step globals,
   runs_ListAnswer (runs max_step globals) = runs_proj_ListAnswer max_step globals.
@@ -215,8 +203,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_StringAnswer] **)
 
 Definition runs_proj_StringAnswer : ltac:(get_type_projection runs_StringAnswer).
-  compute_simple_projection runs_StringAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_StringAnswer >>. Defined.
 
 Lemma runs_proj_StringAnswer_eq : forall max_step globals,
   runs_StringAnswer (runs max_step globals) = runs_proj_StringAnswer max_step globals.
@@ -225,8 +212,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_LogicalAnswer] **)
 
 Definition runs_proj_LogicalAnswer : ltac:(get_type_projection runs_LogicalAnswer).
-  compute_simple_projection runs_LogicalAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_LogicalAnswer >>. Defined.
 
 Lemma runs_proj_LogicalAnswer_eq : forall max_step globals,
   runs_LogicalAnswer (runs max_step globals) = runs_proj_LogicalAnswer max_step globals.
@@ -235,8 +221,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_IntegerAnswer] **)
 
 Definition runs_proj_IntegerAnswer : ltac:(get_type_projection runs_IntegerAnswer).
-  compute_simple_projection runs_IntegerAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_IntegerAnswer >>. Defined.
 
 Lemma runs_proj_IntegerAnswer_eq : forall max_step globals,
   runs_IntegerAnswer (runs max_step globals) = runs_proj_IntegerAnswer max_step globals.
@@ -245,8 +230,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_RealAnswer] **)
 
 Definition runs_proj_RealAnswer : ltac:(get_type_projection runs_RealAnswer).
-  compute_simple_projection runs_RealAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_RealAnswer >>. Defined.
 
 Lemma runs_proj_RealAnswer_eq : forall max_step globals,
   runs_RealAnswer (runs max_step globals) = runs_proj_RealAnswer max_step globals.
@@ -255,8 +239,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_ComplexAnswer] **)
 
 Definition runs_proj_ComplexAnswer : ltac:(get_type_projection runs_ComplexAnswer).
-  compute_simple_projection runs_ComplexAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_ComplexAnswer >>. Defined.
 
 Lemma runs_proj_ComplexAnswer_eq : forall max_step globals,
   runs_ComplexAnswer (runs max_step globals) = runs_proj_ComplexAnswer max_step globals.
@@ -265,8 +248,7 @@ Proof. solve_eq_simple_projection. Optimize Proof. Qed.
 (** ** [runs_RawAnswer] **)
 
 Definition runs_proj_RawAnswer : ltac:(get_type_projection runs_RawAnswer).
-  compute_simple_projection runs_RawAnswer >>.
-Defined.
+Proof. compute_simple_projection runs_RawAnswer >>. Defined.
 
 Lemma runs_proj_RawAnswer_eq : forall max_step globals,
   runs_RawAnswer (runs max_step globals) = runs_proj_RawAnswer max_step globals.

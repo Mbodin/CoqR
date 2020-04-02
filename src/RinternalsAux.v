@@ -27,7 +27,7 @@ Require Export Rinternals Common.
   instance [p_sym] for its [symSxp_struct] part—, that is [p->f] in C. **)
 
 
-(** * Accessors and Smart Constructors **)
+(** * Accessors **)
 
 (** In some place in the R source code, only five digits are used to store
   the type of basic language element. This is an issue as [FunSxp] is
@@ -54,11 +54,11 @@ Definition TYPE_BITS := 5.
 Definition MAX_NUM_SEXPTYPE := 2 ^ TYPE_BITS.
 
 Definition all_SExpTypes : list SExpType.
-  list_all_constructors.
-Defined.
+Proof. list_all_constructors. Defined.
 
 (** All the SExpTypes that can be stored in an object. **)
 Definition all_storable_SExpTypes : list SExpType.
+Proof.
   let rec filter l :=
     match l with
     | nil => l
@@ -114,6 +114,7 @@ Definition SExpType_to_nat t :=
 Coercion SExpType_to_nat : SExpType >-> nat.
 
 Definition nat_to_SExpType : nat -> option SExpType.
+Proof.
   intro i.
   let rec build_let l :=
     match l with
@@ -334,18 +335,6 @@ Definition set_tag_list tag l_list :=
 Definition set_attrib a :=
   map_header (fun h => make_SExpRecHeader (sxpinfo h) a).
 
-(** A smart constructor for SxpInfo **)
-Definition build_SxpInfo type scalar : SxpInfo :=
-  make_SxpInfo (SExpType_restrict type)
-    scalar false false nbits_init named_temporary.
-
-(** The pointers [gengc_prev_node] and [gengc_next_node] are only used
-  by the garbage collector of R. We do not need them here as memory
-  allocation is not targetted by this formalisation. We thus offer the
-  following smart constructor for the type [SExpRecHeader]. **)
-Definition build_SExpRecHeader type scalar attrib : SExpRecHeader :=
-  make_SExpRecHeader (build_SxpInfo type scalar) attrib (*None*) (*None*).
-
 Definition get_VecSxp_length e_ :=
   match e_ with
   | SExpRec_NonVector e_ => None
@@ -377,115 +366,19 @@ Definition Vector_SExpRec_with_truelength A (e_ : Vector_SExpRec A) v := {|
   |}.
 
 
-(** Smart constructors for each R data type. **)
-
-Definition make_SExpRec_sym attrib pname value internal :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader SymSxp false attrib)
-      (make_SymSxp_struct pname value internal)).
-
-Definition make_SExpRec_list attrib car cdr tag :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader ListSxp false attrib)
-      (make_ListSxp_struct car cdr tag)).
-
-Definition make_SExpRec_clo attrib formals body env :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp false attrib)
-      (make_CloSxp_struct formals body env)).
-
-Definition make_SExpRec_env attrib frame enclos (* hashtab *) :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader EnvSxp false attrib)
-      (make_EnvSxp_struct frame enclos)).
-
-Definition make_SExpRec_prom attrib value expr env :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader PromSxp false attrib)
-      (make_PromSxp_struct value expr env)).
-
-Definition make_SExpRec_lang attrib function argumentList :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader LangSxp false attrib)
-      (make_ListSxp_struct function argumentList None)).
-
-Definition make_SExpRec_prim attrib prim type :=
-  (** [type] is either [BuiltinSxp] or [SpecialSxp].
-    See function [mkPRIMSXP] in Rfeatures for more details. **)
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader type false attrib)
-      (make_PrimSxp_struct prim)).
-
-Definition make_SExpRec_char attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorChar
-    (make_Vector_SExpRec
-      (build_SExpRecHeader CharSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_lgl attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorLogical
-    (make_Vector_SExpRec
-      (build_SExpRecHeader LglSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_int attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorInteger
-    (make_Vector_SExpRec
-      (build_SExpRecHeader IntSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_real attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorReal
-    (make_Vector_SExpRec
-      (build_SExpRecHeader RealSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_cplx attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorComplex
-    (make_Vector_SExpRec
-      (build_SExpRecHeader CplxSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_str attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader StrSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_vec attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader VecSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
-Definition make_SExpRec_expr attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader ExprSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
-
 
 (** * Instances **)
 
 (** ** Comparable Instances **)
 
 Instance SExpType_Comparable : Comparable SExpType.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance SExpType_named_field : Comparable named_field.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance SExpRec_Inhab : Inhab SExpRec.
+Proof.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
             (make_SExpRecHeader
@@ -494,8 +387,7 @@ Instance SExpRec_Inhab : Inhab SExpRec.
 Defined.
 
 Instance SEXP_Comparable : Comparable SEXP.
-  prove_comparable_simple_inductive.
-Defined.
+Proof. prove_comparable_simple_inductive. Defined.
 
 Instance character_Inhab : Inhab character.
 Proof. apply prove_Inhab. repeat constructors. Qed.
@@ -507,8 +399,7 @@ Instance Rcomplex_Inhab : Inhab Rcomplex.
 Proof. apply prove_Inhab. repeat constructors. Qed.
 
 Instance Rcomplex_comparable : Comparable Rcomplex.
-  prove_comparable_simple_inductive.
-Defined.
+Proof. prove_comparable_simple_inductive. Defined.
 
 
 (** ** Ordering the [named_field] type **)
@@ -525,8 +416,7 @@ Instance named_field_Lt : Lt named_field :=
 
 Instance named_field_Lt_Decidable : forall n1 n2 : named_field,
     Decidable (n1 < n2).
-  introv. applys* Decidable_equiv (named_field_lt n1 n2). typeclass.
-Defined.
+Proof. introv. applys* Decidable_equiv (named_field_lt n1 n2). typeclass. Defined.
 
 Definition named_field_le n1 n2 :=
   decide (n1 = n2 \/ n1 < n2).
@@ -536,8 +426,7 @@ Instance named_field_Le : Le named_field :=
 
 Instance named_field_Le_Decidable : forall n1 n2 : named_field,
     Decidable (n1 <= n2).
-  introv. applys* Decidable_equiv (named_field_le n1 n2). typeclass.
-Defined.
+Proof. introv. applys* Decidable_equiv (named_field_le n1 n2). typeclass. Defined.
 
 Definition named_field_gt n1 n2 :=
   decide (n2 < n1).
@@ -547,8 +436,7 @@ Instance named_field_Gt : Gt named_field :=
 
 Instance named_field_Gt_Decidable : forall n1 n2 : named_field,
     Decidable (n1 > n2).
-  introv. applys* Decidable_equiv (named_field_gt n1 n2). typeclass.
-Defined.
+Proof. introv. applys* Decidable_equiv (named_field_gt n1 n2). typeclass. Defined.
 
 Definition named_field_ge n1 n2 :=
   decide (n1 = n2 \/ n1 > n2).
@@ -558,6 +446,4 @@ Instance named_field_Ge : Ge named_field :=
 
 Instance named_field_Ge_Decidable : forall n1 n2 : named_field,
     Decidable (n1 >= n2).
-  introv. applys* Decidable_equiv (named_field_ge n1 n2). typeclass.
-Defined.
-
+Proof. introv. applys* Decidable_equiv (named_field_ge n1 n2). typeclass. Defined.

@@ -42,8 +42,7 @@ Inductive enum_none_partial_partial2_full :=
   | enum_full.
 
 Instance enum_none_partial_partial2_full_Comparable : Comparable enum_none_partial_partial2_full.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 Definition do_attr (call op args env : SEXP) : result SEXP :=
   add%stack "do_attr" in

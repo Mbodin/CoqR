@@ -97,6 +97,7 @@ Proof. introv I1 I2 I3. destruct r; simpl; autos~. Qed.
 Definition convert_type_monad A B (r : result A) :
     aborting_result r ->
     result B.
+Proof.
   intros H. destruct r eqn: E; (solve [false~ H] || clear H);
   match type of E with _ = ?C =>
     let rec rep C :=

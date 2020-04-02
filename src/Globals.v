@@ -120,12 +120,10 @@ Inductive GlobalVariable :=
   .
 
 Definition all_GlobalVariables : list GlobalVariable.
-  list_all_constructors.
-Defined.
+Proof. list_all_constructors. Defined.
 
 Local Instance GlobalVariable_Comparable : Comparable GlobalVariable.
-  prove_comparable_trivial_inductive_faster.
-Defined.
+Proof. prove_comparable_trivial_inductive_faster. Defined.
 
 Definition Global_mapping : Type := GlobalVariable -> SEXP.
 
@@ -184,6 +182,7 @@ Notation "'{{' g 'with' L '}}'" :=
   Its computation is thus disabled by default. **)
 
 Definition flatten_Global_mapping (g : Global_mapping) : Global_mapping.
+Proof.
   let rec build_let l t :=
     match t with
     | @nil _ =>

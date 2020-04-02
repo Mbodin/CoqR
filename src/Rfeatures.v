@@ -52,8 +52,7 @@ Definition dummy_function name (_ : Globals) (_ : runs_type)
   unimplemented_function name.
 
 Local Instance funtab_cell_Inhab : Inhab funtab_cell.
-  apply prove_Inhab. constructors; try typeclass; constructors; typeclass.
-Defined.
+Proof. apply prove_Inhab. constructors; try typeclass; constructors; typeclass. Defined.
 
 Fixpoint runs max_step globals(*FIXME*) : runs_type :=
   match max_step with

@@ -18,7 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Export Monads Globals.
+Require Export Monads Globals RinternalsCons.
 
 (** * Global structure of the interpreter **)
 
