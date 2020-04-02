@@ -26,11 +26,6 @@ Require Import CDuplicate.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -74,7 +69,7 @@ Definition asS4 s (flag : bool) (complete : int) :=
         result_rskip in
     result_success s.
 
-Definition R_possible_dispatch (call op args rho : SEXP) (promisedArgs : bool) : result SEXP :=
+Definition R_possible_dispatch (call op args rho : SEXP) (promisedArgs : bool) : result_SEXP :=
   unimplemented_function "R_possible_dispatch".
 
 End Parameterised.

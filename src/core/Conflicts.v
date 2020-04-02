@@ -31,11 +31,6 @@ Require Import CDuplicate.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -168,11 +163,11 @@ Definition nthcdr s n :=
   allocated twice the same string, by looking through the already
   allocated strings. We do none of the above. **)
 (* FIXME: What is the difference between [intCHARSXP] and [CHARSXP]? *)
-Definition mkChar (str : string) : result SEXP :=
+Definition mkChar (str : string) : result_SEXP :=
   (* Note that values are not cached, in contrary to the original code. *)
   alloc_vector_char globals (ArrayList.from_list (string_to_list str)).
 
-Definition mkString (str : string) : result SEXP :=
+Definition mkString (str : string) : result_SEXP :=
   let%success c := mkChar str in
   alloc_vector_str globals (ArrayList.from_list [c]).
 
@@ -220,12 +215,12 @@ Definition BODY_EXPR e :=
 (** The function names of this section correspond to the function names
   in the file main/attrib.c. **)
 
-Definition R_data_class  (obj : SEXP)  (singleString : bool) : result SEXP :=
+Definition R_data_class  (obj : SEXP)  (singleString : bool) : result_SEXP :=
   add%stack "R_data_class" in
   result_not_implemented "R_data_class"
 .
 
-Definition R_data_class2 (obj : SEXP) : result SEXP :=
+Definition R_data_class2 (obj : SEXP) : result_SEXP :=
   add%stack "R_data_class2" in
   result_not_implemented "R_data_class2".
 

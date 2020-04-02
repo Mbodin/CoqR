@@ -27,11 +27,6 @@ Require Import FArray.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -380,7 +375,7 @@ Definition VectorSubset (x s call : SEXP) :=
   result_success result.
 
 
-Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
+Definition do_subset_dflt (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subset_dflt" in
   read%list args_car, args_cdr, _ := args in
   let cdrArgs := args_cdr in
@@ -597,7 +592,7 @@ Definition do_subset_dflt (call op args rho : SEXP) : result SEXP :=
       else result_skip in
     result_success ans.
 
-Definition do_subset (call op args rho : SEXP) : result SEXP :=
+Definition do_subset (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subset" in
   let%success (disp, ans) := R_DispatchOrEvalSP call op "[" args rho in
   if disp then
@@ -612,7 +607,7 @@ Definition do_subset (call op args rho : SEXP) : result SEXP :=
 
 
 
-Definition do_subset2_dflt (call op args rho : SEXP) : result SEXP :=
+Definition do_subset2_dflt (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subset2_dflt" in
   let%success drop := ExtractDropArg args in
 
@@ -799,7 +794,7 @@ Definition do_subset2_dflt (call op args rho : SEXP) : result SEXP :=
   in
   result_success ans.
 
-Definition do_subset2 (call op args rho : SEXP) : result SEXP :=
+Definition do_subset2 (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subset2" in
   let%success (disp, ans) := R_DispatchOrEvalSP call op "[[" args rho in
   if disp then
@@ -815,7 +810,7 @@ Definition do_subset2 (call op args rho : SEXP) : result SEXP :=
 
 
 
-Definition R_subset3_dflt (x input call : SEXP) : result SEXP :=
+Definition R_subset3_dflt (x input call : SEXP) : result_SEXP :=
   add%stack "R_subset3_dflt" in
   let%success input_translate := translateChar input in
   let slen := String.length input_translate in
@@ -824,7 +819,7 @@ Definition R_subset3_dflt (x input call : SEXP) : result SEXP :=
   let%success x_type := TYPEOF x in
   let%success x :=
   ifb x_s4 /\ x_type = S4Sxp then
-    let%success x := unimplemented_function "R_getS4DataSlot" : result SEXP in
+    let%success x := unimplemented_function "R_getS4DataSlot" : result_SEXP in
     ifb x = R_NilValue then
       result_error "$ operator not defined for this S4 class."
     else
@@ -937,7 +932,7 @@ Definition fixSubset3Args (call args env : SEXP) :=
   result_success args.
 
 
-Definition do_subset3 (call op args env : SEXP) : result SEXP :=
+Definition do_subset3 (call op args env : SEXP) : result_SEXP :=
   add%stack "do_subset3" in
   run%success Rf_checkArityCall globals runs op args call in
   let%success args := fixSubset3Args call args env in

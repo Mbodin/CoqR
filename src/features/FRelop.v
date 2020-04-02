@@ -25,11 +25,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -155,16 +150,16 @@ Definition numeric_relop code s1 s2 :=
       NUMERIC_RELOP_double id id code ans n n1 n2 (readREAL s1) (readREAL s2) ISNAN ISNAN in
   result_success ans.
 
-Definition string_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition string_relop (code : int) (s1 s2 : SEXP) : result_SEXP :=
   unimplemented_function "string_relop".
 
-Definition complex_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition complex_relop (code : int) (s1 s2 : SEXP) : result_SEXP :=
   unimplemented_function "complex_relop".
 
-Definition raw_relop (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition raw_relop (code : int) (s1 s2 : SEXP) : result_SEXP :=
   unimplemented_function "raw_relop".
 
-Definition do_relop_dflt (call op x y : SEXP) : result SEXP :=
+Definition do_relop_dflt (call op x y : SEXP) : result_SEXP :=
   add%stack "do_relop_dflt" in
   let%success op_val := PRIMVAL runs op in
   run%exit
@@ -382,7 +377,7 @@ Definition do_relop_dflt (call op x y : SEXP) : result SEXP :=
           else result_skip in
         result_success x.
 
-Definition do_relop (call op args env : SEXP) : result SEXP :=
+Definition do_relop (call op args env : SEXP) : result_SEXP :=
   add%stack "do_relop" in
   read%list args_car, args_cdr, _ := args in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr in

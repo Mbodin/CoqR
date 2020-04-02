@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -532,7 +527,7 @@ Definition RawAnswer x data call :=
   | _ => result_error "Unimplemented type."
   end.
 
-Definition do_c_dftl (call op args env : SEXP) : result SEXP :=
+Definition do_c_dftl (call op args env : SEXP) : result_SEXP :=
   add%stack "do_c_dftl" in
   let%success (ans, recurse, usenames) := c_Extract_opt args call in
   let data := make_BindData (@nat_to_nbits 10 0 ltac:(nbits_ok)) NULL 0 NULL 0 in
@@ -599,7 +594,7 @@ Definition do_c_dftl (call op args env : SEXP) : result SEXP :=
     else result_success data in
   result_success ans.
 
-Definition do_c (call op args env : SEXP) : result SEXP :=
+Definition do_c (call op args env : SEXP) : result_SEXP :=
   add%stack "do_c" in
   run%success Rf_checkArityCall globals runs op args call in
   let%success (disp, ans) :=

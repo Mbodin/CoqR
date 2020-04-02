@@ -35,11 +35,6 @@ Section Parameterised.
 
 (** Global Variables **)
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -51,7 +46,7 @@ Definition isRaw x :=
   let%success x_type := TYPEOF x in
   result_success (decide (x_type = RawSxp)).
 
-Definition binaryLogic code (s1 s2 : SEXP) : result SEXP :=
+Definition binaryLogic code (s1 s2 : SEXP) : result_SEXP :=
   add%stack "binaryLogic" in
   let%success n1 := XLENGTH s1 in
   let%success n2 := XLENGTH s2 in
@@ -106,7 +101,7 @@ Definition binaryLogic code (s1 s2 : SEXP) : result SEXP :=
   result_success ans.
 
 
-Definition binaryLogic2 (code : int) (s1 s2 : SEXP) : result SEXP :=
+Definition binaryLogic2 (code : int) (s1 s2 : SEXP) : result_SEXP :=
   add%stack "binaryLogic2" in
   let%success n1 := XLENGTH s1 in
   let%success n2 := XLENGTH s2 in
@@ -116,7 +111,7 @@ Definition binaryLogic2 (code : int) (s1 s2 : SEXP) : result SEXP :=
   else
     result_not_implemented "Raw vector read".
 
-Definition lunary (call op arg : SEXP) : result SEXP :=
+Definition lunary (call op arg : SEXP) : result_SEXP :=
   add%stack "lunary" in
 
   let%success arg_isLogical := isLogical arg in

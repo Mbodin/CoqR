@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -36,7 +31,7 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition do_missing (call op args rho : SEXP) : result SEXP :=
+Definition do_missing (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_missing" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -103,12 +98,12 @@ Definition do_missing (call op args rho : SEXP) : result SEXP :=
           result_success rval
     else result_error "It can only be used for arguments.".
 
-Definition do_get (call op args rho : SEXP) : result SEXP :=
+Definition do_get (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_get" in
   run%success Rf_checkArityCall globals runs op args call in
   unimplemented_function "do_get".
 
-Definition do_assign (call op args rho : SEXP) : result SEXP :=
+Definition do_assign (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_assign" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -148,17 +143,17 @@ Definition do_assign (call op args rho : SEXP) : result SEXP :=
             else defineVar globals runs name val aenv in
           result_success val.
 
-Definition do_emptyenv (call op args rho : SEXP) : result SEXP :=
+Definition do_emptyenv (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_emptyenv" in
   run%success Rf_checkArityCall globals runs op args call in
   result_success (R_EmptyEnv : SEXP).
 
-Definition do_baseenv (call op args rho : SEXP) : result SEXP :=
+Definition do_baseenv (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_baseenv" in
   run%success Rf_checkArityCall globals runs op args call in
   result_success (R_BaseEnv : SEXP).
 
-Definition do_globalenv (call op args rho : SEXP) : result SEXP :=
+Definition do_globalenv (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_globalenv" in
   run%success Rf_checkArityCall globals runs op args call in
   result_success (R_GlobalEnv : SEXP).

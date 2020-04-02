@@ -27,11 +27,6 @@ Require Import CDstruct.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -44,7 +39,7 @@ Definition mkSymMarker pname :=
   write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue in
   result_success ans.
 
-Definition install name_ : result SEXP :=
+Definition install name_ : result_SEXP :=
   add%stack "install" in
   (** As said in the description of [InitNames] in Rinit.v,
     the hash table present in [R_SymbolTable] has not been

@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -48,7 +43,7 @@ Definition isMatrix s :=
   else
     result_success false.
 
-Definition do_asCharacterFactor (call op args rho : SEXP) : result SEXP :=
+Definition do_asCharacterFactor (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_asCharacterfactor" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -57,14 +52,14 @@ Definition do_asCharacterFactor (call op args rho : SEXP) : result SEXP :=
   asCharacterFactor globals runs x
 .
 
-Definition do_typeof (call op args rho : SEXP) : result SEXP :=
+Definition do_typeof (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_typeof" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
   let%success t := TYPEOF args_car in
   type2rstr globals t.
 
-Definition do_is (call op args rho : SEXP) : result SEXP :=
+Definition do_is (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_is" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -218,7 +213,7 @@ Definition do_is (call op args rho : SEXP) : result SEXP :=
     else result_error "Unimplemented predicate." in
   result_success ans.
 
-Definition do_isna (call op args rho : SEXP) : result SEXP :=
+Definition do_isna (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_isna" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -319,7 +314,7 @@ Definition do_isna (call op args rho : SEXP) : result SEXP :=
     result_success ans.
 
 
-Definition do_isnan (call op args rho : SEXP) : result SEXP :=
+Definition do_isnan (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_isnan" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -362,7 +357,7 @@ Definition do_isnan (call op args rho : SEXP) : result SEXP :=
     run%success copyDimAndNames globals runs x ans in
     result_success ans.
 
-Definition do_isvector (call op args rho : SEXP) : result SEXP :=
+Definition do_isvector (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_isvector" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -403,7 +398,7 @@ Definition do_isvector (call op args rho : SEXP) : result SEXP :=
       else result_skip in
     result_success ans.
 
-Definition do_substitute (call op args rho : SEXP) : result SEXP :=
+Definition do_substitute (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_substitute" in
   (** argument matching **)
   let%success argList := matchArgs globals runs do_substitute_do_substitute_formals  args call in
@@ -443,7 +438,7 @@ Definition do_substitute (call op args rho : SEXP) : result SEXP :=
     result_success s_car
 .
 
-Definition do_quote (call op args rho : SEXP) : result SEXP :=
+Definition do_quote (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_quote" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in
@@ -506,7 +501,7 @@ Definition ascommon (call u : SEXP) type :=
       result_success v
     else result_error "Coercing error".
 
-Definition do_asatomic (call op args rho : SEXP) : result SEXP :=
+Definition do_asatomic (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_asatomic" in
   let type := StrSxp in
   let%success op0 := PRIMVAL runs op in

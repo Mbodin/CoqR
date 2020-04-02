@@ -28,11 +28,6 @@ Section Parameterised.
 
 (** Global Variables **)
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.

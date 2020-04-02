@@ -33,11 +33,6 @@ Require Import CDuplicate.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -468,11 +463,11 @@ Definition ddVal symbol :=
     unimplemented_function "strtol"
   else result_success 0.
 
-Definition ddfindVar (symbol rho : SEXP) : result SEXP :=
+Definition ddfindVar (symbol rho : SEXP) : result_SEXP :=
   unimplemented_function "ddfindVar".
 
 
-Definition findFun3 symbol rho (call : SEXP) : result SEXP :=
+Definition findFun3 symbol rho (call : SEXP) : result_SEXP :=
   add%stack "findFun3" in
   let%success rho :=
     if%success IS_SPECIAL_SYMBOL symbol then
@@ -510,7 +505,7 @@ Definition findFun3 symbol rho (call : SEXP) : result SEXP :=
   let%success str_symbol_ := CHAR str_symbol in
   result_error ("Could not find function “" ++ str_symbol_ ++ "”.").
 
-Definition findFun symbol rho : result SEXP :=
+Definition findFun symbol rho : result_SEXP :=
   add%stack "findFun" in
   let%success R_CurrentExpression := result_not_implemented "R_CurrentExpression" in
   findFun3 symbol rho R_CurrentExpression.

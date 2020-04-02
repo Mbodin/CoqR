@@ -33,15 +33,14 @@ Local Coercion int_to_double : Z >-> double.
 
 
 Definition CONS (car cdr : _SEXP) : result_SEXP :=
-  let e_ := make_SExpRec_list R_NilValue car cdr R_NilValue in
-  let%alloc e := e_ in
+  let%alloc%contextual e := make_SExpRec_list R_NilValue car cdr R_NilValue in
   result_success e.
 
 Definition CONS_NR := CONS.
 
-Fixpoint allocList_aux n p :=
+Fixpoint allocList_aux n (p : _SEXP) : result_SEXP :=
   match n with
-  | 0 => result_success p
+  | 0 => p
   | S n =>
     let%success p := allocList_aux n p in
     CONS R_NilValue p
@@ -50,7 +49,7 @@ Fixpoint allocList_aux n p :=
 Definition allocList (n : nat) : result_SEXP :=
   allocList_aux n R_NilValue.
 
-Definition SET_ATTRIB x v :=
+Definition SET_ATTRIB (x v : _SEXP) :=
   add%stack "SET_ATTRIB" in
   let%success v_type := TYPEOF v in
   ifb v_type <> ListSxp /\ v_type <> NilSxp then
@@ -68,7 +67,7 @@ Definition STRING_ELT (x : _SEXP) i : result_SEXP :=
     read%Pointer r := x at i in
     result_success r.
 
-Definition VECTOR_ELT x i :=
+Definition VECTOR_ELT x i : result_SEXP :=
   add%stack "VECTOR_ELT" in
   read%Pointer x_i := x at i in
   result_success x_i.
@@ -125,9 +124,9 @@ Definition SET_SYMVALUE x v :=
   This is a relatively frequent scheme in R source code. **)
 Definition NewEnvironment (namelist valuelist rho : _SEXP) : result_SEXP :=
   add%stack "NewEnvironment" in
-  let%alloc newrho := make_SExpRec_env R_NilValue valuelist rho in
+  let%alloc%contextual newrho := make_SExpRec_env R_NilValue valuelist rho in
   do%success (v, n) := (valuelist, namelist)
-  whileb v <> R_NilValue /\ n <> R_NilValue do
+  while (v '!= R_NilValue) '&& (n '!= R_NilValue) do
     read%list _, n_cdr, n_tag := n in
     set%tag v := n_tag in
     read%list _, v_cdr, _ := v in
@@ -138,10 +137,10 @@ Definition NewEnvironment (namelist valuelist rho : _SEXP) : result_SEXP :=
 Definition mkPromise (expr rho : _SEXP) : result_SEXP :=
   add%stack "mkPromise" in
   set%named expr := named_plural in
-  let%alloc s := make_SExpRec_prom R_NilValue R_UnboundValue expr rho in
+  let%alloc%contextual s := make_SExpRec_prom R_NilValue R_UnboundValue expr rho in
   result_success s.
 
-Definition R_mkEVPROMISE_NR expr val :=
+Definition R_mkEVPROMISE_NR expr val : result_SEXP :=
   add%stack "R_mkEVPROMISE_NR" in
   let%success prom := mkPromise expr R_NilValue in
   run%success SET_PRVALUE prom val in
@@ -149,12 +148,12 @@ Definition R_mkEVPROMISE_NR expr val :=
 
 (** The way this function has originally been defined is not
   implementable in Coq.  This is thus a loosy translation. **)
-Definition allocFormalsList l :=
+Definition allocFormalsList l : result_SEXP :=
   add%stack "allocFormalsList" in
   let%success res :=
-    fold_left (fun _ Sres =>
-        let%success res := Sres in
-        CONS R_NilValue res) (R_NilValue : result_SEXP) l in
+    fold_left (fun _ (Sres : result_SEXP) =>
+      let%success res := Sres in
+      CONS R_NilValue res) R_NilValue l in
   do%success n := res
   for sym in%list l do
     set%tag n := sym in
@@ -163,23 +162,23 @@ Definition allocFormalsList l :=
     result_success n_cdr in
   result_success res.
 
-Definition allocFormalsList2 sym1 sym2 :=
+Definition allocFormalsList2 sym1 sym2 : result_SEXP :=
   add%stack "allocFormalsList2" in
   allocFormalsList [sym1; sym2].
 
-Definition allocFormalsList3 sym1 sym2 sym3 :=
+Definition allocFormalsList3 sym1 sym2 sym3 : result_SEXP :=
   add%stack "allocFormalsList3" in
   allocFormalsList [sym1; sym2; sym3].
 
-Definition allocFormalsList4 sym1 sym2 sym3 sym4 :=
+Definition allocFormalsList4 sym1 sym2 sym3 sym4 : result_SEXP :=
   add%stack "allocFormalsList4" in
   allocFormalsList [sym1; sym2; sym3; sym4].
 
-Definition allocFormalsList5 sym1 sym2 sym3 sym4 sym5 :=
+Definition allocFormalsList5 sym1 sym2 sym3 sym4 sym5 : result_SEXP :=
   add%stack "allocFormalsList5" in
   allocFormalsList [sym1; sym2; sym3; sym4; sym5].
 
-Definition allocFormalsList6 sym1 sym2 sym3 sym4 sym5 sym6 :=
+Definition allocFormalsList6 sym1 sym2 sym3 sym4 sym5 sym6 : result_SEXP :=
   add%stack "allocFormalsList6" in
   allocFormalsList [sym1; sym2; sym3; sym4; sym5; sym6].
 

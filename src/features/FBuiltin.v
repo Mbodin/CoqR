@@ -27,11 +27,6 @@ Require Import FConnections.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -39,7 +34,7 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition do_body (call op args rho : SEXP) : result SEXP :=
+Definition do_body (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_body" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
@@ -53,7 +48,7 @@ Definition do_body (call op args rho : SEXP) : result SEXP :=
       (** A warning message has been left out **)
       result_success (R_NilValue : SEXP).
 
-Definition do_makelist (call op args rho : SEXP) : result SEXP :=
+Definition do_makelist (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_makelist" in
   fold%success (n, havenames) := (0, false)
   along args
@@ -110,7 +105,7 @@ Definition cat_cleanup con_num :=
   add%stack "cat_cleanup" in
   run_flush con_num.
 
-Definition do_cat (call op args rho : SEXP) : result SEXP :=
+Definition do_cat (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_cat" in
   run%success Rf_checkArityCall globals runs op args call in
   (* Call to [PrintDefaults] formalised out. *)
@@ -230,7 +225,7 @@ Definition do_cat (call op args rho : SEXP) : result SEXP :=
             run%success cat_cleanup ifile in
             result_success (R_NilValue : SEXP).
 
-Definition do_newenv (call op args rho : SEXP) : result SEXP :=
+Definition do_newenv (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_newenv" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -266,7 +261,7 @@ Definition do_newenv (call op args rho : SEXP) : result SEXP :=
         else NewEnvironment globals runs R_NilValue R_NilValue enclos in
       result_success ans.
 
-Definition do_parentenv (call op args rho : SEXP) : result SEXP :=
+Definition do_parentenv (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_parentenv" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
@@ -287,7 +282,7 @@ Definition do_parentenv (call op args rho : SEXP) : result SEXP :=
       read%env _, arg_env := arg in
       result_success (env_enclos arg_env).
 
-Definition do_parentenvgets (call op args rho : SEXP) : result SEXP :=
+Definition do_parentenvgets (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_parentenvgets" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -334,7 +329,7 @@ Definition do_parentenvgets (call op args rho : SEXP) : result SEXP :=
             run%success SET_ENCLOS env parent in
             result_success args_car.
 
-Definition do_envir (call op args rho : SEXP) : result SEXP :=
+Definition do_envir (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_envir" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
@@ -348,7 +343,7 @@ Definition do_envir (call op args rho : SEXP) : result SEXP :=
   else getAttrib globals runs args_car R_DotEnvSymbol.
 
 
-Definition do_makevector (call op args rho : SEXP) : result SEXP :=
+Definition do_makevector (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_makevector" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -411,7 +406,7 @@ Definition do_makevector (call op args rho : SEXP) : result SEXP :=
   else result_skip in
   result_success s.
 
-Definition do_delayed (call op args rho : SEXP) : result SEXP :=
+Definition do_delayed (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_delayed" in
   run%success Rf_checkArityCall globals runs op args call in
   let%success name :=

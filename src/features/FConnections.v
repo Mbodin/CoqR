@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -97,7 +92,7 @@ Definition run_flush n :=
 
 (** We now continue with functions translated from main/connections.c. **)
 
-Definition do_getconnection (call op args env : SEXP) : result SEXP :=
+Definition do_getconnection (call op args env : SEXP) : result_SEXP :=
   add%stack "do_getconnection" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in

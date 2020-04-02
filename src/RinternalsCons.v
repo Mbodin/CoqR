@@ -947,24 +947,24 @@ Notation "'set%gp' p 'with' v 'in' cont" :=
   (map%pointer p with set_gp v in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition set_attrib a e_ :=
+Definition set_attrib (a : _SEXP) e_ :=
   let%fetch a in
   contextual_ret (set_attrib_direct a e_).
 
 (** The following function enables to set the [attrib] field of
   objects from a pointer. **)
 Notation "'set%attrib' p ':=' a 'in' cont" :=
-  (map%pointer p with set_attrib a in cont)
+  (map%pointer%contextual p with set_attrib a in cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition set_obj b e_ :=
+Definition set_obj (b : _bool) e_ :=
   let%fetch b in
   contextual_ret (set_obj_direct b e_).
 
 (** The following function enables to set the [obj] field of
   objects from a pointer. **)
 Notation "'set%obj' p ':=' o 'in' cont" :=
-  (map%pointer p with set_obj o in cont)
+  (map%pointer%contextual p with set_obj o in cont)
   (at level 50, left associativity) : monad_scope.
 
 (** The following function enables to set the [named] field of

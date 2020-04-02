@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -36,10 +31,10 @@ Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition cross_colon (call s t : SEXP) : result SEXP :=
+Definition cross_colon (call s t : SEXP) : result_SEXP :=
   unimplemented_function "cross_colon".
 
-Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
+Definition seq_colon n1 n2 (call : SEXP) : result_SEXP :=
   add%stack "seq_colon" in
   let r := Double.fabs (Double.sub n2 n1) in
   ifb r >= (R_XLEN_T_MAX : double) then
@@ -83,7 +78,7 @@ Definition seq_colon n1 n2 (call : SEXP) : result SEXP :=
         result_success ans in
     result_success ans.
 
-Definition do_colon (call op args rho : SEXP) : result SEXP :=
+Definition do_colon (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_colon" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in

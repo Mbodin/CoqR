@@ -35,11 +35,6 @@ Section Parameterised.
 
 (** Global Variables **)
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -564,11 +559,11 @@ Definition VectorAssign (call rho x s y : SEXP) :=
     else result_skip
     in result_success x.
 
-Definition MatrixAssign (call rho x s y : SEXP) : result SEXP :=
+Definition MatrixAssign (call rho x s y : SEXP) : result_SEXP :=
   add%stack "MatrixAssign" in
     result_not_implemented "MatrixAssign".
 
-Definition ArrayAssign (call rho x s y : SEXP) : result SEXP :=
+Definition ArrayAssign (call rho x s y : SEXP) : result_SEXP :=
   add%stack "ArrayAssign" in
     result_not_implemented "ArrayAssign".
 

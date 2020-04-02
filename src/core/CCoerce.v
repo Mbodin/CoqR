@@ -36,11 +36,6 @@ Require Import CEnvir.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -294,10 +289,10 @@ Definition coerceSymbol v type :=
       result_success (R_NilValue : SEXP) in
   result_success rval.
 
-Definition PairToVectorList (x : SEXP) : result SEXP :=
+Definition PairToVectorList (x : SEXP) : result_SEXP :=
   unimplemented_function "PairToVectorList".
 
-Definition VectorToPairList (x : SEXP) : result SEXP :=
+Definition VectorToPairList (x : SEXP) : result_SEXP :=
   add%stack "VectorToPairList" in
   let%success len := R_length globals runs x in
 
@@ -470,7 +465,7 @@ Definition coercePairList v type :=
     else result_skip in
   result_success rval.
 
-Definition coerceVectorList (v : SEXP) (type : SExpType) : result SEXP :=
+Definition coerceVectorList (v : SEXP) (type : SExpType) : result_SEXP :=
   unimplemented_function "coerceVectorList".
 
 Definition StringFromLogical x :=
@@ -680,7 +675,7 @@ Definition coerceToComplex v :=
     end in
   result_success ans.
 
-Definition coerceToRaw (v : SEXP) : result SEXP :=
+Definition coerceToRaw (v : SEXP) : result_SEXP :=
   unimplemented_function "coerceToRaw".
 
 Definition coerceToString v :=
@@ -1019,7 +1014,7 @@ Definition copyDimAndNames x ans :=
   else result_skip.
 
 
-Definition substitute (lang rho : SEXP) : result SEXP :=
+Definition substitute (lang rho : SEXP) : result_SEXP :=
   add%stack "substitute" in
   let%success lang_type := TYPEOF lang in
   match lang_type with
@@ -1119,7 +1114,7 @@ Definition substituteList (el rho : SEXP) :=
     using runs in
   result_success res.
 
-Definition asCharacterFactor (x : SEXP) : result SEXP :=
+Definition asCharacterFactor (x : SEXP) : result_SEXP :=
   add%stack "asCharacterfactor" in
   let%success x_inherits := inherits2 globals runs x "factor" in
   if negb x_inherits then

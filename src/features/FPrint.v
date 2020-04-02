@@ -24,17 +24,12 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
-Definition do_invisible (call op args env : SEXP) : result SEXP :=
+Definition do_invisible (call op args env : SEXP) : result_SEXP :=
   add%stack "do_invisible" in
   let%success args_length := R_length globals runs args in
   match args_length with

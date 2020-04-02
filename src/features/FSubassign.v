@@ -26,11 +26,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition R_DispatchOrEvalSP call op generic args rho :=
@@ -58,7 +53,7 @@ Definition R_DispatchOrEvalSP call op generic args rho :=
     else result_skip in
     result_success (disp, ans).
 
-Definition do_subassign_dflt (call op args rho : SEXP) : result SEXP :=
+Definition do_subassign_dflt (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subassign_dflt" in
   let%success (nsubs, x, subs, y) := SubAssignArgs globals runs args in
   fold%success
@@ -153,7 +148,7 @@ Definition do_subassign_dflt (call op args rho : SEXP) : result SEXP :=
   in
   result_success x.
 
-Definition do_subassign (call op args rho : SEXP) : result SEXP :=
+Definition do_subassign (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_subassign" in
   let%success (disp, ans) := R_DispatchOrEvalSP call op "[<-" args rho in
   if disp then

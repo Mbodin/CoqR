@@ -26,18 +26,13 @@ Require Import CRinternals.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition mkPRIMSXP (offset : nat) (type : bool) : result SEXP :=
+Definition mkPRIMSXP (offset : nat) (type : bool) : result_SEXP :=
   add%stack "mkPRIMSXP" in
   let type := if type then BuiltinSxp else SpecialSxp in
   let%success R_FunTab := get_R_FunTab runs in

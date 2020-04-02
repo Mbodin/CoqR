@@ -34,11 +34,6 @@ Section Parameterised.
 
 (** Global Variables **)
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -183,12 +178,12 @@ Definition get1index (s names : SEXP) (len pok pos : int) (call : SEXP) : result
   in
   result_success indx.
 
-Definition vectorIndex (x thesub : SEXP) (start stop : int) (pok : bool) (call : SEXP) (dup : bool) : result SEXP :=
+Definition vectorIndex (x thesub : SEXP) (start stop : int) (pok : bool) (call : SEXP) (dup : bool) : result_SEXP :=
   add%stack "vectorIndex" in
   result_not_implemented "vectorIndex".
 
 
-Definition logicalSubscript (s : SEXP) (ns nx : nat) (stretch : nat) (call : SEXP) : result SEXP :=
+Definition logicalSubscript (s : SEXP) (ns nx : nat) (stretch : nat) (call : SEXP) : result_SEXP :=
   add%stack "logicalSubscript" in
   result_not_implemented "logicalSubscript".
 

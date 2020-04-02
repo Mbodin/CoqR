@@ -26,11 +26,6 @@ Require Import FSign.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -93,7 +88,7 @@ Definition R_integer_divide x y :=
   ifb x = NA_INTEGER \/ y = NA_INTEGER then NA_REAL
   else Double.div (x : double) (y : double).
 
-Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
+Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result_SEXP :=
   add%stack "integer_binary" in
   let%success n1 := XLENGTH s1 in
   let%success n2 := XLENGTH s2 in
@@ -221,7 +216,7 @@ Definition integer_binary (code : int) (s1 s2 lcall : SEXP) : result SEXP :=
         else result_skip in
       result_success ans.
 
-Definition real_binary (code : int) s1 s2 : result SEXP :=
+Definition real_binary (code : int) s1 s2 : result_SEXP :=
   add%stack "real_binary" in
   let%success n1 := XLENGTH s1 in
   let%success n2 := XLENGTH s2 in
@@ -529,7 +524,7 @@ Definition FIXUP_NULL_AND_CHECK_TYPES v :=
     result_error "Non-numeric argument to binary operator."
   end.
 
-Definition R_binary (call op x y : SEXP) : result SEXP :=
+Definition R_binary (call op x y : SEXP) : result_SEXP :=
   add%stack "R_binary" in
   let%success oper := PRIMVAL runs op in
   let%success x := FIXUP_NULL_AND_CHECK_TYPES x in
@@ -752,7 +747,7 @@ Definition real_unary (code : int) s1 :=
     result_success ans
   else result_error "Invalid unary operator.".
 
-Definition R_unary (call op s1 : SEXP) : result SEXP :=
+Definition R_unary (call op s1 : SEXP) : result_SEXP :=
   add%stack "R_unary" in
   let%success operation := PRIMVAL runs op in
   let%success s1_type := TYPEOF s1 in
@@ -764,7 +759,7 @@ Definition R_unary (call op s1 : SEXP) : result SEXP :=
   | _ => result_error "Invalid argument to unary operator."
   end.
 
-Definition do_arith (call op args env : SEXP) : result SEXP :=
+Definition do_arith (call op args env : SEXP) : result_SEXP :=
   add%stack "do_arith" in
   read%list args_car, args_cdr, _ := args in
   read%list args_cdr_car, args_cdr_cdr, _ := args_cdr in
@@ -910,7 +905,7 @@ Definition math1 sa f (lcall : SEXP) :=
       else result_skip in
     result_success sy.
 
-Definition do_math1 (call op args env : SEXP) : result SEXP :=
+Definition do_math1 (call op args env : SEXP) : result_SEXP :=
   add%stack "do_math1" in
   run%success Rf_checkArityCall globals runs op args call in
   run%success Rf_check1arg globals args call "x" in

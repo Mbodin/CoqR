@@ -25,11 +25,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -95,7 +90,7 @@ Definition SET_TEMPVARLOC_FROM_CAR loc lhs :=
     result_skip in
   R_SetVarLocValue globals runs loc v.
 
-Definition applydefine (call op args rho : SEXP) : result SEXP :=
+Definition applydefine (call op args rho : SEXP) : result_SEXP :=
   add%stack "applydefine" in
   read%list args_car, args_cdr, _ := args in
   let expr := args_car in
@@ -203,7 +198,7 @@ Definition applydefine (call op args rho : SEXP) : result SEXP :=
     run%success INCREMENT_NAMED saverhs in
     result_success saverhs.
 
-Definition do_set (call op args rho : SEXP) : result SEXP :=
+Definition do_set (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_set" in
   let%success op_val := PRIMVAL runs op in
   let wrong :=
@@ -241,7 +236,7 @@ Definition do_set (call op args rho : SEXP) : result SEXP :=
     | _ => result_error "Invalid left-hand side to assignment."
     end.
 
-Definition do_function (call op args rho : SEXP) : result SEXP :=
+Definition do_function (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_function" in
   let%success op :=
     let%success op_type := TYPEOF op in
@@ -270,7 +265,7 @@ Definition do_function (call op args rho : SEXP) : result SEXP :=
       else result_skip in
     result_success rval.
 
-Definition do_break (call op args rho : SEXP) : result SEXP :=
+Definition do_break (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_break" in
   run%success Rf_checkArityCall globals runs op args call in
   let%success op_val := PRIMVAL runs op in
@@ -279,13 +274,13 @@ Definition do_break (call op args rho : SEXP) : result SEXP :=
   | Some c => findcontext globals runs _ c rho R_NilValue
   end.
 
-Definition do_paren (call op args rho : SEXP) : result SEXP :=
+Definition do_paren (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_paren" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
   result_success args_car.
 
-Definition getBlockSrcrefs call : result SEXP :=
+Definition getBlockSrcrefs call : result_SEXP :=
   add%stack "getBlockSrcrefs" in
   let%success srcrefs := getAttrib globals runs call R_SrcrefSymbol in
   let%success srcrefs_type := TYPEOF srcrefs in
@@ -293,7 +288,7 @@ Definition getBlockSrcrefs call : result SEXP :=
     result_success srcrefs
   else result_success (R_NilValue : SEXP).
 
-Definition do_begin (call op args rho : SEXP) : result SEXP :=
+Definition do_begin (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_begin" in
   ifb args <> R_NilValue then
     let%success srcrefs := getBlockSrcrefs call in
@@ -305,7 +300,7 @@ Definition do_begin (call op args rho : SEXP) : result SEXP :=
     result_success s
   else result_success (R_NilValue : SEXP).
 
-Definition do_return (call op args rho : SEXP) : result SEXP :=
+Definition do_return (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_return" in
   let%success v :=
     ifb args = R_NilValue then
@@ -339,7 +334,7 @@ Definition ALLOC_LOOP_VAR v val_type :=
     in
     result_success v.
 
-Definition do_if (call op args rho : SEXP) : result SEXP :=
+Definition do_if (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_if" in
   read%list args_car, args_cdr, _ := args in
   let%success Cond := eval globals runs args_car rho in
@@ -358,7 +353,7 @@ Definition do_if (call op args rho : SEXP) : result SEXP :=
     result_success Stmt
   else eval globals runs Stmt rho.
 
-Definition do_while (call op args rho : SEXP) : result SEXP :=
+Definition do_while (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_while" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list _, args_cdr, _ := args in
@@ -383,7 +378,7 @@ Definition do_while (call op args rho : SEXP) : result SEXP :=
   result_success (R_NilValue : SEXP).
 
 
-Definition do_for (call op args rho : SEXP) : result SEXP :=
+Definition do_for (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_for" in
     run%success Rf_checkArityCall globals runs op args call in
     read%list args_car, args_cdr, _ := args in
@@ -492,7 +487,7 @@ Definition do_for (call op args rho : SEXP) : result SEXP :=
     in
     for_break.
 
-Definition do_repeat (call op args rho : SEXP) : result SEXP :=
+Definition do_repeat (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_repeat" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
@@ -509,7 +504,7 @@ Definition do_repeat (call op args rho : SEXP) : result SEXP :=
   run%success endcontext globals runs cntxt in
   result_success (R_NilValue : SEXP).
 
-Definition do_eval (call op args rho : SEXP) : result SEXP :=
+Definition do_eval (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_eval" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, args_cdr, _ := args in
@@ -605,7 +600,7 @@ Definition do_eval (call op args rho : SEXP) : result SEXP :=
     else result_success expr in
   result_success expr.
 
-Definition R_forceAndCall (e : SEXP) (n : int) (rho : SEXP) : result SEXP :=
+Definition R_forceAndCall (e : SEXP) (n : int) (rho : SEXP) : result_SEXP :=
   add%stack "R_forceAndCall" in
   read%list e_car, e_cdr, _ := e in
   let%success fun_ :=
@@ -661,7 +656,7 @@ Definition R_forceAndCall (e : SEXP) (n : int) (rho : SEXP) : result SEXP :=
     else result_error "attempt to apply non-function" in
   result_success tmp.
 
-Definition do_forceAndCall (call op args rho : SEXP) : result SEXP :=
+Definition do_forceAndCall (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_forceAndCall" in
   read%list _, call_cdr, _ := call in
   read%list call_cadr, e, _ := call_cdr in

@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -44,7 +39,7 @@ Inductive enum_none_partial_partial2_full :=
 Instance enum_none_partial_partial2_full_Comparable : Comparable enum_none_partial_partial2_full.
 Proof. prove_comparable_trivial_inductive. Defined.
 
-Definition do_attr (call op args env : SEXP) : result SEXP :=
+Definition do_attr (call op args env : SEXP) : result_SEXP :=
   add%stack "do_attr" in
   (** The initialisation of [do_attr_formals] is done in [do_attr_init] in Rinit. **)
   let%success nargs := R_length globals runs args in
@@ -128,7 +123,7 @@ Definition do_attr (call op args env : SEXP) : result SEXP :=
 (* attr(obj, which = "<name>")  <-  value    (op == 0)  and
         obj @ <name>            <-  value    (op == 1)
 *)
-Definition do_attrgets (call op args env : SEXP) : result SEXP :=
+Definition do_attrgets (call op args env : SEXP) : result_SEXP :=
   add%stack "do_attrgets" in
   run%success Rf_checkArityCall globals runs op args call in
 

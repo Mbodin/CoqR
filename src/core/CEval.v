@@ -35,11 +35,6 @@ Require Import CDuplicate.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -131,7 +126,7 @@ Definition assignCall op symbol vfun val args rhs :=
   let%success val := replaceCall vfun val args rhs in
   lang3 globals op symbol val.
 
-Definition forcePromise (e : SEXP) : result SEXP :=
+Definition forcePromise (e : SEXP) : result_SEXP :=
   add%stack "forcePromise" in
   read%prom _, e_prom := e in
   ifb prom_value e_prom = R_UnboundValue then
@@ -164,7 +159,7 @@ Definition forcePromise (e : SEXP) : result SEXP :=
   else result_success (prom_value e_prom).
 
 Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
-    : result SEXP :=
+    : result_SEXP :=
   add%stack "R_execClosure" in
   let%success cntxt :=
     begincontext globals Ctxt_Return call newrho sysparent arglist op in
@@ -193,7 +188,7 @@ Definition R_execClosure (call newrho sysparent rho arglist op : SEXP)
   run%success endcontext globals runs cntxt in
   result_success (context_returnValue cntxt).
 
-Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP :=
+Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result_SEXP :=
   add%stack "applyClosure" in
   ifb rho = NULL then
     result_error "‘rho’ can’t be C NULL."
@@ -234,7 +229,7 @@ Definition applyClosure (call op arglist rho suppliedvars : SEXP) : result SEXP 
           rho arglist op in
       result_success val.
 
-Definition promiseArgs (el rho : SEXP) : result SEXP :=
+Definition promiseArgs (el rho : SEXP) : result_SEXP :=
   add%stack "promiseArgs" in
   let%success tail := CONS globals R_NilValue R_NilValue in
   fold%success (ans, tail) := (tail, tail)
@@ -376,7 +371,7 @@ Definition evalList (el rho call : SEXP) n :=
   using runs in
   result_success head.
 
-Definition evalListKeepMissing (el rho : SEXP) : result SEXP :=
+Definition evalListKeepMissing (el rho : SEXP) : result_SEXP :=
   add%stack "evalListKeepMissing" in
   fold%success (head, tail) := (R_NilValue : SEXP, R_NilValue : SEXP)
   along el
@@ -725,7 +720,7 @@ Definition evalseq expr rho (forcelocal : bool) tmploc :=
     result_success r
   else result_error "Target of assignment expands to non-language object.".
 
-Definition GET_BINDING_CELL (symbol rho : SEXP) : result SEXP :=
+Definition GET_BINDING_CELL (symbol rho : SEXP) : result_SEXP :=
   add%stack "GET_BINDING_CELL" in
   ifb rho = R_BaseEnv \/ rho = R_BaseNamespace then
     result_success (R_NilValue : SEXP)

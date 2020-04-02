@@ -147,6 +147,10 @@ Infix "'==" := contextual_eq_SEXP (at level 70, no associativity).
 
 Notation "a '!= b" := ('~ (a '== b)) (at level 70, no associativity).
 
+Notation "'ifc' b 'then' v1 'else' v2" :=
+  (let%contextual x := b in if x then v1 else v2)
+  (at level 200, right associativity) : type_scope.
+
 
 (** This monadic binder enables to fetch a contextual value. **)
 Definition get_contextual A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
@@ -159,21 +163,41 @@ Notation "'let%fetch' a 'in' cont" :=
 
 (** Functions delaying contextual elements. **)
 
-Definition contextual_left A B (p : contextual A * B) : contextual (A * B) :=
-  let (e, b) := p in
-  let%contextual a := e in
+Definition contextual_pair A B (p : contextual A * contextual B) : contextual (A * B) :=
+  let (a, b) := p in
+  let%fetch a in
+  let%fetch b in
   contextual_ret (a, b).
+
+Definition contextual_left A B (p : contextual A * B) : contextual (A * B) :=
+  let (a, b) := p in
+  contextual_pair (a, contextual_ret b).
 
 Definition contextual_right A B (p : A * contextual B) : contextual (A * B) :=
-  let (a, e) := p in
-  let%contextual b := e in
-  contextual_ret (a, b).
+  let (a, b) := p in
+  contextual_pair (contextual_ret a, b).
 
 Definition contextual_list A : list (contextual A) -> contextual (list A) :=
-  fold_left (fun a e =>
-    let%contextual a := a in
-    let%contextual l := e in
+  fold_left (fun a l =>
+    let%fetch a in
+    let%fetch l in
     contextual_ret (a :: l)) (contextual_ret nil).
+
+Definition contextual_tuple2 := contextual_pair.
+Definition contextual_tuple3 A B C (p : contextual A * contextual B * contextual C)
+    : contextual (A * B * C) :=
+  contextual_pair (contextual_pair (fst p), snd p).
+Definition contextual_tuple4 A B C D (p : contextual A * contextual B * contextual C * contextual D)
+    : contextual (A * B * C * D) :=
+  contextual_pair (contextual_tuple3 (fst p), snd p).
+Definition contextual_tuple5 A B C D E
+    (p : contextual A * contextual B * contextual C * contextual D * contextual E)
+    : contextual (A * B * C * D * E) :=
+  contextual_pair (contextual_tuple4 (fst p), snd p).
+Definition contextual_tuple6 A B C D E F
+    (p : contextual A * contextual B * contextual C * contextual D * contextual E * contextual F)
+    : contextual (A * B * C * D * E * F) :=
+  contextual_pair (contextual_tuple5 (fst p), snd p).
 
 
 (** ** Manipulating global variables. **)
@@ -480,6 +504,15 @@ Definition let_alloc A p_ cont : contextual A :=
 (** Allocates a new memory cell. **)
 Notation "'let%alloc' p ':=' p_ 'in' cont" :=
   (let_alloc p_ (fun p => cont))
+  (at level 50, left associativity) : monad_scope.
+
+Definition let_alloc_contextual A p_ cont : contextual A :=
+  let%fetch p_ in
+  let%alloc p := p_ in
+  cont p.
+
+Notation "'let%alloc%contextual' p ':=' p_ 'in' cont" :=
+  (let_alloc_contextual p_ (fun p => cont))
   (at level 50, left associativity) : monad_scope.
 
 

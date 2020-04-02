@@ -24,18 +24,13 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition do_internal (call op args env : SEXP) : result SEXP :=
+Definition do_internal (call op args env : SEXP) : result_SEXP :=
   add%stack "do_internal" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in
@@ -89,7 +84,7 @@ Definition R_Primitive primname :=
   let%success R_FunTab := get_R_FunTab runs in
   R_Primitive_loop R_FunTab primname (ArrayList.length R_FunTab).
 
-Definition do_primitive (call op args env : SEXP) : result SEXP :=
+Definition do_primitive (call op args env : SEXP) : result_SEXP :=
   add%stack "do_primitive" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in

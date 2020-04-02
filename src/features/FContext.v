@@ -24,11 +24,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -47,7 +42,7 @@ Fixpoint do_parentframe_loop cptr t (n : int) :=
     else do_parentframe_loop cptr_nextcontext t n
   end.
 
-Definition do_parentframe (call op args rho : SEXP) : result SEXP :=
+Definition do_parentframe (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_parentframe" in
   run%success Rf_checkArityCall globals runs op args call in
   read%list args_car, _, _ := args in

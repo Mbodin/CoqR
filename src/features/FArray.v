@@ -25,11 +25,6 @@ Require Import FUtil.
 
 Section Parameters.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Local Coercion Pos.to_nat : positive >-> nat.
@@ -222,7 +217,7 @@ Definition copyMatrix (s t : SEXP) byrow :=
     copyVector s t.
 
 
-Definition do_matrix (call op args rho : SEXP) : result SEXP :=
+Definition do_matrix (call op args rho : SEXP) : result_SEXP :=
   add%stack "do_matrix" in
   let nr := 1%Z in
   let nc := 1%Z in
@@ -387,7 +382,7 @@ Definition do_matrix (call op args rho : SEXP) : result SEXP :=
     in
     result_success ans.
 
-Definition do_length (call op args env : SEXP) : result SEXP :=
+Definition do_length (call op args env : SEXP) : result_SEXP :=
   add%stack "do_length" in
     run%success Rf_checkArityCall globals runs op args call in
     run%success Rf_check1arg globals args call "x" in

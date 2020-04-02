@@ -26,11 +26,6 @@ Require Import CMemory.
 
 Section Parameterised.
 
-Variable globals : Globals.
-
-Let read_globals := read_globals globals.
-Local Coercion read_globals : GlobalVariable >-> SEXP.
-
 Variable runs : runs_type.
 
 Definition int_to_double := Double.int_to_double : int -> double.
@@ -44,108 +39,112 @@ Local Coercion int_to_double : Z >-> double.
   below are thus slightly different from their C counterparts.  The
   [repeat] function of Coq can be used to initialise their data. **)
 
-Definition alloc_vector_char v_data : result SEXP :=
-  let%alloc r := make_SExpRec_char R_NilValue v_data in
+Definition alloc_vector_char v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_char R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_lgl v_data : result SEXP :=
-  let%alloc r := make_SExpRec_lgl R_NilValue v_data in
+Definition alloc_vector_lgl v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_lgl R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_int v_data : result SEXP :=
-  let%alloc r := make_SExpRec_int R_NilValue v_data in
+Definition alloc_vector_int v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_int R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_real v_data : result SEXP :=
-  let%alloc r := make_SExpRec_real R_NilValue v_data in
+Definition alloc_vector_real v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_real R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_cplx v_data : result SEXP :=
-  let%alloc r := make_SExpRec_cplx R_NilValue v_data in
+Definition alloc_vector_cplx v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_cplx R_NilValue v_data in
   result_success r.
 
 (** The following allocators uses pointers. Note that the original
   [allocVector] function initialises them to [R_NilValue] (and not
   [NULL], for instance) by default. **)
 
-Definition alloc_vector_str v_data : result SEXP :=
-  let%alloc r := make_SExpRec_str R_NilValue v_data in
+Definition alloc_vector_str v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_str R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_vec v_data : result SEXP :=
-  let%alloc r := make_SExpRec_vec R_NilValue v_data in
+Definition alloc_vector_vec v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_vec R_NilValue v_data in
   result_success r.
 
-Definition alloc_vector_expr v_data : result SEXP :=
-  let%alloc r := make_SExpRec_expr R_NilValue v_data in
+Definition alloc_vector_expr v_data : result_SEXP :=
+  let%alloc%contextual r := make_SExpRec_expr R_NilValue v_data in
   result_success r.
 
 (** We however propose the following smart constructor, based on
   [allocVector]/[allocVector3] from main/memory.c. **)
 (** Note: using [arbitrary] would here be more natural than these default values
   for the base cases, but it would not behave well in the extraction. **)
-Definition allocVector type (length : nat) :=
+Definition allocVector type (length : nat) : result_SEXP :=
   add%stack "allocVector" in
   ifb (length : int) > R_XLEN_T_MAX then
     result_error "Vector is too large"
   else
-    let alloc {T} (allocator : ArrayList.array T -> result SEXP) (base : T) :=
+    let alloc {T} (allocator : ArrayList.array T -> result_SEXP) (base : T) :=
       allocator (ArrayList.from_list (repeat base length)) in
+    let alloc_SEXP allocator (base : _SEXP) :=
+      let%fetch base in
+      alloc allocator base in
     match type with
     | NilSxp =>
-      result_success (R_NilValue : SEXP)
+      (R_NilValue : result_SEXP)
     | RawSxp =>
       result_not_implemented "Raw type."
     | CharSxp =>
       alloc alloc_vector_char Ascii.zero
     | LglSxp =>
-      alloc alloc_vector_lgl (NA_LOGICAL)
+      alloc alloc_vector_lgl NA_LOGICAL
     | IntSxp =>
-      alloc alloc_vector_int (NA_INTEGER)
+      alloc alloc_vector_int NA_INTEGER
     | RealSxp =>
-      alloc alloc_vector_real (NA_REAL)
+      alloc alloc_vector_real NA_REAL
     | CplxSxp =>
       alloc alloc_vector_cplx (make_Rcomplex NA_REAL NA_REAL)
     | StrSxp =>
-      alloc alloc_vector_str (R_NilValue : SEXP)
+      alloc_SEXP alloc_vector_str R_NilValue
     | ExprSxp =>
-      alloc alloc_vector_expr (R_NilValue : SEXP)
+      alloc_SEXP alloc_vector_expr R_NilValue
     | VecSxp =>
-      alloc alloc_vector_vec (R_NilValue : SEXP)
+      alloc_SEXP alloc_vector_vec R_NilValue
     | LangSxp =>
-      ifb length = 0 then result_success (R_NilValue : SEXP)
+      ifb length = 0 then (R_NilValue : result_SEXP)
       else
-        let%success s := allocList globals length in
+        let%success s := allocList length in
         set%type s := LangSxp in
         result_success s
     | ListSxp =>
-      let%success s := allocList globals length in
+      let%success s := allocList length in
       result_success s
     | _ => result_error "Invalid type in vector allocation."
     end.
 
-Definition ScalarLogical x : SEXP :=
+Definition ScalarLogical x : _SEXP :=
   ifb x = NA_LOGICAL then
     R_LogicalNAValue
   else ifb x <> 0 then
     R_TrueValue
   else R_FalseValue.
 
-Definition ScalarInteger x : result SEXP :=
+Definition ScalarInteger x : result_SEXP :=
   alloc_vector_int (ArrayList.from_list [x]).
 
-Definition ScalarReal x : result SEXP :=
+Definition ScalarReal x : result_SEXP :=
   alloc_vector_real (ArrayList.from_list [x]).
 
-Definition ScalarComplex x : result SEXP :=
+Definition ScalarComplex x : result_SEXP :=
   alloc_vector_cplx (ArrayList.from_list [x]).
 
-Definition ScalarString (x : SEXP) : result SEXP :=
+Definition ScalarString (x : _SEXP) : result_SEXP :=
   add%stack "ScalarString" in
   let%success x_type := TYPEOF x in
   ifb x_type <> CharSxp then
     result_error "The given argument is not of type ‘CharSxp’."
   else
+    let%fetch x in
     let%success s := alloc_vector_str (ArrayList.from_list [x]) in
     result_success s.
 
@@ -176,7 +175,7 @@ Definition isVectorList s :=
 (** The following function is actually from main/altrep.c. It has been
   placed here to solve a circular file dependency. **)
 
-Definition ALTREP_LENGTH (x : SEXP) : result nat :=
+Definition ALTREP_LENGTH (x : _SEXP) : result nat :=
   unimplemented_function "ALTREP_LENGTH".
 
 Definition XLENGTH_EX x :=
@@ -187,9 +186,9 @@ Definition XLENGTH_EX x :=
 
 Definition XLENGTH := XLENGTH_EX.
 
-Definition LENGTH_EX (x : SEXP) :=
+Definition LENGTH_EX (x : _SEXP) :=
   add%stack "LENGTH_EX" in
-  ifb x = R_NilValue then
+  ifc x '== R_NilValue then
     result_success 0
   else XLENGTH x.
 
@@ -214,8 +213,8 @@ Definition xlength s :=
   | ListSxp
   | LangSxp
   | DotSxp =>
-    do%success (s, i) := (s, 0)
-    whileb s <> NULL /\ s <> R_NilValue do
+    do%success (s, i) := (s, contextual_ret 0)
+    while (s '!= NULL) '&& (s '!= R_NilValue) do
       read%list _, s_cdr, _ := s in
       result_success (s_cdr, 1 + i) using runs in
     result_success i
@@ -224,6 +223,7 @@ Definition xlength s :=
   | _ =>
     result_success 1
   end.
+
 (** Named [length] in the C source file. **)
 Definition R_length s :=
   add%stack "R_length" in
@@ -245,8 +245,8 @@ Definition R_length s :=
   | ListSxp
   | LangSxp
   | DotSxp =>
-    do%success (s, i) := (s, 0)
-    whileb s <> NULL /\ s <> R_NilValue do
+    do%success (s, i) := (s, contextual_ret 0)
+    while (s '!= NULL) '&& (s '!= R_NilValue) do
       read%list _, s_cdr, _ := s in
       result_success (s_cdr, 1 + i) using runs in
     result_success i
@@ -457,7 +457,7 @@ Definition LOGICAL_ELT x i :=
     read%Logical x_i := x at i in
     result_success x_i.
 
-Definition ALTINTEGER_ELT (x : SEXP) (i : nat) : result int :=
+Definition ALTINTEGER_ELT (x : _SEXP) (i : nat) : result int :=
   unimplemented_function "ALTINTEGER_ELT".
 
 Definition INTEGER_ELT x i :=
@@ -468,7 +468,7 @@ Definition INTEGER_ELT x i :=
     read%Integer x_i := x at i in
     result_success x_i.
 
-Definition ALTREAL_ELT (x : SEXP) (i : nat) : result double :=
+Definition ALTREAL_ELT (x : _SEXP) (i : nat) : result double :=
   unimplemented_function "ALTREAL_ELT".
 
 Definition REAL_ELT x i :=
@@ -479,7 +479,7 @@ Definition REAL_ELT x i :=
     read%Real x_i := x at i in
     result_success x_i.
 
-Definition ALTCOMPLEX_ELT (x : SEXP) (i : nat) : result Rcomplex :=
+Definition ALTCOMPLEX_ELT (x : _SEXP) (i : nat) : result Rcomplex :=
   unimplemented_function "ALTCOMPLEX_ELT".
 
 Definition COMPLEX_ELT x i :=
@@ -506,7 +506,7 @@ Definition RAW_ELT x i :=
 (** The following function is actually from main/altrep.c. It has been
   placed here to solve a circular file dependency. **)
 
-Definition ALTREP_TRUELENGTH (x : SEXP) :=
+Definition ALTREP_TRUELENGTH (x : _SEXP) :=
   add%stack "ALTREP_TRUELENGTH" in
   result_success 0.
 
