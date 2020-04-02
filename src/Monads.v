@@ -73,18 +73,6 @@ Notation "'read%state' a ':=' f 'in' cont" :=
 Definition contextual_result A : contextual A -> result A :=
   fun e globals S => result_success (e globals S) globals S.
 
-(** The bind operation of the monad. **)
-Definition contextual_bind A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
-  fun globals S => cont (e globals S) globals S.
-
-(** The return operation of the monad. **)
-Definition contextual_ret A (a : A) : contextual A :=
-  fun _ _ => a.
-
-Notation "'let%contextual' a ':=' e 'in' cont" :=
-  (contextual_bind e (fun a => cont))
-  (at level 50, left associativity) : monad_scope.
-
 (** [_SEXP] can be built from [SEXP] or from any global variable.
   These coercions will be used all the time accross the formalisation. **)
 Definition SEXP_SEXP : SEXP -> _SEXP := @contextual_ret _.
@@ -209,12 +197,19 @@ Notation "'set%globals' globals 'in' cont" :=
   (set_globals globals cont)
   (at level 50, left associativity) : monad_scope.
 
+Definition map_globals A f (cont : result A) : result A :=
+  get%globals globals in
+  set%globals f globals in
+  cont.
+
+Notation "'map%globals' f 'in' cont" :=
+  (map_globals f cont)
+  (at level 50, left associativity) : monad_scope.
+
 (** Writing in the current state of global variables. **)
 Definition write_globals A C (p : _SEXP) (cont : result A) : result A :=
   let%fetch p in
-  get%globals globals in
-  let globals := {{ globals with C := p }} in
-  set%globals globals in
+  map%globals fun globals => {{ globals with C := p }} in
   cont.
 
 Notation "'write%globals' C ':=' p 'in' cont" :=
@@ -223,9 +218,7 @@ Notation "'write%globals' C ':=' p 'in' cont" :=
 
 Definition write_globals_list A (L : list (_ * _SEXP)) (cont : result A) : result A :=
   let%contextual L := contextual_list (map (@contextual_right _ _) L) in
-  get%globals globals in
-  let globals := {{ globals with L }} in
-  set%globals globals in
+  map%globals fun globals => {{ globals with L }} in
   cont.
 
 Notation "'write%globals' L 'in' cont" :=

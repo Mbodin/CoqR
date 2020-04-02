@@ -23,14 +23,56 @@ Require Import Rinternals State InternalTypes Globals.
 
 (** * Monadic Type **)
 
-(** A monad type for results. **)
+(** ** [contextual]: [_SEXP] and [_bool] **)
+
+(** The [contextual A] type represents something that can be converted into
+  a [A] given the right context, of global variables and current state.
+  This monad is used in the [result] monad below. **)
+
+Definition contextual (A : Type) := Globals -> state -> A.
+
+(** The most frequently used instances are [_SEXP] and [_bool]. **)
+Definition _SEXP := contextual SEXP.
+Definition _bool := contextual bool.
+
+(** The bind operation of the monad. **)
+Definition contextual_bind A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
+  fun globals S => cont (e globals S) globals S.
+
+(** The return operation of the monad. **)
+Definition contextual_ret A (a : A) : contextual A :=
+  fun _ _ => a.
+
+Notation "'let%contextual' a ':=' e 'in' cont" :=
+  (contextual_bind e (fun a => cont))
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** The main monad: [result] **)
+
+(** The monad type of results.
+  Every function in this formalisation returns a type in this monad.
+  A result can be:
+  - [rresult_success r A]: the program succeedingly resulted in [r] in the state [S].
+  - [rresult_longjump]: the program yielded a call to [LONGJMP] with the provided arguments.
+  - [rresult_error_stack stack msg S]: the program resulted in an error described by [msg],
+    with the state [S], and the call stack [stack].
+    This error is not meant to be caught: it will be propagated along to be printed.
+  - [rresult_impossible_stack]: this result should never happen.
+    It corresponds to either a bug in the CoqR interpreter, or an undefined behaviour of the
+    (source code of the) reference interpreter GNU R.
+  - [rresult_not_implemented_stack]: the result relies on a feature not yet implemented.
+  - [rresult_bottom]: a termination monad.
+    Indeed, in Coq, any function has to terminate.  As R program may not, we provide some
+    fuel which is decremented along the way.  Reaching [0] yields this result: we went out
+    of fuel during the computation. **)
 Inductive rresult (A : Type) :=
-  | rresult_success : A -> state -> rresult A (** The program resulted in this state with this result. **)
-  | rresult_longjump : nat -> context_type -> state -> rresult A (** The program yielded a call to [LONGJMP] with these arguments. **)
-  | rresult_error_stack : list string -> string -> state -> rresult A (** The program resulted in the following error (not meant to be caught). **)
-  | rresult_impossible_stack : list string -> string -> state -> rresult A (** This result should never happen. We provide a string and a call stack to help debugging. **)
-  | rresult_not_implemented_stack : list string -> string -> rresult A (** The result relies on a feature not yet implemented. **)
-  | rresult_bottom : state -> rresult A (** We went out of fuel during the computation. **)
+  | rresult_success : A -> state -> rresult A
+  | rresult_longjump : nat -> context_type -> state -> rresult A
+  | rresult_error_stack : list string -> string -> state -> rresult A
+  | rresult_impossible_stack : list string -> string -> state -> rresult A
+  | rresult_not_implemented_stack : list string -> string -> rresult A
+  | rresult_bottom : state -> rresult A
   .
 Arguments rresult_success [A].
 Arguments rresult_longjump [A].
@@ -40,7 +82,7 @@ Arguments rresult_not_implemented_stack [A].
 Arguments rresult_bottom {A}.
 
 (** We wrap [rresult] in a state monad. **)
-Definition result A := Globals -> state -> rresult A.
+Definition result A := contextual (rresult A).
 
 
 Definition result_success : forall A, A -> result A :=
@@ -92,18 +134,6 @@ Global Instance result_Inhab : forall A, Inhab (result A) :=
   this case (for instance by writting [e->type] without checking whether
   [e] actually maps to a valid expression), the Coq interpreter will
   return [result_impossible]. **)
-
-
-(** * [contextual]: [_SEXP] and [_bool] **)
-
-(** The [contextual A] type represents something that can be converted into
-  a [A] given the right context (corresponding to the ones of [result A]. **)
-
-Definition contextual (A : Type) := Globals -> state -> A.
-
-(** The most frequently used instances are [_SEXP] and [_bool]. **)
-Definition _SEXP := contextual SEXP.
-Definition _bool := contextual bool.
 
 
 (** * [FUNTAB] **)

@@ -435,8 +435,7 @@ Definition setup_Rmainloop_aux max_step : result Globals :=
   let%success Type2Table :=
     get%globals globals in
     InitTypeTables globals (runs max_step globals) in
-  get%globals globals in
-  set%globals Globals_with_Type2Table globals Type2Table in
+  map%globals fun globals => Globals_with_Type2Table globals Type2Table in
   (* TODO: [InitS3DefaulTypes]. *)
   let%success R_Toplevel :=
     init_R_Toplevel globals (runs max_step globals) in
@@ -457,10 +456,10 @@ Definition setup_Rmainloop_aux max_step : result Globals :=
   let%success do_usemethod_formals :=
     do_usemethod_init globals (runs max_step globals) in
   write%globals do_usemethod_do_usemethod_formals := do_usemethod_formals in
-  (** Removing the now useless closures. **)
+  (** Removing the now useless closures.
+    This step is only an optimisation and could be removed without any issue. **)
+  map%globals flatten_Globals in
   get%globals globals in
-	let globals := flatten_Globals globals in
-  set%globals globals in
   result_success globals.
 
 (** * Initial State and Memory **)

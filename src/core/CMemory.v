@@ -47,7 +47,7 @@ Fixpoint allocList_aux n p :=
     CONS R_NilValue p
   end.
 
-Definition allocList (n : nat) : result SEXP :=
+Definition allocList (n : nat) : result_SEXP :=
   allocList_aux n R_NilValue.
 
 Definition SET_ATTRIB x v :=
@@ -59,7 +59,7 @@ Definition SET_ATTRIB x v :=
     set%attrib x := v in
     result_skip.
 
-Definition STRING_ELT (x : SEXP) i : result SEXP :=
+Definition STRING_ELT (x : _SEXP) i : result_SEXP :=
   add%stack "STRING_ELT" in
   let%success x_type := TYPEOF x in
   ifb x_type <> StrSxp then
@@ -123,7 +123,7 @@ Definition SET_SYMVALUE x v :=
   the compiled C files references [Rf_NewEnvironment] and not
   [NewEnvironment]. These two functions are exactly the same.
   This is a relatively frequent scheme in R source code. **)
-Definition NewEnvironment (namelist valuelist rho : SEXP) : result SEXP :=
+Definition NewEnvironment (namelist valuelist rho : _SEXP) : result_SEXP :=
   add%stack "NewEnvironment" in
   let%alloc newrho := make_SExpRec_env R_NilValue valuelist rho in
   do%success (v, n) := (valuelist, namelist)
@@ -135,7 +135,7 @@ Definition NewEnvironment (namelist valuelist rho : SEXP) : result SEXP :=
   result_success newrho.
 
 (** Similarly, there is a macro renaming [mkPROMISE] to [Rf_mkPROMISE]. **)
-Definition mkPromise (expr rho : SEXP) : result SEXP :=
+Definition mkPromise (expr rho : _SEXP) : result_SEXP :=
   add%stack "mkPromise" in
   set%named expr := named_plural in
   let%alloc s := make_SExpRec_prom R_NilValue R_UnboundValue expr rho in
@@ -154,7 +154,7 @@ Definition allocFormalsList l :=
   let%success res :=
     fold_left (fun _ Sres =>
         let%success res := Sres in
-        CONS R_NilValue res) (result_success (R_NilValue : SEXP)) l in
+        CONS R_NilValue res) (R_NilValue : result_SEXP) l in
   do%success n := res
   for sym in%list l do
     set%tag n := sym in
