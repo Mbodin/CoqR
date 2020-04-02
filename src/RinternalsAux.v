@@ -237,7 +237,7 @@ Definition get_promSxp e_ :=
   end.
 
 Definition map_sxpinfo_in_header f h :=
-  make_SExpRecHeader
+  make_SExpRecHeader_direct
     (f (sxpinfo h))
     (attrib h)
     (*gengc_prev_node h*)
@@ -320,20 +320,20 @@ Definition set_obj_sxpinfo o i_info :=
     (*mark i_info*) (*debug i_info*) (*trace i_info*) (*spare i_info*) (*gcgen i_info*)
     (named i_info).
 
-Definition set_obj o :=
+Definition set_obj_direct o :=
   map_sxpinfo (set_obj_sxpinfo o).
 
-Definition set_car_list car l_list :=
-  make_ListSxp_struct car (list_cdrval l_list) (list_tagval l_list).
+Definition set_car_list_direct car l_list :=
+  make_ListSxp_struct_direct car (list_cdrval l_list) (list_tagval l_list).
 
-Definition set_cdr_list cdr l_list :=
-  make_ListSxp_struct (list_carval l_list) cdr (list_tagval l_list).
+Definition set_cdr_list_direct cdr l_list :=
+  make_ListSxp_struct_direct (list_carval l_list) cdr (list_tagval l_list).
 
-Definition set_tag_list tag l_list :=
-  make_ListSxp_struct (list_carval l_list) (list_cdrval l_list) tag.
+Definition set_tag_list_direct tag l_list :=
+  make_ListSxp_struct_direct (list_carval l_list) (list_cdrval l_list) tag.
 
-Definition set_attrib a :=
-  map_header (fun h => make_SExpRecHeader (sxpinfo h) a).
+Definition set_attrib_direct a :=
+  map_header (fun h => make_SExpRecHeader_direct (sxpinfo h) a).
 
 Definition get_VecSxp_length e_ :=
   match e_ with
@@ -381,9 +381,9 @@ Instance SExpRec_Inhab : Inhab SExpRec.
 Proof.
   apply prove_Inhab.
   refine (make_NonVector_SExpRec
-            (make_SExpRecHeader
+            (make_SExpRecHeader_direct
               (make_SxpInfo NilSxp false false false nbits_init named_plural) None)
-            (make_ListSxp_struct None None None)).
+            (make_ListSxp_struct_direct None None None)).
 Defined.
 
 Instance SEXP_Comparable : Comparable SEXP.

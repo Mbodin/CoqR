@@ -104,35 +104,35 @@ Record PrimSxp_struct := make_PrimSxp_struct {
   }.
 
 (** symsxp_struct **)
-Record SymSxp_struct := make_SymSxp_struct {
+Record SymSxp_struct := make_SymSxp_struct_direct {
     sym_pname : SEXP ;
     sym_value : SEXP ;
     sym_internal : SEXP
   }.
 
 (** listsxp_struct **)
-Record ListSxp_struct := make_ListSxp_struct {
+Record ListSxp_struct := make_ListSxp_struct_direct {
     list_carval : SEXP ;
     list_cdrval : SEXP ;
     list_tagval : SEXP
   }.
 
 (** envsxp_struct **)
-Record EnvSxp_struct := make_EnvSxp_struct {
+Record EnvSxp_struct := make_EnvSxp_struct_direct {
     env_frame : SEXP ;
     env_enclos : SEXP
     (** env_hashtab : SEXP **)
   }.
 
 (** closxp_struct **)
-Record CloSxp_struct := make_CloSxp_struct {
+Record CloSxp_struct := make_CloSxp_struct_direct {
     clo_formals : SEXP ;
     clo_body : SEXP ;
     clo_env : SEXP
   }.
 
 (** promsxp_struct **)
-Record PromSxp_struct := make_PromSxp_struct {
+Record PromSxp_struct := make_PromSxp_struct_direct {
     prom_value : SEXP ;
     prom_expr : SEXP ;
     prom_env : SEXP
@@ -154,7 +154,7 @@ Coercion cloSxp : CloSxp_struct >-> SExpRec_union.
 Coercion promSxp : PromSxp_struct >-> SExpRec_union.
 
 (** SEXPREC_HEADER **)
-Record SExpRecHeader := make_SExpRecHeader {
+Record SExpRecHeader := make_SExpRecHeader_direct {
     sxpinfo :> SxpInfo ;
     attrib : SEXP
     (* gengc_next_node : SEXP ; *)

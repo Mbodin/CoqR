@@ -665,7 +665,7 @@ Definition do_forceAndCall (call op args rho : SEXP) : result SEXP :=
   add%stack "do_forceAndCall" in
   read%list _, call_cdr, _ := call in
   read%list call_cadr, e, _ := call_cdr in
-  let%success call_cadr_eval := eval globals runs call_cadr rho in 
+  let%success call_cadr_eval := eval globals runs call_cadr rho in
   let%success n := asInteger globals call_cadr_eval in
   let%success e :=
     read%list e_car, e_cdr, _ := e in

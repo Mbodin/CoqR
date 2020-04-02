@@ -48,7 +48,7 @@ Definition OBJECT x :=
 
 Definition SET_OBJECT x v :=
   add%stack "SET_OBJECT" in
-  map%pointer x with set_obj v in
+  map%pointer%contextual x with set_obj v in
   result_skip.
 
 Definition PRINTNAME x :=

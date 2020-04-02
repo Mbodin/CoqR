@@ -31,7 +31,7 @@ Open Scope monad_scope.
 
 (** ** Manipulating the current state. **)
 
-Definition get_state A (cont : state -> result A) : result A :=
+Definition get_state A (cont : state -> contextual A) : contextual A :=
   fun globals S => cont S globals S.
 
 (** Getting the current state. **)
@@ -40,7 +40,7 @@ Notation "'get%state' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Replacing the current state by another one. **)
-Definition set_state A S (cont : result A) : result A :=
+Definition set_state A S (cont : contextual A) : contextual A :=
   fun globals _ => cont globals S.
 
 Notation "'set%state' S 'in' cont" :=
@@ -48,7 +48,7 @@ Notation "'set%state' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Update the state. **)
-Definition map_state A (f : state -> state) (cont : result A) : result A :=
+Definition map_state A (f : state -> state) (cont : contextual A) : contextual A :=
   get%state S in
   set%state f S in
   cont.
@@ -58,7 +58,7 @@ Notation "'map%state' S 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Extract a state componenent. **)
-Definition read_state A B (f : state -> A) (cont : A -> result B) : result B :=
+Definition read_state A B (f : state -> A) (cont : A -> contextual B) : contextual B :=
   get%state S in
   cont (f S).
 
@@ -68,6 +68,8 @@ Notation "'read%state' a ':=' f 'in' cont" :=
 
 
 (** ** The [contextual] monad **)
+
+(** *** Coercions to and from [_SEXP] and [_bool] **)
 
 Definition contextual_result A : contextual A -> result A :=
   fun e globals S => result_success (e globals S) globals S.
@@ -95,7 +97,7 @@ Definition result_bool := result bool.
 Definition _bool_result_bool : _bool -> result_bool := @contextual_result _.
 Coercion _bool_result_bool : _bool >-> result_bool.
 
-(** Booleans operators over [_bool]. **)
+(** *** Booleans operators over [_bool]. **)
 
 Definition contextual_and (a b : _bool) : _bool :=
   let%contextual a := a in
@@ -147,7 +149,7 @@ Notation "a '!= b" := ('~ (a '== b)) (at level 70, no associativity).
 
 
 (** This monadic binder enables to fetch a contextual value. **)
-Definition get_contextual A B (e : contextual A) (cont : A -> result B) : result B :=
+Definition get_contextual A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
   fun globals S => cont (e globals S) globals S.
 
 Notation "'let%fetch' a 'in' cont" :=
@@ -176,7 +178,7 @@ Definition contextual_list A : list (contextual A) -> contextual (list A) :=
 
 (** ** Manipulating global variables. **)
 
-Definition get_globals A (cont : Globals -> result A) : result A :=
+Definition get_globals A (cont : Globals -> contextual A) : contextual A :=
   fun globals => cont globals globals.
 
 (** Getting the current state of global variables. **)
@@ -189,14 +191,14 @@ Notation "'get%globals' S 'in' cont" :=
 	not propagate through the [run%success] commands.
   This monadic binder is only used in Rinit.v, where we actually have
 	to define the global variables. **)
-Definition set_globals A globals (cont : result A) : result A :=
+Definition set_globals A globals (cont : contextual A) : contextual A :=
   fun _ => cont globals.
 
 Notation "'set%globals' globals 'in' cont" :=
   (set_globals globals cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition map_globals A f (cont : result A) : result A :=
+Definition map_globals A f (cont : contextual A) : contextual A :=
   get%globals globals in
   set%globals f globals in
   cont.
@@ -206,7 +208,7 @@ Notation "'map%globals' f 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 (** Writing in the current state of global variables. **)
-Definition write_globals A C (p : _SEXP) (cont : result A) : result A :=
+Definition write_globals A C (p : _SEXP) (cont : contextual A) : contextual A :=
   let%fetch p in
   map%globals fun globals => {{ globals with C := p }} in
   cont.
@@ -215,7 +217,7 @@ Notation "'write%globals' C ':=' p 'in' cont" :=
   (write_globals C p cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_globals_list A (L : list (_ * _SEXP)) (cont : result A) : result A :=
+Definition write_globals_list A (L : list (_ * _SEXP)) (cont : contextual A) : contextual A :=
   let%contextual L := contextual_list (map (@contextual_right _ _) L) in
   map%globals fun globals => {{ globals with L }} in
   cont.
@@ -469,7 +471,7 @@ Notation "'read%defined' p_ ':=' p 'in' cont" :=
   (read_defined p (fun p_ => cont))
   (at level 50, left associativity) : monad_scope.
 
-Definition let_alloc A p_ cont : result A :=
+Definition let_alloc A p_ cont : contextual A :=
   get%state S in
   let (S, p) := alloc_SExp p_ S in
   set%state S in
@@ -550,57 +552,5 @@ Definition if_option_defined A B (c : result (option A)) cont_then cont_else : r
 
 Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=
   (if_option_defined c (fun ans => cont_then) cont_else)
-  (at level 50, left associativity) : monad_scope.
-
-
-(** * Other Monads **)
-
-(** ** [map]-monads **)
-
-(** Mapping on-place the content of a pointer is a frequent scheme.
-  Here is a monad binder for it. **)
-Definition map_pointer (A : Type) (map : SExpRec -> SExpRec) (p : _SEXP) (cont : result A) : result A :=
-  add%stack "map_pointer" in
-  let%fetch p in
-  read%defined p_ := p in
-  write%defined p := map p_ in
-  cont.
-
-Notation "'map%pointer' p 'with' map 'in' cont" :=
-  (map_pointer map p cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** The following two functions enable to respectively map and set
-  the [gp] field of objects from a pointer. **)
-Notation "'map%gp' p 'with' f 'in' cont" :=
-  (map%pointer p with map_gp f in cont)
-  (at level 50, left associativity) : monad_scope.
-
-Notation "'set%gp' p 'with' v 'in' cont" :=
-  (map%pointer p with set_gp v in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** The following function enables to set the [attrib] field of
-  objects from a pointer. **)
-Notation "'set%attrib' p ':=' a 'in' cont" :=
-  (map%pointer p with set_attrib a in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** The following function enables to set the [obj] field of
-  objects from a pointer. **)
-Notation "'set%obj' p ':=' o 'in' cont" :=
-  (map%pointer p with set_obj o in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** The following function enables to set the [named] field of
-  objects from a pointer. **)
-Notation "'set%named' p ':=' n 'in' cont" :=
-  (map%pointer p with set_named n in cont)
-  (at level 50, left associativity) : monad_scope.
-
-(** The following function enables to set the [type] field of
-  objects from a pointer. **)
-Notation "'set%type' p ':=' t 'in' cont" :=
-  (map%pointer p with set_type t in cont)
   (at level 50, left associativity) : monad_scope.
 

@@ -25,112 +25,261 @@ Require Export RinternalsAux Monads.
 
 (** * Smart Constructors **)
 
-(** A smart constructor for SxpInfo **)
-Definition build_SxpInfo type scalar : SxpInfo :=
+(** A smart constructor for [SxpInfo] **)
+
+Definition build_SxpInfo_direct type scalar : SxpInfo :=
   make_SxpInfo (SExpType_restrict type)
     scalar false false nbits_init named_temporary.
+
+Definition build_SxpInfo type (scalar : _bool) :=
+  let%fetch scalar in
+  contextual_ret (build_SxpInfo_direct type scalar).
+
+Lemma build_SxpInfo_bool : forall type (scalar : bool),
+  build_SxpInfo type scalar
+  = contextual_ret (build_SxpInfo_direct type scalar).
+Proof. reflexivity. Qed.
+
+Definition make_SExpRecHeader info (attrib : _SEXP) :=
+  let%fetch attrib in
+  contextual_ret (make_SExpRecHeader_direct info attrib).
+
+Lemma make_SExpRecHeader_SEXP : forall info (attrib : SEXP),
+  make_SExpRecHeader info attrib
+  = contextual_ret (make_SExpRecHeader_direct info attrib).
+Proof. reflexivity. Qed.
 
 (** The pointers [gengc_prev_node] and [gengc_next_node] are only used
   by the garbage collector of R. We do not need them here as memory
   allocation is not targetted by this formalisation. We thus offer the
   following smart constructor for the type [SExpRecHeader]. **)
-Definition build_SExpRecHeader type scalar attrib : SExpRecHeader :=
-  make_SExpRecHeader (build_SxpInfo type scalar) attrib (*None*) (*None*).
+Definition build_SExpRecHeader_direct type scalar attrib : SExpRecHeader :=
+  make_SExpRecHeader_direct (build_SxpInfo_direct type scalar) attrib (*None*) (*None*).
+
+Definition build_SExpRecHeader type scalar (attrib : _SEXP) :=
+  let%contextual info := build_SxpInfo type scalar in
+  make_SExpRecHeader info attrib.
+
+Lemma build_SExpRecHeader_bool_SEXP : forall type (scalar : bool) (attrib : SEXP),
+  build_SExpRecHeader type scalar attrib
+  = contextual_ret (build_SExpRecHeader_direct type scalar attrib).
+Proof. reflexivity. Qed.
+
 
 (** Smart constructors for each R data type. **)
 
-Definition make_SExpRec_sym attrib pname value internal :=
+(** [SymSxp] **)
+
+Definition make_SymSxp_struct (pname value internal : _SEXP) :=
+  let%fetch pname in
+  let%fetch value in
+  let%fetch internal in
+  contextual_ret (make_SymSxp_struct_direct pname value internal).
+
+Definition make_SExpRec_sym_direct attrib pname value internal :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader SymSxp false attrib)
-      (make_SymSxp_struct pname value internal)).
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct SymSxp false attrib)
+      (make_SymSxp_struct_direct pname value internal)).
+
+Definition make_SExpRec_sym (attrib pname value internal : _SEXP) :=
+  let%contextual header := build_SExpRecHeader SymSxp false attrib in
+  let%contextual sym := make_SymSxp_struct pname value internal in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header sym)).
+
+Lemma make_SExpRec_sym_SEXP : forall attrib pname value internal : SEXP,
+  make_SExpRec_sym attrib pname value internal
+  = contextual_ret (make_SExpRec_sym_direct attrib pname value internal).
+Proof. reflexivity. Qed.
+
+(** [ListSxp] **)
+
+Definition make_ListSxp_struct (car cdr tag : _SEXP) :=
+  let%fetch car in
+  let%fetch cdr in
+  let%fetch tag in
+  contextual_ret (make_ListSxp_struct_direct car cdr tag).
+
+Definition make_SExpRec_list_direct attrib car cdr tag :=
+  SExpRec_NonVector
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct ListSxp false attrib)
+      (make_ListSxp_struct_direct car cdr tag)).
 
 Definition make_SExpRec_list attrib car cdr tag :=
+  let%contextual header := build_SExpRecHeader ListSxp false attrib in
+  let%contextual l := make_ListSxp_struct car cdr tag in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header l)).
+
+Lemma make_SExpRec_list_SEXP : forall attrib car cdr tag : SEXP,
+  make_SExpRec_list attrib car cdr tag
+  = contextual_ret (make_SExpRec_list_direct attrib car cdr tag).
+Proof. reflexivity. Qed.
+
+(** [CloSxp] **)
+
+Definition make_CloSxp_struct (formals body env : _SEXP) :=
+  let%fetch formals in
+  let%fetch body in
+  let%fetch env in
+  contextual_ret (make_CloSxp_struct_direct formals body env).
+
+Definition make_SExpRec_clo_direct attrib formals body env :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader ListSxp false attrib)
-      (make_ListSxp_struct car cdr tag)).
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct CloSxp false attrib)
+      (make_CloSxp_struct_direct formals body env)).
 
 Definition make_SExpRec_clo attrib formals body env :=
+  let%contextual header := build_SExpRecHeader CloSxp false attrib in
+  let%contextual clo := make_CloSxp_struct formals body env in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header clo)).
+
+Lemma make_SExpRec_clo_SEXP : forall attrib formals body env : SEXP,
+  make_SExpRec_clo attrib formals body env
+  = contextual_ret (make_SExpRec_clo_direct attrib formals body env).
+Proof. reflexivity. Qed.
+
+(** [EnvSxp] **)
+
+Definition make_EnvSxp_struct (frame enclos (* hashtab *) : _SEXP) :=
+  let%fetch frame in
+  let%fetch enclos in
+  contextual_ret (make_EnvSxp_struct_direct frame enclos).
+
+Definition make_SExpRec_env_direct attrib frame enclos (* hashtab *) :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader CloSxp false attrib)
-      (make_CloSxp_struct formals body env)).
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct EnvSxp false attrib)
+      (make_EnvSxp_struct_direct frame enclos)).
 
 Definition make_SExpRec_env attrib frame enclos (* hashtab *) :=
+  let%contextual header := build_SExpRecHeader EnvSxp false attrib in
+  let%contextual env := make_EnvSxp_struct frame enclos in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header env)).
+
+Lemma make_SExpRec_env_SEXP : forall attrib frame enclos : SEXP,
+  make_SExpRec_env attrib frame enclos
+  = contextual_ret (make_SExpRec_env_direct attrib frame enclos).
+Proof. reflexivity. Qed.
+
+(** [PromSxp] **)
+
+Definition make_PromSxp_struct (value expr env : _SEXP) :=
+  let%fetch value in
+  let%fetch expr in
+  let%fetch env in
+  contextual_ret (make_PromSxp_struct_direct value expr env).
+
+Definition make_SExpRec_prom_direct attrib value expr env :=
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader EnvSxp false attrib)
-      (make_EnvSxp_struct frame enclos)).
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct PromSxp false attrib)
+      (make_PromSxp_struct_direct value expr env)).
 
 Definition make_SExpRec_prom attrib value expr env :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader PromSxp false attrib)
-      (make_PromSxp_struct value expr env)).
+  let%contextual header := build_SExpRecHeader PromSxp false attrib in
+  let%contextual prom := make_PromSxp_struct value expr env in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header prom)).
+
+Lemma make_SExpRec_prom_SEXP : forall attrib value expr env : SEXP,
+  make_SExpRec_prom attrib value expr env
+  = contextual_ret (make_SExpRec_prom_direct attrib value expr env).
+Proof. reflexivity. Qed.
+
+(** [LangSxp] **)
 
 Definition make_SExpRec_lang attrib function argumentList :=
-  SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader LangSxp false attrib)
-      (make_ListSxp_struct function argumentList None)).
+  let%contextual header := build_SExpRecHeader LangSxp false attrib in
+  let%contextual lang := make_ListSxp_struct function argumentList R_NilValue in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header lang)).
 
-Definition make_SExpRec_prim attrib prim type :=
+(** [PrimSxp] **)
+
+Definition make_SExpRec_prim_direct attrib prim type :=
   (** [type] is either [BuiltinSxp] or [SpecialSxp].
     See function [mkPRIMSXP] in Rfeatures for more details. **)
   SExpRec_NonVector
-    (make_NonVector_SExpRec (build_SExpRecHeader type false attrib)
+    (make_NonVector_SExpRec (build_SExpRecHeader_direct type false attrib)
       (make_PrimSxp_struct prim)).
 
-Definition make_SExpRec_char attrib array :=
+Definition make_SExpRec_prim attrib prim type :=
+  let%contextual header := build_SExpRecHeader type false attrib in
+  contextual_ret (SExpRec_NonVector (make_NonVector_SExpRec header (make_PrimSxp_struct prim))).
+
+(** Vectors **)
+
+Definition vector_header_direct T type attrib (array : ArrayList.array T) :=
   let len := ArrayList.length array in
-  SExpRec_VectorChar
-    (make_Vector_SExpRec
-      (build_SExpRecHeader CharSxp (decide (ArrayList.length array = 1)) attrib)
+  build_SExpRecHeader_direct type (decide (ArrayList.length array = 1)) attrib.
+
+Definition vector_header T type attrib (array : ArrayList.array T) :=
+  let len := ArrayList.length array in
+  build_SExpRecHeader type (decide (ArrayList.length array = 1)) attrib.
+
+Definition make_SExpRec_vector_direct T
+    (SExpRec_Vector : Vector_SExpRec T -> SExpRec) type attrib array :=
+  let len := ArrayList.length array in
+  SExpRec_Vector
+    (make_Vector_SExpRec (vector_header_direct type attrib array)
       (make_VecSxp_struct len len array)).
 
-Definition make_SExpRec_lgl attrib array :=
+Definition make_SExpRec_vector T
+    (SExpRec_Vector : Vector_SExpRec T -> SExpRec) type attrib array :=
   let len := ArrayList.length array in
-  SExpRec_VectorLogical
-    (make_Vector_SExpRec
-      (build_SExpRecHeader LglSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+  let%contextual header := vector_header type attrib array in
+  contextual_ret (SExpRec_Vector
+    (make_Vector_SExpRec header
+      (make_VecSxp_struct len len array))).
 
-Definition make_SExpRec_int attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorInteger
-    (make_Vector_SExpRec
-      (build_SExpRecHeader IntSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Lemma make_SExpRec_vector_SEXP : forall T (SExpRec_Vector : Vector_SExpRec T -> SExpRec)
+    type (attrib : SEXP) array,
+  make_SExpRec_vector SExpRec_Vector type attrib array
+  = contextual_ret (make_SExpRec_vector_direct SExpRec_Vector type attrib array).
+Proof. reflexivity. Qed.
 
-Definition make_SExpRec_real attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorReal
-    (make_Vector_SExpRec
-      (build_SExpRecHeader RealSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Definition make_SExpRec_char_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorChar CharSxp.
 
-Definition make_SExpRec_cplx attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorComplex
-    (make_Vector_SExpRec
-      (build_SExpRecHeader CplxSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Definition make_SExpRec_char :=
+  make_SExpRec_vector SExpRec_VectorChar CharSxp.
 
-Definition make_SExpRec_str attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader StrSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Definition make_SExpRec_lgl_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorLogical LglSxp.
 
-Definition make_SExpRec_vec attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader VecSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Definition make_SExpRec_lgl :=
+  make_SExpRec_vector SExpRec_VectorLogical LglSxp.
 
-Definition make_SExpRec_expr attrib array :=
-  let len := ArrayList.length array in
-  SExpRec_VectorPointer
-    (make_Vector_SExpRec
-      (build_SExpRecHeader ExprSxp (decide (ArrayList.length array = 1)) attrib)
-      (make_VecSxp_struct len len array)).
+Definition make_SExpRec_int_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorInteger IntSxp.
+
+Definition make_SExpRec_int :=
+  make_SExpRec_vector SExpRec_VectorInteger IntSxp.
+
+Definition make_SExpRec_real_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorReal RealSxp.
+
+Definition make_SExpRec_real :=
+  make_SExpRec_vector SExpRec_VectorReal RealSxp.
+
+Definition make_SExpRec_cplx_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorComplex CplxSxp.
+
+Definition make_SExpRec_cplx :=
+  make_SExpRec_vector SExpRec_VectorComplex CplxSxp.
+
+Definition make_SExpRec_str_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorPointer StrSxp.
+
+Definition make_SExpRec_str :=
+  make_SExpRec_vector SExpRec_VectorPointer StrSxp.
+
+Definition make_SExpRec_vec_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorPointer VecSxp.
+
+Definition make_SExpRec_vec :=
+  make_SExpRec_vector SExpRec_VectorPointer VecSxp.
+
+Definition make_SExpRec_expr_direct :=
+  make_SExpRec_vector_direct SExpRec_VectorPointer ExprSxp.
+
+Definition make_SExpRec_expr :=
+  make_SExpRec_vector SExpRec_VectorPointer ExprSxp.
 
 
 (** * Monadic Binders **)
@@ -709,9 +858,10 @@ Notation "'write%Pointer' e 'at' n ':=' c 'in' cont" :=
 Definition map_list A f (p : _SEXP) (cont : result A) : result A :=
   add%stack "map_list" in
   read%list p_, p_list := p in
+  let%contextual data := f p_list in
   let p_ := {|
       NonVector_SExpRec_header := p_ ;
-      NonVector_SExpRec_data := f p_list
+      NonVector_SExpRec_data := data
     |} in
   write%defined p := p_ in
   cont.
@@ -719,6 +869,10 @@ Definition map_list A f (p : _SEXP) (cont : result A) : result A :=
 Notation "'map%list' p 'with' map 'in' cont" :=
   (map_list map p cont)
   (at level 50, left associativity) : monad_scope.
+
+Definition set_car_list (car : _SEXP) l_list :=
+  let%fetch car in
+  contextual_ret (set_car_list_direct car l_list).
 
 (** Updating the first element (car) of a list. **)
 Definition set_car A car (p : _SEXP) (cont : result A) : result A :=
@@ -729,6 +883,10 @@ Notation "'set%car' p ':=' car 'in' cont" :=
   (set_car car p cont)
   (at level 50, left associativity) : monad_scope.
 
+Definition set_cdr_list (cdr : _SEXP) l_list :=
+  let%fetch cdr in
+  contextual_ret (set_cdr_list_direct cdr l_list).
+
 (** Updating the tail (cdr) of a list. **)
 Definition set_cdr A cdr (p : _SEXP) (cont : result A) : result A :=
   add%stack "set_cdr" in
@@ -738,6 +896,10 @@ Notation "'set%cdr' p ':=' cdr 'in' cont" :=
   (set_cdr cdr p cont)
   (at level 50, left associativity) : monad_scope.
 
+Definition set_tag_list (tag : _SEXP) l_list :=
+  let%fetch tag in
+  contextual_ret (set_tag_list_direct tag l_list).
+
 (** Updating the tag of a list. **)
 Definition set_tag A tag (p : _SEXP) (cont : result A) : result A :=
   add%stack "set_tag" in
@@ -745,4 +907,74 @@ Definition set_tag A tag (p : _SEXP) (cont : result A) : result A :=
 
 Notation "'set%tag' p ':=' tag 'in' cont" :=
   (set_tag tag p cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** ** [map]-monadic-binders **)
+
+Definition map_pointer_contextual (A : Type) (map : SExpRec -> contextual SExpRec)
+    (p : _SEXP) (cont : result A) : result A :=
+  add%stack "map_pointer_contextual" in
+  let%fetch p in
+  read%defined p_ := p in
+  let%contextual p_ := map p_ in
+  write%defined p := p_ in
+  cont.
+
+Notation "'map%pointer%contextual' p 'with' map 'in' cont" :=
+  (map_pointer_contextual map p cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** Mapping on-place the content of a pointer is a frequent scheme.
+  Here is a monad binder for it. **)
+Definition map_pointer (A : Type) (map : SExpRec -> SExpRec) p (cont : result A) : result A :=
+  add%stack "map_pointer" in
+  map%pointer%contextual p with fun p_ => contextual_ret (map p_) in
+  cont.
+
+Notation "'map%pointer' p 'with' map 'in' cont" :=
+  (map_pointer map p cont)
+  (at level 50, left associativity) : monad_scope.
+
+
+(** The following two functions enable to respectively map and set
+  the [gp] field of objects from a pointer. **)
+Notation "'map%gp' p 'with' f 'in' cont" :=
+  (map%pointer p with map_gp f in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Notation "'set%gp' p 'with' v 'in' cont" :=
+  (map%pointer p with set_gp v in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition set_attrib a e_ :=
+  let%fetch a in
+  contextual_ret (set_attrib_direct a e_).
+
+(** The following function enables to set the [attrib] field of
+  objects from a pointer. **)
+Notation "'set%attrib' p ':=' a 'in' cont" :=
+  (map%pointer p with set_attrib a in cont)
+  (at level 50, left associativity) : monad_scope.
+
+Definition set_obj b e_ :=
+  let%fetch b in
+  contextual_ret (set_obj_direct b e_).
+
+(** The following function enables to set the [obj] field of
+  objects from a pointer. **)
+Notation "'set%obj' p ':=' o 'in' cont" :=
+  (map%pointer p with set_obj o in cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** The following function enables to set the [named] field of
+  objects from a pointer. **)
+Notation "'set%named' p ':=' n 'in' cont" :=
+  (map%pointer p with set_named n in cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** The following function enables to set the [type] field of
+  objects from a pointer. **)
+Notation "'set%type' p ':=' t 'in' cont" :=
+  (map%pointer p with set_type t in cont)
   (at level 50, left associativity) : monad_scope.
