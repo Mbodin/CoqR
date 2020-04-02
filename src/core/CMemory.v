@@ -72,8 +72,9 @@ Definition VECTOR_ELT x i : result_SEXP :=
   read%Pointer x_i := x at i in
   result_success x_i.
 
-Definition SET_PRVALUE x v :=
+Definition SET_PRVALUE (x v : _SEXP) :=
   add%stack "SET_PRVALUE" in
+  let%fetch v in
   read%prom x_, x_prom := x in
   let x_prom := {|
       prom_value := v ;
@@ -87,8 +88,9 @@ Definition SET_PRVALUE x v :=
   write%defined x := x_ in
   result_skip.
 
-Definition SET_PRCODE x v :=
+Definition SET_PRCODE (x v : _SEXP) :=
   add%stack "SET_PRCODE" in
+  let%fetch v in
   read%prom x_, x_prom := x in
   let x_prom := {|
       prom_value := prom_value x_prom ;
@@ -102,8 +104,9 @@ Definition SET_PRCODE x v :=
   write%defined x := x_ in
   result_skip.
 
-Definition SET_SYMVALUE x v :=
+Definition SET_SYMVALUE (x v : _SEXP) :=
   add%stack "SET_SYMVALUE" in
+  let%fetch v in
   read%sym x_, x_sym := x in
   let x_sym := {|
       sym_pname := sym_pname x_sym ;
@@ -154,7 +157,7 @@ Definition allocFormalsList l : result_SEXP :=
     fold_left (fun _ (Sres : result_SEXP) =>
       let%success res := Sres in
       CONS R_NilValue res) R_NilValue l in
-  do%success n := res
+  do%success n := contextual_ret res
   for sym in%list l do
     set%tag n := sym in
     run%success MARK_NOT_MUTABLE n in

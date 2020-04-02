@@ -36,12 +36,12 @@ Definition TYPEOF x :=
   read%defined x_ := x in
   result_success (type x_).
 
-Definition ALTREP x :=
+Definition ALTREP x : result_bool :=
   add%stack "ALTREP" in
   read%defined x_ := x in
   result_success (alt x_).
 
-Definition OBJECT x :=
+Definition OBJECT x : result_bool :=
   add%stack "OBJECT" in
   read%defined x_ := x in
   result_success (obj x_).
@@ -51,7 +51,7 @@ Definition SET_OBJECT x v :=
   map%pointer%contextual x with set_obj v in
   result_skip.
 
-Definition PRINTNAME x :=
+Definition PRINTNAME x : result_SEXP :=
   add%stack "PRINTNAME" in
   read%sym _, x_sym := x in
   result_success (sym_pname x_sym).
@@ -72,7 +72,7 @@ Definition SET_MISSING e (m : nat) I :=
   result_skip.
 Arguments SET_MISSING : clear implicits.
 
-Definition ATTRIB x :=
+Definition ATTRIB x : result_SEXP :=
   add%stack "ATTRIB" in
   read%defined x_ := x in
   result_success (attrib x_).
@@ -83,7 +83,7 @@ Definition REFCNT (x : SEXP) :=
   add%stack "REFCNT" in
   result_success 0.
 
-Definition TRACKREFS (x : SEXP) :=
+Definition TRACKREFS (x : SEXP) : result_bool :=
   add%stack "TRACKREFS" in
   result_success false.
 
@@ -152,17 +152,17 @@ Definition DECREMENT_LINKS x :=
   add%stack "DECREMENT_LINKS" in
   DECREMENT_NAMED x.
 
-Definition NO_REFERENCES x :=
+Definition NO_REFERENCES x : result_bool :=
   add%stack "NO_REFERENCES" in
   let%success x_named := NAMED x in
   result_success (decide (x_named = named_temporary)).
 
-Definition MAYBE_REFERENCED x :=
+Definition MAYBE_REFERENCED x : result_bool :=
   add%stack "MAYBE_REFERENCED" in
   let%success r := NO_REFERENCES x in
   result_success (negb r).
 
-Definition MAYBE_SHARED x :=
+Definition MAYBE_SHARED x : result_bool :=
   add%stack "MAYBE_SHARED" in
   let%success x_named := NAMED x in
   result_success (decide (x_named = named_plural)).
@@ -223,7 +223,7 @@ Definition SET_DDVAL x v :=
 
 Definition S4_OBJECT_BIT := 4.
 
-Definition IS_S4_OBJECT x :=
+Definition IS_S4_OBJECT x : result_bool :=
   add%stack "IS_S4_OBJECT" in
   read%defined x_ := x in
   result_success (nth_bit S4_OBJECT_BIT (gp x_) ltac:(nbits_ok)).
@@ -240,84 +240,84 @@ Definition UNSET_S4_OBJECT x :=
 
 Definition GROWABLE_BIT := 5.
 
-Definition IS_GROWABLE x :=
+Definition IS_GROWABLE x : result_bool :=
   add%stack "IS_GROWABLE" in
   read%defined x_ := x in
   result_success (nth_bit GROWABLE_BIT (gp x_) ltac:(nbits_ok)).
 
-Definition IS_SCALAR x t :=
+Definition IS_SCALAR x t : result_bool :=
   add%stack "IS_SCALAR" in
   read%defined x_ := x in
   result_success (decide (type x_ = t /\ scalar x_)).
 
-Definition IS_SIMPLE_SCALAR x t :=
+Definition IS_SIMPLE_SCALAR x t : result_bool :=
   add%stack "IS_SIMPLE_SCALAR" in
   let%success x_scal := IS_SCALAR x t in
   read%defined x_ := x in
   (x_scal '&& (attrib x_ '== R_NilValue) : result_bool).
 
-Definition isLogical s :=
+Definition isLogical s : result_bool :=
   add%stack "isLogical" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = LglSxp)).
 
 Definition IS_LOGICAL := isLogical.
 
-Definition isSymbol s :=
+Definition isSymbol s : result_bool :=
   add%stack "isSymbol" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = SymSxp)).
 
-Definition isString s :=
+Definition isString s : result_bool :=
   add%stack "isString" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = StrSxp)).
 
-Definition isReal s :=
+Definition isReal s : result_bool :=
   add%stack "isReal" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = RealSxp)).
 
-Definition isNull s :=
+Definition isNull s : result_bool :=
   add%stack "isNull" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = NilSxp)).
 
-Definition isExpression s :=
+Definition isExpression s : result_bool :=
   add%stack "isExpression" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = ExprSxp)).
 
-Definition isComplex s :=
+Definition isComplex s : result_bool :=
   add%stack "isComplex" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = CplxSxp)).
 
-Definition isObject s :=
+Definition isObject s : result_bool :=
   add%stack "isObject" in
   OBJECT s.
 
-Definition isEnvironment s :=
+Definition isEnvironment s : result_bool :=
   add%stack "isEnvironment" in
   let%success s_type := TYPEOF s in
   result_success (decide (s_type = EnvSxp)).
 
-Definition isByteCode x :=
+Definition isByteCode x : result_bool :=
   add%stack "isByteCode" in
   let%success x_type := TYPEOF x in
   result_success (decide (x_type = BcodeSxp)).
 
-Definition BCODE_CODE x :=
+Definition BCODE_CODE x : result_SEXP :=
   add%stack "BCODE_CODE" in
   read%list x_car, _, _ := x in
   result_success x_car.
 
-Definition BCODE_CONSTS x :=
+Definition BCODE_CONSTS x : result_SEXP :=
   add%stack "BCODE_CONSTS" in
   read%list _, x_cdr, _ := x in
   result_success x_cdr.
 
-Definition BCODE_EXPR x :=
+Definition BCODE_EXPR x : result_SEXP :=
   add%stack "BCODE_EXPR" in
   read%list _, _, x_tag := x in
   result_success x_tag.

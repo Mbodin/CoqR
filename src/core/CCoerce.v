@@ -45,7 +45,7 @@ Local Coercion int_to_double : Z >-> double.
 (** The following two functions are actually from main/attrib.c. It has been
   placed here to solve a circular file dependency. **)
 
-Definition installAttrib vec name val :=
+Definition installAttrib vec name val : result_SEXP :=
   add%stack "installAttrib" in
   let%success vec_type := TYPEOF vec in
   ifb vec_type = CharSxp then
@@ -54,36 +54,37 @@ Definition installAttrib vec name val :=
     result_error "Cannot set attribute on a symbol."
   else
     let%success vec_attr := ATTRIB vec in
-    fold%return t := R_NilValue : SEXP
+    fold%return t := R_NilValue : _SEXP
     along vec_attr
     as s, _, s_list do
       ifb list_tagval s_list = name then
         set%car s := val in
+        let%fetch val in
         result_rreturn val
       else result_rsuccess s using runs in
-    let%success s := CONS globals val R_NilValue in
+    let%success s := CONS val R_NilValue in
     set%tag s := name in
     run%success
-      ifb vec_attr = R_NilValue then
+      ifc vec_attr '== R_NilValue then
         run%success SET_ATTRIB vec s in
         result_skip
       else
         set%cdr t := s in
         result_skip in
-    result_success val.
+    (val : result_SEXP).
 
-Definition copyMostAttrib (inp ans : SEXP) :=
+Definition copyMostAttrib (inp ans : _SEXP) :=
   add%stack "copyMostAttrib" in
-  ifb ans = R_NilValue then
+  ifc ans '== R_NilValue then
     result_error "Attempt to set an attribute on NULL."
   else
     let%success inp_attr := ATTRIB inp in
     fold%success
     along inp_attr
     as s_car, s_tag do
-      ifb s_tag <> R_NamesSymbol
-          /\ s_tag <> R_DimSymbol
-          /\ s_tag <> R_DimNamesSymbol then
+      ifc (s_tag '!= R_NamesSymbol)
+          '&& (s_tag '!= R_DimSymbol)
+          '&& (s_tag '!= R_DimNamesSymbol) then
         run%success installAttrib ans s_tag s_car in
         result_skip
       else result_skip using runs in
@@ -94,9 +95,9 @@ Definition copyMostAttrib (inp ans : SEXP) :=
     else UNSET_S4_OBJECT ans.
 
 
-Definition LogicalFromString (x : SEXP) :=
+Definition LogicalFromString (x : _SEXP) :=
   add%stack "LogicalFromString" in
-  ifb x <> R_NaString then
+  ifc x '!= R_NaString then
     let%success c := CHAR x in
     if StringTrue c then result_success (1 : int)
     else if StringFalse c then result_success (0 : int)
@@ -152,10 +153,10 @@ Definition asLogical x :=
       LogicalFromString x
     else result_success NA_LOGICAL.
 
-Definition IntegerFromString (x : SEXP) :=
+Definition IntegerFromString (x : _SEXP) :=
   add%stack "IntegerFromString" in
   if%success
-    ifb x <> R_NaString then
+    ifc x '!= R_NaString then
       let%success c := CHAR x in
       result_success (negb (isBlankString c))
     else result_success false then
@@ -232,10 +233,10 @@ Definition RealFromComplex x :=
     NA_REAL
   else Rcomplex_r x.
 
-Definition RealFromString (x : SEXP) :=
+Definition RealFromString (x : _SEXP) :=
   add%stack "RealFromString" in
   if%success
-    ifb x <> R_NaString then
+    ifc x '!= R_NaString then
       let%success c := CHAR x in
       result_success (negb (isBlankString c))
     else result_success false then
@@ -272,35 +273,35 @@ Definition asReal x :=
     RealFromString x
   else result_success NA_REAL.
 
-Definition coerceSymbol v type :=
+Definition coerceSymbol v type : result_SEXP :=
   add%stack "coerceSymbol" in
   let%success rval :=
     ifb type = ExprSxp then
-      let%success rval := allocVector globals type 1 in
+      let%success rval := allocVector type 1 in
       run%success SET_VECTOR_ELT rval 0 v in
       result_success rval
     else ifb type = CharSxp then
       PRINTNAME v
     else ifb type = StrSxp then
       let%success v_name := PRINTNAME v in
-      ScalarString globals v_name
+      ScalarString v_name
     else
       (* A warning has been formalised out here. *)
-      result_success (R_NilValue : SEXP) in
+      (R_NilValue : result_SEXP) in
   result_success rval.
 
-Definition PairToVectorList (x : SEXP) : result_SEXP :=
+Definition PairToVectorList (x : _SEXP) : result_SEXP :=
   unimplemented_function "PairToVectorList".
 
-Definition VectorToPairList (x : SEXP) : result_SEXP :=
+Definition VectorToPairList (x : _SEXP) : result_SEXP :=
   add%stack "VectorToPairList" in
-  let%success len := R_length globals runs x in
+  let%success len := R_length runs x in
 
-  let%success xnew := allocList globals len in
+  let%success xnew := allocList len in
   let%success xnames := runs_getAttrib runs x R_NamesSymbol in
-  let named := decide (xnames <> R_NilValue) in
+  let%contextual named := xnames '!= R_NilValue in
 
-  do%success xptr := xnew
+  do%success xptr := contextual_ret xnew
   for i from 0 to len - 1 do
 
     let%success x_i := VECTOR_ELT x i in
@@ -313,7 +314,7 @@ Definition VectorToPairList (x : SEXP) : result_SEXP :=
     let%success xnames_i_char := CHAR xnames_i in
     let xnames_i_char_0 := LibOption.unsome_default "000"%char (String.get 0 xnames_i_char) in
     ifb named /\  xnames_i_char_0 <> "000"%char then
-      let%success xnames_i_install := installTrChar globals runs xnames_i in
+      let%success xnames_i_install := installTrChar runs xnames_i in
       set%tag xptr := xnames_i_install in
       read%list _, xptr_cdr, _ := xptr in
       result_success xptr_cdr
@@ -327,10 +328,10 @@ Definition VectorToPairList (x : SEXP) : result_SEXP :=
   else
     result_success xnew.
 
-Definition ComplexFromString (x : SEXP) :=
+Definition ComplexFromString (x : _SEXP) :=
   add%stack "ComplexFromString" in
   if%success
-    ifb x <> R_NaString then
+    ifc x '!= R_NaString then
       let%success c := CHAR x in
       result_success (negb (isBlankString c))
     else result_success false then
@@ -378,23 +379,24 @@ Definition asComplex x :=
     ComplexFromString x
   else result_success (make_Rcomplex NA_REAL NA_REAL).
 
-Definition coercePairList v type :=
+Definition coercePairList v type : result_SEXP :=
   add%stack "coercePairList" in
   let%exit (rval, n) :=
     ifb type = ListSxp then
+      let%fetch v in
       result_rreturn v
     else ifb type = ExprSxp then
-      let%success rval := allocVector globals type 1 in
+      let%success rval := allocVector type 1 in
       run%success SET_VECTOR_ELT rval 0 v in
       result_rreturn rval
     else ifb type = StrSxp then
-      let%success n := R_length globals runs v in
-      let%success rval := allocVector globals type n in
-      fold%success i := 0
+      let%success n := R_length runs v in
+      let%success rval := allocVector type n in
+      fold%success i := contextual_ret 0
       along v
       as v_car, _ do
         let%success v_car_is := isString v_car in
-        let%success v_car_len := R_length globals runs v_car in
+        let%success v_car_len := R_length runs v_car in
         run%success
           ifb v_car_is /\ v_car_len = 1 then
             let%success v_car_0 := STRING_ELT v_car 0 in
@@ -405,9 +407,9 @@ Definition coercePairList v type :=
     else ifb type = VecSxp then
       let%success rval := PairToVectorList v in
       result_rreturn rval
-    else if%success isVectorizable globals runs v then
-      let%success n := R_length globals runs v in
-      let%success rval := allocVector globals type n in
+    else if%success isVectorizable runs v then
+      let%success n := R_length runs v in
+      let%success rval := allocVector type n in
       run%success
         match type with
         | LglSxp =>
@@ -443,20 +445,20 @@ Definition coercePairList v type :=
         end in
       result_rsuccess (rval, n)
     else result_error "‘pairlist’ object cannot be coerce as-is." in
-  fold%success i := false
+  fold%success i := contextual_ret false
   along v
   as _, v_tag do
-    ifb v_tag <> R_NilValue then
+    ifc v_tag '!= R_NilValue then
       result_success true
     else result_success i using runs in
   run%success
     if i then
-      let%success names := allocVector globals StrSxp n in
-      fold%success i := 0
+      let%success names := allocVector StrSxp n in
+      fold%success i := contextual_ret 0
       along v
       as _, v_tag do
         run%success
-          ifb v_tag <> R_NilValue then
+          ifc v_tag '!= R_NilValue then
             let%success v_tag_name := PRINTNAME v_tag in
             SET_STRING_ELT names i v_tag_name
           else result_skip in
@@ -465,32 +467,32 @@ Definition coercePairList v type :=
     else result_skip in
   result_success rval.
 
-Definition coerceVectorList (v : SEXP) (type : SExpType) : result_SEXP :=
+Definition coerceVectorList (v : _SEXP) (type : SExpType) : result_SEXP :=
   unimplemented_function "coerceVectorList".
 
-Definition StringFromLogical x :=
+Definition StringFromLogical x : result_SEXP :=
   add%stack "StringFromLogical" in
   ifb x = NA_LOGICAL then
-    result_success (NA_STRING : SEXP)
+    (NA_STRING : result_SEXP)
   else
-    let%success r := mkChar globals (EncodeLogical x) in
+    let%success r := mkChar (EncodeLogical x) in
     result_success r.
 
-Definition StringFromInteger x :=
+Definition StringFromInteger x : result_SEXP :=
   add%stack "StringFromInteger" in
   ifb x = NA_INTEGER then
-    result_success (NA_STRING : SEXP)
+    (NA_STRING : result_SEXP)
   else unimplemented_function "formatInteger".
 
-Definition StringFromComplex x :=
+Definition StringFromComplex x : result_SEXP :=
   add%stack "StringFromComplex" in
   ifb R_IsNA (Rcomplex_r x) \/ R_IsNA (Rcomplex_i x) then
-    result_success (NA_STRING : SEXP)
+    (NA_STRING : result_SEXP)
   else unimplemented_function "EncodeComplex".
 
-Definition coerceToSymbol v :=
+Definition coerceToSymbol v : result_SEXP :=
   add%stack "coerceToSymbol" in
-  let%success v_len := R_length globals runs v in
+  let%success v_len := R_length runs v in
   ifb v_len <= 0 then
     result_error "Invalid data."
   else
@@ -505,7 +507,7 @@ Definition coerceToSymbol v :=
         StringFromInteger v_0
       | RealSxp =>
         let%success v_0 := REAL_ELT v 0 in
-        StringFromReal globals v_0
+        StringFromReal v_0
       | CplxSxp =>
         let%success v_0 := COMPLEX_ELT v 0 in
         StringFromComplex v_0
@@ -514,13 +516,13 @@ Definition coerceToSymbol v :=
       | RawSxp => result_not_implemented "Raw case."
       | _ => result_error "Unimplemented type."
       end in
-    installTrChar globals runs ans.
+    installTrChar runs ans.
 
-Definition coerceToLogical v :=
+Definition coerceToLogical v : result_SEXP :=
   add%stack "coerceToLogical" in
   let%success n := XLENGTH v in
-  let%success ans := allocVector globals LglSxp n in
-  run%success SHALLOW_DUPLICATE_ATTRIB globals runs ans v in
+  let%success ans := allocVector LglSxp n in
+  run%success SHALLOW_DUPLICATE_ATTRIB runs ans v in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -558,11 +560,11 @@ Definition coerceToLogical v :=
     end in
   result_success ans.
 
-Definition coerceToInteger v :=
+Definition coerceToInteger v : result_SEXP :=
   add%stack "coerceToInteger" in
   let%success n := XLENGTH v in
-  let%success ans := allocVector globals IntSxp n in
-  run%success SHALLOW_DUPLICATE_ATTRIB globals runs ans v in
+  let%success ans := allocVector IntSxp n in
+  run%success SHALLOW_DUPLICATE_ATTRIB runs ans v in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -597,11 +599,11 @@ Definition coerceToInteger v :=
     end in
   result_success ans.
 
-Definition coerceToReal v :=
+Definition coerceToReal v : result_SEXP :=
   add%stack "coerceToReal" in
   let%success n := XLENGTH v in
-  let%success ans := allocVector globals RealSxp n in
-  run%success SHALLOW_DUPLICATE_ATTRIB globals runs ans v in
+  let%success ans := allocVector RealSxp n in
+  run%success SHALLOW_DUPLICATE_ATTRIB runs ans v in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -636,11 +638,11 @@ Definition coerceToReal v :=
     end in
   result_success ans.
 
-Definition coerceToComplex v :=
+Definition coerceToComplex v : result_SEXP :=
   add%stack "coerceToComplex" in
   let%success n := XLENGTH v in
-  let%success ans := allocVector globals CplxSxp n in
-  run%success SHALLOW_DUPLICATE_ATTRIB globals runs ans v in
+  let%success ans := allocVector CplxSxp n in
+  run%success SHALLOW_DUPLICATE_ATTRIB runs ans v in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -675,14 +677,14 @@ Definition coerceToComplex v :=
     end in
   result_success ans.
 
-Definition coerceToRaw (v : SEXP) : result_SEXP :=
+Definition coerceToRaw (v : _SEXP) : result_SEXP :=
   unimplemented_function "coerceToRaw".
 
-Definition coerceToString v :=
+Definition coerceToString v : result_SEXP :=
   add%stack "coerceToString" in
   let%success n := XLENGTH v in
-  let%success ans := allocVector globals StrSxp n in
-  run%success SHALLOW_DUPLICATE_ATTRIB globals runs ans v in
+  let%success ans := allocVector StrSxp n in
+  run%success SHALLOW_DUPLICATE_ATTRIB runs ans v in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -702,7 +704,7 @@ Definition coerceToString v :=
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
-        let%success s_i := StringFromReal globals v_i in
+        let%success s_i := StringFromReal v_i in
         SET_STRING_ELT ans i s_i
     | CplxSxp =>
       do%let
@@ -716,12 +718,12 @@ Definition coerceToString v :=
     end in
   result_success ans.
 
-Definition coerceToExpression v :=
+Definition coerceToExpression v : result_SEXP :=
   add%stack "coerceToExpression" in
   let%success ans :=
     if%success isVectorAtomic v then
       let%success n := XLENGTH v in
-      let%success ans := allocVector globals ExprSxp n in
+      let%success ans := allocVector ExprSxp n in
       let%success v_type := TYPEOF v in
       run%success
         match v_type with
@@ -729,34 +731,34 @@ Definition coerceToExpression v :=
           do%let
           for i from 0 to n - 1 do
             let%success v_i := LOGICAL_ELT v i in
-            run%success SET_VECTOR_ELT ans i (ScalarLogical globals v_i) in
+            run%success SET_VECTOR_ELT ans i (ScalarLogical v_i) in
             result_skip
         | IntSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := INTEGER_ELT v i in
-            let%success s_i := ScalarInteger globals v_i in
+            let%success s_i := ScalarInteger v_i in
             run%success SET_VECTOR_ELT ans i s_i in
             result_skip
         | RealSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := REAL_ELT v i in
-            let%success s_i := ScalarReal globals v_i in
+            let%success s_i := ScalarReal v_i in
             run%success SET_VECTOR_ELT ans i s_i in
             result_skip
         | CplxSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := COMPLEX_ELT v i in
-            let%success s_i := ScalarComplex globals v_i in
+            let%success s_i := ScalarComplex v_i in
             run%success SET_VECTOR_ELT ans i s_i in
             result_skip
         | StrSxp =>
           do%let
           for i from 0 to n - 1 do
             let%success v_i := STRING_ELT v i in
-            let%success s_i := ScalarString globals v_i in
+            let%success s_i := ScalarString v_i in
             run%success SET_VECTOR_ELT ans i s_i in
             result_skip
         | RawSxp => result_not_implemented "Raw case."
@@ -765,16 +767,16 @@ Definition coerceToExpression v :=
         end in
       result_success ans
     else
-      let%success ans := allocVector globals ExprSxp 1 in
-      let%success v_d := duplicate globals runs v in
+      let%success ans := allocVector ExprSxp 1 in
+      let%success v_d := duplicate runs v in
       run%success SET_VECTOR_ELT ans 0 v_d in
       result_success ans in
   result_success ans.
 
-Definition coerceToVectorList v :=
+Definition coerceToVectorList v : result_SEXP :=
   add%stack "coerceToVectorList" in
-  let%success n := xlength globals runs v in
-  let%success ans := allocVector globals VecSxp n in
+  let%success n := xlength runs v in
+  let%success ans := allocVector VecSxp n in
   let%success v_type := TYPEOF v in
   run%success
     match v_type with
@@ -782,34 +784,34 @@ Definition coerceToVectorList v :=
       do%let
       for i from 0 to n - 1 do
         let%success v_i := LOGICAL_ELT v i in
-        run%success SET_VECTOR_ELT ans i (ScalarLogical globals v_i) in
+        run%success SET_VECTOR_ELT ans i (ScalarLogical v_i) in
         result_skip
     | IntSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := INTEGER_ELT v i in
-        let%success s_i := ScalarInteger globals v_i in
+        let%success s_i := ScalarInteger v_i in
         run%success SET_VECTOR_ELT ans i s_i in
         result_skip
     | RealSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := REAL_ELT v i in
-        let%success s_i := ScalarReal globals v_i in
+        let%success s_i := ScalarReal v_i in
         run%success SET_VECTOR_ELT ans i s_i in
         result_skip
     | CplxSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := COMPLEX_ELT v i in
-        let%success s_i := ScalarComplex globals v_i in
+        let%success s_i := ScalarComplex v_i in
         run%success SET_VECTOR_ELT ans i s_i in
         result_skip
     | StrSxp =>
       do%let
       for i from 0 to n - 1 do
         let%success v_i := STRING_ELT v i in
-        let%success s_i := ScalarString globals v_i in
+        let%success s_i := ScalarString v_i in
         run%success SET_VECTOR_ELT ans i s_i in
         result_skip
     | RawSxp => result_not_implemented "Raw case."
@@ -826,49 +828,49 @@ Definition coerceToVectorList v :=
     end in
   let%success tmp := runs_getAttrib runs v R_NamesSymbol in
   run%success
-    ifb tmp <> R_NilValue then
+    ifc tmp '!= R_NilValue then
       run%success runs_setAttrib runs ans R_NamesSymbol tmp in
       result_skip
     else result_skip in
   result_success ans.
 
-Definition coerceToPairList v :=
+Definition coerceToPairList v : result_SEXP :=
   add%stack "coerceToPairList" in
-  let%success n := LENGTH globals v in
-  let%success ans := allocList globals n in
-  do%success ansp := ans
+  let%success n := LENGTH v in
+  let%success ans := allocList n in
+  do%success ansp := contextual_ret ans
   for i from 0 to n - 1 do
     read%list _, ansp_cdr, _ := ansp in
     run%success
       let%success v_type := TYPEOF v in
       match v_type with
       | LglSxp =>
-        let%success ansp_car := allocVector globals LglSxp 1 in
+        let%success ansp_car := allocVector LglSxp 1 in
         set%car ansp := ansp_car in
         let%success v_i := LOGICAL_ELT v i in
         write%Logical ansp_car at 0 := v_i in
         result_skip
       | IntSxp =>
-        let%success ansp_car := allocVector globals IntSxp 1 in
+        let%success ansp_car := allocVector IntSxp 1 in
         set%car ansp := ansp_car in
         let%success v_i := INTEGER_ELT v i in
         write%Integer ansp_car at 0 := v_i in
         result_skip
       | RealSxp =>
-        let%success ansp_car := allocVector globals RealSxp 1 in
+        let%success ansp_car := allocVector RealSxp 1 in
         set%car ansp := ansp_car in
         let%success v_i := REAL_ELT v i in
         write%Real ansp_car at 0 := v_i in
         result_skip
       | CplxSxp =>
-        let%success ansp_car := allocVector globals CplxSxp 1 in
+        let%success ansp_car := allocVector CplxSxp 1 in
         set%car ansp := ansp_car in
         let%success v_i := COMPLEX_ELT v i in
         write%Complex ansp_car at 0 := v_i in
         result_skip
       | StrSxp =>
         let%success v_i := STRING_ELT v i in
-        let%success ansp_car := ScalarString globals v_i in
+        let%success ansp_car := ScalarString v_i in
         set%car ansp := ansp_car in
         result_skip
       | RawSxp => result_not_implemented "Raw case."
@@ -886,17 +888,17 @@ Definition coerceToPairList v :=
     result_success ansp_cdr in
   let%success ansp := runs_getAttrib runs v R_NamesSymbol in
   run%success
-    ifb ansp <> R_NilValue then
+    ifc ansp '!= R_NilValue then
       run%success runs_setAttrib runs ans R_NamesSymbol ansp in
       result_skip
     else result_skip in
   result_success ans.
 
-Definition coerceVector v type :=
+Definition coerceVector v type : result_SEXP :=
   add%stack "coerceVector" in
   let%success v_type := TYPEOF v in
   ifb v_type = type then
-    result_success v
+    (v : result_SEXP)
   else
     let%success v_s4 := IS_S4_OBJECT v in
     let%exit v :=
@@ -915,8 +917,8 @@ Definition coerceVector v type :=
         ifb type <> StrSxp then
           coercePairList v type
         else
-          let%success n := R_length globals runs v in
-          let%success ans := allocVector globals type n in
+          let%success n := R_length runs v in
+          let%success ans := allocVector type n in
           ifb n = 0 then
             result_success ans
           else
@@ -928,12 +930,14 @@ Definition coerceVector v type :=
                 let%success op_name := PRINTNAME op in
                 run%success SET_STRING_ELT ans 0 op_name in
                 result_success (1, v_cdr)
-              else result_success (0, v) in
-            fold%success i := i
+              else
+                let%fetch v in
+                result_success (0, v) in
+            fold%success i := contextual_ret i
             along v
             as v_car, _ do
               let%success v_car_is := isString v_car in
-              let%success v_car_len := R_length globals runs v_car in
+              let%success v_car_len := R_length runs v_car in
               run%success
                 ifb v_car_is /\ v_car_len = 1 then
                   let%success v_car_0 := STRING_ELT v_car 0 in
@@ -971,23 +975,23 @@ Definition coerceVector v type :=
       end in
     result_success ans.
 
-Definition CreateTag x :=
+Definition CreateTag x : result_SEXP :=
   add%stack "CreateTag" in
   let%success x_n := isNull x in
   let%success x_sy := isSymbol x in
   ifb x_n \/ x_sy then
-    result_success x
+    (x : result_SEXP)
   else
     if%success
         let%success x_st := isString x in
-        let%success x_len := R_length globals runs x in
+        let%success x_len := R_length runs x in
         ifb x_st /\ x_len >= 1 then
           let%success x_0 := STRING_ELT x 0 in
-          let%success x_0_len := R_length globals runs x_0 in
+          let%success x_0_len := R_length runs x_0 in
           result_success (decide (x_0_len >= 1))
         else result_success false then
       let%success x_0 := STRING_ELT x 0 in
-      installTrChar globals runs x_0
+      installTrChar runs x_0
     else unimplemented_function "deparse1".
 
 Definition copyDimAndNames x ans :=
@@ -995,64 +999,64 @@ Definition copyDimAndNames x ans :=
   if%success isVector x then
     let%success dims := runs_getAttrib runs x R_DimSymbol in
     run%success
-      ifb dims <> R_NilValue then
+      ifc dims '!= R_NilValue then
         run%success runs_setAttrib runs ans R_DimSymbol dims in
         result_skip
       else result_skip in
-    if%success isArray globals runs x then
+    if%success isArray runs x then
       let%success names := runs_getAttrib runs x R_DimNamesSymbol in
-      ifb names <> R_NilValue then
+      ifc names '!= R_NilValue then
         run%success runs_setAttrib runs ans R_DimNamesSymbol names in
         result_skip
       else result_skip
     else
       let%success names := runs_getAttrib runs x R_NamesSymbol in
-      ifb names <> R_NilValue then
+      ifc names '!= R_NilValue then
         run%success runs_setAttrib runs ans R_NamesSymbol names in
         result_skip
       else result_skip
   else result_skip.
 
 
-Definition substitute (lang rho : SEXP) : result_SEXP :=
+Definition substitute (lang rho : _SEXP) : result_SEXP :=
   add%stack "substitute" in
   let%success lang_type := TYPEOF lang in
   match lang_type with
-  | PromSxp => let%success lang_prexpr := PREXPR globals lang in
+  | PromSxp => let%success lang_prexpr := PREXPR lang in
                runs_substitute runs lang_prexpr rho
-  | SymSxp => ifb rho <> R_NilValue then
-                let%success t := findVarInFrame3 globals runs rho lang true in
-                ifb t <> R_UnboundValue then
+  | SymSxp => ifc rho '!= R_NilValue then
+                let%success t := findVarInFrame3 runs rho lang true in
+                ifc t '!= R_UnboundValue then
                   let%success t_type := TYPEOF t in
 
                   ifb t_type = PromSxp then
-                    let%success t_prexpr := PREXPR globals t in
-                    do%success t := t_prexpr
+                    let%success t_prexpr := PREXPR t in
+                    do%success t := contextual_ret t_prexpr
                     while let%success t_type := TYPEOF t in
-                      result_success (decide (t_type = PromSxp)) do PREXPR globals t
+                      result_success (decide (t_type = PromSxp)) do PREXPR t
                     using runs in
                     (** make sure code will not be modified: **)
                     set%named t := named_plural in
                     result_success t
                   else ifb t_type = DotSxp then
                     result_error "'...' used in an incorrect context"
-                  else ifb rho <> R_GlobalEnv then
-                    result_success t
-                  else result_success lang
-                else result_success lang
-             else result_success lang
+                  else ifc rho '!= R_GlobalEnv then
+                    (t : result_SEXP)
+                  else (lang : result_SEXP)
+                else (lang : result_SEXP)
+             else (lang : result_SEXP)
   | LangSxp => runs_substituteList runs lang rho
-  | _ => result_success lang
+  | _ => (lang : result_SEXP)
   end.
 
 
-Definition substituteList (el rho : SEXP) :=
+Definition substituteList (el rho : _SEXP) :=
   add%stack "substituteList" in
   if%success isNull el then
-      result_success el
+    (el : result_SEXP)
   else
-    do%success (el, p, res) := (el, R_NilValue : SEXP, R_NilValue : SEXP)
-    whileb el <> R_NilValue do
+    do%success (el, p, res) := (el, R_NilValue : _SEXP, R_NilValue : _SEXP)
+    while el '!= R_NilValue do
       (** walk along the pairlist, substituting elements.
           res is the result
           p is the current last element
@@ -1061,17 +1065,17 @@ Definition substituteList (el rho : SEXP) :=
       let%success h :=
       read%list el_car, el_cdr, el_tag := el in
 
-      ifb el_car = R_DotsSymbol then
+      ifc el_car '== R_DotsSymbol then
         let%success h :=
-        ifb rho = R_NilValue then
-          result_success (R_UnboundValue : SEXP) (** so there is no substitution below **)
+        ifc rho '== R_NilValue then
+          (R_UnboundValue : result_SEXP) (** so there is no substitution below **)
         else
-          findVarInFrame3 globals runs rho el_car true
+          findVarInFrame3 runs rho el_car true
         in
-        ifb h = R_UnboundValue then
-          LCONS globals R_DotsSymbol R_NilValue
-        else ifb h = R_NilValue \/ h = R_MissingArg then
-          result_success (R_NilValue : SEXP)
+        ifc h '== R_UnboundValue then
+          LCONS R_DotsSymbol R_NilValue
+        else ifc (h '== R_NilValue) '|| (h '== R_MissingArg) then
+          (R_NilValue : result_SEXP)
         else
           let%success h_type := TYPEOF h in
           ifb h_type = DotSxp then
@@ -1081,10 +1085,10 @@ Definition substituteList (el rho : SEXP) :=
       else
         let%success h := substitute el_car rho in
         let%success h :=
-        if%success isLanguage globals el then
-          LCONS globals h R_NilValue
+        if%success isLanguage el then
+          LCONS h R_NilValue
         else
-          let%success h := CONS globals h R_NilValue in
+          let%success h := CONS h R_NilValue in
           result_success h
         in
         set%tag h := el_tag in
@@ -1092,18 +1096,18 @@ Definition substituteList (el rho : SEXP) :=
       in
 
       let%success (p, res) :=
-      ifb h <> R_NilValue then
+      ifc h '!= R_NilValue then
         let%success res :=
-        ifb res = R_NilValue then
+        ifc res '== R_NilValue then
           result_success h
         else
           set%cdr p := h in
           result_success res
         in
         (** now set 'p': dots might have expanded to a list of length > 1 **)
-        do%success h := h
+        do%success h := contextual_ret h
         while read%list _, h_cdr, _ := h in
-          result_success (decide (h_cdr <> R_NilValue))
+          (h_cdr '!= R_NilValue : result_bool)
           do read%list _, h_cdr, _ := h in
           result_success h_cdr using runs in
         result_success (h, res)
@@ -1114,9 +1118,9 @@ Definition substituteList (el rho : SEXP) :=
     using runs in
   result_success res.
 
-Definition asCharacterFactor (x : SEXP) : result_SEXP :=
+Definition asCharacterFactor (x : _SEXP) : result_SEXP :=
   add%stack "asCharacterfactor" in
-  let%success x_inherits := inherits2 globals runs x "factor" in
+  let%success x_inherits := inherits2 runs x "factor" in
   if negb x_inherits then
     result_error "attempting to coerce non-factor"
   else

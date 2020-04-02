@@ -36,10 +36,10 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition asVecSize (x : SEXP)  :=
+Definition asVecSize (x : _SEXP) :=
   add%stack "asVecSize" in
   let%success x_isVectorAtomic := isVectorAtomic x in
-  let%success x_LENGTH := LENGTH globals x in
+  let%success x_LENGTH := LENGTH x in
   ifb x_isVectorAtomic /\ x_LENGTH >= 1 then
     let%success x_type := TYPEOF x in
     match x_type with
@@ -56,7 +56,7 @@ Definition asVecSize (x : SEXP)  :=
                 else ifb d > R_XLEN_T_MAX then
                   result_error "vector size specified is too large"
                 else result_success (Double.double_to_int_zero d)
-     | StrSxp => let%success d := asReal globals x in
+     | StrSxp => let%success d := asReal x in
                  if ISNAN d then
                    result_error "vector size cannot be NA/NaN"
                  else if negb (R_FINITE d) then
@@ -69,7 +69,7 @@ Definition asVecSize (x : SEXP)  :=
   else
     result_error "-999 code status".
 
-Definition R_IsImportsEnv env :=
+Definition R_IsImportsEnv env : result_bool :=
   add%stack "R_IsImportsEnv" in
   let%success env_null := isNull env in
   let%success env_env := isEnvironment env in
@@ -77,12 +77,12 @@ Definition R_IsImportsEnv env :=
     result_success false
   else
     read%env _, env_env := env in
-    ifb env_enclos env_env = R_BaseNamespace then
+    ifc env_enclos env_env '== R_BaseNamespace then
       result_success false
     else
       let%success name := runs_getAttrib runs env R_NameSymbol in
       let%success name_str := isString name in
-      let%success name_len := LENGTH globals name in
+      let%success name_len := LENGTH name in
       ifb ~ name_str \/ name_len <> 1 then
         result_success false
       else

@@ -148,7 +148,7 @@ Definition ScalarString (x : _SEXP) : result_SEXP :=
     let%success s := alloc_vector_str (ArrayList.from_list [x]) in
     result_success s.
 
-Definition isPairList s :=
+Definition isPairList s : result_bool :=
   add%stack "isPairList" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -161,7 +161,7 @@ Definition isPairList s :=
     result_success false
   end.
 
-Definition isVectorList s :=
+Definition isVectorList s : result_bool :=
   add%stack "isVectorList" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -256,13 +256,13 @@ Definition R_length s :=
     result_success 1
   end.
 
-Definition inherits s name :=
+Definition inherits s name : result_bool :=
   add%stack "inherits" in
   read%defined s_ := s in
   if obj s_ then
     let%success klass := runs_getAttrib runs s R_ClassSymbol in
     read%VectorPointer klass_vector := klass in
-    do%success b := false
+    do%success b := contextual_ret false
     for str in%array VecSxp_data klass_vector do
       if b then result_success true
       else
@@ -271,7 +271,7 @@ Definition inherits s name :=
     result_success b
   else result_success false.
 
-Definition isVectorAtomic s :=
+Definition isVectorAtomic s : result_bool :=
   add%stack "isVectorAtomic" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -284,28 +284,28 @@ Definition isVectorAtomic s :=
   | _ => result_success false
   end.
 
-Definition isInteger s :=
+Definition isInteger s : result_bool :=
   add%stack "isInteger" in
   let%success s_type := TYPEOF s in
   let%success inh := inherits s "factor" in
   result_success (decide (s_type = IntSxp /\ ~ inh)).
 
-Definition isFunction s :=
+Definition isFunction s : result_bool :=
   add%stack "isFunction" in
     let%success s_type := TYPEOF s in
     result_success (decide (s_type = CloSxp \/ s_type = BuiltinSxp \/ s_type = SpecialSxp)).
 
-Definition isList s :=
+Definition isList s : result_bool :=
   add%stack "isList" in
   let%success s_type := TYPEOF s in
-  result_success (decide (s = R_NilValue \/ s_type = ListSxp)).
+  ((s '== R_NilValue) '|| decide (s_type = ListSxp) : result_bool).
 
-Definition isLanguage s :=
+Definition isLanguage s : result_bool :=
   add%stack "isLanguage" in
   let%success s_type := TYPEOF s in
-  result_success (decide (s = R_NilValue \/ s_type = LangSxp)).
+  ((s '== R_NilValue) '|| decide (s_type = LangSxp) : result_bool).
 
-Definition isNumeric s :=
+Definition isNumeric s : result_bool :=
   add%stack "isNumeric" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -318,7 +318,7 @@ Definition isNumeric s :=
   | _ => result_success false
   end.
 
-Definition isNumber s :=
+Definition isNumber s : result_bool :=
   add%stack "isNumber" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -332,7 +332,7 @@ Definition isNumber s :=
   | _ => result_success false
   end.
 
-Definition isFrame s :=
+Definition isFrame s : result_bool :=
   add%stack "isFrame" in
   if%success OBJECT s then
     let%success klass := runs_getAttrib runs s R_ClassSymbol in
@@ -347,10 +347,10 @@ Definition isFrame s :=
     result_success false
   else result_success false.
 
-Definition isNewList s :=
+Definition isNewList s : result_bool :=
   add%stack "isNewList" in
   let%success s_type := TYPEOF s in
-  result_success (decide (s = R_NilValue \/ s_type = VecSxp)).
+  ((s '== R_NilValue) '|| decide (s_type = VecSxp) : result_bool).
 
 Definition SCALAR_LVAL x :=
   add%stack "SCALAR_LVAL" in
@@ -383,62 +383,62 @@ Definition SET_SCALAR_DVAL x v :=
   result_skip.
 
 
-Definition lcons car cdr :=
+Definition lcons car cdr : result_SEXP :=
   add%stack "lcons" in
-  let%success e := CONS globals car cdr in
+  let%success e := CONS car cdr in
   set%type e := LangSxp in
   result_success e.
 
 Definition LCONS := lcons.
 
 Definition list1 s :=
-  CONS globals s R_NilValue.
+  CONS s R_NilValue.
 
 Definition list2 s t :=
   let%success l := list1 t in
-  CONS globals s l.
+  CONS s l.
 
 Definition list3 s t u :=
   let%success l := list2 t u in
-  CONS globals s l.
+  CONS s l.
 
 Definition list4 s t u v :=
   let%success l := list3 t u v in
-  CONS globals s l.
+  CONS s l.
 
 Definition list5 s t u v w :=
   let%success l := list4 t u v w in
-  CONS globals s l.
+  CONS s l.
 
 Definition list6 s t u v w x :=
   let%success l := list5 t u v w x in
-  CONS globals s l.
+  CONS s l.
 
-Definition lang1 s :=
+Definition lang1 s : result_SEXP :=
   add%stack "lang1" in
   lcons s R_NilValue.
 
-Definition lang2 s t :=
+Definition lang2 s t : result_SEXP :=
   add%stack "lang2" in
   let%success l := list1 t in
   lcons s l.
 
-Definition lang3 s t u :=
+Definition lang3 s t u : result_SEXP :=
   add%stack "lang3" in
   let%success l := list2 t u in
   lcons s l.
 
-Definition lang4 s t u v :=
+Definition lang4 s t u v : result_SEXP :=
   add%stack "lang4" in
   let%success l := list3 t u v in
   lcons s l.
 
-Definition lang5 s t u v w :=
+Definition lang5 s t u v w : result_SEXP :=
   add%stack "lang5" in
   let%success l := list4 t u v w in
   lcons s l.
 
-Definition lang6 s t u v w x :=
+Definition lang6 s t u v w x : result_SEXP :=
   add%stack "lang6" in
   let%success l := list5 t u v w x in
   lcons s l.

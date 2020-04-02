@@ -484,6 +484,15 @@ Notation "'write%defined' p ':=' p_ 'in' cont" :=
   (write_defined p p_ cont)
   (at level 50, left associativity) : monad_scope.
 
+Definition write_defined_contextual A p p_ (cont : result A) :=
+  let%fetch p_ in
+  write%defined p := p_ in
+  cont.
+
+Notation "'write%defined%contextual' p ':=' p_ 'in' cont" :=
+  (write_defined_contextual p p_ cont)
+  (at level 50, left associativity) : monad_scope.
+
 Definition read_defined A (p : _SEXP) (cont : SExpRec -> result A) :=
   let%fetch p in
   let%success%defined p_ := read_SExp p with "read%defined" in

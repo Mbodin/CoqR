@@ -34,7 +34,7 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition lazy_duplicate s :=
+Definition lazy_duplicate s : result_SEXP :=
   add%stack "lazy_duplicate" in
   let%success s_t := TYPEOF s in
   run%success
@@ -68,12 +68,12 @@ Definition lazy_duplicate s :=
     | _ =>
       result_error "Unimplemented type."
     end in
-  result_success s.
+  (s : result_SEXP).
 
 Definition DUPLICATE_ATTRIB vto vfrom deep :=
   add%stack "DUPLICATE_ATTRIB" in
   let%success a := ATTRIB vfrom in
-  ifb a <> R_NilValue then
+  ifc a '!= R_NilValue then
     let%success a_duplicate := runs_duplicate1 runs a deep in
     run%success SET_ATTRIB vto a_duplicate in
     let%success vfrom_object := OBJECT vfrom in
@@ -83,7 +83,7 @@ Definition DUPLICATE_ATTRIB vto vfrom deep :=
     else UNSET_S4_OBJECT vto
   else result_skip.
 
-Definition duplicate_child s (deep : bool) :=
+Definition duplicate_child s (deep : bool) : result_SEXP :=
   add%stack "duplicate_child" in
   if deep then
     runs_duplicate1 runs s true
@@ -91,12 +91,12 @@ Definition duplicate_child s (deep : bool) :=
 
 Definition duplicate_list s deep :=
   add%stack "duplicate_list" in
-  fold%success val := (R_NilValue : SEXP)
+  fold%success val := R_NilValue : _SEXP
   along s
   as _, _ do
-    let%success val := CONS globals R_NilValue val in
+    let%success val := CONS R_NilValue val in
     result_success val using runs in
-  fold%success vp := val
+  fold%success vp := contextual_ret val
   along s
   as s, _, s_list do
     let sp_car := list_carval s_list in
@@ -111,7 +111,7 @@ Definition duplicate_list s deep :=
 (** The following two functions are actually from main/memory.c. They
   are placed here to solve a circular file dependency. **)
 
-Definition SET_VECTOR_ELT x i v :=
+Definition SET_VECTOR_ELT x i v : result_SEXP :=
   add%stack "SET_VECTOR_ELT" in
   let%success x_type := TYPEOF x in
   ifb x_type <> VecSxp /\ x_type <> ExprSxp /\ x_type <> WeakrefSxp then
@@ -122,9 +122,9 @@ Definition SET_VECTOR_ELT x i v :=
       result_error "Outbound index."
     else
       write%Pointer x at i := v in
-      result_success v.
+      (v : result_SEXP).
 
-Definition SET_STRING_ELT (x : SEXP) i v : result unit :=
+Definition SET_STRING_ELT x i v : result unit :=
   add%stack "SET_STRING_ELT" in
   let%success x_type := TYPEOF x in
   ifb x_type <> StrSxp then
@@ -141,7 +141,7 @@ Definition SET_STRING_ELT (x : SEXP) i v : result unit :=
         write%Pointer x at i := v in
         result_skip.
 
-Definition COPY_TRUELENGTH (vto vfrom : SEXP) :=
+Definition COPY_TRUELENGTH vto vfrom :=
   add%stack "COPY_TRUELENGTH" in
   let%success vfrom_growable := IS_GROWABLE vfrom in
   if negb vfrom_growable then
@@ -149,7 +149,7 @@ Definition COPY_TRUELENGTH (vto vfrom : SEXP) :=
     SET_TRUELENGTH vto vfrom_len
   else result_skip.
 
-Definition duplicate1 s deep :=
+Definition duplicate1 s deep : result_SEXP :=
   add%stack "duplicate1" in
   run%exit
     if%success ALTREP s then
@@ -166,13 +166,14 @@ Definition duplicate1 s deep :=
     | ExtptrSxp
     | BcodeSxp
     | WeakrefSxp =>
+      let%fetch s in
       result_rreturn s
     | CloSxp =>
       read%clo _, s_clo := s in
       let t_ :=
         make_SExpRec_clo R_NilValue
           (clo_formals s_clo) (clo_body s_clo) (clo_env s_clo) in
-      let%alloc t := t_ in
+      let%alloc%contextual t := t_ in
       run%success DUPLICATE_ATTRIB t s deep in
       (** JIT functions have been ignored here. **)
       result_rsuccess t
@@ -190,11 +191,12 @@ Definition duplicate1 s deep :=
       run%success DUPLICATE_ATTRIB t s deep in
       result_rsuccess t
     | CharSxp =>
+      let%fetch s in
       result_rreturn s
     | ExprSxp
     | VecSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       do%success
       for i from 0 to n - 1 do
         let%success s_i := VECTOR_ELT s i in
@@ -206,7 +208,7 @@ Definition duplicate1 s deep :=
       result_rsuccess t
     | LglSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       run%success
         ifb n = 1 then
           read%Logical s_0 := s at 0 in
@@ -221,7 +223,7 @@ Definition duplicate1 s deep :=
       result_rsuccess t
     | IntSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       run%success
         ifb n = 1 then
           read%Integer s_0 := s at 0 in
@@ -236,7 +238,7 @@ Definition duplicate1 s deep :=
       result_rsuccess t
     | RealSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       run%success
         ifb n = 1 then
           read%Real s_0 := s at 0 in
@@ -251,7 +253,7 @@ Definition duplicate1 s deep :=
       result_rsuccess t
     | CplxSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       run%success
         ifb n = 1 then
           read%Complex s_0 := s at 0 in
@@ -268,7 +270,7 @@ Definition duplicate1 s deep :=
       result_not_implemented "Raw case."
     | StrSxp =>
       let%success n := XLENGTH s in
-      let%success t := allocVector globals s_type n in
+      let%success t := allocVector s_type n in
       run%success
         ifb n = 1 then
           read%Pointer s_0 := s at 0 in
@@ -282,6 +284,7 @@ Definition duplicate1 s deep :=
       run%success COPY_TRUELENGTH t s in
       result_rsuccess t
     | PromSxp =>
+      let%fetch s in
       result_rreturn s
     | S4Sxp =>
       unimplemented_function "allocS4Object"
@@ -298,11 +301,11 @@ Definition duplicate1 s deep :=
     else result_skip in
   result_success t.
 
-Definition duplicate s :=
+Definition duplicate s : result_SEXP :=
   add%stack "duplicate" in
   duplicate1 s true.
 
-Definition shallow_duplicate s :=
+Definition shallow_duplicate s : result_SEXP :=
   add%stack "shallow_duplicate" in
   duplicate1 s false.
 
@@ -314,7 +317,7 @@ Definition SHALLOW_DUPLICATE_ATTRIB vto vfrom :=
   let%success vfrom_attrib := shallow_duplicate vfrom_attrib in
   run%success SET_ATTRIB vto vfrom_attrib in
   let%success vfrom_obj := OBJECT vfrom in
-  map%pointer vto with set_obj vfrom_obj in
+  map%pointer%contextual vto with set_obj vfrom_obj in
   run%success
     if%success IS_S4_OBJECT vfrom then
       SET_S4_OBJECT vto
@@ -322,7 +325,7 @@ Definition SHALLOW_DUPLICATE_ATTRIB vto vfrom :=
   result_skip.
 
 
-Definition isVector s :=
+Definition isVector s : result_bool :=
   add%stack "isVector" in
   let%success s_type := TYPEOF s in
   match s_type with
@@ -345,17 +348,17 @@ Definition isMatrix s :=
     let%success t := runs_getAttrib runs s R_DimSymbol in
     let%success t_type := TYPEOF t in
     ifb t_type = IntSxp then
-      let%success t_len := LENGTH globals t in
+      let%success t_len := LENGTH t in
       ifb t_len = 2 then
         result_success true
       else result_success false
     else result_success false
   else result_success false.
 
-Definition R_cycle_detected s child :=
+Definition R_cycle_detected s child : result_bool :=
   add%stack "R_cycle_detected" in
   let%success child_type := TYPEOF child in
-  ifb s = child then
+  ifc s '== child then
     match child_type with
     | NilSxp
     | SymSxp
@@ -372,7 +375,7 @@ Definition R_cycle_detected s child :=
   else
     run%exit
       let%success child_attrib := ATTRIB child in
-      ifb child_attrib <> R_NilValue then
+      ifc child_attrib '!= R_NilValue then
         if%success runs_R_cycle_detected runs s child_attrib then
           result_rreturn true
         else result_rskip
@@ -383,13 +386,13 @@ Definition R_cycle_detected s child :=
       as el, _, el_list do
         let%success r :=
           runs_R_cycle_detected runs s (list_carval el_list) in
-        ifb s = el \/ r then
+        ifc (s '== el) '|| r then
           result_rreturn true
         else
           let%success el_attrib := ATTRIB el in
           let%success r :=
             runs_R_cycle_detected runs s el_attrib in
-          ifb el_attrib <> R_NilValue /\ r then
+          ifc (el_attrib '!= R_NilValue) '&& r then
             result_rreturn true
           else result_rskip
       using runs in
@@ -397,7 +400,7 @@ Definition R_cycle_detected s child :=
     else
       if%success isVectorList child then
         read%VectorPointer child_ := child in
-        do%let r := false
+        do%let r := contextual_ret false
         for e in%array VecSxp_data child_ do
           if r then result_success r
           else runs_R_cycle_detected runs s e

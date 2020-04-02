@@ -841,8 +841,9 @@ Notation "'write%VectorPointer' e ':=' v 'in' cont" :=
   (write_VectorPointer e v cont)
   (at level 50, left associativity) : monad_scope.
 
-Definition write_nth_cell_VectorPointer A e n c cont : result A :=
+Definition write_nth_cell_VectorPointer A e n (c : _SEXP) cont : result A :=
   read%VectorPointer e_ := e in
+  let%fetch c in
   let%defined e_ := update_Vector_SExpRec_cell e_ n c with "write_nth_cell_VectorPointer" in
   write%defined e := SExpRec_VectorPointer e_ in
   cont.

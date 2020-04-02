@@ -28,24 +28,24 @@ Require Export Monads Globals RinternalsCons.
 Record runs_type : Type := runs_type_intro {
     runs_while_loop : forall A, A -> (A -> result bool) -> (A -> result A) -> result A ;
     runs_set_longjump : forall A, context_type -> nat -> (context_type -> result A) -> result A ;
-    runs_eval : SEXP -> SEXP -> result SEXP ;
-    runs_getAttrib : SEXP -> SEXP -> result SEXP ;
-    runs_setAttrib : SEXP -> SEXP -> SEXP -> result SEXP ;
-    runs_R_cycle_detected : SEXP -> SEXP -> result bool ;
-    runs_duplicate1 : SEXP -> bool -> result SEXP ;
-    runs_stripAttrib : SEXP -> SEXP -> result SEXP ;
-    runs_evalseq : SEXP -> SEXP -> bool -> SEXP -> result SEXP ;
-    runs_R_isMissing : SEXP -> SEXP -> result bool ;
-    runs_AnswerType : SEXP -> bool -> bool -> BindData -> SEXP -> result BindData ;
-    runs_ListAnswer : SEXP -> bool -> BindData -> SEXP -> result BindData ;
-    runs_StringAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_LogicalAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_IntegerAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_RealAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_ComplexAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_RawAnswer : SEXP -> BindData -> SEXP -> result BindData ;
-    runs_substitute : SEXP -> SEXP -> result SEXP ;
-    runs_substituteList : SEXP -> SEXP -> result SEXP ;
+    runs_eval : _SEXP -> _SEXP -> result_SEXP ;
+    runs_getAttrib : _SEXP -> _SEXP -> result_SEXP ;
+    runs_setAttrib : _SEXP -> _SEXP -> _SEXP -> result_SEXP ;
+    runs_R_cycle_detected : _SEXP -> _SEXP -> result bool ;
+    runs_duplicate1 : _SEXP -> bool -> result_SEXP ;
+    runs_stripAttrib : _SEXP -> _SEXP -> result_SEXP ;
+    runs_evalseq : _SEXP -> _SEXP -> bool -> _SEXP -> result_SEXP ;
+    runs_R_isMissing : _SEXP -> _SEXP -> result bool ;
+    runs_AnswerType : _SEXP -> bool -> bool -> BindData -> _SEXP -> result BindData ;
+    runs_ListAnswer : _SEXP -> bool -> BindData -> _SEXP -> result BindData ;
+    runs_StringAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_LogicalAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_IntegerAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_RealAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_ComplexAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_RawAnswer : _SEXP -> BindData -> _SEXP -> result BindData ;
+    runs_substitute : _SEXP -> _SEXP -> result_SEXP ;
+    runs_substituteList : _SEXP -> _SEXP -> result_SEXP ;
     runs_R_FunTab : option funtab
   }.
 
@@ -89,7 +89,7 @@ Notation "'do%let' a ':=' e 'while' expr 'do' stat 'using' runs" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'while' expr 'do' stat 'using' runs" :=
-  (do%let _ := tt
+  (do%let _ := contextual_ret tt
    while expr
    do stat
    using runs)
@@ -319,7 +319,7 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate '
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs" :=
-  (fold%let _ := tt
+  (fold%let _ := contextual_ret tt
    along le
    as l, l_, l_list
    do iterate
@@ -452,7 +452,7 @@ Notation "'fold%let' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'usin
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%let' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs" :=
-  (fold%let _ := tt
+  (fold%let _ := contextual_ret tt
    along le
    as l_car, l_tag
    do iterate
@@ -501,7 +501,7 @@ Notation "'fold%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'along
 
 Notation "'fold%success' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (run%success
-     fold%let _ := tt
+     fold%let _ := contextual_ret tt
      along le
      as l_car, l_tag
      do iterate
@@ -603,6 +603,15 @@ Definition match_rresult {A B C} (r : result (normal_return A B)) cont
   | return_result r => result_rreturn r
   end.
 
+Definition contextual_normal_result {A B} a : contextual (normal_return A B) :=
+  let%fetch a in
+  contextual_ret (normal_result a).
+
+Definition contextual_return_result {A B} b : contextual (normal_return A B) :=
+  let%fetch b in
+  contextual_ret (return_result b).
+
+
 Notation "'let%return' a ':=' e 'in' cont" :=
   (match_rresult e (fun a => cont))
   (at level 50, left associativity) : monad_scope.
@@ -680,7 +689,7 @@ Notation "'let%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'in' c
   (at level 50, left associativity) : monad_scope.
 
 
-Definition continue_and_condition {A B} (r : normal_return A B) cond :=
+Definition continue_and_condition {A B} (r : normal_return A B) cond : result_bool :=
   match r with
   | normal_result r => cond r
   | return_result r => result_success false
@@ -696,7 +705,7 @@ Definition get_success {A B} (r : normal_return A B) cont
 
 Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' runs 'in' cont" :=
   (let%exit a :=
-     do%let a := normal_result e
+     do%let a := contextual_normal_result e
      while continue_and_condition a (fun a => expr)
      do get_success a (fun a => stat)
      using runs
@@ -704,7 +713,7 @@ Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' runs 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%return' 'while' expr 'do' stat 'using' runs 'in' cont" :=
-  (do%return _ := tt
+  (do%return _ := contextual_ret tt
    while expr
    do stat
    using runs
@@ -810,7 +819,7 @@ Notation "'do%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'whil
 
 Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
   (let%exit a :=
-     fold%let a := normal_result e
+     fold%let a := contextual_normal_result e
      along le
      as l, l_, l_list
      do get_success a (fun a => iterate)
@@ -819,7 +828,7 @@ Notation "'fold%return' a ':=' e 'along' le 'as' l ',' l_ ',' l_list 'do' iterat
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%return' 'along' le 'as' l ',' l_ ',' l_list 'do' iterate 'using' runs 'in' cont" :=
-  (fold%return ret := tt
+  (fold%return ret := contextual_ret tt
    along le
    as l, l_, l_list
    do iterate
@@ -880,7 +889,7 @@ Notation "'fold%return' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'al
 
 Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
   (let%exit a :=
-     fold%let a := normal_result e
+     fold%let a := contextual_normal_result e
      along le
      as l_car, l_tag
      do get_success a (fun a => iterate)
@@ -889,7 +898,7 @@ Notation "'fold%return' a ':=' e 'along' le 'as' l_car ',' l_tag 'do' iterate 'u
   (at level 50, left associativity) : monad_scope.
 
 Notation "'fold%return' 'along' le 'as' l_car ',' l_tag 'do' iterate 'using' runs 'in' cont" :=
-  (fold%return ret := tt
+  (fold%return ret := contextual_ret tt
    along le
    as l_car, l_tag
    do iterate
@@ -1049,42 +1058,42 @@ Notation "'set%longjump' cjmpbuf 'as' ret 'using' runs 'in' cont" :=
 
 (** ** Along Lists **)
 
-Definition for_list A B (a : A) (l : list B) body :=
+Definition for_list A B (a : contextual A) (l : list B) body :=
   fold_left (fun i (r : result A) =>
       let%success a := r in
       body a i)
-    (result_success a) l.
+    (contextual_result a) l.
 
 Notation "'do%let' a ':=' e 'for' i 'in%list' l 'do' body" :=
   (for_list e l (fun a i => body))
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'for' i 'in%list' l 'do' body" :=
-  (do%let _ := tt for i in%list l do body)
+  (do%let _ := contextual_ret tt for i in%list l do body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'for' i 'in%list' l 'do' body" :=
-  (do%let x := a for i in%list l
+  (do%let x := contextual_tuple2 a for i in%list l
    do let (a1, a2) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'for' i 'in%list' l 'do' body" :=
-  (do%let x := a for i in%list l
+  (do%let x := contextual_tuple3 a for i in%list l
    do let '(a1, a2, a3) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'for' i 'in%list' l 'do' body" :=
-  (do%let x := a for i in%list l
+  (do%let x := contextual_tuple4 a for i in%list l
    do let '(a1, a2, a3, a4) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'for' i 'in%list' l 'do' body" :=
-  (do%let x := a for i in%list l
+  (do%let x := contextual_tuple5 a for i in%list l
    do let '(a1, a2, a3, a4, a5) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'for' i 'in%list' l 'do' body" :=
-  (do%let x := a for i in%list l
+  (do%let x := contextual_tuple6 a for i in%list l
    do let '(a1, a2, a3, a4, a5, a6) := x in body)
   (at level 50, left associativity) : monad_scope.
 
@@ -1146,9 +1155,9 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for
 
 (** ** Along Intervals **)
 
-Definition for_loop A (a : A) (start : nat) (last : int) body :=
+Definition for_loop A (a : contextual A) (start : nat) (last : int) body :=
   ifb last < start then
-    result_success a
+    contextual_result a
   else
     (** We know that [last >= 0]. **)
     do%let x := a
@@ -1160,31 +1169,31 @@ Notation "'do%let' a ':=' e 'for' i 'from' start 'to' last 'do' body" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let _ := tt for i from start to last do body)
+  (do%let _ := contextual_ret tt for i from start to last do body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let x := a for i from start to last
+  (do%let x := contextual_tuple2 a for i from start to last
    do let (a1, a2) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let x := a for i from start to last
+  (do%let x := contextual_tuple3 a for i from start to last
    do let '(a1, a2, a3) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let x := a for i from start to last
+  (do%let x := contextual_tuple4 a for i from start to last
    do let '(a1, a2, a3, a4) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let x := a for i from start to last
+  (do%let x := contextual_tuple5 a for i from start to last
    do let '(a1, a2, a3, a4, a5) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'for' i 'from' start 'to' last 'do' body" :=
-  (do%let x := a for i from start to last
+  (do%let x := contextual_tuple6 a for i from start to last
    do let '(a1, a2, a3, a4, a5, a6) := x in body)
   (at level 50, left associativity) : monad_scope.
 
@@ -1245,49 +1254,49 @@ Notation "'do%success' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for
 
 Notation "'do%exit' a ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
   (let%exit a :=
-     do%let ret := normal_result e
+     do%let ret := contextual_normal_result e
      for i from start to last
      do get_success ret (fun a => body) in
    cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit _ := tt
+  (do%exit _ := contextual_ret tt
    for i from start to last
    do body in
    cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' '(' a1 ',' a2 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit a := e
+  (do%exit a := contextual_tuple2 e
    for i from start to last
    do let (a1, a2) := a in body
    in let (a1, a2) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' '(' a1 ',' a2 ',' a3 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit a := e
+  (do%exit a := contextual_tuple3 e
    for i from start to last
    do let '(a1, a2, a3) := a in body
    in let '(a1, a2, a3) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit a := e
+  (do%exit a := contextual_tuple4 e
    for i from start to last
    do let '(a1, a2, a3, a4) := a in body
    in let '(a1, a2, a3, a4) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit a := e
+  (do%exit a := contextual_tuple5 e
    for i from start to last
    do let '(a1, a2, a3, a4, a5) := a in body
    in let '(a1, a2, a3, a4, a5) := a in cont)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%exit' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' e 'for' i 'from' start 'to' last 'do' body 'in' cont" :=
-  (do%exit a := e
+  (do%exit a := contextual_tuple6 e
    for i from start to last
    do let '(a1, a2, a3, a4, a5, a6) := a in body
    in let '(a1, a2, a3, a4, a5, a6) := a in cont)
@@ -1350,7 +1359,7 @@ Notation "'do%break' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' e 'for' i 'from
 
 (** ** Along Arrays **)
 
-Definition for_array A B (a : A) (array : ArrayList.array B) body :=
+Definition for_array A B (a : contextual A) (array : ArrayList.array B) body :=
   do%let x := a
   for i in%list ArrayList.to_list array do
     body x i.
@@ -1360,31 +1369,31 @@ Notation "'do%let' a ':=' e 'for' i 'in%array' array 'do' body" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' 'for' i 'in%array' array 'do' body" :=
-  (do%let _ := tt for i in%array array do body)
+  (do%let _ := contextual_ret tt for i in%array array do body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ')' ':=' a 'for' i 'in%array' array 'do' body" :=
-  (do%let x := a for i in%array array
+  (do%let x := contextual_tuple2 a for i in%array array
    do let (a1, a2) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ')' ':=' a 'for' i 'in%array' array 'do' body" :=
-  (do%let x := a for i in%array array
+  (do%let x := contextual_tuple3 a for i in%array array
    do let '(a1, a2, a3) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ')' ':=' a 'for' i 'in%array' array 'do' body" :=
-  (do%let x := a for i in%array array
+  (do%let x := contextual_tuple4 a for i in%array array
    do let '(a1, a2, a3, a4) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' a 'for' i 'in%array' array 'do' body" :=
-  (do%let x := a for i in%array array
+  (do%let x := contextual_tuple5 a for i in%array array
    do let '(a1, a2, a3, a4, a5) := x in body)
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%let' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ',' a6 ')' ':=' a 'for' i 'in%array' array 'do' body" :=
-  (do%let x := a for i in%array array
+  (do%let x := contextual_tuple6 a for i in%array array
    do let '(a1, a2, a3, a4, a5, a6) := x in body)
   (at level 50, left associativity) : monad_scope.
 

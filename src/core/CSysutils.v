@@ -50,7 +50,7 @@ Definition installTrChar x :=
     result_error "Must be called on a CharSxp."
   else
     (** The original C program deals with encoding here. **)
-    installChar globals runs x.
+    installChar runs x.
 
 End Parameterised.
 

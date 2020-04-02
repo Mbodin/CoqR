@@ -42,8 +42,8 @@ Definition mkPRIMSXP (offset : nat) (type : bool) : result_SEXP :=
     result_error "Offset is out of range"
   else
     read%Pointer result := mkPRIMSXP_primCache at offset in
-    ifb result = R_NilValue then
-      let%alloc result := make_SExpRec_prim R_NilValue offset type in
+    ifc result '== R_NilValue then
+      let%alloc%contextual result := make_SExpRec_prim R_NilValue offset type in
       write%Pointer mkPRIMSXP_primCache at offset := result in
       result_success result
     else
@@ -52,7 +52,7 @@ Definition mkPRIMSXP (offset : nat) (type : bool) : result_SEXP :=
         result_error "Requested primitive type is not consistent with cached value."
       else result_success result.
 
-Definition mkCLOSXP (formals body rho : SEXP) :=
+Definition mkCLOSXP (formals body rho : _SEXP) : result_SEXP :=
   add%stack "mkCLOSXP" in
   let%success body_type := TYPEOF body in
   match body_type with
@@ -64,14 +64,14 @@ Definition mkCLOSXP (formals body rho : SEXP) :=
     result_error "Invalid body argument."
   | _ =>
     let env :=
-      ifb rho = R_NilValue then
-        (R_GlobalEnv : SEXP)
+      ifc rho '== R_NilValue then
+        (R_GlobalEnv : _SEXP)
       else rho in
-    let%alloc c := make_SExpRec_clo R_NilValue formals body env in
+    let%alloc%contextual c := make_SExpRec_clo R_NilValue formals body env in
     result_success c
   end.
 
-Definition iSDDName (name : SEXP) :=
+Definition iSDDName (name : _SEXP) : result_bool :=
   add%stack "iSDDName" in
   let%success buf := CHAR name in
   ifb String.substring 0 2 buf = ".."%string /\ String.length buf > 2 then
@@ -83,10 +83,10 @@ Definition iSDDName (name : SEXP) :=
   else
   result_success false.
 
-Definition mkSYMSXP (name value : SEXP) :=
+Definition mkSYMSXP (name value : _SEXP) : result_SEXP :=
   add%stack "mkSYMSXP" in
   let%success i := iSDDName name in
-  let%alloc c := make_SExpRec_sym R_NilValue name value R_NilValue in
+  let%alloc%contextual c := make_SExpRec_sym R_NilValue name value R_NilValue in
   run%success SET_DDVAL c i in
   result_success c.
 

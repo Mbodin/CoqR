@@ -35,6 +35,7 @@ Local Coercion int_to_double : Z >-> double.
 Definition begincontext flags syscall env sysp promargs callfun :=
   add%stack "begincontext" in
   read%state GlobalContext := R_GlobalContext in
+  let%contextual NilValue := (R_NilValue : _SEXP) in
   let cptr := {|
      context_nextcontext := Some GlobalContext ;
      context_cjmpbuf := 1 + context_cjmpbuf GlobalContext ;
@@ -44,7 +45,7 @@ Definition begincontext flags syscall env sysp promargs callfun :=
      context_sysparent := sysp ;
      context_call := syscall ;
      context_cloenv := env ;
-     context_conexit := R_NilValue ;
+     context_conexit := NilValue ;
      context_returnValue := NULL ;
      context_jumptarget := None ;
      context_jumpmask := empty_context_type
@@ -58,8 +59,8 @@ Fixpoint first_jump_target_loop c cptr mask :=
   ifb context_cjmpbuf c = context_cjmpbuf cptr then
     result_success cptr
   else
-    ifb (context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue)
-        \/ context_callflag c = Ctxt_Unwind then
+    ifc ((context_cloenv c '!= R_NilValue) '&& (context_conexit c '!= R_NilValue))
+        '|| decide (context_callflag c = Ctxt_Unwind) then
       let c := context_with_jumptarget c (Some cptr) in
       let c := context_with_jumpmask c mask in
       result_success c
@@ -81,7 +82,7 @@ Fixpoint R_run_onexits_loop c cptr :=
     result_skip
   else
     run%success
-      ifb context_cloenv c <> R_NilValue /\ context_conexit c <> R_NilValue then
+      ifc (context_cloenv c '!= R_NilValue) '&& (context_conexit c '!= R_NilValue) then
         let s := context_conexit c in
         read%state savecontext := R_ExitContext in
         let c := context_with_conexit c R_NilValue in

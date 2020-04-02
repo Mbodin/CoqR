@@ -35,8 +35,8 @@ Local Coercion int_to_double : Z >-> double.
 
 Definition mkSymMarker pname :=
   add%stack "mkSymMarker" in
-  let%alloc ans := make_SExpRec_sym R_NilValue pname NULL R_NilValue in
-  write%defined ans := make_SExpRec_sym R_NilValue pname ans R_NilValue in
+  let%alloc%contextual ans := make_SExpRec_sym R_NilValue pname NULL R_NilValue in
+  write%defined%contextual ans := make_SExpRec_sym R_NilValue pname ans R_NilValue in
   result_success ans.
 
 Definition install name_ : result_SEXP :=
@@ -59,16 +59,16 @@ Definition install name_ : result_SEXP :=
   ifb name_ = ""%string then
     result_error "Attempt to use zero-length variable name."
   else
-    let%success str := mkChar globals name_ in
-    let%success sym := mkSYMSXP globals str R_UnboundValue in
+    let%success str := mkChar name_ in
+    let%success sym := mkSYMSXP str R_UnboundValue in
     read%state SymbolTable := R_SymbolTable in
-    let%success SymbolTable := CONS globals sym SymbolTable in
+    let%success SymbolTable := CONS sym SymbolTable in
     map%state update_R_SymbolTable SymbolTable in
     result_success sym.
 
 (** We here choose to model [installChar] as its specification
   given by the associated comment in the C source file. **)
-Definition installChar charSXP :=
+Definition installChar charSXP : result_SEXP :=
   add%stack "installChar" in
   let%success str := CHAR charSXP in
   install str.
