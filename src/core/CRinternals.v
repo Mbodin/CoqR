@@ -34,74 +34,74 @@ Local Coercion int_to_double : Z >-> double.
 Definition TYPEOF x :=
   add%stack "TYPEOF" in
   read%defined x_ := x in
-  result_success (type x_).
+  return type x_.
 
-Definition ALTREP x : result_bool :=
+Definition ALTREP x :=
   add%stack "ALTREP" in
   read%defined x_ := x in
-  result_success (alt x_).
+  return alt x_.
 
-Definition OBJECT x : result_bool :=
+Definition OBJECT x :=
   add%stack "OBJECT" in
   read%defined x_ := x in
-  result_success (obj x_).
+  return obj x_.
 
 Definition SET_OBJECT x v :=
   add%stack "SET_OBJECT" in
   map%pointer%contextual x with set_obj v in
-  result_skip.
+  return;;.
 
-Definition PRINTNAME x : result_SEXP :=
+Definition PRINTNAME x :=
   add%stack "PRINTNAME" in
   read%sym _, x_sym := x in
-  result_success (sym_pname x_sym).
+  return sym_pname x_sym.
 
 Definition CHAR x :=
   add%stack "CHAR" in
   read%VectorChar x_vector := x in
-  result_success (list_to_string (ArrayList.to_list x_vector)).
+  return list_to_string (ArrayList.to_list x_vector).
 
 Definition MISSING x :=
   add%stack "MISSING" in
   read%defined x_ := x in
-  result_success (nbits_to_nat (sub_nbits 0 4 (gp x_) ltac:(nbits_ok))).
+  return nbits_to_nat (sub_nbits 0 4 (gp x_) ltac:(nbits_ok)).
 
 Definition SET_MISSING e (m : nat) I :=
   add%stack "SET_MISSING" in
   map%gp e with @write_nbits 16 4 0 (nat_to_nbits m I) ltac:(nbits_ok) in
-  result_skip.
+  return;;.
 Arguments SET_MISSING : clear implicits.
 
-Definition ATTRIB x : result_SEXP :=
+Definition ATTRIB x :=
   add%stack "ATTRIB" in
   read%defined x_ := x in
-  result_success (attrib x_).
+  return attrib x_.
 
 (** We suppose that [COMPUTE_REFCNT_VALUES] is not defined. **)
 
-Definition REFCNT (x : SEXP) :=
+Definition REFCNT (x : _SEXP) :=
   add%stack "REFCNT" in
-  result_success 0.
+  return 0.
 
-Definition TRACKREFS (x : SEXP) : result_bool :=
+Definition TRACKREFS (x : _SEXP) :=
   add%stack "TRACKREFS" in
-  result_success false.
+  return false.
 
-Definition SET_REFCNT (x : SEXP) (v : bool) :=
+Definition SET_REFCNT (x : _SEXP) (v : bool) :=
   add%stack "SET_REFCNT" in
-  result_skip.
+  return;;.
 
-Definition SET_TRACKREFS (x : SEXP) (v : bool) :=
+Definition SET_TRACKREFS (x : _SEXP) (v : bool) :=
   add%stack "SET_TRACKREFS" in
-  result_skip.
+  return;;.
 
-Definition DECREMENT_REFCNT (x : SEXP) :=
+Definition DECREMENT_REFCNT (x : _SEXP) :=
   add%stack "DECREMENT_REFCNT" in
-  result_skip.
+  return;;.
 
-Definition INCREMENT_REFCNT (x : SEXP) :=
+Definition INCREMENT_REFCNT (x : _SEXP) :=
   add%stack "INCREMENT_REFCNT" in
-  result_skip.
+  return;;.
 
 Definition ENABLE_REFCNT x :=
   add%stack "ENABLE_REFCNT" in
@@ -114,20 +114,20 @@ Definition DISABLE_REFCNT x :=
 Definition NAMED x :=
   add%stack "NAMED" in
   read%defined x_ := x in
-  result_success (named x_).
+  return named x_.
 
 Definition INCREMENT_NAMED x :=
   add%stack "INCREMENT_NAMED" in
-  let%success x_named := NAMED x in
+  x_named ::= NAMED x ;;
   match x_named with
   | named_temporary =>
     set%named x := named_unique in
-    result_skip
+    return;;
   | named_unique =>
     set%named x := named_plural in
-    result_skip
+    return;;
   | named_plural =>
-    result_skip
+    return;;
   end.
 
 Definition INCREMENT_LINKS x :=

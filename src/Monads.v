@@ -130,7 +130,7 @@ Ltac normalise t :=
 
 Notation "'normalise%' t" :=
   (ltac:(lazymatch goal with |- ?ty => normalise (t : ty) end))
-  (at level 50, no associativity, only parsing).
+  (at level 50, no associativity, only parsing) : monad_scope.
 
 
 (** *** Booleans operators over [_bool]. **)
@@ -251,9 +251,9 @@ Ltac make_contextual t :=
   | _ => normalise (contextual_ret t)
   end.
 
-Notation "'__' t" :=
+Notation "'contextual%' t" :=
   (ltac:(make_contextual t))
-  (at level 35, only parsing).
+  (at level 35, only parsing) : monad_scope.
 
 
 (** ** Manipulating global variables. **)
@@ -661,7 +661,7 @@ Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=
 
 (** * Imperative Notations **)
 
-Notation "c ';;' cont" :=
+Notation "c ';;;' cont" :=
   (run%success c in cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -692,7 +692,7 @@ Ltac build_sequence v cont :=
   end.
 
 Notation "x '::=' v ';;' cont" :=
-  (ltac:(build_sequence v (fun x => cont)))
+  (let x := v in let c := fun x => cont in ltac:(build_sequence x c))
   (at level 50, left associativity, only parsing) : monad_scope.
 
 (** Return types should never be [result _SEXP] or [result _bool]: if such a
@@ -710,3 +710,8 @@ Ltac build_return v :=
 Notation "'return' v" :=
   (ltac:(build_return v))
   (at level 50, no associativity, only parsing) : monad_scope.
+
+Notation "'return;;'" :=
+  (result_skip)
+  (at level 50, no associativity, only parsing) : monad_scope.
+
