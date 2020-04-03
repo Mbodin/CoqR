@@ -713,7 +713,7 @@ Notation "'do%return' a ':=' e 'while' expr 'do' stat 'using' runs 'in' cont" :=
   (at level 50, left associativity) : monad_scope.
 
 Notation "'do%return' 'while' expr 'do' stat 'using' runs 'in' cont" :=
-  (do%return _ := contextual_ret tt
+  (do%return _ := tt
    while expr
    do stat
    using runs

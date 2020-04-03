@@ -97,6 +97,42 @@ Definition result_bool := result bool.
 Definition _bool_result_bool : _bool -> result_bool := @contextual_result _.
 Coercion _bool_result_bool : _bool >-> result_bool.
 
+(** Some types are to be avoided.
+  This tactic warns about it when such types occur. **)
+Ltac warn_types t :=
+  let warning _ := idtac "Warning: a term of type" t "has been produced." in
+  lazymatch t with
+  | result _SEXP => warning tt
+  | result _bool => warning tt
+  | result (result _) => warning tt
+  | result (contextual _) => warning tt
+  | contextual (result _) => warning tt
+  | contextual (contextual _) => warning tt
+  | (result _ * _)%type => warning tt
+  | (_ * result _)%type => warning tt
+  | (?a * ?b)%type => warn_types a; warn_types b
+  | _ => idtac
+  end.
+
+(** Because of the way coercions works, some types are better than others
+  for Coq to be able to convert the different values correctly.
+  This tactic tries to prioritise these types. **)
+Ltac normalise t :=
+  let tty := type of t in
+  lazymatch tty with
+  | result bool => exact (t : result_bool)
+  | result SEXP => exact (t : result_SEXP)
+  | contextual bool => exact (t : _bool)
+  | contextual SEXP => exact (t : _SEXP)
+  | contextual (rresult ?t) => normalise (t : result t)
+  | _ => warn_types tty; exact t
+  end.
+
+Notation "'normalise%' t" :=
+  (ltac:(lazymatch goal with |- ?ty => normalise (t : ty) end))
+  (at level 50, no associativity, only parsing).
+
+
 (** *** Booleans operators over [_bool]. **)
 
 Definition contextual_and (a b : _bool) : _bool :=
@@ -106,6 +142,7 @@ Definition contextual_and (a b : _bool) : _bool :=
 
 Infix "'&&" := contextual_and (at level 40, left associativity).
 
+(** The lift of [&&] to ['&&] is just a lift in the contextual monad. **)
 Lemma contextual_and_bool : forall a b : bool,
   a '&& b = a && b.
 Proof. reflexivity. Qed.
@@ -200,6 +237,25 @@ Definition contextual_tuple6 A B C D E F
   contextual_pair (contextual_tuple5 (fst p), snd p).
 
 
+(** This tactic tries to create an object of type [contextual _]
+  by applying [contextual_ret] if needed. **)
+Ltac make_contextual t :=
+  lazymatch type of t with
+  | contextual _ => exact t
+  | _bool => exact t
+  | _SEXP => exact t
+  | (_ * _)%type =>
+    let a := constr:(ltac:(make_contextual (fst t))) in
+    let b := constr:(ltac:(make_contextual (snd t))) in
+    normalise (contextual_pair (a, b))
+  | _ => normalise (contextual_ret t)
+  end.
+
+Notation "'__' t" :=
+  (ltac:(make_contextual t))
+  (at level 35, only parsing).
+
+
 (** ** Manipulating global variables. **)
 
 Definition get_globals A (cont : Globals -> contextual A) : contextual A :=
@@ -278,13 +334,19 @@ Definition add_stack (A : Type) fname : result A -> result A :=
       | rresult_bottom S0 => rresult_bottom S0
       end)).
 
-Notation "'add%stack' fname 'in' cont" :=
+Notation "'add%stack%' fname 'in' cont" :=
   (add_stack fname cont)
   (at level 50, left associativity) : monad_scope.
 
+Notation "'add%stack' fname 'in' cont" :=
+  (normalise% (add%stack% fname in cont))
+  (at level 50, left associativity, only parsing) : monad_scope.
+
+Open Scope string_scope.
+
 (** We also provide a specialised version to mark unimplemented functions. **)
 Definition unimplemented_function (A : Type) fname : result A :=
-  add%stack fname in
+  add%stack% fname in
   result_not_implemented ("Function not implemented: " ++ fname ++ ".").
 Arguments unimplemented_function [A].
 
@@ -353,7 +415,7 @@ Definition if_defined_msg msg (A B : Type) (o : option A) (f : A -> result B) : 
   | None =>
     let msg :=
       ifb msg = ""%string then ""%string else (" (" ++ msg ++ ")")%string in
-    add%stack "if_defined" ++ msg in
+    add%stack% "if_defined" ++ msg in
     result_impossible "Undefined result."
   end.
 
@@ -596,3 +658,55 @@ Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=
   (if_option_defined c (fun ans => cont_then) cont_else)
   (at level 50, left associativity) : monad_scope.
 
+
+(** * Imperative Notations **)
+
+Notation "c ';;' cont" :=
+  (run%success c in cont)
+  (at level 50, left associativity) : monad_scope.
+
+(** Build the sequence [x := v ;; cont x] using the right monadic binder. **)
+Ltac build_sequence v cont :=
+  let v := constr:(ltac:(normalise v)) in
+  lazymatch type of v with
+  | result ?t => exact (let%success x := v in cont x)
+  | result_SEXP => exact (let%success x := v in cont x)
+  | result_bool => exact (let%success x := v in cont x)
+  | contextual ?t => exact (let%contextual x := v in cont x)
+  | _SEXP => exact (let%contextual x := v in cont x)
+  | _bool => exact (let%contextual x := v in cont x)
+  | option ?t =>
+    lazymatch type of cont with
+    | option ?t -> _ => exact (let x := v in cont x)
+    | _ => exact (let%defined x := v in cont x)
+    end
+  | ?t =>
+    lazymatch type of cont with
+    | result bool -> _ => exact (let x := v : result_bool in cont x)
+    | result SEXP -> _ => exact (let x := v : result_SEXP in cont x)
+    | contextual bool -> _ => exact (let x := v : _bool in cont x)
+    | contextual SEXP -> _ => exact (let x := v : _SEXP in cont x)
+    | contextual ?t -> _ => exact (let x := contextual_ret v in cont x)
+    | _ => exact (let x := v in cont x)
+    end
+  end.
+
+Notation "x '::=' v ';;' cont" :=
+  (ltac:(build_sequence v (fun x => cont)))
+  (at level 50, left associativity, only parsing) : monad_scope.
+
+(** Return types should never be [result _SEXP] or [result _bool]: if such a
+  type occur, this is very likely a mistake.
+  This tactic enforces that such types are converted into [result_SEXP]
+  (that is [result SEXP]) and [result_bool] (that is [result bool]). **)
+Ltac build_return v :=
+  let v := constr:(ltac:(normalise v)) in
+  lazymatch type of v with
+  | _SEXP => exact (v : result_SEXP)
+  | _bool => exact (v : result_bool)
+  | _ => exact (result_success v)
+  end.
+
+Notation "'return' v" :=
+  (ltac:(build_return v))
+  (at level 50, no associativity, only parsing) : monad_scope.
