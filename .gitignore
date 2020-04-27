@@ -12,6 +12,7 @@
 *.save
 
 Makefile.coq
+.coqdeps.d
 
 html
 

@@ -19,8 +19,9 @@
 
 Set Implicit Arguments.
 Require Export String.
-Require Export RinternalsAux TLC.LibHeap Common.
-Require Import TLC.LibStream.
+Require Export RinternalsAux Common.
+From TLC Require Export LibMap.
+From TLC Require Import LibStream.
 
 (** * A Model for the C Memory **)
 

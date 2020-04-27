@@ -92,7 +92,7 @@ The simplest way is to use =esy=.
 One way to install it is as follows.
 #+BEGIN_SRC bash
 	sudo apt install npm
-	sudo npm install --global esy@latest # Tested with version 0.6.2 of esy.
+	sudo npm install --global esy@latest # Tested with version 0.6.4 of esy.
 #+END_SRC
 
 One can then clone the project.

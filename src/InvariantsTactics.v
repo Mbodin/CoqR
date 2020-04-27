@@ -18,7 +18,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import TLC.LibBag Paco.paco.
+From TLC Require Import LibCollection.
+From Paco Require Import paco.
 Require Import InvariantsAux.
 
 (** * Simplifying tactics **)

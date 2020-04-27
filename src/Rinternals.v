@@ -20,7 +20,8 @@
 
 Set Implicit Arguments.
 
-Require Export Array NBits TLC.LibString TLC.LibInt.
+Require Export Array NBits.
+From TLC Require Export LibString LibInt.
 Require Import Double.
 
 

@@ -1,12 +1,12 @@
 
 -arg "-w -notation-overridden"
 
--R ./lib/extra Lib
+-R ./lib Lib
 
-./lib/extra/Common.v
-./lib/extra/Array.v
-./lib/extra/NBits.v
-./lib/extra/Double.v
+./lib/Common.v
+./lib/Array.v
+./lib/NBits.v
+./lib/Double.v
 
 
 -R ./src Main
