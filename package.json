@@ -9,7 +9,7 @@
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq"
+			"COQPATH": "#{coq-tlc.install}/coq:#{coq-flocq.install}/coq:#{coq-prelude.install}/coq"
 		}
 	},
 	"scripts": {
@@ -33,24 +33,7 @@
 		"coq-prelude": "*"
 	},
 	"resolutions": {
-		"coq-tlc": {
-			"source": "github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8",
-			"override": {
-				"dependencies": {
-						"@opam/coq": ">=8.10"
-					},
-				"buildEnv": {
-					"HOME": "#{self.target_dir}",
-					"COQBIN": "#{@opam/coq.bin}/"
-				},
-				"build": [
-						["make"]
-					],
-				"install": [
-						["make", "install"]
-					]
-			}
-		},
+		"coq-tlc": "github:Mbodin/coq-tlc#99ca02dfa6f1e36a73c2cdb71da983a5e90ed40c",
 		"coq-paco": {
 			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
 			"override": {
@@ -93,7 +76,7 @@
 				]
 			}
 		},
-		"coq-prelude": "github:MBodin/coq-prelude#a8753f4ccfad7bb2f6458dd0e09723189acd5713"
+		"coq-prelude": "github:MBodin/coq-prelude#eed8dacfc53a82be0ae3ff3c3eed9df2b1483a9c"
 	}
 }
 

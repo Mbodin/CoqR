@@ -1,5 +1,5 @@
 {
-  "checksum": "bcc934072eead6f6a1096f15f5ceba8a",
+  "checksum": "0da6c42e301e6e740812768b9dac45e2",
   "root": "CoqR@link-dev:./package.json",
   "node": {
     "ocaml@4.9.0@d41d8cd9": {
@@ -46,29 +46,19 @@
       ],
       "devDependencies": []
     },
-    "coq-tlc@github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8@c7e58a46": {
+    "coq-tlc@github:Mbodin/coq-tlc#c4b5d379bae1d6a1a78a1eb87ed20e11a36e217a@d41d8cd9": {
       "id":
-        "coq-tlc@github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8@c7e58a46",
+        "coq-tlc@github:Mbodin/coq-tlc#c4b5d379bae1d6a1a78a1eb87ed20e11a36e217a@d41d8cd9",
       "name": "coq-tlc",
       "version":
-        "github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8",
+        "github:Mbodin/coq-tlc#c4b5d379bae1d6a1a78a1eb87ed20e11a36e217a",
       "source": {
         "type": "install",
         "source": [
-          "github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8"
+          "github:Mbodin/coq-tlc#c4b5d379bae1d6a1a78a1eb87ed20e11a36e217a"
         ]
       },
-      "overrides": [
-        {
-          "dependencies": { "@opam/coq": ">=8.10" },
-          "buildEnv": {
-            "HOME": "#{self.target_dir}",
-            "COQBIN": "#{@opam/coq.bin}/"
-          },
-          "build": [ [ "make" ] ],
-          "install": [ [ "make", "install" ] ]
-        }
-      ],
+      "overrides": [],
       "dependencies": [ "@opam/coq@opam:8.10.2@b8ac903f" ],
       "devDependencies": []
     },
@@ -173,7 +163,7 @@
       "overrides": [],
       "dependencies": [
         "ocaml@4.9.0@d41d8cd9",
-        "coq-tlc@github:charguer/tlc#a498ee308a4fed960787b5f5b5ba1b6784c85ff8@c7e58a46",
+        "coq-tlc@github:Mbodin/coq-tlc#c4b5d379bae1d6a1a78a1eb87ed20e11a36e217a@d41d8cd9",
         "coq-prelude@github:MBodin/coq-prelude#a8753f4ccfad7bb2f6458dd0e09723189acd5713@d41d8cd9",
         "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@3ec45ffe",
         "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@a06e3238",

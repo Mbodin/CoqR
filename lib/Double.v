@@ -10,7 +10,7 @@ From TLC Require Import LibInt.
 From Flocq Require Import IEEE754.Binary IEEE754.Bits.
 
 
-Definition double : Type := Fappli_IEEE.full_float.
+Definition double : Type := IEEE754.Binary.full_float.
 
 
 (* Warning: this is using the Leibniz equality, not the usual “equality operator” on floats. *)
@@ -22,9 +22,9 @@ Defined.
 Definition int_to_double (i : int) : double :=
   (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
   match i with
-  | Z0 => Fappli_IEEE.F754_zero false
-  | Zpos p => Fappli_IEEE.F754_finite false p 0
-  | Zneg p => Fappli_IEEE.F754_finite true p 0
+  | Z0 => IEEE754.Binary.F754_zero false
+  | Zpos p => IEEE754.Binary.F754_finite false p 0
+  | Zneg p => IEEE754.Binary.F754_finite true p 0
   end.
 
 Definition double_to_int d : option int :=
@@ -43,7 +43,7 @@ Definition double_to_int_zero d :=
 
 
 Definition is_zero (x : double) :=
-  decide (x = Fappli_IEEE.F754_zero false \/ x = Fappli_IEEE.F754_zero true).
+  decide (x = IEEE754.Binary.F754_zero false \/ x = IEEE754.Binary.F754_zero true).
 
 Parameter opp : double -> double. (* TODO: use Flocq. *)
 Parameter fabs : double -> double. (* TODO: use Flocq. *) (* FIXME: Why is [abs] refused as a name here? *)
@@ -70,10 +70,10 @@ Parameter cosh : double -> double. (* FIXME: what to do with these? *)
 Parameter sinh : double -> double. (* FIXME: what to do with these? *)
 Parameter tanh : double -> double. (* FIXME: what to do with these? *)
 
-Definition posInf := Fappli_IEEE.F754_infinity false : double.
-Definition negInf := Fappli_IEEE.F754_infinity true : double.
+Definition posInf := IEEE754.Binary.F754_infinity false : double.
+Definition negInf := IEEE754.Binary.F754_infinity true : double.
 
-Definition NaN : double := Fappli_IEEE.F754_nan false 1.
+Definition NaN : double := IEEE754.Binary.F754_nan false 1.
   (* FIXME: refine (Fappli_IEEE.B754_nan _ _ false (exist _ 1%positive _)). reflexivity.*)
 
 Definition NaN1954 : double :=
@@ -81,17 +81,17 @@ Definition NaN1954 : double :=
     conversion from the two-integer word whose first component is 0x7ff00000 (that is,
     2146435072) and the second 1954. **)
   (* FIXME: Fappli_IEEE_bits.b64_of_bits (2146435072 + 1954 * 2 ^ 32).*)
-  Fappli_IEEE.F754_nan true 1954.
+  IEEE754.Binary.F754_nan true 1954.
 
-Definition isNaN : double -> bool := Fappli_IEEE.is_nan_FF.
+Definition isNaN : double -> bool := IEEE754.Binary.is_nan_FF.
 
 Definition getNaNData x :=
   match x with
-  | Fappli_IEEE.F754_nan _ i => Some i
+  | IEEE754.Binary.F754_nan _ i => Some i
   | _ => None
   end.
 
-Definition FLT_EPSILON := Fappli_IEEE.F754_finite false 2 (-24).
+Definition FLT_EPSILON := IEEE754.Binary.F754_finite false 2 (-24).
 
 Parameter ge : double -> double -> bool. (* TODO: use Flocq. *)
 Parameter le : double -> double -> bool. (* TODO: use Flocq. *)

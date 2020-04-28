@@ -4,7 +4,7 @@
   Note that as TLC is changing, some of these lemmae already have been added to it:
   this file may need some cleanup to update to fresher versions of TLC. **)
 
-From TLC Require Import LibStream LibMap LibString LibNat LibInt.
+From TLC Require Import LibStream LibHeap LibString LibNat LibInt.
 From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
 
 Notation " [ ] " := nil : list_scope.
@@ -130,7 +130,7 @@ Proof using.
   introv F12 F23 I. rewrite Forall2_iff_forall_Nth in *. splits.
   - transitivity (length l2); autos*.
   - introv N1 N2. asserts (v&N): (exists v, Nth n l2 v); [| autos* ].
-    apply Nth_inbound_inv. rewrite (proj1 F23). apply* Nth_inbound.
+    apply length_Nth_lt. rewrite (proj1 F23). apply* Nth_lt_length.
 Qed.
 
 Lemma Forall2_Forall : forall A1 A2 (P : _ -> Prop) (Q : _ -> _ -> Prop)
@@ -154,24 +154,24 @@ Instance Forall2_Decidable_Mem : forall A B (P : A -> B -> Prop) l1 l2,
   Decidable (Forall2 P l1 l2).
 Proof.
   introv F. gen l2. induction l1 as [|a l1]; introv F.
-   destruct l2.
-    applys Decidable_equiv True.
-     iff~ I. constructors.
-     typeclass.
-    applys Decidable_equiv False.
-     iff I; tryfalse. inverts~ I.
-     typeclass.
-   destruct l2 as [|b l2].
-    applys Decidable_equiv False.
-     iff I; tryfalse. inverts~ I.
-     typeclass.
-    applys Decidable_equiv (P a b /\ Forall2 P l1 l2).
-     iff I.
-      constructors*.
-      inverts* I.
-     apply and_decidable.
-      typeclass.
-      apply IHl1. introv M1 M2. apply* F.
+  - destruct l2.
+    + applys Decidable_equiv True.
+      * iff~ I. constructors.
+      * typeclass.
+    + applys Decidable_equiv False.
+      * iff I; tryfalse. inverts~ I.
+      * typeclass.
+  - destruct l2 as [|b l2].
+    + applys Decidable_equiv False.
+      * iff I; tryfalse. inverts~ I.
+      * typeclass.
+    + applys Decidable_equiv (P a b /\ Forall2 P l1 l2).
+      * iff I.
+        -- constructors*.
+        -- inverts* I.
+      * apply and_decidable.
+        -- apply F; apply~ mem_cons_eq.
+        -- apply IHl1. introv M1 M2. apply F; simpl; rew_refl~.
 Defined.
 
 Global Instance Forall2_Decidable : forall A B (P : A -> B -> Prop) l1 l2,
@@ -1095,9 +1095,9 @@ Ltac Forall2_splits :=
   repeat first [ apply Forall2_nil | apply Forall2_cons ].
 
 
-(** * Some extensions of LibContainer. **)
+(** * Some extensions of LibBag. **)
 
-From TLC Require Import LibContainer.
+From TLC Require Import LibBag.
 
 Global Instance Comparable_BagIn_list : forall T,
     Comparable T ->
