@@ -110,12 +110,12 @@ Proof using.
   introv. gen l2.
   induction l1 as [|x1 l1]; intros [|x2 l2]; (iff I; [ splits | inverts I as I1 I2 ]);
     try solve [ inverts~ I ]; tryfalse~.
-   introv N1. inverts N1.
-   constructors.
-   do 2 rewrite length_cons. inverts I as I1 I2. rewrite* IHl1 in I2.
-   introv N1 N2. inverts I as I1 I2. rewrite IHl1 in I2. inverts N1; inverts~ N2.
+  - introv N1. inverts N1.
+  - constructors.
+  - do 2 rewrite length_cons. inverts I as I1 I2. rewrite* IHl1 in I2.
+  - introv N1 N2. inverts I as I1 I2. rewrite IHl1 in I2. inverts N1; inverts~ N2.
     apply* (proj2 I2).
-   constructors.
+  - constructors.
     apply~ I2; constructors.
     rewrite IHl1. splits~. introv N1 N2. apply~ I2; constructors*.
 Qed.
@@ -128,9 +128,9 @@ Lemma Forall2_compose : forall A1 A2 A3 (P Q R : _ -> _ -> Prop)
   Forall2 R l1 l3.
 Proof using.
   introv F12 F23 I. rewrite Forall2_iff_forall_Nth in *. splits.
-   transitivity (length l2); autos*.
-   introv N1 N2. asserts (v&N): (exists v, Nth n l2 v); [| autos* ].
-    apply length_Nth_lt. rewrite (proj1 F23). apply* Nth_lt_length.
+  - transitivity (length l2); autos*.
+  - introv N1 N2. asserts (v&N): (exists v, Nth n l2 v); [| autos* ].
+    apply Nth_inbound_inv. rewrite (proj1 F23). apply* Nth_inbound.
 Qed.
 
 Lemma Forall2_Forall : forall A1 A2 (P : _ -> Prop) (Q : _ -> _ -> Prop)
@@ -138,21 +138,19 @@ Lemma Forall2_Forall : forall A1 A2 (P : _ -> Prop) (Q : _ -> _ -> Prop)
   Forall P l1 ->
   Forall2 Q l1 l2 ->
   Forall2 (fun a b => P a /\ Q a b) l1 l2.
-Proof.
-  introv F F2. gen l2. induction F; introv F2; inverts F2; constructors~.
-Qed.
+Proof. introv F F2. gen l2. induction F; introv F2; inverts F2; constructors~. Qed.
+
+Local Transparent combine.
 
 Lemma Forall2_combine : forall A1 A2 A3 (P Q : _ -> _ -> Prop)
     (l1 : list A1) (l2 : list A2) (l3 : list A3),
   Forall2 P l1 l2 ->
   Forall2 Q l1 l3 ->
   Forall2 (fun a bc => P a (fst bc) /\ Q a (snd bc)) l1 (combine l2 l3).
-Proof.
-  introv F1 F2. gen l3. induction F1; introv F2; inverts F2; constructors~.
-Qed.
+Proof. introv F1 F2. gen l3. induction F1; introv F2; inverts F2; constructors~. Qed.
 
 Instance Forall2_Decidable_Mem : forall A B (P : A -> B -> Prop) l1 l2,
-  (forall a b, Mem a l1 -> Mem b l2 -> Decidable (P a b)) ->
+  (forall a b, mem a l1 -> mem b l2 -> Decidable (P a b)) ->
   Decidable (Forall2 P l1 l2).
 Proof.
   introv F. gen l2. induction l1 as [|a l1]; introv F.

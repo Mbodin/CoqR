@@ -4,7 +4,8 @@
 
 Set Implicit Arguments.
 
-From TLC Require Export Common LibNat.
+From TLC Require Export LibNat.
+Require Export Common.
 
 (** * Module Type Definition **)
 

@@ -7,7 +7,7 @@
 
 Require Import Common.
 From TLC Require Import LibInt.
-From Flocq Require Import Appli.Fappli_IEEE Appli.Fappli_IEEE_bits.
+From Flocq Require Import IEEE754.Binary IEEE754.Bits.
 
 
 Definition double : Type := Fappli_IEEE.full_float.

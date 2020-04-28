@@ -1,3 +1,6 @@
+⚠️ Note: large changes are currently being made on this project.
+If you are interested, it is probably best to checkout the [[https://github.com/Mbodin/CoqR/releases][releases]] or the [[https://github.com/Mbodin/CoqR/tree/dd1d5e30cfd8c583182103678b8953e158a75e48][last compiling commit]].
+
 A trustworthy Coq formalisation of the R programming language
 [[https://travis-ci.org/Mbodin/CoqR][https://travis-ci.org/Mbodin/CoqR.svg?branch=master]]
 
