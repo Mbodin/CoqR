@@ -20,8 +20,8 @@
 		"report": "make report"
 	},
 	"dependencies": {
-		"ocaml": "^4.4",
-		"@opam/ocamlfind": "*",
+		"ocaml": "4.5 - 4.9.0",
+		"@opam/ocamlfind": "1.8.1",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",
 		"@opam/coq": "~8.10",
@@ -33,6 +33,18 @@
 		"coq-prelude": "*"
 	},
 	"resolutions": {
+		"@opam/conf-clang": {
+			"source": "github:ocaml/opam-repository#3173fde",
+			"override": {
+				"dependencies": {
+					"clang": "*"
+				},
+				"buildEnv": {
+					"PATH": "#{clang}"
+				},
+				"build": [ ["clang", "--version"] ]
+			}
+		},
 		"coq-tlc": "github:Mbodin/coq-tlc#99ca02dfa6f1e36a73c2cdb71da983a5e90ed40c",
 		"coq-paco": {
 			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
