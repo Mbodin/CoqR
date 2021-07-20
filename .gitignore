@@ -31,4 +31,4 @@ extractBisect.mli
 /node_modules
 
 CoqMakefile.conf
-
+Makefile.coq.conf

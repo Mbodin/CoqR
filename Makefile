@@ -32,9 +32,8 @@ clean: Makefile.coq clean_interp clean_random
 	${AT}rm -f Makefile.coq
 
 Makefile.coq: _CoqProject Makefile
-	${AT}coq_makefile -f _CoqProject \
-		| sed 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' \
-		> Makefile.coq
+	${AT}coq_makefile -f _CoqProject -o $@
+	${AT} sed -i 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' $@
 
 _CoqProject: ;
 

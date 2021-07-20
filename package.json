@@ -5,7 +5,7 @@
 	"license": "GPL-2.0",
 	"esy": {
 		"build": "make",
-		"buildsInSource": "_build",
+		"buildsInSource": true,
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
@@ -17,6 +17,7 @@
 		"run_bisect": "make run_bisect",
 		"lrun": "make lrun",
 		"lrun_bisect": "make lrun_bisect",
+		"clean": "make clean_all",
 		"report": "make report"
 	},
 	"dependencies": {
@@ -24,28 +25,30 @@
 		"@opam/ocamlfind": "1.8.1",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",
-		"@opam/coq": "~8.10",
-		"coq-flocq": "2.6.1",
+		"@opam/coq": "^8.10",
+		"coq-flocq": "3.1.2",
 		"coq-paco": "*",
 		"@opam/extlib": "*",
 		"@opam/bisect": "*",
-		"coq-tlc": "*",
+		"coq-tlc": "github:Mbodin/coq-tlc#99ca02dfa6f1e36a73c2cdb71da983a5e90ed40c",
 		"coq-prelude": "*"
 	},
 	"resolutions": {
-		"@opam/conf-clang": {
-			"source": "github:ocaml/opam-repository#3173fde",
+		"coq-prelude": {
+			"source": "github:Mbodin/coq-prelude#64788390864332be9f058932cce78699c6924732",
 			"override": {
 				"dependencies": {
-					"clang": "*"
+					"@opam/dune": "2.9.0",
+					"@opam/coq": "^8.10"
 				},
-				"buildEnv": {
-					"PATH": "#{clang}"
-				},
-				"build": [ ["clang", "--version"] ]
+				"build": "make",
+				"install": [
+					[ "git", "init" ],
+					[ "git", "commit", "--allow-empty", "-m", "Dummy commit to circumvent dune issue 4819" ],
+					[ "dune", "install", "--prefix=#{self.install}" ]
+				]
 			}
 		},
-		"coq-tlc": "github:Mbodin/coq-tlc#99ca02dfa6f1e36a73c2cdb71da983a5e90ed40c",
 		"coq-paco": {
 			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
 			"override": {
@@ -87,8 +90,7 @@
 					[ "./remake", "install" ]
 				]
 			}
-		},
-		"coq-prelude": "github:MBodin/coq-prelude#eed8dacfc53a82be0ae3ff3c3eed9df2b1483a9c"
+		}
 	}
 }
 
