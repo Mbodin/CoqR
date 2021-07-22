@@ -15,7 +15,7 @@ build: [
   [make "byte"] {!ocaml:native-dynlink}
 ]
 depends: [
-  "ocaml" {>= "4.09" & < "4.10"}
+  "ocaml" {>= "4.12" & < "4.13"}
   "ocamlbuild" {build}
 ]
 install: [
@@ -36,6 +36,9 @@ Since then it has been replaced by a simpler system which is easier to maintain
 and to learn: ppx rewriters and extension points."""
 conflicts: ["ocaml-system"]
 url {
-  src: "https://github.com/camlp4/camlp4/archive/4.09+1.tar.gz"
-  checksum: "md5=32aad6b847e6864705acdb6dee9985f0"
+  src: "https://github.com/camlp4/camlp4/archive/4.12+1.tar.gz"
+  checksum: [
+    "md5=baa1a11a2252b400c46c87592fc46f22"
+    "sha256=84a53195d916f208b8fd761cbd34cec7882863b94d9df2ce43198d727739cda3"
+  ]
 }

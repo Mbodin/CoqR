@@ -9,7 +9,7 @@
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-tlc.install}/coq:#{coq-flocq.install}/coq:#{coq-prelude.install}/coq"
+			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq"
 		}
 	},
 	"scripts": {
@@ -21,39 +21,23 @@
 		"report": "make report"
 	},
 	"dependencies": {
-		"ocaml": "4.5 - 4.9.0",
+		"ocaml": ">=4.5",
 		"@opam/ocamlfind": "1.8.1",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",
-		"@opam/coq": "^8.10",
+		"@opam/coq": "^8.13",
 		"coq-flocq": "3.1.2",
 		"coq-paco": "*",
 		"@opam/extlib": "*",
 		"@opam/bisect": "*",
-		"coq-tlc": "github:Mbodin/coq-tlc#99ca02dfa6f1e36a73c2cdb71da983a5e90ed40c",
-		"coq-prelude": "*"
+		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f"
 	},
 	"resolutions": {
-		"coq-prelude": {
-			"source": "github:Mbodin/coq-prelude#64788390864332be9f058932cce78699c6924732",
-			"override": {
-				"dependencies": {
-					"@opam/dune": "2.9.0",
-					"@opam/coq": "^8.10"
-				},
-				"build": "make",
-				"install": [
-					[ "git", "init" ],
-					[ "git", "commit", "--allow-empty", "-m", "Dummy commit to circumvent dune issue 4819" ],
-					[ "dune", "install", "--prefix=#{self.install}" ]
-				]
-			}
-		},
 		"coq-paco": {
 			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
 			"override": {
 				"dependencies": {
-						"@opam/coq": "*"
+						"@opam/coq": "^8.13"
 					},
 				"buildEnv": {
 					"HOME": "#{self.target_dir}",
@@ -71,7 +55,7 @@
 			"override": {
 				"version": "3.1.2",
 				"dependencies": {
-					"@opam/coq": ">=8.7",
+					"@opam/coq": "^8.13",
 					"@opam/conf-autoconf": "*",
 					"@opam/conf-g++": "*"
 				},
