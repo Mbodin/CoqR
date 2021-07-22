@@ -1,7 +1,37 @@
 {
-  "checksum": "98e8a5bb6d0e27117d5896c048f6b2fb",
+  "checksum": "745e4ca4e8294bea11f92b48012ba146",
   "root": "CoqR@link-dev:./package.json",
   "node": {
+    "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b": {
+      "id":
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b",
+      "name": "tlc",
+      "version":
+        "github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134",
+      "source": {
+        "type": "install",
+        "source": [
+          "github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134"
+        ]
+      },
+      "overrides": [
+        {
+          "dependencies": { "@opam/coq": "^8.13" },
+          "buildEnv": {
+            "HOME": "#{self.target_dir}",
+            "COQBIN": "#{@opam/coq.bin}/",
+            "DESTDIR": "#{self.target_dir}",
+            "COQLIBINSTALL": "#{self.target_dir}",
+            "COQDOCINSTALL": "#{self.target_dir}"
+          },
+          "buildsInSource": true,
+          "build": "make",
+          "install": "make install DESTDIR = '#{self.target_dir}'"
+        }
+      ],
+      "dependencies": [ "@opam/coq@opam:8.13.2@83f70563" ],
+      "devDependencies": []
+    },
     "ocaml@4.12.0@d41d8cd9": {
       "id": "ocaml@4.12.0@d41d8cd9",
       "name": "ocaml",
@@ -97,38 +127,25 @@
       ],
       "devDependencies": []
     },
-    "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@1e34b907": {
+    "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9": {
       "id":
-        "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@1e34b907",
+        "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9",
       "name": "coq-paco",
       "version":
-        "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+        "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
       "source": {
         "type": "install",
         "source": [
-          "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450"
+          "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622"
         ]
       },
-      "overrides": [
-        {
-          "dependencies": { "@opam/coq": "^8.13" },
-          "buildEnv": {
-            "HOME": "#{self.target_dir}",
-            "COQBIN": "#{@opam/coq.bin}/"
-          },
-          "build": [
-            [ "make", "-C", "src" ],
-            [ "make", "-C", "src", "doc" ],
-            [ "make", "-C", "src", "install-doc" ]
-          ]
-        }
-      ],
+      "overrides": [],
       "dependencies": [ "@opam/coq@opam:8.13.2@83f70563" ],
       "devDependencies": []
     },
-    "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@e1e6a433": {
+    "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@a279ec55": {
       "id":
-        "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@e1e6a433",
+        "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@a279ec55",
       "name": "coq-flocq",
       "version":
         "git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1",
@@ -152,6 +169,7 @@
             "COQLIB": "#{@opam/coq.lib}/coq/",
             "COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
           },
+          "buildsInSource": true,
           "build": [
             [ "autoconf" ],
             [ "./configure", "--libdir=#{self.install}/coq/Flocq" ],
@@ -179,10 +197,11 @@
       },
       "overrides": [],
       "dependencies": [
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b",
         "ocaml@4.12.0@d41d8cd9",
         "coq-prelude@github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f@d41d8cd9",
-        "coq-paco@github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450@1e34b907",
-        "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@e1e6a433",
+        "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9",
+        "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1@a279ec55",
         "@opam/ocamlfind@opam:1.8.1@b7dc3072",
         "@opam/ocamlbuild@opam:0.14.0@6ac75d03",
         "@opam/menhir@opam:20210419@11c42419",

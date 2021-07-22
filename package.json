@@ -9,7 +9,7 @@
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq"
+			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq:#{tlc.install}:#{coq-paco.install}"
 		}
 	},
 	"scripts": {
@@ -27,27 +27,29 @@
 		"@opam/menhir": "*",
 		"@opam/coq": "^8.13",
 		"coq-flocq": "3.1.2",
-		"coq-paco": "*",
+		"coq-paco": "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
 		"@opam/extlib": "*",
 		"@opam/bisect": "*",
-		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f"
+		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f",
+		"tlc": "*"
 	},
 	"resolutions": {
-		"coq-paco": {
-			"source": "github:snu-sf/paco#3b686f0defa71dca3938b95893a24ad7cefea450",
+		"tlc": {
+			"source": "github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134",
 			"override": {
 				"dependencies": {
-						"@opam/coq": "^8.13"
-					},
+					"@opam/coq": "^8.13"
+				},
 				"buildEnv": {
 					"HOME": "#{self.target_dir}",
-					"COQBIN": "#{@opam/coq.bin}/"
+					"COQBIN": "#{@opam/coq.bin}/",
+					"DESTDIR": "#{self.target_dir}",
+					"COQLIBINSTALL": "#{self.target_dir}",
+					"COQDOCINSTALL": "#{self.target_dir}"
 				},
-				"build": [
-						["make", "-C", "src"],
-						["make", "-C", "src", "doc"],
-						["make", "-C", "src", "install-doc"]
-					]
+				"buildsInSource": true,
+				"build": "make",
+				"install": "make install DESTDIR = '#{self.target_dir}'"
 			}
 		},
 		"coq-flocq": {
@@ -65,6 +67,7 @@
 					"COQLIB": "#{@opam/coq.lib}/coq/",
 					"COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
 				},
+				"buildsInSource": true,
 				"build": [
 					[ "autoconf" ],
 					[ "./configure", "--libdir=#{self.install}/coq/Flocq" ],
