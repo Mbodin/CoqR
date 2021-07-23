@@ -22,7 +22,7 @@ From TLC Require Import LibCollection.
 From Paco Require Import paco.
 Require Export Invariants.
 
-Open Scope list_scope. (* FIXME: How to disable some notations of LibBag? *)
+Open Scope list_scope.
 
 (** * Predicates about the memory **)
 
@@ -1105,7 +1105,7 @@ Proof. introv I. destruct p_; apply~ SExpType_restrict_all_storable_SExpTypes. Q
 Lemma map_gp_aux_may_have_types : forall (S S' : state) p p_ f l p',
   read_SExp S p = Some p_ ->
   write_SExp S p (map_gp f p_) = Some S' ->
-  LibBag.incl l all_storable_SExpTypes ->
+  LibContainer.incl l all_storable_SExpTypes ->
   may_have_types S l p' ->
   may_have_types S' l p'.
 Proof.
@@ -1119,9 +1119,9 @@ Qed.
 Lemma map_gp_aux_list_type : forall (S S' : state) p p_ f l_t l_car l_tag l,
   read_SExp S p = Some p_ ->
   write_SExp S p (map_gp f p_) = Some S' ->
-  LibBag.incl l_t all_storable_SExpTypes ->
-  LibBag.incl l_car all_storable_SExpTypes ->
-  LibBag.incl l_tag all_storable_SExpTypes ->
+  LibContainer.incl l_t all_storable_SExpTypes ->
+  LibContainer.incl l_car all_storable_SExpTypes ->
+  LibContainer.incl l_tag all_storable_SExpTypes ->
   list_type S l_t l_car l_tag l ->
   list_type S' l_t l_car l_tag l.
 Proof.
@@ -1202,9 +1202,9 @@ Qed.
 Lemma map_gp_aux_list_type_safe : forall (S S' : state) p p_ f l_t l_car l_tag l,
   read_SExp S p = Some p_ ->
   write_SExp S p (map_gp f p_) = Some S' ->
-  LibBag.incl l_t all_storable_SExpTypes ->
-  LibBag.incl l_car all_storable_SExpTypes ->
-  LibBag.incl l_tag all_storable_SExpTypes ->
+  LibContainer.incl l_t all_storable_SExpTypes ->
+  LibContainer.incl l_car all_storable_SExpTypes ->
+  LibContainer.incl l_tag all_storable_SExpTypes ->
   list_type_safe S l_t l_car l_tag l ->
   list_type_safe S' l_t l_car l_tag l.
 Proof.

@@ -4,6 +4,7 @@
 -R ./lib Lib
 
 ./lib/Common.v
+./lib/LibExec.v
 ./lib/Array.v
 ./lib/NBits.v
 ./lib/Double.v

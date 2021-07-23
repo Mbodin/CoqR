@@ -4,7 +4,8 @@
   Note that as TLC is changing, some of these lemmae already have been added to it:
   this file may need some cleanup to update to fresher versions of TLC. **)
 
-From TLC Require Import LibStream LibHeap LibString LibNat LibInt.
+Require Import LibExec.
+From TLC Require Import LibStream LibMap LibString LibNat LibInt.
 From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
 
 Notation " [ ] " := nil : list_scope.
@@ -130,7 +131,7 @@ Proof using.
   introv F12 F23 I. rewrite Forall2_iff_forall_Nth in *. splits.
   - transitivity (length l2); autos*.
   - introv N1 N2. asserts (v&N): (exists v, Nth n l2 v); [| autos* ].
-    apply length_Nth_lt. rewrite (proj1 F23). apply* Nth_lt_length.
+    apply Nth_inbound_inv. rewrite (proj1 F23). apply* Nth_inbound.
 Qed.
 
 Lemma Forall2_Forall : forall A1 A2 (P : _ -> Prop) (Q : _ -> _ -> Prop)
@@ -540,6 +541,8 @@ Lemma stream_tail_nth : forall A (s : stream A) n,
   LibStream.nth n (stream_tail s) = LibStream.nth (1 + n) s.
 Proof. introv. destruct* s. Qed.
 
+
+Definition heap := map.
 
 Lemma read_option_indom : forall K `{Comparable K} V (h : heap K V) k v,
   read_option h k = Some v ->
@@ -1095,9 +1098,9 @@ Ltac Forall2_splits :=
   repeat first [ apply Forall2_nil | apply Forall2_cons ].
 
 
-(** * Some extensions of LibBag. **)
+(** * Some extensions of LibContainer. **)
 
-From TLC Require Import LibBag.
+From TLC Require Import LibContainer.
 
 Global Instance Comparable_BagIn_list : forall T,
     Comparable T ->

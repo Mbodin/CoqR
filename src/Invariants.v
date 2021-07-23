@@ -18,10 +18,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import TLC.LibBag Paco.paco.
+Require Import TLC.LibContainer Paco.paco.
 Require Export Path MonadTactics.
 
-Open Scope list_scope. (* FIXME: How to disable some notations of LibBag? *)
+Open Scope list_scope.
 
 
 (** * Predicates about the memory **)
