@@ -1,10 +1,10 @@
 {
-  "checksum": "745e4ca4e8294bea11f92b48012ba146",
+  "checksum": "eb0a6911ee0482423eb219fa20273106",
   "root": "CoqR@link-dev:./package.json",
   "node": {
-    "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b": {
+    "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952": {
       "id":
-        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b",
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952",
       "name": "tlc",
       "version":
         "github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134",
@@ -19,14 +19,18 @@
           "dependencies": { "@opam/coq": "^8.13" },
           "buildEnv": {
             "HOME": "#{self.target_dir}",
-            "COQBIN": "#{@opam/coq.bin}/",
-            "DESTDIR": "#{self.target_dir}",
-            "COQLIBINSTALL": "#{self.target_dir}",
-            "COQDOCINSTALL": "#{self.target_dir}"
+            "COQBIN": "#{@opam/coq.bin}/"
           },
           "buildsInSource": true,
-          "build": "make",
-          "install": "make install DESTDIR = '#{self.target_dir}'"
+          "build": [
+            [
+              "sed", "-i",
+              "s|-include settings\\.sh|COQLIBINSTALL=#{self.install}\\nCOQDOCINSTALL=#{self.install}|",
+              "src/Makefile"
+            ],
+            [ "make" ]
+          ],
+          "install": "make install"
         }
       ],
       "dependencies": [ "@opam/coq@opam:8.13.2@83f70563" ],
@@ -197,7 +201,7 @@
       },
       "overrides": [],
       "dependencies": [
-        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@4d69ce5b",
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952",
         "ocaml@4.12.0@d41d8cd9",
         "coq-prelude@github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f@d41d8cd9",
         "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9",
