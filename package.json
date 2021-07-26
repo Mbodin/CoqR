@@ -22,6 +22,8 @@
 	},
 	"dependencies": {
 		"ocaml": ">=4.5",
+		"@opam/dune": ">=2.4",
+		"@opam/odoc": "*",
 		"@opam/ocamlfind": "1.8.1",
 		"@opam/ocamlbuild": "*",
 		"@opam/menhir": "*",

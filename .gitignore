@@ -4,6 +4,8 @@
 .\#*
 
 *.vo
+*.vos
+*.vok
 *.aux
 *.glob
 *.v.d
@@ -27,8 +29,11 @@ extract.mli
 extractBisect.ml
 extractBisect.mli
 
+CoqMakefile.conf
+Makefile.coq.conf
+
+_build
+
 /_esy
 /node_modules
 
-CoqMakefile.conf
-Makefile.coq.conf

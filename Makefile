@@ -1,51 +1,32 @@
 
-OCAMLFILES= \
-	src/runR.ml \
-	src/print.ml \
-	src/hooks.ml \
-	src/lexer.mll \
-	src/parser.mly \
-	src/parserUtils.ml \
-	src/debug.ml \
-	src/debugType.ml \
-	src/funlist.mli
-
 AT=
 
-all: depends all_coq all_interp all_html random
+DUNEOPTIONS=--verbose
 
-%: Makefile.coq phony
-	${AT}+make -f Makefile.coq $@
+all: all_coq all_interp doc random
 
-depends: Rlib/base.d
+all_coq:
+	${AT}dune build @all ${DUNEOPTIONS}
 
-all_coq: Makefile.coq
-	${AT}+export HOME=`pwd`; make -f Makefile.coq all
+doc:
+	${AT}dune build @doc ${DUNEOPTIONS}
 
-all_html: Makefile.coq
-	${AT}+make -f Makefile.coq html
-
-doc: all_html
-
-clean: Makefile.coq clean_interp clean_random
-	${AT}+make -f Makefile.coq clean
-	${AT}rm -f Makefile.coq
-
-Makefile.coq: _CoqProject Makefile
-	${AT}coq_makefile -f _CoqProject -o $@
-	${AT} sed -i 's/$$(COQCHK) $$(COQCHKFLAGS) $$(COQLIBS)/$$(COQCHK) $$(COQCHKFLAGS) $$(subst -Q,-R,$$(COQLIBS))/' $@
+clean: clean_interp clean_random
+	${AT}rm {lib,src}/{.,}*.{aux,glob,vo,vos,vok} || true
+	${AT}rm src/extract.{ml,mli} || true
+	${AT}rm -rf _build || true
 
 _CoqProject: ;
 
 Makefile: ;
 
-.PHONY: all clean clean_all doc all_interp clean_interp run run_bisect random clean_random report
+.PHONY: all clean clean_all doc all_coq all_interp clean_interp run run_bisect random clean_random report
 
 clean_all: clean
 	${AT}rm src/initial.state || true
 	${AT}rm Rlib/bootstrapping.state || true
 
-all_interp: src/runR.native src/runR.d.byte src/initial.state Rlib/bootstrapping.state
+all_interp: all_coq src/initial.state Rlib/bootstrapping.state
 
 # Runs the program.
 run: src/runR.native src/initial.state
@@ -80,18 +61,6 @@ clean_interp:
 	${AT}rm -f src/funlist.ml || true
 	${AT}ls bisect/*.ml{,i,y,l} | grep -v myocamlbuild.ml | xargs rm || true
 	${AT}# If there if a file src/funlist.v, it would also be a good idea to remove it, but this may removes a human-generated file.
-
-src/funlist.ml: src/extract.mli src/gen-funlist.pl
-	${AT}src/gen-funlist.pl
-
-src/Extraction.vo: Makefile.coq
-	${AT}+make -f Makefile.coq $@
-
-src/extract.ml: src/Extraction.vo
-	${AT}mv extract.ml $@ 2> /dev/null || true
-
-src/extract.mli: src/Extraction.vo
-	${AT}mv extract.mli $@ 2> /dev/null || true
 
 src/runR.native: src/extract.ml src/extract.mli ${OCAMLFILES} src/funlist.ml
 	${AT}cd src ; \
