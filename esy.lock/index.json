@@ -1,10 +1,10 @@
 {
-  "checksum": "0af13a6edf076886b5b37c6b2bffec73",
+  "checksum": "87ddef5f563cd99be184f0dd4da6941c",
   "root": "CoqR@link-dev:./package.json",
   "node": {
-    "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952": {
+    "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@27aca90a": {
       "id":
-        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952",
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@27aca90a",
       "name": "tlc",
       "version":
         "github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134",
@@ -25,7 +25,7 @@
           "build": [
             [
               "sed", "-i",
-              "s|-include settings\\.sh|COQLIBINSTALL=#{self.install}\\nCOQDOCINSTALL=#{self.install}|",
+              "s|-include settings\\.sh|COQLIBINSTALL=#{self.install}/lib\\nCOQDOCINSTALL=#{self.install}|",
               "src/Makefile"
             ],
             [ "make" ]
@@ -201,7 +201,7 @@
       },
       "overrides": [],
       "dependencies": [
-        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@cfbe6952",
+        "tlc@github:charguer/tlc#92434f5192721b9e7b687a6ca13ece4a63e7c134@27aca90a",
         "ocaml@4.12.0@d41d8cd9",
         "coq-prelude@github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f@d41d8cd9",
         "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9",

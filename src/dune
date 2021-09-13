@@ -2,6 +2,7 @@
 (coq.theory
 	(name CoqR)
 	(package CoqR)
+	(theories Lib)
 	(flags -w -notation-overridden))
 
 ;(coq.extraction

@@ -9,7 +9,7 @@
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq:#{tlc.install}:#{coq-paco.install}",
+			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/lib/coq:#{tlc.install}/lib:#{coq-paco.install}/user-contrib",
 			"TARGETDIR": "#{self.target_dir}"
 		}
 	},
@@ -23,7 +23,7 @@
 	},
 	"dependencies": {
 		"ocaml": ">=4.5",
-		"@opam/dune": ">=2.4",
+		"@opam/dune": ">=2.5",
 		"@opam/odoc": "*",
 		"@opam/ocamlfind": "1.8.1",
 		"@opam/menhir": ">=20190626 <20200123",
@@ -48,7 +48,7 @@
 				},
 				"buildsInSource": true,
 				"build": [
-					[ "sed", "-i", "s|-include settings\\.sh|COQLIBINSTALL=#{self.install}\\nCOQDOCINSTALL=#{self.install}|", "src/Makefile" ],
+					[ "sed", "-i", "s|-include settings\\.sh|COQLIBINSTALL=#{self.install}/lib\\nCOQDOCINSTALL=#{self.install}|", "src/Makefile" ],
 					[ "make" ]
 				],
 				"install": "make install"

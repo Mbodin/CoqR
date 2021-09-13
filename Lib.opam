@@ -5,7 +5,7 @@ license: "GPL-2.0-or-later"
 homepage: "https://github.com/Mbodin/CoqR"
 bug-reports: "https://github.com/Mbodin/CoqR/issues"
 depends: [
-  "dune" {>= "2.4"}
+  "dune" {>= "2.5"}
 ]
 build: [
   ["dune" "subst"] {pinned}
