@@ -5,8 +5,9 @@
   this file may need some cleanup to update to fresher versions of TLC. **)
 
 From Lib Require Import LibExec.
-From TLC Require Import LibStream LibSet LibMap LibString LibNat LibInt.
+From TLC Require Import LibStream LibString LibNat LibInt.
 From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
+Require Export Heap.
 
 Notation " [ ] " := nil : list_scope.
 Notation " [ x ] " := (cons x nil) : list_scope.
@@ -560,7 +561,7 @@ Lemma stream_tail_nth : forall A (s : stream A) n,
 Proof. introv. destruct* s. Qed.
 
 
-Definition heap : Type -> Type -> Type := LibMap.map.
+Definition heap : Type -> Type -> Type := Heap.TODO. (* TODO: Also move all these lemmas into the Heap file. *)
 
 Definition read_option K V (m : heap K V) : K -> option V := m.
 
