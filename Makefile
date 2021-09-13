@@ -1,7 +1,12 @@
 
+# Add @ to make the command silent.
 AT=
 
 DUNEOPTIONS=--verbose
+
+# Removes a lot of warnings from dune complaining that HOME is not defined.
+HOME ?= ${TARGETDIR}
+export HOME
 
 all: all_coq all_interp doc random
 
@@ -12,7 +17,7 @@ doc:
 	${AT}dune build @doc ${DUNEOPTIONS}
 
 clean: clean_interp clean_random
-	${AT}rm {lib,src}/{.,}*.{aux,glob,vo,vos,vok} || true
+	${AT}rm -f {lib,src}/{.,}*.{aux,glob,vo,vos,vok} || true
 	${AT}rm src/extract.{ml,mli} || true
 	${AT}rm -rf _build || true
 

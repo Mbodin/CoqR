@@ -19,7 +19,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 
-Require Export Rinternals Common InternalTypes.
+From Lib Require Export Common.
+Require Export Rinternals InternalTypes.
 
 
 (** * Initialised **)

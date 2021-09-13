@@ -18,7 +18,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import TLC.LibContainer Paco.paco.
+From TLC Require Import LibContainer.
+From Paco Require Import paco.
 Require Export Path MonadTactics.
 
 Open Scope list_scope.

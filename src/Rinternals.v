@@ -20,9 +20,9 @@
 
 Set Implicit Arguments.
 
-Require Export Array NBits.
+From Lib Require Export Array NBits.
 From TLC Require Export LibString LibInt.
-Require Import Double.
+From Coq Require Import Double.
 
 
 (** * General Types **)

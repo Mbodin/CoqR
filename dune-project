@@ -9,9 +9,15 @@
 
 (package
 	(name CoqR)
+	(depends Lib)
 	(synopsis "A Coq formalisation of the R programming language"))
 
 (package
 	(name runR)
+	(depends CoqR)
 	(synopsis "R interpreter extracted from the Coq formalisation"))
+
+(package
+	(name Lib)
+	(synopsis "Internal library for CoqR"))
 

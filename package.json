@@ -5,11 +5,12 @@
 	"license": "GPL-2.0",
 	"esy": {
 		"build": "make",
-		"buildsInSource": true,
+		"buildsInSource": "_build",
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq:#{tlc.install}:#{coq-paco.install}"
+			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/coq:#{tlc.install}:#{coq-paco.install}",
+			"TARGETDIR": "#{self.target_dir}"
 		}
 	},
 	"scripts": {
@@ -25,8 +26,7 @@
 		"@opam/dune": ">=2.4",
 		"@opam/odoc": "*",
 		"@opam/ocamlfind": "1.8.1",
-		"@opam/ocamlbuild": "*",
-		"@opam/menhir": "*",
+		"@opam/menhir": ">=20190626 <20200123",
 		"@opam/coq": "^8.13",
 		"coq-flocq": "3.1.2",
 		"coq-paco": "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
@@ -55,9 +55,9 @@
 			}
 		},
 		"coq-flocq": {
-			"source": "git:https://gitlab.inria.fr/flocq/flocq.git#c4a5db7d7a018a3c88e51da45b8910aca3e57de1",
+			"source": "git:https://gitlab.inria.fr/flocq/flocq.git#ca655d2542bdcf024bce5c26dbc0f13b856aa1f6",
+			"version": "3.4.2",
 			"override": {
-				"version": "3.1.2",
 				"dependencies": {
 					"@opam/coq": "^8.13",
 					"@opam/conf-autoconf": "*",
@@ -67,12 +67,13 @@
 					"HOME": "#{self.target_dir}",
 					"COQBIN": "#{@opam/coq.bin}",
 					"COQLIB": "#{@opam/coq.lib}/coq/",
-					"COQPATH": "#{@opam/coq.lib}/coq/user-contrib/"
+					"COQPATH": "#{@opam/coq.lib}/coq/user-contrib/",
+					"COQUSERCONTRIB": "#{self.install}/coq"
 				},
 				"buildsInSource": true,
 				"build": [
 					[ "autoconf" ],
-					[ "./configure", "--libdir=#{self.install}/coq/Flocq" ],
+					[ "./configure" ],
 					[ "./remake", "--jobs=2" ]
 				],
 				"install": [

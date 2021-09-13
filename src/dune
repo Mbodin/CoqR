@@ -3,21 +3,27 @@
 	(name CoqR)
 	(flags -w -notation-overridden))
 
-(coq.extraction
-	(prelude Extraction)
-	(extracted_modules extract))
+;(coq.extraction
+;	(prelude Extraction)
+;	(extracted_modules extract))
 
-(include_subdirs unqualified)
+;(include_subdirs unqualified)
+
+(rule
+	(targets "extract.ml" "extract.mli")
+	(deps "Extraction.vo")
+	(action (progn)))
 
 (rule
 	(targets "funlist.ml")
 	(deps "extract.mli" "gen-funlist.pl")
 	(action
-		(run gen-funlist.pl)))
+		(run ./gen-funlist.pl)))
 
 (executable
 	(name runR)
-	(libraries menhir))
+	(libraries menhir)
+	(modes (best exe)))
 
 (install
 	(package runR)

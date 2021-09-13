@@ -19,7 +19,8 @@
 
 Set Implicit Arguments.
 Require Export String.
-Require Export RinternalsAux Common.
+Require Export RinternalsAux.
+From Lib Require Export Common.
 From TLC Require Export LibMap.
 From TLC Require Import LibStream.
 

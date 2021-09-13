@@ -22,7 +22,7 @@ Require Import Rcore.
 Require Import RfeaturesAux.
 Require Import Rinit.
 Require Import InvariantsAux InvariantsTactics.
-Require Import Paco.paco.
+From Paco Require Import paco.
 
 
 Section Parameterised.
