@@ -1,0 +1,6 @@
+
+(coq.theory
+	(name CoqR.core)
+	(theories CoqR Lib)
+	(flags -w -notation-overridden))
+

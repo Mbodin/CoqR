@@ -19,9 +19,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii.
-Require Import Double.
-Require Import Loops.
+From Coq Require Import Ascii.
+From Lib Require Import Double.
+From CoqR Require Import Loops.
 Require Import Conflicts.
 Require Import CRmath.
 Require Import CRinternals.

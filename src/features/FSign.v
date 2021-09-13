@@ -19,8 +19,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Rcore.
-Require Import Double.
+From CoqR Require Import Rcore.
+From Lib Require Import Double.
 
 Section Parameters.
 

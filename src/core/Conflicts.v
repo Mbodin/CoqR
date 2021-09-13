@@ -23,7 +23,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Loops.
+From CoqR Require Import Loops.
 Require Import CRinternals.
 Require Import CRinlinedfuns.
 Require Import CMemory.

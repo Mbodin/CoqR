@@ -20,7 +20,7 @@
 
 Set Implicit Arguments.
 Require Import Ascii.
-Require Import Rcore.
+From CoqR Require Import Rcore.
 Require Import FUtil.
 
 Section Parameters.

@@ -20,7 +20,7 @@
 
 
 Set Implicit Arguments.
-Require Import Rcore.
+From CoqR Require Import Rcore.
 
 Section Parameters.
 
