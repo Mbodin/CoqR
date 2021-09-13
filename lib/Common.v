@@ -5,7 +5,7 @@
   this file may need some cleanup to update to fresher versions of TLC. **)
 
 From Lib Require Import LibExec.
-From TLC Require Import LibStream LibMap LibString LibNat LibInt.
+From TLC Require Import LibStream LibSet LibMap LibString LibNat LibInt.
 From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
 
 Notation " [ ] " := nil : list_scope.
@@ -441,35 +441,35 @@ Definition find_index A :=
   nosimpl (@find_index_def A 0).
 
 Lemma find_index_def_length : forall A (a : A) l n,
-  ~ Mem a l ->
+  ~ mem a l ->
   find_index_def n a l = n + length l.
 Proof.
   introv N. unfold find_index_def. gen n. induction l using list_ind_last; introv.
    simpl. rewrite~ length_nil.
    rewrite fold_right_last. rewrite IHl.
-    cases_if.
-     false N. apply* Mem_last.
+    case_if.
+     false N. apply* mem_last.
      rewrite length_last. rewrite~ PeanoNat.Nat.add_assoc.
-    introv M. false N. apply* Mem_in_last.
+    introv M. false N. apply* mem_in_last.
 Qed.
 
 Lemma find_index_nth : forall A (a : A) l,
-  Mem a l ->
+  mem a l ->
   Nth (find_index a l) l a.
 Proof.
   introv M. unfold find_index. generalize 0. induction l using list_ind_last; introv.
    inverts* M.
-   unfolds find_index_def. rewrite fold_right_last. apply Mem_last_inv in M.
-    tests M': (Mem a l).
+   unfolds find_index_def. rewrite fold_right_last. apply mem_last_inv in M.
+    tests M': (mem a l).
      apply* Nth_add_last.
-     cases_if.
-      fold (find_index_def 0 a0 l). rewrite~ find_index_def_length. simpl. apply* Nth_last.
+     case_if.
+      fold (find_index_def 0 a l). rewrite~ find_index_def_length. subst. apply* Nth_last.
       inverts* M.
 Qed.
 
 Fixpoint nth_option A n (l : list A) {struct l} :=
   match l with
-  | [] => None
+  | nil => None
   | x :: l =>
     match n with
     | 0 => Some x
@@ -547,7 +547,7 @@ Proof.
    reflexivity.
    simpl. destruct i as [|i'].
     false. math.
-    fequals. apply~ IHl. math.
+    rewrite update_cons. fequals. apply~ IHl. math.
 Qed.
 
 
@@ -560,12 +560,22 @@ Lemma stream_tail_nth : forall A (s : stream A) n,
 Proof. introv. destruct* s. Qed.
 
 
-Definition heap := map.
+Definition heap : Type -> Type -> Type := LibMap.map.
+
+Definition read_option K V (m : heap K V) : K -> option V := m.
+
+Global Instance heap_in_inst : forall K V, BagIn K (heap K V) :=
+  fun _ _ => {| is_in := fun k h => k \indom h |}.
+
+Lemma read_option_binds : forall K `{Comparable K} V (h : heap K V) k v,
+  read_option h k = Some v ->
+  binds h k v.
+Proof. autos~. Qed.
 
 Lemma read_option_indom : forall K `{Comparable K} V (h : heap K V) k v,
   read_option h k = Some v ->
-  indom h k.
-Proof. introv E. forwards B: @read_option_binds E. applys~ @binds_indom B. Qed.
+  k \indom h.
+Proof. introv E. forwards B: read_option_binds E. applys~ indom_of_binds. binds_indom B. Qed.
 
 Lemma indom_read_option : forall K `{Comparable K} V (h : heap K V) k,
   indom h k ->

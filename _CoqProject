@@ -1,83 +1,83 @@
 
 -arg "-w -notation-overridden"
 
--R ./lib Lib
+-R _build/default/lib Lib
 
-./lib/Common.v
-./lib/LibExec.v
-./lib/Array.v
-./lib/NBits.v
-./lib/Double.v
+#./lib/Common.v
+#./lib/LibExec.v
+#./lib/Array.v
+#./lib/NBits.v
+#./lib/Double.v
 
 
--R ./src Main
+-R _build/default/src Main
 
-./src/Rinternals.v
-./src/RinternalsAux.v
-./src/RinternalsCons.v
-./src/State.v
-./src/Monads.v
-./src/InternalTypes.v
-./src/Result.v
-./src/Globals.v
-./src/Loops.v
+#./src/Rinternals.v
+#./src/RinternalsAux.v
+#./src/RinternalsCons.v
+#./src/State.v
+#./src/Monads.v
+#./src/InternalTypes.v
+#./src/Result.v
+#./src/Globals.v
+#./src/Loops.v
 
-./src/core/Conflicts.v
-./src/core/CRmath.v
-./src/core/CRinternals.v
-./src/core/CDefn.v
-./src/core/CMemory.v
-./src/core/CRinlinedfuns.v
-./src/core/CBuiltin.v
-./src/core/CDuplicate.v
-./src/core/CDstruct.v
-./src/core/CEval.v
-./src/core/CArithmetic.v
-./src/core/CUtil.v
-./src/core/CPrintutils.v
-./src/core/CEnvir.v
-./src/core/CNames.v
-./src/core/CSysutils.v
-./src/core/CGram.v
-./src/core/CContext.v
-./src/core/CMatch.v
-./src/core/CAltrep.v
-./src/core/CCoerce.v
-./src/core/CAttrib.v
-./src/core/CObjects.v
-./src/core/CArray.v
-./src/core/CLogic.v
-./src/core/CSubscript.v
-./src/core/CSubassign.v
-./src/Rcore.v
+#./src/core/Conflicts.v
+#./src/core/CRmath.v
+#./src/core/CRinternals.v
+#./src/core/CDefn.v
+#./src/core/CMemory.v
+#./src/core/CRinlinedfuns.v
+#./src/core/CBuiltin.v
+#./src/core/CDuplicate.v
+#./src/core/CDstruct.v
+#./src/core/CEval.v
+#./src/core/CArithmetic.v
+#./src/core/CUtil.v
+#./src/core/CPrintutils.v
+#./src/core/CEnvir.v
+#./src/core/CNames.v
+#./src/core/CSysutils.v
+#./src/core/CGram.v
+#./src/core/CContext.v
+#./src/core/CMatch.v
+#./src/core/CAltrep.v
+#./src/core/CCoerce.v
+#./src/core/CAttrib.v
+#./src/core/CObjects.v
+#./src/core/CArray.v
+#./src/core/CLogic.v
+#./src/core/CSubscript.v
+#./src/core/CSubassign.v
+#./src/Rcore.v
 
-./src/features/FErrors.v
-./src/features/FUtil.v
-./src/features/FAttrib.v
-./src/features/FCoerce.v
-./src/features/FEnvir.v
-./src/features/FContext.v
-./src/features/FBind.v
-./src/features/FEval.v
-./src/features/FConnections.v
-./src/features/FPrintutils.v
-./src/features/FPrint.v
-./src/features/FBuiltin.v
-./src/features/FSeq.v
-./src/features/FComplex.v
-./src/features/FSign.v
-./src/features/FArithmetic.v
-./src/features/FSubset.v
-./src/features/FRelop.v
-./src/features/FArray.v
-./src/features/FNames.v
-./src/features/FLogic.v
-./src/features/FSubassign.v
-./src/Rfeatures.v
+#./src/features/FErrors.v
+#./src/features/FUtil.v
+#./src/features/FAttrib.v
+#./src/features/FCoerce.v
+#./src/features/FEnvir.v
+#./src/features/FContext.v
+#./src/features/FBind.v
+#./src/features/FEval.v
+#./src/features/FConnections.v
+#./src/features/FPrintutils.v
+#./src/features/FPrint.v
+#./src/features/FBuiltin.v
+#./src/features/FSeq.v
+#./src/features/FComplex.v
+#./src/features/FSign.v
+#./src/features/FArithmetic.v
+#./src/features/FSubset.v
+#./src/features/FRelop.v
+#./src/features/FArray.v
+#./src/features/FNames.v
+#./src/features/FLogic.v
+#./src/features/FSubassign.v
+#./src/Rfeatures.v
 
-./src/Rinit.v
-./src/Rparsing.v
-./src/Extraction.v
+#./src/Rinit.v
+#./src/Rparsing.v
+#./src/Extraction.v
 
 #./src/RfeaturesAux.v
 #./src/MonadTactics.v
