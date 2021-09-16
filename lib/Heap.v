@@ -17,6 +17,12 @@ Class BagInDec A T := {
     bag_in_dec :> forall a (t : T), Decidable (a \in t)
   }.
 
+(** The class [In_remove_eq] is about removal of a subset of a set/map.
+  This other typeclass is about removal of an element. **)
+Class In_remove_elem {A T : Type} (Eq : LibRelation.binary A) {BI : BagIn A T} {BR : BagRemove T A} := {
+    in_remove_elem : forall x y E, x \in E \- y <-> (x \in E /\ ~ Eq x y)
+  }.
+
 (** ** Properties **)
 
 Section Properties.
@@ -149,7 +155,7 @@ Instance update_inst V : BagUpdate K V (t V) := {|
   |}.
 
 (* Alternative name *)
-Definition write V : t V -> K -> V -> t V := update.
+Definition write {V} : t V -> K -> V -> t V := update.
 
 Instance remove_inst V : BagRemove (t V) K := {|
     LibContainer.remove h k := Tree.remove k h
@@ -172,47 +178,122 @@ Instance card_inst V : BagCard (t V) := {|
 Instance in_empty_eq V : In_empty_eq (T := t V).
 Proof. constructors*. Qed.
 
+Lemma MapsTo_In : forall V (h : t V) k v,
+  MapsTo k v h ->
+  In k h.
+Proof.
+  introv M. constructors*.
+Qed.
+
+Instance in_remove_elem V : In_remove_elem (T := t V) eq.
+Proof.
+  constructors. intros x y h. simpl. destruct (eq_dec x y) as [E|E].
+  - symmetry in E. forwards nI: remove_1 h E. destruct find eqn: B.
+    + forwards M1: find_2 B. forwards M2: remove_3 M1.
+      forwards M3: find_1 M2. false nI. apply* MapsTo_In.
+    + destruct (find x h) eqn: B'.
+      * forwards M1: find_2 B'. split~. intros (_&N).
+        forwards M2: remove_2 M1.
+        { introv nE. apply N. symmetry. apply~ nE. }
+        forwards E': find_1 M2. rewrite B in E'. inverts E'.
+      * autos*.
+  - destruct find eqn: B.
+    + forwards M1: find_2 B. forwards M2: remove_3 M1.
+      forwards M3: find_1 M2. rewrite* M3.
+    + destruct (find x h) eqn: B'.
+      * forwards M1: find_2 B'. split~. intros (_&N).
+        forwards M2: remove_2 M1.
+        { introv nE. apply N. symmetry. apply~ nE. }
+        forwards E': find_1 M2. rewrite B in E'. inverts E'.
+      * autos*.
+Qed.
+
+Instance in_binds_eq V : In_Binds_eq (T := t V).
+Proof.
+  constructors. intros k h. simpl. destruct find eqn: E.
+  - autos*.
+  - iff I; repeat inverts I as I.
+Qed.
+
 Lemma read_option_binds : forall V (h : t V) k v,
   read_option h k = Some v ->
   binds h k v.
 Proof. autos~. Qed.
 
+Lemma binds_indom : forall V (h : t V) k v,
+  binds h k v ->
+  k \in h.
+Proof. simpl. introv E. rewrite~ E. Qed.
+
 Lemma read_option_indom : forall V (h : t V) k v,
   read_option h k = Some v ->
-  k \indom h.
-Proof. introv E. forwards B: read_option_binds E. applys~ indom_of_binds. binds_indom B. Qed.
+  k \in h.
+Proof. introv E. apply~ binds_indom. applys~ read_option_binds E. Qed.
 
-Lemma indom_read_option : forall V (h : heap K V) k,
-  indom h k ->
+Lemma indom_binds : forall V (h : t V) k,
+  k \in h ->
+  exists v, binds h k v.
+Proof.
+  simpl. introv I. destruct find; tryfalse. eexists. autos*.
+Qed.
+
+Lemma binds_read_option : forall V (h : t V) k v,
+  binds h k v ->
+  read_option h k = Some v.
+Proof.
+  introv B. rewrite read_option_binds_eq in B. autos~.
+Qed.
+
+Lemma indom_read_option : forall V (h : t V) k,
+  k \in h ->
   exists v, read_option h k = Some v.
 Proof.
   introv I. forwards (v&B): @indom_binds I.
   exists v. applys~ @binds_read_option B.
 Qed.
 
-Lemma read_option_write_same : forall V (h : heap K V) k v,
-  read_option (write h k v) k = Some v.
-Proof. introv. apply binds_read_option. applys~ @binds_write_eq. Qed.
-
-Lemma not_indom_write : forall K V (h : heap K V) k k' v',
-  k <> k' ->
-  ~ indom h k ->
-  ~ indom (write h k' v') k.
-Proof. introv D I1 I2. forwards~: @indom_write_inv I2. Qed.
-
-Lemma read_option_write : forall V (h : heap K V) k k' v,
-  k <> k' ->
-  read_option (write h k v) k' = read_option h k'.
+Lemma read_option_write_eq : forall V (h : t V) k k' v,
+  eq k k' ->
+  read_option (write h k v) k' = Some v.
 Proof.
-  introv D. tests I: (indom h k').
-   forwards (v'&E): indom_read_option I. rewrite E.
-    apply read_option_binds in E. apply binds_read_option.
-    applys~ @binds_write_neq E.
-   rewrite (not_indom_read_option I). forwards I': not_indom_write I.
-    introv E. apply D. symmetry. apply* E.
-    rewrite~ (not_indom_read_option I').
+  introv E. apply binds_read_option. simpl.
+  applys~ find_1. applys~ add_1.
 Qed.
 
+Lemma not_indom_write : forall V (h : t V) k k' v',
+  ~ eq k k' ->
+  ~ k \in h ->
+  ~ k \in (write h k' v').
+Proof.
+  simpl. introv D I1 I2. destruct find eqn:E1 in I1; tryfalse.
+  destruct find eqn:E2 in I2; tryfalse.
+  forwards M2: find_2 E2. forwards~ M1: add_3 M2.
+  { introv E. apply D. symmetry. apply~ E. }
+  forwards A: find_1 M1. rewrite E1 in A. inverts~ A.
+Qed.
+
+Lemma not_indom_read_option : forall V (h : t V) k,
+  ~ k \in h ->
+  read_option h k = None.
+Proof.
+  introv nI. simpls. destruct~ find. false*.
+Qed.
+
+Lemma read_option_write : forall V (h : t V) k k' v,
+  ~ eq k k' ->
+  read_option (write h k v) k' = read_option h k'.
+Proof.
+  introv D. tests I: (k' \in h).
+  - forwards (v'&E): indom_read_option I. simpls. rewrite E.
+    apply read_option_binds in E. apply binds_read_option.
+    simpls. forwards M: find_2 E. apply~ find_1. apply~ add_2.
+  - forwards R: not_indom_read_option I. simpls. rewrite R.
+    forwards~ I': not_indom_write k I.
+    { introv E. apply D. symmetry. apply* E. }
+    forwards R': not_indom_read_option I'. simpl in R'. rewrite~ R'.
+Qed.
+
+(* TODO
 (** A notion of equivalence for heaps. **)
 Definition heap_equiv K V (h1 h2 : heap K V) :=
   forall k v, binds h1 k v <-> binds h2 k v.
@@ -306,6 +387,7 @@ Proof.
       apply~ @binds_write_eq || apply~ @binds_write_neq
     end; substs; tryfalse~); apply~ E.
 Qed.
+*)
 
 End HeapFromOrdered.
 
