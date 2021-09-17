@@ -4,7 +4,8 @@
 
 Set Implicit Arguments.
 
-From TLC Require Export LibNat.
+From TLC Require Export LibNat LibContainer.
+Require Import Heap.
 Require Export Common.
 
 (** * Module Type Definition **)
@@ -15,15 +16,26 @@ Parameter array : Type -> Type.
 
 Parameter length : forall T, array T -> nat.
 
-Parameter read_option : forall T, array T -> nat -> option T.
-Parameter read : forall T `{Inhab T}, array T -> nat -> T.
-Parameter write : forall T, array T -> nat -> T -> array T.
+Parameter bagCard : forall T, BagCard (array T).
+Instance _bagCard : forall T, BagCard (array T) := bagCard. (* FIXME: Some mechanism to avoid this repeation? *)
 
-Parameter empty : forall T, array T.
+Parameter bagReadOption : forall T, BagReadOption nat T (array T).
+Instance _bagReadOption : forall T, BagReadOption nat T (array T) := bagReadOption.
+Instance bagRead T `{Inhab T} : BagRead nat T (array T) :=
+  ReadOptionToRead nat T (array T).
+
+Parameter bagUpdate : forall T, BagUpdate nat T (array T).
+Instance _bagUpdate : forall T, BagUpdate nat T (array T) := bagUpdate.
+Definition write {T} : array T -> nat -> T -> array T :=
+  LibContainer.update.
+
+Parameter bagEmpty : forall T, BagEmpty (array T).
+Instance _bagEmpty : forall T, BagEmpty (array T) := bagEmpty.
+
 Parameter from_list : forall T, list T -> array T.
 Parameter to_list : forall T, array T -> list T.
 
-Parameter read_option_Some : forall T `{Inhab T} a n,
+Parameter read_option_Some : forall T `{Inhab T} (a : array T) n,
   n < length a ->
   read_option a n = Some (read a n).
 
@@ -53,7 +65,7 @@ Parameter write_length : forall T a (t : T) n,
   length (write a n t) = length a.
 
 Parameter empty_length : forall T,
-  length (empty T) = 0.
+  length (empty : array T) = 0.
 
 Parameter from_list_length : forall T (l : list T),
   length (from_list l) = LibList.length l.

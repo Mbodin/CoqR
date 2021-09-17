@@ -5,9 +5,9 @@
   this file may need some cleanup to update to fresher versions of TLC. **)
 
 From Lib Require Import LibExec.
+Require Export Heap.
 From TLC Require Import LibStream LibString LibNat LibInt.
 From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
-Require Export Heap.
 
 Notation " [ ] " := nil : list_scope.
 Notation " [ x ] " := (cons x nil) : list_scope.
@@ -95,9 +95,21 @@ Ltac fresh3 N1 N2 N3 :=
 
 (** * May be added in TLC **)
 
-(* The following lemmae should be added in TLC. I have a version of
-  the commit in this computer, but the branch coq-8.6 of TLC is frozen
-  and the branch coq-8.6-new does not yet compile. Frustration. *)
+Global Instance Forall_mem_Decidable : forall A (P : A -> Prop) l,
+  (forall a, mem a l -> Decidable (P a)) ->
+  Decidable (Forall P l).
+Proof.
+  induction l; introv F.
+  - applys decidable_make true. rew_bool_eq. apply~ Forall_nil.
+  - rewrite Forall_cons_eq. apply* and_decidable.
+Defined.
+
+Global Instance Forall_Decidable : forall A (P : A -> Prop) l,
+  (forall a, Decidable (P a)) ->
+  Decidable (Forall P l).
+Proof.
+  introv F. applys~ Forall_mem_Decidable.
+Defined.
 
 Lemma Forall2_inv : forall A1 A2 P (l1 : list A1) r' x1,
   Forall2 P (x1::l1) r' ->
@@ -572,14 +584,14 @@ Fixpoint string_to_list (str : string) :=
     c :: string_to_list str
   end.
 
-Definition ascii_to_string c := list_to_string [c].
+Definition ascii_to_string c := list_to_string (cons c nil).
 
 Global Coercion ascii_to_string : Ascii.ascii >-> string.
 
 Fixpoint divide_list {A} (l : list A) :=
   match l with
   | nil => (nil, nil)
-  | x :: nil => ([x], nil)
+  | x :: nil => (x :: nil, nil)
   | x :: y :: l =>
     let (l1, l2) := divide_list l in
     (x :: l1, y :: l2)
@@ -597,10 +609,10 @@ Proof.
     + destruct divide_list. inverts E. inverts~ E'.
 Qed.
 
-Lemma divide_list_Mem : forall A l (x : A) l1 l2,
-  Mem x l ->
+Lemma divide_list_mem : forall A l (x : A) l1 l2,
+  mem x l ->
   divide_list l = (l1, l2) ->
-  Mem x l1 \/ Mem x l2.
+  mem x l1 \/ mem x l2.
 Proof.
   introv M E. gen l1 l2. induction M; introv E.
   - destruct l; inverts E as E; autos~. destruct divide_list. inverts~ E.
@@ -608,10 +620,10 @@ Proof.
     inverts E. forwards*: (rm IHM).
 Qed.
 
-Lemma divide_list_Mem_inv : forall A l (x : A) l1 l2,
-  Mem x l1 \/ Mem x l2 ->
+Lemma divide_list_mem_inv : forall A l (x : A) l1 l2,
+  mem x l1 \/ mem x l2 ->
   divide_list l = (l1, l2) ->
-  Mem x l.
+  mem x l.
 Proof.
   induction l; introv O E.
   - inverts E. inverts* O.
@@ -623,42 +635,38 @@ Proof.
     + constructors*.
 Qed.
 
-Lemma No_duplicates_single : forall A (a : A),
-  No_duplicates [a].
-Proof. introv. apply~ No_duplicates_cons. introv I. inverts I. Qed.
-
-Lemma divide_list_No_duplicates : forall A (l l1 l2 : list A),
-  No_duplicates l ->
+Lemma divide_list_noduplicates : forall A (l l1 l2 : list A),
+  noduplicates l ->
   divide_list l = (l1, l2) ->
-  No_duplicates l1 /\ No_duplicates l2.
+  noduplicates l1 /\ noduplicates l2.
 Proof.
   introv ND E. gen l1 l2. induction l; introv E.
   - inverts~ E.
   - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
     inverts E. forwards~ (ND1&ND2): (rm IHl).
     + inverts~ ND.
-    + splits~. constructors~. introv M. forwards M': divide_list_Mem_inv El.
+    + splits~. constructors~. introv M. forwards M': divide_list_mem_inv El.
       * right*.
       * inverts* ND.
 Qed.
 
-Lemma divide_list_Mem_No_duplicates : forall A l (x : A) l1 l2,
-  Mem x l ->
-  No_duplicates l ->
+Lemma divide_list_mem_noduplicates : forall A l (x : A) l1 l2,
+  mem x l ->
+  noduplicates l ->
   divide_list l = (l1, l2) ->
-  Mem x l1 ->
-  Mem x l2 ->
+  mem x l1 ->
+  mem x l2 ->
   False.
 Proof.
   introv M ND E. gen l1 l2. induction l; introv E M1 M2.
   - inverts E. invert M1.
   - destruct (divide_list l) as [la lb] eqn: El. erewrite divide_list_cons in E; autos*.
     inverts E. inverts M1 as M1.
-    + forwards: divide_list_Mem_inv El.
+    + forwards: divide_list_mem_inv El.
       * left*.
       * inverts* ND.
     + applys~ IHl.
-      * applys~ divide_list_Mem_inv El.
+      * applys~ divide_list_mem_inv El.
       * inverts~ ND.
 Qed.
 
@@ -668,7 +676,7 @@ Lemma Z_to_nat_sub : forall a b : nat,
   Z.to_nat (a - b) = (a - b)%nat.
 Proof.
   introv I. gen a. induction b; introv I.
-  - asserts_rewrite (a - 0%nat = a)%I; [math|]. rewrite Nat2Z.id. math.
+  - math.
   - destruct a.
     + false. math.
     + simpl. rewrite <- IHb; try fequals; math.
@@ -676,103 +684,128 @@ Qed.
 
 
 Instance nat_lt_Decidable : forall n1 n2 : nat,
-    Decidable (n1 < n2)%nat.
+  Decidable (n1 < n2)%nat.
+Proof.
   intros. applys Decidable_equiv.
-   symmetry. apply nat_compare_lt.
-   typeclass.
+  - symmetry. apply nat_compare_lt.
+  - typeclass.
 Defined.
 
 Instance positive_lt_Decidable : forall n1 n2,
-    Decidable (n1 < n2)%positive.
+  Decidable (n1 < n2)%positive.
+Proof.
   typeclass.
 Defined.
 
 Instance Z_lt_Decidable : forall n1 n2,
-    Decidable (n1 < n2)%Z.
+  Decidable (n1 < n2)%Z.
+Proof.
   intros. applys Decidable_equiv Z.compare_lt_iff. typeclass.
 Defined.
 
 Instance lt_Decidable : forall n1 n2,
-    Decidable (n1 < n2).
+  Decidable (n1 < n2).
+Proof.
   intros. applys Decidable_equiv (n1 < n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
 
+(*
 Instance lt_nat_Decidable : forall n1 n2,
-    Decidable (@lt nat (@lt_from_le nat le_nat_inst) n1 n2).
+  Decidable (@lt nat (@lt_from_le nat le_nat_inst) n1 n2).
+Proof.
   intros. applys Decidable_equiv (lt_Decidable n1 n2). math.
 Defined.
+*)
 
 Instance nat_gt_Decidable : forall n1 n2 : nat,
-    Decidable (n1 > n2)%nat.
+  Decidable (n1 > n2)%nat.
+Proof.
   intros. applys Decidable_equiv.
-   symmetry. apply nat_compare_lt.
-   typeclass.
+  - symmetry. apply nat_compare_lt.
+  - typeclass.
 Defined.
 
 Instance positive_gt_Decidable : forall n1 n2,
-    Decidable (n1 > n2)%positive.
+  Decidable (n1 > n2)%positive.
+Proof.
   typeclass.
 Defined.
 
 Instance Z_gt_Decidable : forall n1 n2,
-    Decidable (n1 > n2)%Z.
+  Decidable (n1 > n2)%Z.
+Proof.
   intros. applys sumbool_decidable Z_gt_dec.
 Defined.
 
 Instance gt_Decidable : forall n1 n2,
-    Decidable (n1 > n2).
+  Decidable (n1 > n2).
+Proof.
   intros. applys Decidable_equiv (n1 > n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
 
+(*
 Instance gt_nat_Decidable : forall n1 n2,
-    Decidable (@gt nat (@gt_from_le nat le_nat_inst) n1 n2).
+  Decidable (@gt nat (@gt_from_le nat le_nat_inst) n1 n2).
+Proof.
   intros. applys Decidable_equiv (gt_Decidable n1 n2). math.
 Defined.
+*)
 
+(*
 Instance ge_nat_Decidable : forall n1 n2 : nat,
-    Decidable (@ge nat (@ge_from_le nat le_nat_inst) n1 n2).
+  Decidable (@ge nat (@ge_from_le nat le_nat_inst) n1 n2).
+Proof.
   intros. applys Decidable_equiv (n1 >= n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
+*)
 
 Instance positive_ge_Decidable : forall n1 n2,
-    Decidable (n1 >= n2)%positive.
+  Decidable (n1 >= n2)%positive.
+Proof.
   typeclass.
 Defined.
 
-Instance ge_Decidable : forall n1 n2 : int,
-    Decidable (n1 >= n2).
+(*
+Instance ge_Decidable : forall n1 n2 : int%I,
+  Decidable (n1 >= n2).
+Proof.
   intros. applys Decidable_equiv (n1 >= n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
+*)
 
 Instance le_nat_Decidable : forall n1 n2 : nat,
-    Decidable (@le nat le_nat_inst n1 n2).
+  Decidable (@le nat le_nat_inst n1 n2).
+Proof.
   intros. applys Decidable_equiv (n1 <= n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
 
 Instance positive_le_Decidable : forall n1 n2,
-    Decidable (n1 <= n2)%positive.
+  Decidable (n1 <= n2)%positive.
+Proof.
   typeclass.
 Defined.
 
 Instance le_Decidable : forall n1 n2,
-    Decidable (n1 <= n2).
+  Decidable (n1 <= n2).
+Proof.
   intros. applys Decidable_equiv (n1 <= n2)%Z.
-   math.
-   typeclass.
+  - math.
+  - typeclass.
 Defined.
 
 
 Instance positive_Comparable : Comparable positive.
+Proof.
   apply make_comparable. intros.
   applys Decidable_equiv (let (x, y) := (Pos.to_nat x, Pos.to_nat y) in x >= y /\ x <= y).
   - transitivity (Pos.to_nat x = Pos.to_nat y).
@@ -782,6 +815,7 @@ Instance positive_Comparable : Comparable positive.
 Defined.
 
 Instance Ascii_comparable : Comparable Ascii.ascii.
+Proof.
   apply make_comparable. intros. applys sumbool_decidable Ascii.ascii_dec.
 Defined.
 
@@ -791,11 +825,11 @@ Defined.
 Instance Comparable_Decidable : forall A (a1 a2 : A),
     Comparable A ->
     Decidable (a1 = a2).
+Proof.
   introv C. inverts* C.
 Defined.
 
 (** Builds an instance of [Comparable] from a non-recursive inductive. **)
-
 Ltac prove_decidable_eq :=
   let prove_injection Eq :=
     solve [ injection Eq; intros; substs~
@@ -804,9 +838,9 @@ Ltac prove_decidable_eq :=
     match goal with
     (** Trivial cases **)
     | _ =>
-      applys decidable_make false; abstract (fold_bool; rew_refl; discriminate)
+      applys decidable_make false; abstract (rew_bool_eq; discriminate)
     | _ =>
-      applys decidable_make true; abstract (fold_bool; rew_refl; reflexivity)
+      applys decidable_make true; abstract (rew_bool_eq; reflexivity)
     (** Look for already defined typeclasses **)
     | _ =>
       typeclass || (apply Comparable_Decidable; typeclass)
@@ -817,7 +851,7 @@ Ltac prove_decidable_eq :=
         abstract (
           let D := fresh "D" in asserts D: (tr f1 <> tr f2);
           [ discriminate
-          | applys decidable_make false; fold_bool; rew_refl;
+          | applys decidable_make false; rew_bool_eq;
             let AE := fresh "AE" in intro AE; rewrite AE in *; false* ])
       end
     (** General case **)
@@ -833,7 +867,7 @@ Ltac prove_decidable_eq :=
           abstract (
             let I := fresh "I" in
             let I1 := fresh "I_f" in let I2 := fresh "I_x" in
-            rewrite decide_spec; rewrite isTrue_eq_isTrue; iff I;
+            rewrite decide_spec; rewrite istrue_isTrue_eq; iff I;
             [ lets (I1&I2): (rm I); try rewrite I1; try rewrite I2; reflexivity
             | inverts I as I; splits~;
               let Eq := fresh "Eq" in
@@ -958,23 +992,25 @@ Ltac prove_comparable_trivial_inductive_faster :=
   end.
 
 Global Instance unit_comparable : Comparable unit.
+Proof.
   prove_comparable_trivial_inductive.
 Defined.
 
 Global Instance False_comparable : Comparable False.
+Proof.
   prove_comparable_trivial_inductive.
 Defined.
 
 
-(** * Some tactics about Mem and Forall. **)
+(** * Some tactics about mem and Forall. **)
 
-Ltac Mem_solve :=
+Ltac mem_solve :=
   solve [
-      repeat first [ solve [ apply Mem_here ] | apply Mem_next ]
+      repeat first [ solve [ apply mem_here ] | apply mem_next ]
     | let M := fresh "M" in introv M; solve [ repeat inverts M as M ] ].
 
 Ltac No_duplicates_solve :=
-  repeat constructors; Mem_solve.
+  repeat constructors; mem_solve.
 
 Ltac Forall_splits :=
   repeat splits;
@@ -992,7 +1028,7 @@ From TLC Require Import LibContainer.
 Global Instance Comparable_BagIn_list : forall T,
     Comparable T ->
     BagIn T (list T) :=
-  fun T C => Build_BagIn (@Mem _).
+  fun T C => Build_BagIn (@mem _).
 
 Global Instance Comparable_BagIn_Decidable : forall T t l,
   Comparable T ->
@@ -1014,11 +1050,11 @@ Global Instance BagEmpty_list : forall T,
 
 Lemma BagInEmpty_list : forall T `{Comparable T} (t : T),
   t \notin (\{} : list T).
-Proof. introv I. simpl in I. rewrite Mem_mem in I. rewrite* mem_nil in I. Qed.
+Proof. introv I. simpl in I. applys* mem_nil_inv I. Qed.
 
 Global Instance BagSingle_list : forall T,
     BagSingle T (list T) :=
-  fun T => Build_BagSingle (fun t => [t]).
+  fun T => Build_BagSingle (fun t => t :: nil).
 
 Lemma BagInSingle_list : forall T `{Comparable T} (t1 t2 : T),
   t1 \in (\{t2} : list T) <-> t1 = t2.
@@ -1032,15 +1068,14 @@ Global Instance Comparable_BagRemove_list : forall T,
 Lemma BagRemove_list_notin : forall T `{Comparable T} l (t : T),
   t \notin l \- t.
 Proof.
-  introv I. simpl in I.
-  rewrite Mem_mem in I. rewrite remove_correct in I. false*.
+  introv I. simpl in I. rewrite remove_correct in I; autos*.
 Qed.
 
 Lemma BagRemove_list_in : forall T `{Comparable T} l (t1 t2 : T),
   t1 <> t2 ->
   t1 \in l ->
   t1 \in l \- t2.
-Proof. introv D I. simpl in *. rewrite Mem_mem in *. rewrite* remove_correct. Qed.
+Proof. introv D I. simpl in *. rewrite* remove_correct. Qed.
 
 Global Instance Comparable_BagRemove_list_list : forall T,
     Comparable T ->
@@ -1050,7 +1085,7 @@ Global Instance Comparable_BagRemove_list_list : forall T,
 
 Lemma BagRemove_list_list : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 \- l2 <-> t \in l1 /\ t \notin l2.
-Proof. introv. simpl. repeat rewrite Mem_mem. rewrite filter_mem_eq. rew_refl*. Qed.
+Proof. introv. simpl. rewrite mem_filter_eq. rewrite decide_spec. rew_bool_eq*. Qed.
 
 Global Instance Comparable_BagUnion_list : forall T,
     Comparable T ->
@@ -1060,10 +1095,10 @@ Global Instance Comparable_BagUnion_list : forall T,
 Lemma BagUnion_list : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 \u l2 <-> t \in l1 \/ t \in l2.
 Proof.
-  introv. simpl. repeat rewrite Mem_mem.
-  rewrite mem_app. rewrite filter_mem_eq. rew_refl. iff~ [I|I].
-   inverts~ I.
-   tests I': (t \in l1); autos~. simpl in I'. rewrite~ Mem_mem in I'.
+  introv. simpl. rewrite mem_app_eq. rewrite mem_filter_eq.
+  rewrite decide_spec. rew_bool_eq. iff~ [I|I].
+  - inverts~ I.
+  - tests I': (t \in l1); autos~.
 Qed.
 
 Global Instance Comparable_BagInter_list : forall T,
@@ -1075,14 +1110,13 @@ Global Instance Comparable_BagInter_list : forall T,
 Lemma BagInter_list : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 \n l2 <-> t \in l1 /\ t \in l2.
 Proof.
-  introv. simpl. repeat rewrite Mem_mem.
-  rewrite filter_mem_eq. rew_refl. rewrite* Mem_mem.
+  introv. simpl. rewrite mem_filter_eq. rewrite decide_spec. rew_istrue*.
 Qed.
 
 Global Instance Comparable_BagIncl_list : forall T,
     Comparable T ->
     BagIncl (list T) :=
-  fun T C => Build_BagIncl (fun l1 l2 => Forall (fun t => Mem t l2) l1).
+  fun T C => Build_BagIncl (fun l1 l2 => Forall (fun t => mem t l2) l1).
 
 Global Instance Comparable_BagIncl_Decidable : forall T `{Comparable T} (l1 l2 : list T),
   Decidable (l1 \c l2).
@@ -1090,23 +1124,21 @@ Proof. introv. simpl. typeclass. Qed.
 
 Lemma BagIncl_refl : forall T `{Comparable T} (l : list T),
   l \c l.
-Proof. introv. simpl. rewrite Forall_iff_forall_mem. introv I. rewrite* Mem_mem. Qed.
+Proof. introv. simpl. rewrite~ Forall_eq_forall_mem. Qed.
 
 Lemma BagInIncl : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 ->
   l1 \c l2 ->
   t \in l2.
 Proof.
-  introv I C. simpls. rewrite Forall_iff_forall_mem in C.
-  rewrite Mem_mem in I. applys~ C I.
+  introv I C. simpls. rewrite~ Forall_eq_forall_mem in C.
 Qed.
 
 Lemma BagInIncl_make : forall T `{Comparable T} (l1 l2 : list T),
   (forall_ t \in l1, t \in l2) ->
   l1 \c l2.
 Proof.
-  introv I. simpls. rewrite Forall_iff_forall_mem.
-  introv M. rewrite <- Mem_mem in M. applys~ I M.
+  introv I. simpls. rewrite~ Forall_eq_forall_mem.
 Qed.
 
 Lemma BagIncl_trans : forall T `{Comparable T} (l1 l2 l3 : list T),
@@ -1114,8 +1146,7 @@ Lemma BagIncl_trans : forall T `{Comparable T} (l1 l2 l3 : list T),
   l2 \c l3 ->
   l1 \c l3.
 Proof.
-  introv I1 I2. applys BagInIncl_make. simpls. rewrite Forall_iff_forall_mem in *.
-  introv I. rewrite Mem_mem in I. apply I1 in I. rewrite Mem_mem in I. applys~ I2 I.
+  introv I1 I2. applys BagInIncl_make. simpls. rewrite Forall_eq_forall_mem in *. autos*.
 Qed.
 
 Lemma BagInclEmpty : forall T `{Comparable T} (l : list T),
@@ -1162,7 +1193,7 @@ Proof. introv I1 I2. apply BagInIncl_make. introv I. apply BagInter_list. splits
 Global Instance Comparable_BagDisjoint_list : forall T,
     Comparable T ->
     BagDisjoint (list T) :=
-  fun T C => Build_BagDisjoint (fun l1 l2 => Forall (fun t => ~ Mem t l1) l2).
+  fun T C => Build_BagDisjoint (fun l1 l2 => Forall (fun t => ~ mem t l1) l2).
 
 Global Instance Comparable_BagDisjoint_Decidable : forall T `{Comparable T} (l1 l2 : list T),
   Decidable (l1 \# l2).
@@ -1171,9 +1202,7 @@ Proof. introv. simpl. typeclass. Qed.
 Lemma BagDisjoint_in : forall T `{Comparable T} (l1 l2 : list T),
   l1 \# l2 <-> ~ exists t, t \in l1 /\ t \in l2.
 Proof.
-  introv. simpl. rewrite Forall_iff_forall_mem. rew_logic. iff I.
-   introv (I1&I2). applys~ I; rewrite Mem_mem in *; autos*.
-   introv I1 I2. applys~ I. repeat rewrite Mem_mem in *. autos*.
+  introv. simpl. rewrite Forall_eq_forall_mem. rew_logic*.
 Qed.
 
 Lemma BagDisjoint_com : forall T `{Comparable T} (l1 l2 : list T),
@@ -1193,7 +1222,7 @@ Ltac solve_incl :=
     | apply~ BagUnionIncl_right
     | apply~ BagInterIncl_left
     | apply~ BagInterIncl_right
-    | repeat (apply~ BagIncl_cons; [Mem_solve|]); apply~ BagInclEmpty
+    | repeat (apply~ BagIncl_cons; [mem_solve|]); apply~ BagInclEmpty
     | autos~
     | apply* BagInIncl_make ].
 
@@ -1210,7 +1239,7 @@ Ltac explode_list T :=
   lazymatch type of T with
   | ?x \in nil =>
     false~ BagInEmpty_list T
-  | ?x \in [?y] =>
+  | ?x \in (cons ?y nil) =>
     let T' := fresh1 T in
     asserts T': (x = y); [ eapply BagInSingle_list; apply T |];
     clear T; rename T' into T
@@ -1220,28 +1249,21 @@ Ltac explode_list T :=
     lets [T'|T']: (rm T);
     [ try rename T' into T
     | (rename T' into T ; explode_list T) || explode_list T' ]
-  | Mem ?x nil =>
-    rewrite Mem_nil_eq in T; false~ T
-  | Mem ?x (?y :: ?l) =>
-    rewrite Mem_cons_eq in T;
-    let T' := fresh1 T in
-    lets [T'|T']: (rm T);
-    [ try rename T' into T
-    | (rename T' into T ; explode_list T) || explode_list T' ]
   | mem ?x nil =>
-    rewrite mem_nil in T; false~ T
+    rewrite mem_nil_eq in T; false~ T
   | mem ?x (?y :: ?l) =>
-    rewrite mem_cons in T;
-    rew_refl in T;
+    rewrite mem_cons_eq in T;
     let T' := fresh1 T in
     lets [T'|T']: (rm T);
     [ try rename T' into T
     | (rename T' into T ; explode_list T) || explode_list T' ]
-  | In ?x nil =>
-    false~ in_nil T
-  | In ?x (?y :: ?l) =>
+  | decide _ =>
+    rewrite decide_spec in T; rew_bool_eq in T; explode_list T
+  | List.In ?x nil =>
+    false~ List.in_nil T
+  | List.In ?x (?y :: ?l) =>
     let T' := fresh1 T in
-    lets [T'|T']: in_inv (rm T);
+    lets [T'|T']: List.in_inv (rm T);
     [ try rename T' into T
     | (rename T' into T ; explode_list T) || explode_list T' ]
   end.
