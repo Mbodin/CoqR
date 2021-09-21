@@ -199,16 +199,13 @@ Lemma rewrite_nat_to_nbits_cons : forall n m I I',
   nat_to_nbits m I = ((decide (m mod 2 = 1), nat_to_nbits (m / 2) I') : nbits (S n)).
 Proof.
   introv. unfold nat_to_nbits. simpl. repeat fequals.
-  (* Oh dear: I would have expected [nat_math] to be able to help me there. *)
-  forwards E: (Nat.divmod_spec m 1 0 1); [nat_math|].
+  apply decide_equiv. forwards E: (Nat.divmod_spec m 1 0 1); [nat_math|].
   destruct Nat.divmod. destruct E as [E I2].
   simpl. repeat rewrite Nat.add_0_r in E. rewrite E.
   asserts E': (((n0 + n0 + match n1 with 0 => 1 | S _ => 0 end)%nat : int%I)
                = (match n1 with 0 => 1 | S _ => 0 end)%nat + n0 * 2).
-  { repeat rewrite plus_nat_eq_plus_int. rewrite Z.add_comm. fequals; [ destruct~ n1 | nat_math ]. }
-  rewrites (rm E'). rewrite Z_mod_plus_full. rewrite Z.mod_small.
-  - skip. (* TODO *)
-  - destruct n1; try nat_math || math.
+  { destruct n1; math. }
+  rewrites (rm E'). rewrite Z_mod_plus_full. rewrite Z.mod_small; destruct n1; math.
 Qed.
 
 Lemma nat_to_nbits_to_nat : forall n m I,
@@ -218,10 +215,16 @@ Proof.
   - simpls. nat_math.
   - asserts I': (m / 2 < 2 ^ n)%nat. { apply~ Nat.div_lt_upper_bound. }
     rewrite rewrite_nat_to_nbits_cons with (I' := I'). rewrite rewrite_nbits_to_nat.
-    unfold snd, fst. rewrite IHn.
-    rewrite Nat.div_mod with (y := 2); [|nat_math]. rewrite Nat.add_comm. fequals.
-    clear. forwards I: Nat.mod_upper_bound m 2. nat_math.
-    destruct (m mod 2); cases_if as M; fold_bool; rew_refl in M; nat_math.
+    unfold snd, fst. rewrite IHn. rewrite Nat.add_comm.
+    asserts E: ((ifb (m mod 2)%Z = 1%Z then 1 else 0) = m mod 2)%nat.
+    { asserts Z2: (nat_to_Z 2%nat = 2); [ math |].
+      cases_if as D; rewrite decide_spec in D; rew_bool_eq in D.
+      - asserts G: (m mod 2%nat = 1%nat); [ rewrite Z2; math |].
+        rewrite <- mod_Zmod in G; math.
+      - forwards (I1&I2): (Z.mod_pos_bound m 2); [ math |].
+        asserts G: (m mod 2%nat = 0%nat); [ rewrite Z2; math |].
+        rewrite <- mod_Zmod in G; math. }
+    rewrite E. rewrite~ <- Nat.div_mod.
 Qed.
 
 Lemma nat_to_nbits_init : forall n (I : (0 < 2 ^ n)%nat),
@@ -229,15 +232,15 @@ Lemma nat_to_nbits_init : forall n (I : (0 < 2 ^ n)%nat),
 Proof.
   introv. apply nth_bit_eq. introv. rewrite nbits_init_read. symmetry.
   gen n. induction m; introv; (destruct n; [nat_math|]).
-  - rewrite rewrite_O_nth_bit. simpl. fold_bool. rew_refl*.
+  - rewrite rewrite_O_nth_bit. simpl. rewrite decide_spec. rew_bool_eq*.
   - asserts I': (m < n)%nat. { nat_math. }
     rewrite rewrite_S_nth_bit with (I' := I').
-    asserts I2: (0 / 2 < 2 ^ n)%nat. { simpl. forwards: Nat.pow_nonzero 2 n; nat_math. }
+    asserts I2: (0 / 2 < 2 ^ n)%nat. { simpl. forwards: (Nat.pow_nonzero 2 n); nat_math. }
     rewrite rewrite_nat_to_nbits_cons with (I' := I2). apply IHm.
 Qed.
 
 Lemma nbits_to_nat_init : forall n,
-  nbits_to_nat (nbits_init : nbits n) = 0.
+  nbits_to_nat (nbits_init : nbits n) = 0%nat.
 Proof.
   induction n.
   - reflexivity.
@@ -246,7 +249,7 @@ Qed.
 
 Definition nat_to_nbits_check : forall n, nat -> option (nbits n).
   introv m. destruct (decide (m < 2 ^ n)%nat) eqn: E.
-  - refine (Some (nat_to_nbits m _)). fold_bool. rew_refl~ in E.
+  - refine (Some (nat_to_nbits m _)). rewrite decide_spec in E. rew_bool_eq~ in E.
   - exact None.
 Defined.
 Arguments nat_to_nbits_check [n].
@@ -263,7 +266,7 @@ Lemma nat_to_nbits_check_correct : forall n m (I : (m < 2 ^ n)%nat),
   nat_to_nbits_check m = Some (nat_to_nbits m I).
 Proof.
   introv. unfolds nat_to_nbits_check.
-  asserts E: (decide (m < 2 ^ n)%nat = true). { fold_bool. rew_refl*. }
+  asserts E: (decide (m < 2 ^ n)%nat = true). { rewrite decide_spec. rew_bool_eq*. }
   rewrite rewrite_decide_if_true with (E := E). erewrite~ rewrite_nat_to_nbits.
 Qed.
 
@@ -272,13 +275,13 @@ Lemma nat_to_nbits_check_out : forall n m,
   @nat_to_nbits_check n m = None.
 Proof.
   introv I. unfolds nat_to_nbits_check.
-  asserts E: (decide (m < 2 ^ n)%nat = false). { fold_bool. rew_refl*. nat_math. }
+  asserts E: (decide (m < 2 ^ n)%nat = false). { rewrite decide_spec. rew_bool_eq~. nat_math. }
   rewrite rewrite_decide_if_false with (E := E). reflexivity.
 Qed.
 
 Definition int_to_nbits_check n z : option (nbits n) :=
   match z with
-  | 0%Z => Some (@nat_to_nbits n 0 ltac:(forwards: Nat.pow_nonzero 2 n; nat_math))
+  | 0%Z => Some (@nat_to_nbits n 0 ltac:(forwards: (Nat.pow_nonzero 2 n); nat_math))
   | Z.pos p => nat_to_nbits_check (Pos.to_nat p)
   | Z.neg _ => None
   end.
@@ -299,10 +302,10 @@ Lemma int_to_nbits_check_out : forall n m,
   @int_to_nbits_check n m = None.
 Proof.
   introv [I|I]; destruct m.
-  - forwards: Nat.pow_nonzero 2 n. { nat_math. }
+  - forwards: (Nat.pow_nonzero 2 n). { nat_math. }
     simpls. nat_math.
   - simpls. apply~ nat_to_nbits_check_out.
-  - forwards: Nat.pow_nonzero 2 n. { nat_math. }
+  - forwards: (Nat.pow_nonzero 2 n). { nat_math. }
     simpls. nat_math.
   - nat_math.
   - forwards: Zle_0_pos p. nat_math.

@@ -145,6 +145,11 @@ Lemma decide_cases : forall `{Decidable P},
   (P /\ decide P = true) \/ (~ P /\ decide P = false).
 Proof using. intros. rewrite decide_spec. rewrite isTrue_eq_if. case_if*. Qed.
 
+Lemma decide_equiv : forall Q `{Decidable P} `{Decidable Q},
+  P <-> Q ->
+  decide P = decide Q.
+Proof using. introv E. do 2 rewrite decide_def. do 2 cases_if*. Qed.
+
 (** Dedicability instances *)
 Global Instance true_decidable : Decidable True.
 Proof using. applys decidable_make true. rew_istrue~. Qed.
