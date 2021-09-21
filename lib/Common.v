@@ -867,7 +867,7 @@ Ltac prove_decidable_eq :=
           abstract (
             let I := fresh "I" in
             let I1 := fresh "I_f" in let I2 := fresh "I_x" in
-            rewrite decide_spec; rewrite istrue_isTrue_eq; iff I;
+            rewrite decide_spec; rew_bool_eq; iff I;
             [ lets (I1&I2): (rm I); try rewrite I1; try rewrite I2; reflexivity
             | inverts I as I; splits~;
               let Eq := fresh "Eq" in

@@ -2,7 +2,8 @@
 
 Set Implicit Arguments.
 Require Export Common.
-From TLC Require Import LibNat LibLogic.
+Require Export LibExec.
+From TLC Require Import LibInt LibNat LibLogic.
 
 
 (** * Structure Definition **)
@@ -66,7 +67,7 @@ Proof.
   induction n; introv E.
   - destruct x, y. reflexivity.
   - destruct x as [b1 x], y as [b2 y]. rewrite IHn with x y.
-    + set (eq := E 0 ltac:(nbits_ok)). do 2 rewrite rewrite_O_nth_bit in eq.
+    + set (eq := E 0%nat ltac:(nbits_ok)). do 2 rewrite rewrite_O_nth_bit in eq.
       simpl in eq. substs~.
     + introv. asserts Im: (S m < S n)%nat. { nat_math. }
       set (eq := E (S m) Im). do 2 rewrite rewrite_S_nth_bit with (I' := I) in eq. apply eq.
@@ -108,7 +109,7 @@ Fixpoint nbits_init (n : nat) : nbits n :=
   | O => tt
   | S n => (false, nbits_init n)
   end.
-Arguments nbits_init [n].
+Arguments nbits_init {n}.
 
 Lemma nbits_init_read : forall n m (I : (n < m)%nat),
   nth_bit n nbits_init I = false.
@@ -131,6 +132,10 @@ Definition nbits_to_list n (a : nbits n) : list bool.
 Defined.
 Arguments nbits_to_list [n].
 
+Lemma nbits_to_list_cons : forall n (a : nbits n) b,
+  nbits_to_list ((b, a) : nbits (S n)) = b :: nbits_to_list a.
+Proof. reflexivity. Qed.
+
 Lemma nbits_to_list_length : forall n (a : nbits n),
   length (nbits_to_list a) = n.
 Proof.
@@ -140,13 +145,13 @@ Proof.
 Qed.
 
 Lemma nbits_to_list_nth : forall n (a : nbits n) d m I,
-  nth_def d m (nbits_to_list a) = nth_bit m a I.
+  nth_default d m (nbits_to_list a) = nth_bit m a I.
 Proof.
   induction n; introv.
   - false. nat_math.
   - destruct m as [|m].
     + reflexivity.
-    + simpl. erewrite~ IHn.
+    + simpl. rewrite nth_default_cons. erewrite~ IHn.
 Qed.
 
 Fixpoint list_to_nbits (l : list bool) : nbits (length l) :=
@@ -158,9 +163,9 @@ Fixpoint list_to_nbits (l : list bool) : nbits (length l) :=
 Lemma list_to_nbits_to_list : forall l,
   nbits_to_list (list_to_nbits l) = l.
 Proof.
-  introv. induction l.
+  introv. induction l as [|b l].
   - reflexivity.
-  - simpl. fequals~.
+  - simpl. rewrite (nbits_to_list_cons _ (list_to_nbits l) _). fequals~.
 Qed.
 
 
@@ -169,19 +174,19 @@ Qed.
 Definition nbits_to_nat n (a : nbits n) : nat.
   (** Important note: the first bit in this representation has the lower weight. **)
   induction n.
-  - exact 0.
-  - exact ((if fst a then 1 else 0) + 2 * IHn (snd a)).
+  - exact 0%nat.
+  - exact ((if fst a then 1 else 0) + 2 * IHn (snd a))%nat.
 Defined.
 Arguments nbits_to_nat [n].
 
 Lemma rewrite_nbits_to_nat : forall n (a : nbits (S n)),
-  nbits_to_nat a = ((if fst a then 1 else 0) + 2 * nbits_to_nat (snd a)).
+  nbits_to_nat a = ((if fst a then 1 else 0) + 2 * nbits_to_nat (snd a))%nat.
 Proof. reflexivity. Qed.
 
 Definition nat_to_nbits n m : (m < 2 ^ n)%nat -> nbits n.
   introv I. gen m. induction n; introv I.
   - exact tt.
-  - refine (decide (m mod 2 = 1), IHn (m / 2) _).
+  - refine (decide (m mod 2 = 1), IHn (m / 2) _)%nat.
     apply~ Nat.div_lt_upper_bound.
 Defined.
 Arguments nat_to_nbits [n] m.
@@ -192,7 +197,19 @@ Proof. introv. fequals. Qed.
 
 Lemma rewrite_nat_to_nbits_cons : forall n m I I',
   nat_to_nbits m I = ((decide (m mod 2 = 1), nat_to_nbits (m / 2) I') : nbits (S n)).
-Proof. introv. unfold nat_to_nbits. simpl. repeat fequals. Qed.
+Proof.
+  introv. unfold nat_to_nbits. simpl. repeat fequals.
+  (* Oh dear: I would have expected [nat_math] to be able to help me there. *)
+  forwards E: (Nat.divmod_spec m 1 0 1); [nat_math|].
+  destruct Nat.divmod. destruct E as [E I2].
+  simpl. repeat rewrite Nat.add_0_r in E. rewrite E.
+  asserts E': (((n0 + n0 + match n1 with 0 => 1 | S _ => 0 end)%nat : int%I)
+               = (match n1 with 0 => 1 | S _ => 0 end)%nat + n0 * 2).
+  { repeat rewrite plus_nat_eq_plus_int. rewrite Z.add_comm. fequals; [ destruct~ n1 | nat_math ]. }
+  rewrites (rm E'). rewrite Z_mod_plus_full. rewrite Z.mod_small.
+  - skip. (* TODO *)
+  - destruct n1; try nat_math || math.
+Qed.
 
 Lemma nat_to_nbits_to_nat : forall n m I,
   nbits_to_nat (nat_to_nbits m I : nbits n) = m.

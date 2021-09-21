@@ -6,6 +6,7 @@
   (either GPL or something compatible with the INRIA non-commercial license). *)
 
 Require Import Common.
+Require Import LibExec.
 From TLC Require Import LibInt.
 From Flocq Require Import IEEE754.Binary IEEE754.Bits.
 
@@ -18,6 +19,7 @@ Instance double_comparable : Comparable double.
   prove_comparable_simple_inductive.
 Defined.
 
+Open Scope Int_scope.
 
 Definition int_to_double (i : int) : double :=
   (* FIXME: Fappli_IEEE.binary_normalize 53 1024 eq_refl eq_refl Fappli_IEEE.mode_NE i 0 false. *)
@@ -103,26 +105,32 @@ Global Instance Le_double : Le double := Build_Le le.
 Global Instance Gt_double : Gt double := Build_Gt gt.
 Global Instance Lt_double : Lt double := Build_Lt lt.
 
+Local Transparent LibOrder.le LibOrder.lt LibOrder.ge LibOrder.gt.
+
 Global Instance ge_double_Decidable : forall x1 x2 : double,
-    Decidable (x1 >= x2).
+  Decidable (x1 >= x2).
+Proof.
   intros. refine (decidable_make _ (decide := ge x1 x2) _).
-  skip. (* Admitted. *)
+  compute. rew_isTrue~.
 Defined.
 
 Global Instance le_double_Decidable : forall x1 x2 : double,
-    Decidable (x1 <= x2).
+  Decidable (x1 <= x2).
+Proof.
   intros. refine (decidable_make _ (decide := le x1 x2) _).
-  skip. (* Admitted. *)
+  compute. rew_isTrue~.
 Defined.
 
 Global Instance gt_double_Decidable : forall x1 x2 : double,
-    Decidable (x1 > x2).
+  Decidable (x1 > x2).
+Proof.
   intros. refine (decidable_make _ (decide := gt x1 x2) _).
-  skip. (* Admitted. *)
+  compute. rew_isTrue~.
 Defined.
 
 Global Instance lt_double_Decidable : forall x1 x2 : double,
-    Decidable (x1 < x2).
+  Decidable (x1 < x2).
+Proof.
   intros. refine (decidable_make _ (decide := lt x1 x2) _).
-  skip. (* Admitted. *)
+  compute. rew_isTrue~.
 Defined.
