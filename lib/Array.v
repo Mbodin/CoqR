@@ -155,7 +155,7 @@ End ArrayExtra.
 
 (** * Implementation **)
 
-Module ArrayList : ArraySpec.
+Module ArrayListBase : ArraySpec.
 
 Definition array T := list T.
 
@@ -234,8 +234,8 @@ Lemma map_read_option : forall T1 T2 (f : T1 -> T2) a n v,
   read_option (map f a) n = Some (f v).
 Proof. introv E. apply Nth_nth_option in E. apply Nth_nth_option. applys~ map_Nth E. Qed.
 
-End ArrayList.
+End ArrayListBase.
 
 
-Module ArrayListExtra := ArrayExtra (ArrayList).
+Module ArrayList := ArrayExtra (ArrayListBase).
 

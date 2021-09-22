@@ -3,13 +3,14 @@
 	(name CoqR)
 	(package CoqR)
 	(theories Lib)
-	(flags -w -notation-overridden))
+	(flags -w -notation-overridden)
+	(libraries coq.plugins.extraction))
+
+;(include_subdirs qualified)
 
 ;(coq.extraction
 ;	(prelude Extraction)
 ;	(extracted_modules extract))
-
-;(include_subdirs unqualified)
 
 (rule
 	(targets "extract.ml" "extract.mli")

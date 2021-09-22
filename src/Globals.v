@@ -145,7 +145,7 @@ Definition empty_global_mapping : Global_mapping :=
   fun _ => NULL.
 
 Definition empty_Globals : Globals :=
-  make_Globals empty_global_mapping ArrayList.empty.
+  make_Globals empty_global_mapping \{}.
 
 Definition Global_mapping_with (g : Global_mapping) (C : GlobalVariable) (p : SEXP) : Global_mapping :=
   fun C' =>
@@ -156,8 +156,8 @@ Definition GlobalsWith (g : Globals) (C : GlobalVariable) (p : SEXP) : Globals :
   Globals_with_mapping g (Global_mapping_with g C p).
 
 
+Declare Scope globals_scope.
 Delimit Scope globals_scope with globals.
-
 Open Scope globals.
 
 Notation "'{{' g 'with' C ':=' p '}}'" :=

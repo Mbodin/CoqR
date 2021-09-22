@@ -380,7 +380,7 @@ Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance SExpRec_Inhab : Inhab SExpRec.
 Proof.
-  apply prove_Inhab.
+  apply Inhab_of_val.
   refine (make_NonVector_SExpRec
             (make_SExpRecHeader_direct
               (make_SxpInfo NilSxp false false false nbits_init named_plural) None)
@@ -391,13 +391,13 @@ Instance SEXP_Comparable : Comparable SEXP.
 Proof. prove_comparable_simple_inductive. Defined.
 
 Instance character_Inhab : Inhab character.
-Proof. apply prove_Inhab. repeat constructors. Qed.
+Proof. apply Inhab_of_val. repeat constructors. Qed.
 
 Instance double_Inhab : Inhab double.
-Proof. apply prove_Inhab. repeat constructors. Qed.
+Proof. apply Inhab_of_val. repeat constructors. Qed.
 
 Instance Rcomplex_Inhab : Inhab Rcomplex.
-Proof. apply prove_Inhab. repeat constructors. Qed.
+Proof. apply Inhab_of_val. repeat constructors. Qed.
 
 Instance Rcomplex_comparable : Comparable Rcomplex.
 Proof. prove_comparable_simple_inductive. Defined.

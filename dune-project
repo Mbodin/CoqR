@@ -2,10 +2,10 @@
 (using coq 0.2)
 
 (name CoqR)
-
-(generate_opam_files true)
 (license GPL-2.0-or-later)
 (source (github Mbodin/CoqR))
+
+(generate_opam_files true)
 
 (package
 	(name CoqR)

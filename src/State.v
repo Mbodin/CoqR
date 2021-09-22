@@ -540,7 +540,7 @@ Instance context_type_Comparable : Comparable context_type.
 Proof. typeclass. Defined.
 
 Instance context_type_Inhab : Inhab context_type.
-Proof. apply prove_Inhab. apply empty_context_type. Defined.
+Proof. apply Inhab_of_val. apply empty_context_type. Defined.
 
 Definition context_type_mask (t1 t2 : context_type) :=
   nbits_intersects t1 t2.
@@ -1458,17 +1458,17 @@ Defined.
 (** * Generic Instances **)
 
 Instance memory_Inhab : Inhab memory :=
-  prove_Inhab empty_memory.
+  Inhab_of_val empty_memory.
 
 Instance context_Inhab : Inhab context.
-  apply prove_Inhab. constructors; typeclass || apply arbitrary.
+  apply Inhab_of_val. constructors; typeclass || apply arbitrary.
 Qed.
 
 Instance state_Rconnection : Inhab Rconnection.
-  apply prove_Inhab. apply (newterminal "dummy" "???").
+  apply Inhab_of_val. apply (newterminal "dummy" "???").
 Qed.
 
 Instance state_Inhab : Inhab state.
-  apply prove_Inhab. constructors; typeclass || apply arbitrary.
+  apply Inhab_of_val. constructors; typeclass || apply arbitrary.
 Qed.
 

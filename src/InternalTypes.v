@@ -32,7 +32,7 @@ Record Type2Table_type := make_Type2Table_type {
   }.
 
 Instance Type2Table_type_Inhab : Inhab Type2Table_type.
-  apply prove_Inhab. constructors; apply arbitrary.
+  apply Inhab_of_val. constructors; apply arbitrary.
 Qed.
 
 
@@ -117,7 +117,7 @@ Record funtab_eval_arg := make_funtab_eval_arg {
   }.
 
 Instance funtab_eval_arg_Inhab : Inhab funtab_eval_arg.
-  apply prove_Inhab. constructors; typeclass.
+  apply Inhab_of_val. constructors; typeclass.
 Qed.
 
 (** [PPkind] **)
@@ -149,7 +149,7 @@ Instance PPkind_Comparable : Comparable PPkind.
 Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance PPkind_Inhab : Inhab PPkind.
-  apply prove_Inhab. constructors~.
+  apply Inhab_of_val. constructors~.
 Qed.
 
 (** [PPprec] **)
@@ -178,7 +178,7 @@ Instance PPprec_Comparable : Comparable PPprec.
 Proof. prove_comparable_trivial_inductive. Defined.
 
 Instance PPprecd_Inhab : Inhab PPprec.
-  apply prove_Inhab. constructors~.
+  apply Inhab_of_val. constructors~.
 Qed.
 
 (** [PPinfo] **)
@@ -189,6 +189,6 @@ Record PPinfo := make_PPinfo {
   }.
 
 Instance PPinfo_Inhab : Inhab PPinfo.
-  apply prove_Inhab. constructors; typeclass.
+  apply Inhab_of_val. constructors; typeclass.
 Qed.
 

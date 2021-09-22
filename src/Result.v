@@ -110,7 +110,7 @@ Definition result_bottom : forall A, result A :=
 Arguments result_bottom {A}.
 
 Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => prove_Inhab (result_impossible "[arbitrary]").
+  fun _ => Inhab_of_val (result_impossible "[arbitrary]").
 
 
 (** A precision about [result_not_implemented] and [result_error]:
@@ -165,7 +165,7 @@ Record funtab_cell := make_funtab_cell {
   }.
 
 Instance funtab_cell_Inhab : Inhab funtab_cell.
-  apply prove_Inhab. constructors; apply arbitrary.
+  apply Inhab_of_val. constructors; apply arbitrary.
 Qed.
 
 Definition funtab := ArrayList.array funtab_cell.

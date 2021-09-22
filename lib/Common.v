@@ -13,6 +13,8 @@ Notation " [ ] " := nil : list_scope.
 Notation " [ x ] " := (cons x nil) : list_scope.
 Notation " [ x ; .. ; y ] " := (cons x .. (cons y nil) ..) : list_scope.
 
+Open Scope Int_scope.
+
 Set Implicit Arguments.
 
 
