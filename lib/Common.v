@@ -195,6 +195,9 @@ Proof.
   introv F. apply~ Forall2_Decidable_mem.
 Defined.
 
+Lemma Forall2_eq : forall A (l : list A),
+  Forall2 eq l l.
+Proof. induction l; constructors~. Qed.
 
 Lemma Nth_equiv : forall A (l1 l2 : list A),
   (forall n x, Nth n l1 x <-> Nth n l2 x) ->
@@ -210,6 +213,20 @@ Proof.
       * forwards N: Nth_succ a2 I. apply E in N. inverts~ N.
 Qed.
 
+Global Instance Comparable_list : forall A,
+  Comparable A ->
+  Comparable (list A).
+Proof.
+  introv C. constructors. intros l1 l2.
+  applys Decidable_equiv (Forall2 eq l1 l2); [| typeclass ]. splits.
+  - introv F. apply Nth_equiv. introv. forwards L: Forall2_inv_length F.
+    splits; introv N;
+      forwards I: Nth_inbound N; [ rewrite L in I | rewrite <- L in I ];
+      forwards (?&N'): Nth_inbound_inv I.
+    + forwards: Forall2_Nth_inv F N N'. substs~.
+    + forwards: Forall2_Nth_inv F N' N. substs~.
+  - intro_subst. apply~ Forall2_eq.
+Defined.
 
 Lemma mem_last_inv : forall A l (x e : A),
   mem x (l & e) ->
@@ -551,6 +568,16 @@ Proof. reflexivity. Qed.
 Lemma nth_option_cons : forall A l n (a : A),
   nth_option (S n) (a :: l) = nth_option n l.
 Proof. reflexivity. Qed.
+
+Lemma Nth_nth_option : forall A (l : list A) n a,
+  Nth n l a <-> nth_option n l = Some a.
+Proof.
+  induction l; (split; [ introv N; inverts~ N | introv E; tryfalse ]); simpls.
+  - apply~ IHl.
+  - destruct n.
+    + inverts~ E.
+    + constructors. apply~ IHl.
+Qed.
 
 Lemma update_out : forall A l i (v : A),
   i >= length l ->

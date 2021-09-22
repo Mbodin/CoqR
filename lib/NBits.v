@@ -431,6 +431,7 @@ Qed.
 (** * Instances **)
 
 Global Instance nbits_Comparable : forall n, Comparable (nbits n).
+Proof.
   introv. apply make_comparable. intros x y.
   applys Decidable_equiv (nbits_to_list x = nbits_to_list y).
   - iff E.
@@ -440,7 +441,8 @@ Global Instance nbits_Comparable : forall n, Comparable (nbits n).
 Defined.
 
 Global Instance nbits_Inhab : forall n, Inhab (nbits n).
-  introv. apply prove_Inhab. apply nbits_init.
+Proof.
+  introv. apply Inhab_of_val. apply nbits_init.
 Defined.
 
 
@@ -451,8 +453,9 @@ Definition nbits_intersects n (a1 a2 : nbits n) :=
 Arguments nbits_intersects [n].
 
 Instance Decidable_exists_inf : forall n P,
-    (forall m (I : (m < n)%nat), Decidable (P m I)) ->
-    Decidable (exists m I, P m I).
+  (forall m (I : (m < n)%nat), Decidable (P m I)) ->
+  Decidable (exists m I, P m I).
+Proof.
   induction n; introv ID.
   - applys Decidable_equiv False.
     + iff I; tryfalse. lets (m&I'&H): (rm I). nat_math.
@@ -469,12 +472,13 @@ Instance Decidable_exists_inf : forall n P,
 Defined.
 
 Global Instance nbits_intersects_decidable : forall n (a1 a2 : nbits n),
-    Decidable (nbits_intersects a1 a2).
+  Decidable (nbits_intersects a1 a2).
+Proof.
   introv. sets_eq f: (fun n I => decide (nth_bit n a1 I = true /\ nth_bit n a2 I = true)).
   applys Decidable_equiv (exists n I, istrue (f n I)).
   - splits; intros (m&I&H); exists m I.
-    + rewrite EQf in H. rew_refl~ in H.
-    + rewrite EQf. rew_refl~.
+    + rewrite EQf in H. rewrite decide_spec in H. rew_bool_eq in H. autos~.
+    + rewrite EQf. rewrite decide_spec. rew_bool_eq~.
   - typeclass.
 Defined.
 
@@ -540,8 +544,8 @@ Proof.
     lets E': (nbits_and_nth_bit a1 a2 I').
     rewrite E in E'. rewrite nbits_init_read with (I := I') in E'.
     rewrite E1, E2 in E'. false.
-  - unfolds. apply not_not_elim. introv F. false I.
+  - unfolds. apply not_not_inv. introv F. false I.
     apply nth_bit_eq. introv. rewrite nbits_and_nth_bit. rewrite nbits_init_read.
-    fold_bool. rew_refl. introv (E1&E2). false F. exists* m I0.
+    rew_bool_eq. introv (E1&E2). false F. exists* m I0.
 Qed.
 
