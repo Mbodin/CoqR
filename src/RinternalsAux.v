@@ -21,6 +21,8 @@ Set Implicit Arguments.
 Require Export Rinternals.
 From Lib Require Export Common.
 
+Open Scope comp_scope.
+
 
 (** The C language performs a lot of pointer deferentiation. As a
   convention, we write [p_] for the object referenced by the pointer [p]
@@ -74,7 +76,7 @@ Proof.
 Defined.
 
 Lemma SExpType_restrict_all_storable_SExpTypes : forall t,
-  Mem t all_storable_SExpTypes ->
+  mem t all_storable_SExpTypes ->
   SExpType_restrict t = t.
 Proof. introv M. unfolds all_storable_SExpTypes. explode_list M; substs~. Qed.
 
@@ -131,10 +133,17 @@ Lemma nat_to_SExpType_correct : forall t i,
   nat_to_SExpType i = Some t <-> i = t.
 Proof.
   introv. iff I.
-  - unfolds in I. repeat cases_if; inverts I; fold_bool; rew_refl~ in *.
-  - substs. unfolds. destruct~ t;
-      repeat (cases_if as C; [ reflexivity || fold_bool; rew_refl in C; false~ C
-                             | fold_bool; rew_refl in C; solve [ false~ C ] || clear C ]).
+  - unfolds in I. repeat cases_if; inverts I;
+      lazymatch goal with
+      | C : istrue (decide _) |- _ => rewrite decide_spec in C; rew_bool_eq~ in C
+      end.
+  - substs. unfolds. destruct t;
+      let false_case := rewrite decide_spec in C; rew_bool_eq in C; false~ C in
+      repeat (cases_if as C; [ reflexivity || false_case
+                             | lazymatch type of C with
+                               | ~ istrue (decide (?x = ?x)) => false_case
+                               | _ => clear C
+                               end ]).
 Qed.
 
 Definition get_NonVector e_ :=
@@ -416,7 +425,7 @@ Instance named_field_Lt : Lt named_field :=
   Build_Lt named_field_lt.
 
 Instance named_field_Lt_Decidable : forall n1 n2 : named_field,
-    Decidable (n1 < n2).
+  Decidable (n1 < n2).
 Proof. introv. applys* Decidable_equiv (named_field_lt n1 n2). typeclass. Defined.
 
 Definition named_field_le n1 n2 :=
@@ -426,7 +435,7 @@ Instance named_field_Le : Le named_field :=
   Build_Le named_field_le.
 
 Instance named_field_Le_Decidable : forall n1 n2 : named_field,
-    Decidable (n1 <= n2).
+  Decidable (n1 <= n2).
 Proof. introv. applys* Decidable_equiv (named_field_le n1 n2). typeclass. Defined.
 
 Definition named_field_gt n1 n2 :=
@@ -436,7 +445,7 @@ Instance named_field_Gt : Gt named_field :=
   Build_Gt named_field_gt.
 
 Instance named_field_Gt_Decidable : forall n1 n2 : named_field,
-    Decidable (n1 > n2).
+  Decidable (n1 > n2).
 Proof. introv. applys* Decidable_equiv (named_field_gt n1 n2). typeclass. Defined.
 
 Definition named_field_ge n1 n2 :=
@@ -446,5 +455,5 @@ Instance named_field_Ge : Ge named_field :=
   Build_Ge named_field_ge.
 
 Instance named_field_Ge_Decidable : forall n1 n2 : named_field,
-    Decidable (n1 >= n2).
+  Decidable (n1 >= n2).
 Proof. introv. applys* Decidable_equiv (named_field_ge n1 n2). typeclass. Defined.

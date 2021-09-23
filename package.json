@@ -37,7 +37,7 @@
 	},
 	"resolutions": {
 		"tlc": {
-			"source": "github:charguer/tlc#c6c9b344f36df70d600756fe20f2017730e48604",
+			"source": "github:charguer/tlc#2415b8dcf1138ade515ea4bfdcd5460be1ef4db4",
 			"override": {
 				"dependencies": {
 					"@opam/coq": "^8.13"

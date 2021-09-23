@@ -84,14 +84,17 @@ Record SxpInfo := make_SxpInfo {
     named : named_field
   }.
 
-(** A type to represent C-style pointers. **)
-Definition defined_pointer := nat.
+(** A type to represent C-style pointers.
+  In contrary to C, this pointer must be defined, that is being
+  associated to a valid object in the memory.
+  In particular, no NULL pointer are accepted. **)
+Definition location := nat.
 
 (** SEXP, *SEXPREC **)
 (** We chose to represent pointers as an option type.
   [None] means NULL (it is very rarely used in the R source code).
   [Some p] yields that the pointer [p] points to something. **)
-Definition SExpRec_pointer := option defined_pointer.
+Definition SExpRec_pointer := option location.
 
 Definition SEXP := SExpRec_pointer.
 

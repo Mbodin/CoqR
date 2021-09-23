@@ -1,7 +1,7 @@
 (** An instanciation of heaps.
   It is based on the AVL-tree implementation from the standard library. **)
 
-From Coq Require Import FSets.FMapAVL.
+From Coq Require Import OrderedTypeEx FSets.FMapAVL.
 From Lib Require Import LibExec.
 From TLC Require Export LibTactics LibReflect LibContainer.
 
@@ -126,9 +126,13 @@ Module HeapFromOrdered (X : OrderedType.OrderedType).
 
 Export X.
 
+(** ** Definitions and instance **)
+
 Definition K := t.
 
-Module Export Tree := FMapAVL.Make(X).
+Module Import Tree := FMapAVL.Make(X).
+
+Definition t T := Tree.t T.
 
 Instance read_option_inst V : BagReadOption K V (t V) := {|
     read_option h k := find k h
@@ -178,12 +182,12 @@ Instance card_inst V : BagCard (t V) := {|
 Instance in_empty_eq V : In_empty_eq (T := t V).
 Proof. constructors*. Qed.
 
+(** ** Lemmas **)
+
 Lemma MapsTo_In : forall V (h : t V) k v,
   MapsTo k v h ->
   In k h.
-Proof.
-  introv M. constructors*.
-Qed.
+Proof. introv M. constructors*. Qed.
 
 Instance in_remove_elem V : In_remove_elem (T := t V) eq.
 Proof.
@@ -279,7 +283,7 @@ Proof.
   introv nI. simpls. destruct~ find. false*.
 Qed.
 
-Lemma read_option_write : forall V (h : t V) k k' v,
+Lemma read_option_write_neq : forall V (h : t V) k k' v,
   ~ eq k k' ->
   read_option (write h k v) k' = read_option h k'.
 Proof.
@@ -293,56 +297,111 @@ Proof.
     forwards R': not_indom_read_option I'. simpl in R'. rewrite~ R'.
 Qed.
 
-(* TODO
-(** A notion of equivalence for heaps. **)
-Definition heap_equiv K V (h1 h2 : heap K V) :=
-  forall k v, binds h1 k v <-> binds h2 k v.
+Lemma in_write : forall V (h : t V) k v,
+  k \in write h k v.
+Proof. introv. forwards E: read_option_write_eq eq_refl. simpls. rewrite~ E. Qed.
 
-Lemma heap_equiv_refl : forall K V (h : heap K V),
+Lemma in_write_inv : forall V (h : t V) k k' v,
+  k \in write h k' v ->
+  ~ eq k k' ->
+  k \in h.
+Proof.
+  introv I E. simpls. destruct find eqn: Ev in I; tryfalse.
+  forwards M: find_2 Ev. forwards~ M': add_3 M. { lets*: eq_sym. }
+  apply find_1 in M'. rewrite~ M'.
+Qed.
+
+Lemma read_option_eq : forall V (h : t V) k k',
+  eq k k' ->
+  read_option h k = read_option h k'.
+Proof.
+  introv E. simpls. destruct (find k h) as [v|] eqn: B1.
+  - forwards M1: find_2 B1. forwards M2: MapsTo_1 E M1. forwards~ E2: find_1 M2.
+  - destruct (find k' h) as [v'|] eqn: B2; autos~.
+    forwards M2: find_2 B2. forwards~ M1: MapsTo_1 M2. { applys~ eq_sym E. }
+    forwards E1: find_1 M1. rewrite~ B1 in E1.
+Qed.
+
+Lemma in_eq : forall V (h : t V) k k',
+  eq k k' ->
+  k \in h ->
+  k' \in h.
+Proof.
+  introv E I. simpls. destruct (find k h) eqn: E1; tryfalse.
+  forwards M: find_2 E1. forwards M': MapsTo_1 E M. forwards E2: find_1 M'. rewrite~ E2.
+Qed.
+
+Lemma binds_eq : forall V (h : t V) k k' v v',
+  binds h k v ->
+  binds h k' v' ->
+  eq k k' ->
+  v = v'.
+Proof.
+  introv B1 B2 E. rewrite read_option_binds_eq in B1, B2.
+  rewrites >> read_option_eq E in B1. rewrite B1 in B2. inverts~ B2.
+Qed.
+
+
+(** ** A notion of equivalence for heaps. **)
+Definition heap_equiv {V} (h1 h2 : t V) :=
+  forall k1 k2 v,
+    eq k1 k2 ->
+    binds h1 k1 v <-> binds h2 k2 v.
+
+Lemma heap_equiv_weaken_eq : forall V (h1 h2 : t V),
+  heap_equiv h1 h2 ->
+  (forall k v, binds h1 k v <-> binds h2 k v).
+Proof. introv E. introv. apply E. reflexivity. Qed.
+
+Lemma heap_equiv_refl : forall V (h : t V),
   heap_equiv h h.
-Proof. introv. unfolds. autos*. Qed.
+Proof. introv E. do 2 rewrite read_option_binds_eq. rewrites* >> read_option_eq E. Qed.
 
-Lemma heap_equiv_sym : forall K V (h1 h2 : heap K V),
+Lemma heap_equiv_sym : forall V (h1 h2 : t V),
   heap_equiv h1 h2 ->
   heap_equiv h2 h1.
-Proof. introv E. unfolds heap_equiv. introv. rewrite* E. Qed.
+Proof. introv E. unfold heap_equiv in *. introv Ek. rewrite* E. applys~ eq_sym Ek. Qed.
 
-Lemma heap_equiv_trans : forall K V (h1 h2 h3 : heap K V),
+Lemma heap_equiv_trans : forall V (h1 h2 h3 : t V),
   heap_equiv h1 h2 ->
   heap_equiv h2 h3 ->
   heap_equiv h1 h3.
-Proof. introv E1 E2. unfolds heap_equiv. introv. rewrite* E1. Qed.
+Proof. introv E1 E2. unfold heap_equiv in *. introv Ek. rewrite* E1. apply~ eq_refl. Qed.
 
-Lemma heap_equiv_binds : forall K V (h1 h2 : heap K V) k v,
+Lemma heap_equiv_binds_eq : forall V (h1 h2 : t V) k k' v,
+  heap_equiv h1 h2 ->
+  eq k k' ->
+  binds h1 k v ->
+  binds h2 k' v.
+Proof. introv E Ek B. unfolds in E. rewrite* <- E. Qed.
+
+Lemma heap_equiv_binds : forall V (h1 h2 : t V) k v,
   heap_equiv h1 h2 ->
   binds h1 k v ->
   binds h2 k v.
-Proof. introv E B. unfolds in E. rewrite* <- E. Qed.
+Proof. introv E Ek. applys~ heap_equiv_binds_eq E Ek. apply~ eq_refl. Qed.
 
-Lemma heap_equiv_indom : forall K V (h1 h2 : heap K V) k,
+Lemma heap_equiv_indom_eq : forall V (h1 h2 : t V) k k',
   heap_equiv h1 h2 ->
-  indom h1 k ->
-  indom h2 k.
+  eq k k' ->
+  k \in h1 ->
+  k' \in h2.
 Proof.
-  introv E I. lets (v&B): @indom_binds I.
-  forwards B': heap_equiv_binds E B. applys~ @binds_indom B'.
+  introv E Ek I. lets (v&B): @indom_binds I.
+  forwards B': heap_equiv_binds E B. applys~ in_eq Ek. applys~ @binds_indom B'.
 Qed.
 
-Lemma heap_equiv_read : forall V `{Inhab V} (h1 h2 : heap K V) k,
+Lemma heap_equiv_indom : forall V (h1 h2 : t V) k,
   heap_equiv h1 h2 ->
-  indom h1 k ->
-  read h1 k = read h2 k.
-Proof.
-  introv E I. forwards (v&B): @indom_binds I.
-  rewrites >> binds_read B. symmetry. apply binds_read.
-  applys~ heap_equiv_binds E B.
-Qed.
+  k \in h1 ->
+  k \in h2.
+Proof. introv E Ek. applys~ heap_equiv_indom_eq E Ek. apply~ eq_refl. Qed.
 
-Lemma heap_equiv_read_option : forall V (h1 h2 : heap K V) k,
+Lemma heap_equiv_read_option : forall V (h1 h2 : t V) k,
   heap_equiv h1 h2 ->
   read_option h1 k = read_option h2 k.
 Proof.
-  introv E. tests I: (indom h1 k).
+  introv E. tests I: (k \in h1).
   - forwards (v&B): @indom_binds I.
     rewrites >> (@binds_read_option) B. symmetry. apply binds_read_option.
     applys~ heap_equiv_binds E B.
@@ -350,44 +409,51 @@ Proof.
     introv I'. false I. applys~ heap_equiv_indom I'. applys~ heap_equiv_sym E.
 Qed.
 
-Lemma heap_equiv_write : forall K V (h1 h2 : heap K V) k v,
+Lemma heap_equiv_read : forall V `{Inhab V} (h1 h2 : t V) k,
+  heap_equiv h1 h2 ->
+  k \in h1 ->
+  read h1 k = read h2 k.
+Proof.
+  introv E I. forwards E1: heap_equiv_read_option k E.
+  forwards (v&E2): indom_read_option I. rewrite E2 in E1. symmetry in E1.
+  rewrite (read_option_read_eq _ _ _ E1). rewrite~ (read_option_read_eq _ _ _ E2).
+Qed.
+
+Lemma heap_equiv_write : forall V (h1 h2 : t V) k v,
   heap_equiv h1 h2 ->
   heap_equiv (write h1 k v) (write h2 k v).
 Proof.
-  introv E. unfolds heap_equiv. iff B;
-    (forwards [(?&?)|(D&B')]: @binds_write_inv B;
-     [ substs; apply binds_write_eq
-     | apply~ @binds_write_neq; applys~ heap_equiv_binds B'; apply~ heap_equiv_sym ]).
+  introv E. unfold heap_equiv in *. intros k1 k2 v' Ek. do 2 rewrite read_option_binds_eq.
+  forwards E': E Ek. do 2 rewrite read_option_binds_eq in E'. tests Ek': (eq k k1).
+  - repeat rewrite* read_option_write_eq. applys~ eq_trans Ek.
+  - repeat rewrite* read_option_write_neq. introv Ek2. false Ek'.
+    applys~ eq_trans Ek2. applys~ eq_sym Ek.
 Qed.
 
-Lemma heap_equiv_write_write : forall K V (h1 h2 : heap K V) k v v',
+Lemma heap_equiv_write_write : forall V (h1 h2 : t V) k v v',
   heap_equiv h1 h2 ->
   heap_equiv (write (write h1 k v') k v) (write h2 k v).
 Proof.
-  introv E. unfolds heap_equiv. iff B;
-    (forwards [(?&?)|(D&B')]: @binds_write_inv B;
-     [ substs; apply binds_write_eq
-     | repeat apply~ @binds_write_neq ]).
-  - forwards~ B'': @binds_write_neq_inv B'. applys~ heap_equiv_binds B''.
-  - applys~ heap_equiv_binds B'. apply* heap_equiv_sym.
+  introv E. unfold heap_equiv in *. intros k1 k2 v2 Ek. do 2 rewrite read_option_binds_eq.
+  forwards E': E Ek. do 2 rewrite read_option_binds_eq in E'. tests Ek': (eq k k1).
+  - repeat rewrite* read_option_write_eq. applys~ eq_trans Ek'.
+  - repeat rewrite* read_option_write_neq. introv Ek2. false Ek'.
+    applys~ eq_trans Ek2. applys~ eq_sym Ek.
 Qed.
 
-Lemma heap_equiv_write_swap : forall K V (h1 h2 : heap K V) k1 k2 v1 v2,
-  k1 <> k2 ->
+Lemma heap_equiv_write_swap : forall V (h1 h2 : t V) k1 k2 v1 v2,
+  ~ eq k1 k2 ->
   heap_equiv h1 h2 ->
   heap_equiv (write (write h1 k1 v1) k2 v2) (write (write h2 k2 v2) k1 v1).
 Proof.
-  introv D E. unfolds heap_equiv. iff B;
-    repeat (match goal with
-    | B : binds (write _ _ _) _ _ |- _ =>
-      let D' := fresh "D" in
-      let B' := fresh "B" in
-      forwards [(?&?)|(D'&B')]: @binds_write_inv (rm B)
-    | |- binds (write _ _ _) _ _ =>
-      apply~ @binds_write_eq || apply~ @binds_write_neq
-    end; substs; tryfalse~); apply~ E.
+  introv D E. unfold heap_equiv in *. intros ka kb v Ek. do 2 rewrite read_option_binds_eq.
+  forwards E': E Ek. do 2 rewrite read_option_binds_eq in E'.
+  lets: eq_sym. lets: eq_trans.
+  tests: (eq k1 ka); tests: (eq k2 ka);
+  repeat ((rewrite read_option_write_eq; [| solve [ autos* ] ])
+          || (rewrite read_option_write_neq; [| solve [ autos* ] ])); autos*.
+  false* D.
 Qed.
-*)
 
 End HeapFromOrdered.
 
@@ -447,3 +513,10 @@ Module OrderedType := OrderedTypeFromComparable X.
 Module Export Heap := HeapFromOrdered OrderedType.
 Include Heap.
 End Heap.
+
+Module HeapNat := HeapFromOrdered Nat_as_OT.
+Module HeapZ := HeapFromOrdered Z_as_OT.
+Module HeapPos := HeapFromOrdered Positive_as_OT.
+Module HeapBinN := HeapFromOrdered N_as_OT.
+Module HeapAscii := HeapFromOrdered Ascii_as_OT.
+Module HeapString := HeapFromOrdered String_as_OT.

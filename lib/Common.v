@@ -1059,15 +1059,9 @@ Global Instance Comparable_BagIn_list : forall T,
     BagIn T (list T) :=
   fun T C => Build_BagIn (@mem _).
 
-Global Instance Comparable_BagIn_Decidable : forall T t l,
-  Comparable T ->
+Global Instance Comparable_BagIn_Decidable : forall T (t : T) (l : list T) `{Comparable T},
   Decidable (t \in l).
-Proof. introv C. simpl. typeclass. Qed.
-
-Global Instance Comparable_BagIn_Decidable_not : forall T t l,
-  Comparable T ->
-  Decidable (t \notin l).
-Proof. introv C. typeclass. Qed.
+Proof. introv. simpl. typeclass. Qed.
 
 Lemma BagIn_cons : forall T `{Comparable T} (x y : T) l,
   x \in (y :: l) <-> x = y \/ x \in l.
