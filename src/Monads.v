@@ -102,8 +102,8 @@ Coercion _bool_result_bool : _bool >-> result_bool.
 Ltac warn_types t :=
   let warning _ := idtac "Warning: a term of type" t "has been produced." in
   lazymatch t with
-  | result _SEXP => warning tt
-  | result _bool => warning tt
+  | result _SEXP => warning tt (* [result_SEXP] is to be preferred *)
+  | result _bool => warning tt (* [result_bool] is to be preferred *)
   | result (result _) => warning tt
   | result (contextual _) => warning tt
   | contextual (result _) => warning tt

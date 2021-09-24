@@ -61,11 +61,8 @@ Definition get_R_FunTab runs :=
 Definition read_R_FunTab runs n :=
   add%stack "read_R_FunTab" in
   let%success t := get_R_FunTab runs in
-  ifb n >= ArrayList.length t then
-    result_impossible "Out of bounds."
-  else
-    let c := ArrayList.read t n in
-    result_success c.
+  let%defined c := ArrayList.read_option t n with "Out of bounds." in
+  result_success c.
 
 
 (** * Frequent Patterns **)
@@ -1161,7 +1158,7 @@ Definition for_loop A (a : contextual A) (start : nat) (last : int) body :=
   else
     (** We know that [last >= 0]. **)
     do%let x := a
-    for i in%list seq start (1 + Z.to_nat last - start) do
+    for i in%list nat_seq start (1 + Z.to_nat last - start) do
       body x i.
 
 Notation "'do%let' a ':=' e 'for' i 'from' start 'to' last 'do' body" :=
