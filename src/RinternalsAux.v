@@ -187,17 +187,6 @@ Definition get_VectorPointer e_ :=
   end.
 
 
-Definition get_SxpInfo e_ :=
-  match e_ return SxpInfo with
-  | SExpRec_NonVector e_ => e_
-  | SExpRec_VectorChar e_ => e_
-  | SExpRec_VectorInteger e_ => e_
-  | SExpRec_VectorComplex e_ => e_
-  | SExpRec_VectorReal e_ => e_
-  | SExpRec_VectorPointer e_ => e_
-  end.
-Coercion get_SxpInfo : SExpRec >-> SxpInfo.
-
 Definition get_SExpRecHeader e_ :=
   match e_ return SExpRecHeader with
   | SExpRec_NonVector e_ => e_
@@ -209,6 +198,7 @@ Definition get_SExpRecHeader e_ :=
   end.
 Coercion get_SExpRecHeader : SExpRec >-> SExpRecHeader.
 
+Definition get_SxpInfo (e_ : SExpRec) : SxpInfo := e_.
 
 Definition get_primSxp e_ :=
   match e_ with

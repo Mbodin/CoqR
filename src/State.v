@@ -32,10 +32,11 @@ From TLC Require Import LibStream.
 Definition location := nat.
 
 (** Heaps from locations to a given type [T]. **)
-Definition heap T := HeapNat.t T.
+Module Heap := HeapNat.
+Definition heap T := Heap.t T.
 
 (** A function to update heaps of locations. **)
-Definition write : forall V, heap V -> location -> V -> heap V := @HeapNat.write.
+Definition write : forall V, heap V -> location -> V -> heap V := @Heap.write.
 Definition read_option : forall V, heap V -> location -> option V := fun V => Heap.read_option.
 
 (** The global state of the C memory. In particular, it maps SEXP
@@ -83,7 +84,7 @@ Lemma memory_same_except_for_memory_eq : forall S1 S2,
   S1 = S2.
 Proof. introv [E1] E2. destruct S1, S2. simpls. substs. fequals. Qed.
 
-Definition heap_equiv : forall V, heap V -> heap V -> Prop := @HeapNat.heap_equiv.
+Definition heap_equiv : forall V, heap V -> heap V -> Prop := @Heap.heap_equiv.
 
 (** As the definition of heaps is axiomatic and only describes its
   interface, there is no easy way to prove that two heaps are equals.
@@ -99,7 +100,7 @@ Lemma memory_equiv_refl : forall S,
   memory_equiv S S.
 Proof.
   introv. constructors.
-  - apply~ HeapNat.heap_equiv_refl.
+  - apply~ Heap.heap_equiv_refl.
   - apply~ memory_same_except_for_memory_refl.
 Qed.
 
@@ -109,7 +110,7 @@ Lemma memory_equiv_trans : forall S1 S2 S3,
   memory_equiv S1 S3.
 Proof.
   introv [E1 R1] [E2 R2]. constructors.
-  - applys~ HeapNat.heap_equiv_trans E1 E2.
+  - applys~ Heap.heap_equiv_trans E1 E2.
   - applys~ memory_same_except_for_memory_trans R1 R2.
 Qed.
 
@@ -118,7 +119,7 @@ Lemma memory_equiv_sym : forall S1 S2,
   memory_equiv S2 S1.
 Proof.
   introv [E R]. constructors.
-  - applys~ HeapNat.heap_equiv_sym E.
+  - applys~ Heap.heap_equiv_sym E.
   - applys~ memory_same_except_for_memory_sym R.
 Qed.
 
@@ -131,7 +132,7 @@ Proof.
       state_heap_SExp := write S p e_ ;
       state_fresh_locations := stream_tail (state_fresh_locations S) |},
     p)).
-  - introv I. rewrite stream_tail_nth in I. forwards~ I': HeapNat.in_write_inv I.
+  - introv I. rewrite stream_tail_nth in I. forwards~ I': Heap.in_write_inv I.
     + unfolds p. rewrite stream_head_nth. applys* state_fresh_locations_different.
     + applys~ state_fresh_locations_fresh I'.
   - introv D. repeat rewrite stream_tail_nth. applys* state_fresh_locations_different.
@@ -150,9 +151,9 @@ Proof.
               state_heap_SExp := write S e e_ ;
               state_fresh_locations := state_fresh_locations S |}
           end eq_refl).
-  - introv. apply HeapNat.not_indom_write.
+  - introv. apply Heap.not_indom_write.
     + introv E. applys state_fresh_locations_fresh. rewrite E.
-      symmetry in Eq. applys~ HeapNat.read_option_indom Eq.
+      symmetry in Eq. applys~ Heap.read_option_indom Eq.
     + applys~ state_fresh_locations_fresh.
   - apply* state_fresh_locations_different.
 Defined.
@@ -182,7 +183,7 @@ Proof. reflexivity. Qed.
 Lemma alloc_memory_SExp_loc_read_SExp : forall S S' e_ e,
   alloc_memory_SExp_loc e_ S = (S', e) ->
   read_SExp (Some e) S' = Some e_.
-Proof. introv Eq. inverts Eq. do 2 unfolds. simpl. apply~ HeapNat.read_option_write_eq. Qed.
+Proof. introv Eq. inverts Eq. do 2 unfolds. simpl. apply~ Heap.read_option_write_eq. Qed.
 
 Lemma alloc_memory_SExp_read_SExp : forall S S' e_ e,
   alloc_memory_SExp e_ S = (S', e) ->
@@ -257,7 +258,7 @@ Lemma write_memory_SExp_loc_read_SExp_same : forall S S' e_ e,
 Proof.
   introv E. simpl. forwards (v&E'): destruct_write_memory_SExp_loc_inv E.
   forwards (S2&E1&E2&_): destruct_write_memory_SExp_loc E'.
-  rewrite E in E1. inverts E1. unfolds. rewrite E2. apply~ HeapNat.read_option_write_eq.
+  rewrite E in E1. inverts E1. unfolds. rewrite E2. apply~ Heap.read_option_write_eq.
 Qed.
 
 Lemma write_memory_SExp_read_SExp_same : forall S S' e_ e,
@@ -272,7 +273,7 @@ Lemma write_memory_SExp_loc_read_SExp : forall S S' e_ e e',
 Proof.
   introv E D. simpl. forwards (v&E'): destruct_write_memory_SExp_loc_inv E.
   forwards (S2&E1&E2&_): destruct_write_memory_SExp_loc E'.
-  rewrite E in E1. inverts E1. unfolds. rewrite E2. apply~ HeapNat.read_option_write_neq.
+  rewrite E in E1. inverts E1. unfolds. rewrite E2. apply~ Heap.read_option_write_neq.
 Qed.
 
 Lemma write_memory_SExp_read_SExp : forall S S' e_ e e',
@@ -319,7 +320,7 @@ Lemma read_SExp_equiv : forall S1 S2 e,
   read_SExp e S1 = read_SExp e S2.
 Proof.
   introv E. destruct~ e. simpl. unfolds.
-  apply~ HeapNat.heap_equiv_read_option. applys~ memory_equiv_heap E.
+  apply~ Heap.heap_equiv_read_option. applys~ memory_equiv_heap E.
 Qed.
 
 Lemma alloc_memory_SExp_equiv : forall S1 S2 S1' S2' e_ e1 e2,
@@ -334,7 +335,7 @@ Proof.
   - constructors~.
     + inverts A1. inverts A2. simpl.
       rewrites~ >> memory_same_except_for_memory_fresh_locations (memory_equiv_rest E).
-      applys~ HeapNat.heap_equiv_write E.
+      applys~ Heap.heap_equiv_write E.
     + constructors~. inverts A1. inverts A2. simpl.
       rewrites~ >> memory_same_except_for_memory_fresh_locations (memory_equiv_rest E).
 Qed.
@@ -352,7 +353,7 @@ Proof.
   forwards (v2&E2): destruct_write_memory_SExp_loc_inv W2.
   forwards (S2''&W2'&E2'&R2): destruct_write_memory_SExp_loc E2.
   rewrite W2 in W2'. inverts W2'. constructors~.
-  - rewrite E1'. rewrite E2'. applys~ HeapNat.heap_equiv_write E.
+  - rewrite E1'. rewrite E2'. applys~ Heap.heap_equiv_write E.
   - applys memory_same_except_for_memory_trans S1.
     + applys~ memory_same_except_for_memory_sym R1.
     + applys~ memory_same_except_for_memory_trans (memory_equiv_rest E) R2.
@@ -374,7 +375,7 @@ Proof.
   forwards (S2'&W2'&ES2''&E12'): destruct_write_memory_SExp_loc p_2 R1.
   rewrite W2'. eexists. splits*. constructors~.
   - rewrite ES2''. rewrite ES3'. rewrite ES2'.
-    apply~ HeapNat.heap_equiv_write_write. apply~ HeapNat.heap_equiv_refl.
+    apply~ Heap.heap_equiv_write_write. apply~ Heap.heap_equiv_refl.
   - applys~ memory_same_except_for_memory_trans E12'.
     apply memory_same_except_for_memory_sym.
     applys~ memory_same_except_for_memory_trans E12 E23.
@@ -407,14 +408,14 @@ Proof.
   forwards (S3'&W3'&ES3'&E23): destruct_write_memory_SExp_loc p_2 R2.
   rewrite W3' in W2. inverts W2.
   forwards (S2'&W2'&ES2''&E12'): destruct_write_memory_SExp_loc S1 p2 p_2.
-  { apply~ @HeapNat.binds_read_option. apply HeapNat.read_option_binds in R2.
-    rewrite ES2' in R2. applys~ @binds_write_neq_inv R2. }
+  { apply~ @Heap.binds_read_option. apply Heap.read_option_binds in R2.
+    rewrite ES2' in R2. applys~ Heap.binds_write_neq_inv R2. }
   forwards (S3'&W3''&ES3''&E23'): destruct_write_memory_SExp_loc S2' p1 p_1.
-  { apply~ @binds_read_option. apply read_option_binds in R1.
-    rewrite ES2''. applys~ @binds_write_neq R1. }
+  { apply~ Heap.binds_read_option. apply Heap.read_option_binds in R1.
+    rewrite ES2''. applys~ Heap.binds_write_neq R1. }
   exists S2' S3'. splits~. constructors~.
   - rewrite ES3'. rewrite ES3''. rewrite ES2'. rewrite ES2''.
-    apply~ heap_equiv_write_swap. apply~ heap_equiv_refl.
+    apply~ Heap.heap_equiv_write_swap. apply~ Heap.heap_equiv_refl.
   - applys~ memory_same_except_for_memory_trans E23'.
     applys~ memory_same_except_for_memory_trans E12'.
     apply memory_same_except_for_memory_sym.
@@ -448,10 +449,10 @@ Proof.
   - inverts A. unfolds. simpl. fequals.
   - simpl. constructors~.
     + simpl. rewrite ES3'. inverts A. simpl.
-      apply~ heap_equiv_write_write. apply~ heap_equiv_refl.
+      apply~ Heap.heap_equiv_write_write. apply~ Heap.heap_equiv_refl.
     + apply memory_same_except_for_memory_sym.
       applys~ memory_same_except_for_memory_trans E23.
-      inverts A. constructors~; simpl.
+      inverts A. constructors~.
 Qed.
 
 Lemma alloc_memory_SExp_write_memory_SExp_eq : forall S1 S2 S3 p p_1 p_2,
@@ -480,18 +481,18 @@ Proof.
   forwards (S3'&W'&ES3'&E23): destruct_write_memory_SExp_loc p_2 R.
   rewrite W' in W. inverts W.
   forwards (S2'&W2'&ES2''&E12'): destruct_write_memory_SExp_loc S1 p2 p_2.
-  { apply~ @binds_read_option. apply read_option_binds in R.
-    inverts A. simpls. applys~ @binds_write_neq_inv R. }
+  { apply~ Heap.binds_read_option. apply Heap.read_option_binds in R.
+    inverts A. simpls. applys~ Heap.binds_write_neq_inv R. }
   exists S2'. eexists. splits~.
   - inverts A. unfolds. simpl. fequals.
     rewrites~ >> memory_same_except_for_memory_fresh_locations E12'.
   - simpl. constructors~.
     + simpl. rewrite ES2''. rewrite ES3'. inverts A. simpl.
       rewrites~ >> memory_same_except_for_memory_fresh_locations E12'.
-      apply~ heap_equiv_write_swap.
+      apply~ Heap.heap_equiv_write_swap.
       * introv AE. false state_fresh_locations_fresh S2'.
-        rewrite <- stream_head_nth. rewrite AE. rewrite ES2''. apply~ @indom_write_eq.
-      * apply~ heap_equiv_refl.
+        rewrite <- stream_head_nth. rewrite AE. rewrite ES2''. apply~ Heap.in_write.
+      * apply~ Heap.heap_equiv_refl.
     + apply memory_same_except_for_memory_sym.
       applys~ memory_same_except_for_memory_trans E23.
       inverts A. constructors~; simpl.
@@ -1259,21 +1260,21 @@ Lemma alloc_read_SExp_neq : forall S1 S2 e1 e2 e_,
   read_SExp e1 S2 = read_SExp e1 S1.
 Proof.
   introv A D. inverts A. unfolds. simpl. destruct~ e1.
-  unfolds read_SExp_loc. simpl. apply* read_option_write.
+  unfolds read_SExp_loc. simpl. apply* Heap.read_option_write_neq.
 Qed.
 
 Lemma alloc_read_SExp_fresh : forall S S' e e_,
   alloc_SExp e_ S = (S', e) ->
   read_SExp e S = None.
 Proof.
-  introv A. inverts A. simpl. apply not_indom_read_option.
+  introv A. inverts A. simpl. apply Heap.not_indom_read_option.
   rewrite stream_head_nth. apply* state_fresh_locations_fresh.
 Qed.
 
 Lemma alloc_read_SExp_eq : forall S S' e e_,
   alloc_SExp e_ S = (S', e) ->
   read_SExp e S' = Some e_.
-Proof. introv A. inverts A. apply read_option_write_same. Qed.
+Proof. introv A. inverts A. apply~ Heap.read_option_write_eq. Qed.
 
 Lemma alloc_read_SExp_diff : forall S S' p p' p_ p'_,
   alloc_SExp p_ S = (S', p) ->
@@ -1445,6 +1446,7 @@ Qed.
 
 (** * Initial Memory **)
 
+(** The stream of all numbers from a given one. **)
 CoFixpoint all_locations n : stream location :=
   n ::: (all_locations (1 + n)).
 
@@ -1462,8 +1464,8 @@ Proof.
       state_heap_SExp := empty ;
       state_fresh_locations := all_locations 0
     |}.
-  - introv. apply~ @not_indom_empty. typeclass.
-  - introv D. repeat rewrite all_locations_nth. math.
+  - introv. apply~ notin_empty.
+  - introv D. repeat rewrite all_locations_nth. nat_math.
 Defined.
 
 

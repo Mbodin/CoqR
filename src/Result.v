@@ -43,6 +43,8 @@ Definition contextual_bind A B (e : contextual A) (cont : A -> contextual B) : c
 Definition contextual_ret A (a : A) : contextual A :=
   fun _ _ => a.
 
+Declare Scope monad_scope.
+
 Notation "'let%contextual' a ':=' e 'in' cont" :=
   (contextual_bind e (fun a => cont))
   (at level 50, left associativity) : monad_scope.

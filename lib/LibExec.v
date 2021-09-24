@@ -200,8 +200,7 @@ Qed.
 Class Comparable (A:Type) := make_comparable {
   comparable : forall (x y:A), Decidable (x = y) }.
 
-#[global]
-Hint Resolve @comparable : typeclass_instances.
+Global Hint Resolve comparable : typeclass_instances.
 
 (** In classical logic, any type is comparable; of course,
     we do not want to use this lemma as an instance because

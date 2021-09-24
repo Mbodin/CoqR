@@ -62,9 +62,7 @@ Definition ReadOptionToRead A B T `{BagReadOption A B T} `{Inhab B} : BagRead A 
 
 Instance ReadOptionToRead_ReadOption_Read_eq : forall A B T `{BagReadOption A B T} `{Inhab B},
   ReadOption_Read_eq (BR := ReadOptionToRead A B T).
-Proof.
-  constructors. introv E. simpl. rewrite~ E.
-Qed.
+Proof. constructors. introv E. simpl. rewrite~ E. Qed.
 
 Definition ReadOptionToIn A B T `{BagReadOption A B T} : BagIn A T := {|
     is_in a t :=
@@ -93,9 +91,7 @@ Definition ReadToReadOption A B T `{BagRead A B T} `{BagInDec A T} : BagReadOpti
 
 Instance ReadToReadOption_ReadOption_Read_eq : forall A B T `{BagRead A B T} `{BagInDec A T},
   ReadOption_Read_eq (BRO := ReadToReadOption A B T).
-Proof.
-  constructors. simpl. introv E. cases_if; inverts~ E.
-Qed.
+Proof. constructors. simpl. introv E. cases_if; inverts~ E. Qed.
 
 Instance ReadToReadOption_ReadOption_In_eq : forall A B T `{BagRead A B T} `{BagInDec A T},
   ReadOption_In_eq (BRO := ReadToReadOption A B T).
@@ -111,9 +107,7 @@ Definition ReadOptionToBinds A B T `{BagReadOption A B T} : BagBinds A B T := {|
 
 Instance ReadOptionToBinds_ReadOption_Binds_eq : forall A B T `{BagReadOption A B T},
   ReadOption_Binds_eq (BB := ReadOptionToBinds A B T).
-Proof.
-  constructors*.
-Qed.
+Proof. constructors*. Qed.
 
 (* TODO: empty + update => single *)
 
@@ -237,16 +231,12 @@ Proof. introv E. apply~ binds_indom. applys~ read_option_binds E. Qed.
 Lemma indom_binds : forall V (h : t V) k,
   k \in h ->
   exists v, binds h k v.
-Proof.
-  simpl. introv I. destruct find; tryfalse. eexists. autos*.
-Qed.
+Proof. simpl. introv I. destruct find; tryfalse. eexists. autos*. Qed.
 
 Lemma binds_read_option : forall V (h : t V) k v,
   binds h k v ->
   read_option h k = Some v.
-Proof.
-  introv B. rewrite read_option_binds_eq in B. autos~.
-Qed.
+Proof. introv B. rewrite read_option_binds_eq in B. autos~. Qed.
 
 Lemma indom_read_option : forall V (h : t V) k,
   k \in h ->
@@ -310,6 +300,23 @@ Proof.
   forwards M: find_2 Ev. forwards~ M': add_3 M. { lets*: eq_sym. }
   apply find_1 in M'. rewrite~ M'.
 Qed.
+
+Lemma binds_write_eq : forall V (h : t V) k k' v,
+  eq k k' ->
+  binds (write h k v) k' v.
+Proof. apply~ read_option_write_eq. Qed.
+
+Lemma binds_write_neq : forall V (h : t V) k k' v v',
+  ~ eq k k' ->
+  binds h k' v' ->
+  binds (write h k v) k' v'.
+Proof. introv N B. forwards E: read_option_write_neq N. simpls. rewrite~ E. Qed.
+
+Lemma binds_write_neq_inv : forall V (h : t V) k k' v v',
+  ~ eq k k' ->
+  binds (write h k v) k' v' ->
+  binds h k' v'.
+Proof. introv N B. forwards E: read_option_write_neq N. simpls. rewrite~ E in B. Qed.
 
 Lemma read_option_eq : forall V (h : t V) k k',
   eq k k' ->
