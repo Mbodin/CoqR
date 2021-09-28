@@ -19,6 +19,7 @@
 
 Set Implicit Arguments.
 Require Export Monads Globals RinternalsCons.
+From Lib Require Export Common.
 
 (** * Global structure of the interpreter **)
 

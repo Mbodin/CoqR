@@ -48,7 +48,7 @@ Parameter write_length : forall T a (t : T) n,
   length (write a n t) = length a.
 
 Parameter empty_length : forall T,
-  length (@empty T) = 0.
+  length (@empty T) = 0%nat.
 
 Parameter from_list_length : forall T (l : list T),
   length (from_list l) = LibList.length l.
@@ -214,7 +214,7 @@ Lemma to_list_length : forall T (a : array T),
 Proof. reflexivity. Qed.
 
 Lemma empty_length : forall T,
-  length (empty T) = 0.
+  length (empty T) = 0%nat.
 Proof. reflexivity. Qed.
 
 Lemma from_list_read_option : forall T (l : list T) n,

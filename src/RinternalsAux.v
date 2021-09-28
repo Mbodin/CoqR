@@ -84,7 +84,7 @@ Definition bool_to_nat (b : bool) : nat :=
   if b then 1 else 0.
 Coercion bool_to_nat : bool >-> nat.
 
-Definition SExpType_to_nat t :=
+Definition SExpType_to_nat t : nat :=
   match t with
   | NilSxp => 0
   | SymSxp => 1

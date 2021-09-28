@@ -206,11 +206,11 @@ Definition make_SExpRec_prim attrib prim type :=
 
 Definition vector_header_direct T type attrib (array : ArrayList.array T) :=
   let len := ArrayList.length array in
-  build_SExpRecHeader_direct type (decide (ArrayList.length array = 1)) attrib.
+  build_SExpRecHeader_direct type (decide (ArrayList.length array = 1%nat)) attrib.
 
 Definition vector_header T type attrib (array : ArrayList.array T) :=
   let len := ArrayList.length array in
-  build_SExpRecHeader type (decide (ArrayList.length array = 1)) attrib.
+  build_SExpRecHeader type (decide (ArrayList.length array = 1%nat)) attrib.
 
 Definition make_SExpRec_vector_direct T
     (SExpRec_Vector : Vector_SExpRec T -> SExpRec) type attrib array :=

@@ -16,7 +16,7 @@ all_coq:
 doc:
 	${AT}dune build @doc ${DUNEOPTIONS}
 
-clean: clean_interp clean_random
+clean_local:
 	${AT}rm -f lib/.*.aux || true
 	${AT}rm -f lib/*.aux || true
 	${AT}rm -f lib/*.glob || true
@@ -30,6 +30,8 @@ clean: clean_interp clean_random
 	${AT}rm -f src/*.vos || true
 	${AT}rm -f src/*.vok || true
 	${AT}rm src/extract.{ml,mli} || true
+
+clean: clean_local clean_interp clean_random
 	${AT}rm -rf _build || true
 
 _CoqProject: ;

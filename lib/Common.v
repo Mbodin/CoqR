@@ -6,8 +6,8 @@
 
 From Lib Require Import LibExec.
 Require Export Heap.
-From TLC Require Import LibStream LibString LibNat LibInt.
-From TLC Require Export LibTactics LibReflect LibLogic LibList LibBool.
+From TLC Require Import LibStream LibString LibNat.
+From TLC Require Export LibTactics LibReflect LibLogic LibBool LibInt LibList.
 
 Notation " [ ] " := nil : list_scope.
 Notation " [ x ] " := (cons x nil) : list_scope.
@@ -19,6 +19,15 @@ Set Implicit Arguments.
 
 
 (** * Useful tactics **)
+
+Tactic Notation "rewrites_by" constr(E) :=
+  asserts_rewrite E; [ math |].
+
+Tactic Notation "rewrites_by" constr(E) "in" hyp(H) :=
+  asserts_rewrite E in H; [ math |].
+
+Tactic Notation "rewrites_by" constr(E) "in" "*" :=
+  asserts_rewrite E in *; [ math |].
 
 (** ** Apply a list of hypotheses **)
 
@@ -314,18 +323,18 @@ Proof.
   - inverts I.
   - inverts I.
   - simpl. inverts I as I.
-    + asserts_rewrite (length l - 0 - 0 = 0 + length (rev l)); [rew_list; math|].
+    + asserts_rewrite (length l - 0 - 0 = 0 + length (rev l))%nat; [rew_list; math|].
       apply* Nth_app_r.
     + eapply Nth_app_l. apply IHl in I.
-      asserts_rewrite (length l - 0 - S n0 = length l - 1 - n0); [math|].
+      rewrites_by (length l - 0 - S n0 = length l - 1 - n0)%nat.
       apply~ I. math.
   - simpl in I. forwards [N|(m&E&N)]: Nth_app_inv I.
     + destruct n.
       * apply Nth_inbound in N. rew_list in N. false. math.
-      * asserts_rewrite (length l - 0 - S n = length l - 1 - n) in N; [math|].
+      * rewrites_by (length l - 0 - S n = length l - 1 - n)%nat in N.
         apply IHl in N; [ apply~ Nth_succ | math ].
     + repeat inverts N as N. rew_list in E.
-      asserts: (n = 0); [ math |]. substs. constructors~.
+      rewrites_by (n = 0)%nat. constructors~.
 Qed.
 
 Lemma cut_list_last : forall A l (a : A),
@@ -336,8 +345,7 @@ Proof.
   introv D N. exists (rev (List.tl (rev l))). apply rev_inj. rew_list.
   rewrite~ head_tail. apply~ head_Nth. apply~ Nth_rev.
   + destruct l; tryfalse. rew_list. math.
-  + rew_list.
-    asserts_rewrite (length l - 1 - 0 = length l - 1); [ math | apply~ N ].
+  + rew_list. rewrites_by (length l - 1 - 0 = length l - 1)%nat. apply~ N.
 Qed.
 
 Lemma length_datatype_length : forall A (l : list A),
@@ -354,26 +362,26 @@ Qed.
 
 Lemma nat_seq_Nth : forall len start n,
   n < len ->
-  Nth n (nat_seq start len) (start + n).
+  Nth n (nat_seq start len) (start + n)%nat.
 Proof.
   introv I. gen start n. induction len; introv I.
   - false. math.
   - rewrite nat_seq_succ. destruct n.
-    + simpl. asserts_rewrite (start + 0 = start); [ math | constructors~ ].
+    + rewrites_by (start + 0 = start)%nat. constructors~.
     + apply Nth_succ. rewrite nat_seq_shift.
-      asserts_rewrite (start + S n = S (start + n)); [math|].
+      rewrites_by (start + S n = S (start + n))%nat.
       apply map_Nth. apply IHlen. math.
 Qed.
 
 Lemma nat_seq_last : forall start len,
-  nat_seq start (S len) = nat_seq start len & (start + len).
+  nat_seq start (S len) = nat_seq start len & (start + len)%nat.
 Proof.
   introv. apply Nth_equiv. introv. iff I.
   - forwards N: nat_seq_Nth (S len) start n.
     + forwards I': Nth_inbound I. rewrite length_nat_seq in I'. math.
     + forwards: Nth_functional I N. substs.
       tests: (n = len).
-      * asserts E: (len = 0 + length (nat_seq start len)).
+      * asserts E: (len = 0 + length (nat_seq start len))%nat.
         { rewrite length_nat_seq. math. }
         rewrite E at 1.
         apply* Nth_app_r.
@@ -385,7 +393,7 @@ Proof.
       * forwards: Nth_functional N N'. substs.
         apply~ nat_seq_Nth. apply Nth_inbound in N. rewrite length_nat_seq in N. math.
     + repeat inverts N as N. rewrite length_nat_seq in E.
-      asserts_rewrite (n = len); [math|]. apply~ nat_seq_Nth.
+      rewrites_by (n = len)%nat. apply~ nat_seq_Nth. math.
 Qed.
 
 Lemma nat_seq_0 : forall start,
@@ -410,23 +418,23 @@ Proof.
       { forwards~ L: Nth_inbound N'. }
       forwards: Nth_functional N N'. substs.
       applys~ nat_seq_Nth. math.
-    + forwards N: nat_seq_Nth (len - k) (start + k) m.
+    + forwards N: nat_seq_Nth (len - k)%nat (start + k)%nat m.
       { forwards~ L: Nth_inbound N'. rewrite length_nat_seq in L. math. }
       forwards E': Nth_functional N N'. rewrite <- E'. rewrite <- Nat.add_assoc.
       rewrite length_nat_seq in *. rewrite E. applys~ nat_seq_Nth. math.
-  - asserts_rewrite (n = (n - k) + length (nat_seq start k)); [rewrite length_nat_seq; math|].
+  - asserts_rewrite (n = (n - k) + length (nat_seq start k))%nat; [rewrite length_nat_seq; math|].
     apply Nth_app_r.
     forwards N': nat_seq_Nth len start n.
     { forwards N': Nth_inbound N. rewrite length_nat_seq in N'. math. }
     forwards: Nth_functional N N'. substs.
-    asserts_rewrite (start + n = (start + k) + (n - k)); [math|].
+    rewrites_by (start + n = (start + k) + (n - k))%nat.
     applys~ nat_seq_Nth. apply Nth_inbound in N. rewrite length_nat_seq in N. math.
   - forwards [N'|(m&E&N')]: Nth_app_inv (rm N).
     + forwards N: nat_seq_Nth k start n.
       { forwards L: Nth_inbound N'. rewrite length_nat_seq in L. math. }
       forwards: Nth_functional N N'; substs.
       applys~ nat_seq_Nth. apply Nth_inbound in N. rewrite length_nat_seq in N. math.
-    + forwards N: nat_seq_Nth (len - k) (start + k) m.
+    + forwards N: nat_seq_Nth (len - k)%nat (start + k)%nat m.
       { forwards L: Nth_inbound N'. rewrite length_nat_seq in L. math. }
       forwards: Nth_functional N N'; substs.
       rewrite length_nat_seq in *. rewrite <- Nat.add_assoc.
@@ -446,57 +454,62 @@ Lemma noduplicates_NoDup : forall A (l : list A),
 Proof. introv. iff D; induction D; constructors~; introv I; apply In_mem in I; autos~. Qed.
 
 Global Instance mem_Decidable : forall A `{Comparable A} (a : A) l,
-    Decidable (mem a l).
+  Decidable (mem a l).
+Proof.
   intros A C a l. induction l as [|b l].
   - applys decidable_make false. rew_istrue. introv N. inverts~ N.
   - rewrite mem_cons_eq. typeclass.
 Defined.
 
 Global Instance noduplicates_decidable : forall A (l : list A),
-    Comparable A ->
-    Decidable (noduplicates l).
+  Comparable A ->
+  Decidable (noduplicates l).
+Proof.
   introv C. induction l.
-   applys Decidable_equiv True.
-    splits; constructors~.
-    typeclass.
-   applys Decidable_equiv (~ mem a l /\ noduplicates l).
-    splits.
-     introv (NM&ND). constructors~.
-     introv ND. inverts~ ND.
-    typeclass.
+  - applys Decidable_equiv True.
+    + splits; constructors~.
+    + typeclass.
+  - applys Decidable_equiv (~ mem a l /\ noduplicates l).
+    + splits.
+      * introv (NM&ND). constructors~.
+      * introv ND. inverts~ ND.
+    + typeclass.
 Defined.
 
-Definition find_index_def A n (a : A) l :=
-  fold_right (fun e n => If a = e then 0 else n + 1) n l.
+(** Given a list [l] and an element [a], finding the index of [a] in [l].
+  Returns the length of the list [l] if not present. **)
 
-Definition find_index A :=
-  nosimpl (@find_index_def A 0).
+Definition find_index_def A `{Comparable A} n (a : A) l : nat :=
+  fold_right (fun e n => ifb a = e then 0 else n + 1)%nat n l.
 
-Lemma find_index_def_length : forall A (a : A) l n,
+Definition find_index A `{Comparable A} :=
+  nosimpl (find_index_def 0 : A -> _).
+
+Lemma find_index_def_length : forall A `(Comparable A) (a : A) l n,
   ~ mem a l ->
-  find_index_def n a l = n + length l.
+  find_index_def n a l = (n + length l)%nat.
 Proof.
   introv N. unfold find_index_def. gen n. induction l using list_ind_last; introv.
-   simpl. rewrite~ length_nil.
-   rewrite fold_right_last. rewrite IHl.
-    case_if.
-     false N. apply* mem_last.
-     rewrite length_last. rewrite~ PeanoNat.Nat.add_assoc.
-    introv M. false N. apply* mem_in_last.
+  - simpl. rewrite~ length_nil.
+  - rewrite fold_right_last. rewrite IHl.
+    + case_if as C; rewrite decide_spec in C; rew_bool_eq in C.
+      * false N. apply* mem_last.
+      * rewrite length_last. math.
+    + introv M. false N. apply* mem_in_last.
 Qed.
 
-Lemma find_index_nth : forall A (a : A) l,
+Lemma find_index_nth : forall A `(Comparable A) (a : A) l,
   mem a l ->
   Nth (find_index a l) l a.
 Proof.
-  introv M. unfold find_index. generalize 0. induction l using list_ind_last; introv.
-   inverts* M.
-   unfolds find_index_def. rewrite fold_right_last. apply mem_last_inv in M.
+  introv M. unfold find_index. generalize 0%nat. induction l using list_ind_last; introv.
+  - inverts* M.
+  - unfolds find_index_def. rewrite fold_right_last. apply mem_last_inv in M.
     tests M': (mem a l).
-     apply* Nth_add_last.
-     case_if.
-      fold (find_index_def 0 a l). rewrite~ find_index_def_length. subst. apply* Nth_last.
-      inverts* M.
+    + apply* Nth_add_last.
+    + case_if as C; rewrite decide_spec in C; rew_bool_eq in C.
+      * fold (find_index_def 0 a l). rewrite~ find_index_def_length. subst. apply* Nth_last.
+      * inverts* M.
 Qed.
 
 Fixpoint nth_option A n (l : list A) {struct l} :=
@@ -504,7 +517,7 @@ Fixpoint nth_option A n (l : list A) {struct l} :=
   | nil => None
   | x :: l =>
     match n with
-    | 0 => Some x
+    | O => Some x
     | S n => nth_option n l
     end
   end.
@@ -836,7 +849,7 @@ Defined.
 Instance positive_Comparable : Comparable positive.
 Proof.
   apply make_comparable. intros.
-  applys Decidable_equiv (let (x, y) := (Pos.to_nat x, Pos.to_nat y) in x >= y /\ x <= y).
+  applys Decidable_equiv (let (x, y) := (Pos.to_nat x, Pos.to_nat y) in x >= y /\ x <= y)%nat.
   - transitivity (Pos.to_nat x = Pos.to_nat y).
     + nat_math.
     + apply Pos2Nat.inj_iff.
