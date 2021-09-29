@@ -32,7 +32,7 @@ Definition int_to_double := Double.int_to_double : int -> double.
 Local Coercion int_to_double : Z >-> double.
 
 
-Definition SPECIAL_SYMBOL_BIT := 12.
+Definition SPECIAL_SYMBOL_BIT : nat := 12.
 
 Definition IS_SPECIAL_SYMBOL b :=
   add%stack "IS_SPECIAL_SYMBOL" in
@@ -58,14 +58,14 @@ Definition UNSET_NO_SPECIAL_SYMBOLS x :=
   add%stack "UNSET_NO_SPECIAL_SYMBOLS" in
   SET_SPECIAL_SYMBOL x false.
 
-Definition ACTIVE_BINDING_BIT := 15.
+Definition ACTIVE_BINDING_BIT : nat := 15.
 
 Definition IS_ACTIVE_BINDING symbol :=
   add%stack "IS_ACTIVE_BINDING" in
   read%defined symbol_ := symbol in
   result_success (nth_bit ACTIVE_BINDING_BIT (gp symbol_) ltac:(nbits_ok)).
 
-Definition BINDING_LOCK_BIT := 14.
+Definition BINDING_LOCK_BIT : nat := 14.
 
 Definition BINDING_IS_LOCKED symbol :=
   add%stack "BINDING_IS_LOCKED" in
@@ -77,7 +77,7 @@ Definition LOCK_BINDING x :=
   map%gp x with @write_nbit 16 BINDING_LOCK_BIT ltac:(nbits_ok) true in
   result_skip.
 
-Definition CACHED_BIT := 5.
+Definition CACHED_BIT : nat := 5.
 
 Definition SET_CACHED x v :=
   add%stack "SET_CACHED" in

@@ -133,7 +133,8 @@ Record Globals := make_Globals {
     global_Type2Table : ArrayList.array Type2Table_type
   }.
 
-Definition read_globals (globals : Globals) : GlobalVariable -> SEXP := globals : Global_mapping.
+Definition read_globals (globals : Globals) : GlobalVariable -> SEXP :=
+  globals : Global_mapping.
 
 Definition Globals_with_mapping (g : Globals) m :=
   make_Globals m (global_Type2Table g).

@@ -704,6 +704,7 @@ Ltac build_return v :=
   lazymatch type of v with
   | _SEXP => exact (v : result_SEXP)
   | _bool => exact (v : result_bool)
+  | unit => exact result_skip
   | _ => exact (result_success v)
   end.
 

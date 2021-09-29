@@ -733,19 +733,15 @@ Proof.
   - typeclass.
 Defined.
 
-Instance positive_lt_Decidable : forall n1 n2,
+Instance positive_lt_Decidable : forall n1 n2 : positive,
   Decidable (n1 < n2)%positive.
-Proof.
-  typeclass.
-Defined.
+Proof. typeclass. Defined.
 
-Instance Z_lt_Decidable : forall n1 n2,
+Instance Z_lt_Decidable : forall n1 n2 : int,
   Decidable (n1 < n2)%Z.
-Proof.
-  intros. applys Decidable_equiv Z.compare_lt_iff. typeclass.
-Defined.
+Proof. intros. applys Decidable_equiv Z.compare_lt_iff. typeclass. Defined.
 
-Instance lt_Decidable : forall n1 n2,
+Instance lt_int_Decidable : forall n1 n2 : int,
   Decidable (n1 < n2).
 Proof.
   intros. applys Decidable_equiv (n1 < n2)%Z.
@@ -753,13 +749,13 @@ Proof.
   - typeclass.
 Defined.
 
-(*
-Instance lt_nat_Decidable : forall n1 n2,
-  Decidable (@lt nat (@lt_from_le nat le_nat_inst) n1 n2).
+Instance lt_nat_Decidable : forall n1 n2 : nat,
+  Decidable (n1 < n2).
 Proof.
-  intros. applys Decidable_equiv (lt_Decidable n1 n2). math.
+  intros. applys Decidable_equiv (n1 < n2)%Z.
+  - math.
+  - typeclass.
 Defined.
-*)
 
 Instance nat_gt_Decidable : forall n1 n2 : nat,
   Decidable (n1 > n2)%nat.
@@ -769,19 +765,15 @@ Proof.
   - typeclass.
 Defined.
 
-Instance positive_gt_Decidable : forall n1 n2,
+Instance positive_gt_Decidable : forall n1 n2 : positive,
   Decidable (n1 > n2)%positive.
-Proof.
-  typeclass.
-Defined.
+Proof. typeclass. Defined.
 
-Instance Z_gt_Decidable : forall n1 n2,
+Instance Z_gt_Decidable : forall n1 n2 : int,
   Decidable (n1 > n2)%Z.
-Proof.
-  intros. applys sumbool_decidable Z_gt_dec.
-Defined.
+Proof. intros. applys sumbool_decidable Z_gt_dec. Defined.
 
-Instance gt_Decidable : forall n1 n2,
+Instance gt_int_Decidable : forall n1 n2 : int,
   Decidable (n1 > n2).
 Proof.
   intros. applys Decidable_equiv (n1 > n2)%Z.
@@ -789,42 +781,36 @@ Proof.
   - typeclass.
 Defined.
 
-(*
-Instance gt_nat_Decidable : forall n1 n2,
-  Decidable (@gt nat (@gt_from_le nat le_nat_inst) n1 n2).
+Instance gt_nat_Decidable : forall n1 n2 : nat,
+  Decidable (n1 > n2).
 Proof.
-  intros. applys Decidable_equiv (gt_Decidable n1 n2). math.
-Defined.
-*)
-
-(*
-Instance ge_nat_Decidable : forall n1 n2 : nat,
-  Decidable (@ge nat (@ge_from_le nat le_nat_inst) n1 n2).
-Proof.
-  intros. applys Decidable_equiv (n1 >= n2)%Z.
+  intros. applys Decidable_equiv (n1 > n2)%Z.
   - math.
   - typeclass.
 Defined.
-*)
 
 Instance positive_ge_Decidable : forall n1 n2,
   Decidable (n1 >= n2)%positive.
-Proof.
-  typeclass.
-Defined.
+Proof. typeclass. Defined.
 
-(*
-Instance ge_Decidable : forall n1 n2 : int%I,
+Instance ge_int_Decidable : forall n1 n2 : int,
   Decidable (n1 >= n2).
 Proof.
   intros. applys Decidable_equiv (n1 >= n2)%Z.
   - math.
   - typeclass.
 Defined.
-*)
 
-Instance le_nat_Decidable : forall n1 n2 : nat,
-  Decidable (@le nat le_nat_inst n1 n2).
+Instance ge_nat_Decidable : forall n1 n2 : nat,
+  Decidable (n1 >= n2).
+Proof.
+  intros. applys Decidable_equiv (n1 >= n2)%Z.
+  - math.
+  - typeclass.
+Defined.
+
+Instance nat_le_Decidable : forall n1 n2 : nat,
+  Decidable (n1 <= n2)%nat.
 Proof.
   intros. applys Decidable_equiv (n1 <= n2)%Z.
   - math.
@@ -833,17 +819,19 @@ Defined.
 
 Instance positive_le_Decidable : forall n1 n2,
   Decidable (n1 <= n2)%positive.
-Proof.
-  typeclass.
-Defined.
+Proof. typeclass. Defined.
 
-Instance le_Decidable : forall n1 n2,
+Instance le_int_Decidable : forall n1 n2 : int,
   Decidable (n1 <= n2).
 Proof.
   intros. applys Decidable_equiv (n1 <= n2)%Z.
   - math.
   - typeclass.
 Defined.
+
+Instance le_nat_Decidable : forall n1 n2 : nat,
+  Decidable (n1 <= n2).
+Proof. typeclass. Defined.
 
 
 Instance positive_Comparable : Comparable positive.
@@ -865,11 +853,9 @@ Defined.
 (** * Tactics about Comparable **)
 
 Instance Comparable_Decidable : forall A (a1 a2 : A),
-    Comparable A ->
-    Decidable (a1 = a2).
-Proof.
-  introv C. inverts* C.
-Defined.
+  Comparable A ->
+  Decidable (a1 = a2).
+Proof. introv C. inverts* C. Defined.
 
 (** Builds an instance of [Comparable] from a non-recursive inductive. **)
 Ltac prove_decidable_eq :=
@@ -1033,15 +1019,8 @@ Ltac prove_comparable_trivial_inductive_faster :=
     aux T f
   end.
 
-Global Instance unit_comparable : Comparable unit.
-Proof.
-  prove_comparable_trivial_inductive.
-Defined.
-
 Global Instance False_comparable : Comparable False.
-Proof.
-  prove_comparable_trivial_inductive.
-Defined.
+Proof. prove_comparable_trivial_inductive. Defined.
 
 
 (** * Some tactics about mem and Forall. **)
@@ -1166,23 +1145,20 @@ Lemma BagInIncl : forall T `{Comparable T} (l1 l2 : list T) t,
   t \in l1 ->
   l1 \c l2 ->
   t \in l2.
-Proof.
-  introv I C. simpls. rewrite~ Forall_eq_forall_mem in C.
-Qed.
+Proof. introv I C. simpls. rewrite~ Forall_eq_forall_mem in C. Qed.
 
 Lemma BagInIncl_make : forall T `{Comparable T} (l1 l2 : list T),
   (forall_ t \in l1, t \in l2) ->
   l1 \c l2.
-Proof.
-  introv I. simpls. rewrite~ Forall_eq_forall_mem.
-Qed.
+Proof. introv I. simpls. rewrite~ Forall_eq_forall_mem. Qed.
 
 Lemma BagIncl_trans : forall T `{Comparable T} (l1 l2 l3 : list T),
   l1 \c l2 ->
   l2 \c l3 ->
   l1 \c l3.
 Proof.
-  introv I1 I2. applys BagInIncl_make. simpls. rewrite Forall_eq_forall_mem in *. autos*.
+  introv I1 I2. applys BagInIncl_make. simpls.
+  rewrite Forall_eq_forall_mem in *. autos*.
 Qed.
 
 Lemma BagInclEmpty : forall T `{Comparable T} (l : list T),
@@ -1224,7 +1200,10 @@ Lemma BagInterIncl_combine : forall T `{Comparable T} (l1 l2 l3 : list T),
   l1 \c l2 ->
   l1 \c l3 ->
   l1 \c l2 \n l3.
-Proof. introv I1 I2. apply BagInIncl_make. introv I. apply BagInter_list. splits~; applys~ BagInIncl I. Qed.
+Proof.
+  introv I1 I2. apply BagInIncl_make.
+  introv I. apply BagInter_list. splits~; applys~ BagInIncl I.
+Qed.
 
 Global Instance Comparable_BagDisjoint_list : forall T,
     Comparable T ->
@@ -1237,9 +1216,7 @@ Proof. introv. simpl. typeclass. Qed.
 
 Lemma BagDisjoint_in : forall T `{Comparable T} (l1 l2 : list T),
   l1 \# l2 <-> ~ exists t, t \in l1 /\ t \in l2.
-Proof.
-  introv. simpl. rewrite Forall_eq_forall_mem. rew_logic*.
-Qed.
+Proof. introv. simpl. rewrite Forall_eq_forall_mem. rew_logic*. Qed.
 
 Lemma BagDisjoint_com : forall T `{Comparable T} (l1 l2 : list T),
   l1 \# l2 <-> l2 \# l1.
