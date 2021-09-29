@@ -9,9 +9,8 @@ From Lib Require Export Heap.
 From TLC Require Import LibStream LibString LibNat.
 From TLC Require Export LibTactics LibReflect LibLogic LibBool LibInt LibList.
 
-Notation " [ ] " := nil : list_scope.
-Notation " [ x ] " := (cons x nil) : list_scope.
-Notation " [ x ; .. ; y ] " := (cons x .. (cons y nil) ..) : list_scope.
+Export LibListNotation.
+Open Scope liblist_scope.
 
 Open Scope Int_scope.
 
@@ -310,7 +309,7 @@ Proof.
 Qed.
 
 Lemma cut_list_cons : forall A l (a : A),
-  l <> nil ->
+  l <> [] ->
   Nth 0 l a ->
   exists l', l = a :: l'.
 Proof. introv D N. destruct l; inverts* N. Qed.
@@ -338,7 +337,7 @@ Proof.
 Qed.
 
 Lemma cut_list_last : forall A l (a : A),
-  l <> nil ->
+  l <> [] ->
   Nth (length l - 1) l a ->
   exists l', l = l' & a.
 Proof.
@@ -397,11 +396,11 @@ Proof.
 Qed.
 
 Lemma nat_seq_0 : forall start,
-  nat_seq start 0 = nil.
+  nat_seq start 0 = [].
 Proof. reflexivity. Qed.
 
 Lemma nat_seq_1 : forall start,
-  nat_seq start 1 = cons start nil.
+  nat_seq start 1 = [start].
 Proof. reflexivity. Qed.
 
 Lemma nat_seq_split : forall start len k,
@@ -514,7 +513,7 @@ Qed.
 
 Fixpoint nth_option A n (l : list A) {struct l} :=
   match l with
-  | nil => None
+  | [] => None
   | x :: l =>
     match n with
     | O => Some x
@@ -621,19 +620,18 @@ Definition list_to_string l :=
 
 Fixpoint string_to_list (str : string) :=
   match str with
-  | EmptyString => nil
-  | String c str =>
-    c :: string_to_list str
+  | EmptyString => []
+  | String c str => c :: string_to_list str
   end.
 
-Definition ascii_to_string c := list_to_string (cons c nil).
+Definition ascii_to_string c := list_to_string ([c]).
 
 Global Coercion ascii_to_string : Ascii.ascii >-> string.
 
 Fixpoint divide_list {A} (l : list A) :=
   match l with
-  | nil => (nil, nil)
-  | x :: nil => (x :: nil, nil)
+  | [] => ([], [])
+  | [x] => ([x], [])
   | x :: y :: l =>
     let (l1, l2) := divide_list l in
     (x :: l1, y :: l2)
@@ -1061,7 +1059,7 @@ Proof. introv. iff I; (inverts I as I; [ left~ | right~ ]). Qed.
 
 Global Instance BagEmpty_list : forall T,
     BagEmpty (list T) :=
-  fun T => Build_BagEmpty nil.
+  fun T => Build_BagEmpty ([]).
 
 Lemma BagInEmpty_list : forall T `{Comparable T} (t : T),
   t \notin (\{} : list T).
@@ -1069,7 +1067,7 @@ Proof. introv I. simpl in I. applys* mem_nil_inv I. Qed.
 
 Global Instance BagSingle_list : forall T,
     BagSingle T (list T) :=
-  fun T => Build_BagSingle (fun t => t :: nil).
+  fun T => Build_BagSingle (fun t => [t]).
 
 Lemma BagInSingle_list : forall T `{Comparable T} (t1 t2 : T),
   t1 \in (\{t2} : list T) <-> t1 = t2.

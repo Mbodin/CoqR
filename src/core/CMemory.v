@@ -19,6 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
+From Lib Require Export Common.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
 From CoqR.core Require Import CRinternals.
@@ -40,7 +41,7 @@ Definition CONS_NR := CONS.
 
 Fixpoint allocList_aux n (p : _SEXP) : result_SEXP :=
   match n with
-  | 0 => p
+  | O => p
   | S n =>
     let%success p := allocList_aux n p in
     CONS R_NilValue p
@@ -167,23 +168,23 @@ Definition allocFormalsList l : result_SEXP :=
 
 Definition allocFormalsList2 sym1 sym2 : result_SEXP :=
   add%stack "allocFormalsList2" in
-  allocFormalsList [sym1; sym2].
+  allocFormalsList ([sym1; sym2]).
 
 Definition allocFormalsList3 sym1 sym2 sym3 : result_SEXP :=
   add%stack "allocFormalsList3" in
-  allocFormalsList [sym1; sym2; sym3].
+  allocFormalsList ([sym1; sym2; sym3]).
 
 Definition allocFormalsList4 sym1 sym2 sym3 sym4 : result_SEXP :=
   add%stack "allocFormalsList4" in
-  allocFormalsList [sym1; sym2; sym3; sym4].
+  allocFormalsList ([sym1; sym2; sym3; sym4]).
 
 Definition allocFormalsList5 sym1 sym2 sym3 sym4 sym5 : result_SEXP :=
   add%stack "allocFormalsList5" in
-  allocFormalsList [sym1; sym2; sym3; sym4; sym5].
+  allocFormalsList ([sym1; sym2; sym3; sym4; sym5]).
 
 Definition allocFormalsList6 sym1 sym2 sym3 sym4 sym5 sym6 : result_SEXP :=
   add%stack "allocFormalsList6" in
-  allocFormalsList [sym1; sym2; sym3; sym4; sym5; sym6].
+  allocFormalsList ([sym1; sym2; sym3; sym4; sym5; sym6]).
 
 End Parameterised.
 

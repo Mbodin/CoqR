@@ -128,8 +128,11 @@ Ltac normalise t :=
   | _ => warn_types tty; exact t
   end.
 
+Ltac get_expected_type cont :=
+  lazymatch goal with |- ?ty => cont ty end.
+
 Notation "'normalise%' t" :=
-  (ltac:(lazymatch goal with |- ?ty => normalise (t : ty) end))
+  (ltac:(get_expected_type ltac:(fun ty => normalise (t : ty))))
   (at level 50, no associativity, only parsing) : monad_scope.
 
 

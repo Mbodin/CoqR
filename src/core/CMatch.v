@@ -83,7 +83,7 @@ Definition set_argused (used : nat) I :=
 Arguments set_argused : clear implicits.
 
 (** First pass: matching exact matches. **)
-Definition matchArgs_first formals actuals supplied : result (list nat) :=
+Definition matchArgs_first formals actuals supplied : result (list int) :=
   add%stack "matchArgs_first" in
   (** The [fargused] array has been inlined and implemented as a Coq list.
     As such, we build it step by step, the current step being [fargusedi],
@@ -91,7 +91,7 @@ Definition matchArgs_first formals actuals supplied : result (list nat) :=
     At the end of the step, it is added to the previous [fargused] list.
     This way of building [fargused] builds it backwards compared to the C,
     and we have to revert it at the end of the execution. **)
-  fold%success (a, fargusedrev) := (actuals, nil)
+  fold%success (a, fargusedrev) := contextual_ret (actuals : SEXP, [])
   along formals
   as _, f_tag do
     let ftag := f_tag in
@@ -99,23 +99,23 @@ Definition matchArgs_first formals actuals supplied : result (list nat) :=
     let%success ftag_sym_name := PRINTNAME ftag in
     let%success ftag_name := CHAR ftag_sym_name in
     let%success fargusedi :=
-      ifb ftag <> R_DotsSymbol /\ ftag <> R_NilValue then
-        fold%let fargusedi := fargusedi
+      ifc (ftag '!= R_DotsSymbol) '&& (ftag '!= R_NilValue) then
+        fold%let fargusedi := contextual_ret fargusedi
         along supplied
         as b, b_, b_list do
           let btag := list_tagval b_list in
-          ifb btag <> R_NilValue then
+          ifc btag '!= R_NilValue then
             let%success btag_sym_name := PRINTNAME btag in
             let%success btag_name := CHAR btag_sym_name in
             ifb ftag_name = btag_name then
               ifb fargusedi = 2 then
                 result_error "Formal argument matched by multiple actual arguments."
-              else ifb argused b_ = 2 then
+              else ifb argused b_ = 2%nat then
                 result_error "Actual argument matches multiple formal arguments."
               else
                 set%car a := list_carval b_list in
                 run%success
-                  ifb list_carval b_list <> R_MissingArg then
+                  ifc list_carval b_list '== R_MissingArg then
                     SET_MISSING a 0 ltac:(nbits_ok)
                   else result_skip in
                 map%pointer b with set_argused 2 ltac:(nbits_ok) in
@@ -136,7 +136,7 @@ Definition matchArgs_second actuals formals supplied fargused :=
      [formals] list, it is not possible for it to have a different size.
      We check its size during and after the loop. **)
   fold%success (a, fargused, dots, seendots) :=
-    (actuals, fargused, R_NilValue : SEXP, false)
+    contextual_ret (actuals, fargused, (R_NilValue : SEXP), false)
   along formals
   as _, f_tag do
     match fargused with

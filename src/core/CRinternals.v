@@ -118,7 +118,7 @@ Definition NAMED x :=
 
 Definition INCREMENT_NAMED x :=
   add%stack "INCREMENT_NAMED" in
-  x_named ::= NAMED x ;;
+  let%success x_named := NAMED x in
   match x_named with
   | named_temporary =>
     set%named x := named_unique in
@@ -199,7 +199,7 @@ Definition RAISE_NAMED x n :=
   else result_skip.
 
 
-Definition DDVAL_BIT := 0.
+Definition DDVAL_BIT : nat := 0.
 
 Definition DDVAL x :=
   add%stack "DDVAL" in
@@ -221,7 +221,7 @@ Definition SET_DDVAL x v :=
   map%gp x with @write_nbit 16 DDVAL_BIT ltac:(nbits_ok) v in
   result_skip.
 
-Definition S4_OBJECT_BIT := 4.
+Definition S4_OBJECT_BIT : nat := 4.
 
 Definition IS_S4_OBJECT x : result_bool :=
   add%stack "IS_S4_OBJECT" in
@@ -238,7 +238,7 @@ Definition UNSET_S4_OBJECT x :=
   map%gp x with @write_nbit 16 S4_OBJECT_BIT ltac:(nbits_ok) false in
   result_skip.
 
-Definition GROWABLE_BIT := 5.
+Definition GROWABLE_BIT : nat := 5.
 
 Definition IS_GROWABLE x : result_bool :=
   add%stack "IS_GROWABLE" in
