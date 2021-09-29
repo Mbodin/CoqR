@@ -279,7 +279,7 @@ Qed.
 (**************************************************************)
 (** * Computable epsilon operator *)
 
-Require Import Lia String.
+From Coq Require Import Lia String.
 From TLC Require Import LibInt.
 
 (* ---------------------------------------------------------------------- *)

@@ -18,7 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Export State Globals Result.
+From CoqR Require Export State Globals Result.
 
 
 (** The monadic type is defined in the file Result.v. **)

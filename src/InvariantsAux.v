@@ -20,7 +20,7 @@
 Set Implicit Arguments.
 From TLC Require Import LibContainer.
 From Paco Require Import paco.
-Require Export Invariants.
+From CoqR Require Export Invariants.
 
 Open Scope list_scope.
 

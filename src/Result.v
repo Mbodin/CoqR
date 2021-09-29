@@ -18,7 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Rinternals State InternalTypes Globals.
+From CoqR Require Import Rinternals State InternalTypes Globals.
 
 
 (** * Monadic Type **)

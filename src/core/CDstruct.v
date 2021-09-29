@@ -22,7 +22,7 @@ Set Implicit Arguments.
 From Coq Require Import Ascii.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
-Require Import CRinternals.
+From CoqR.core Require Import CRinternals.
 
 
 Section Parameterised.

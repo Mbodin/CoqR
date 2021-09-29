@@ -21,7 +21,7 @@
 Set Implicit Arguments.
 From Lib Require Import Double.
 From CoqR Require Import Rcore.
-Require Import FUtil.
+From CoqR.features Require Import FUtil.
 
 Section Parameters.
 

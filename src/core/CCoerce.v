@@ -22,17 +22,9 @@ Set Implicit Arguments.
 From Coq Require Import Ascii.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
-Require Import Conflicts.
-Require Import CRmath.
-Require Import CRinternals.
-Require Import CMemory.
-Require Import CRinlinedfuns.
-Require Import CDuplicate.
-Require Import CArithmetic.
-Require Import CPrintutils.
-Require Import CSysutils.
-Require Import CUtil.
-Require Import CEnvir.
+From CoqR.core Require Import Conflicts CRmath CRinternals CMemory.
+From CoqR.core Require Import CRinlinedfuns CDuplicate CArithmetic.
+From CoqR.core Require Import CPrintutils CSysutils CUtil CEnvir.
 
 Section Parameterised.
 

@@ -20,7 +20,7 @@
 
 
 From Lib Require Export Common.
-Require Export Rinternals InternalTypes.
+From CoqR Require Export Rinternals InternalTypes.
 
 
 (** * Initialised **)

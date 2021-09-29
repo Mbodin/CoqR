@@ -18,32 +18,32 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Export Rcore.
+From CoqR Require Export Rcore.
 
 (** * Interpreter functions **)
 
-Require Export FErrors.
-Require Export FUtil.
-Require Export FAttrib.
-Require Export FCoerce.
-Require Export FEnvir.
-Require Export FContext.
-Require Export FBind.
-Require Export FEval.
-Require Export FConnections.
-Require Export FPrintutils.
-Require Export FPrint.
-Require Export FBuiltin.
-Require Export FSeq.
-Require Export FSign.
-Require Export FComplex.
-Require Export FArithmetic.
-Require Export FSubset.
-Require Export FRelop.
-Require Export FArray.
-Require Export FNames.
-Require Export FLogic.
-Require Export FSubassign.
+From CoqR.features Require Export FErrors.
+From CoqR.features Require Export FUtil.
+From CoqR.features Require Export FAttrib.
+From CoqR.features Require Export FCoerce.
+From CoqR.features Require Export FEnvir.
+From CoqR.features Require Export FContext.
+From CoqR.features Require Export FBind.
+From CoqR.features Require Export FEval.
+From CoqR.features Require Export FConnections.
+From CoqR.features Require Export FPrintutils.
+From CoqR.features Require Export FPrint.
+From CoqR.features Require Export FBuiltin.
+From CoqR.features Require Export FSeq.
+From CoqR.features Require Export FSign.
+From CoqR.features Require Export FComplex.
+From CoqR.features Require Export FArithmetic.
+From CoqR.features Require Export FSubset.
+From CoqR.features Require Export FRelop.
+From CoqR.features Require Export FArray.
+From CoqR.features Require Export FNames.
+From CoqR.features Require Export FLogic.
+From CoqR.features Require Export FSubassign.
 
 (** * Closing the Loop **)
 

@@ -1,7 +1,7 @@
 
 -arg "-w -notation-overridden"
 
--R _build/default/lib Lib
+-R _build/default/src CoqR
 
--R _build/default/src Main
+-R _build/default/lib Lib
 

@@ -19,7 +19,7 @@
 
 Set Implicit Arguments.
 From TLC Require Import LibTactics.
-Require Export Monads Loops Rfeatures.
+From CoqR Require Export Monads Loops Rfeatures.
 
 
 (** * Some useful definitions **)

@@ -24,7 +24,7 @@
 Set Implicit Arguments.
 From Coq Require Import Ascii.
 From Lib Require Import Double.
-Require Export Loops.
+From CoqR Require Export Loops.
 
 
 (** * Interpreter functions **)
@@ -32,33 +32,33 @@ Require Export Loops.
 (** We recall from RinternalsAux.v that we write [p_] for the object
   referenced by the pointer [p], and [p_f] for the field [f] of it. **)
 
-Require Export Conflicts.
-Require Export CRmath.
-Require Export CRinternals.
-Require Export CDefn.
-Require Export CMemory.
-Require Export CRinlinedfuns.
-Require Export CBuiltin.
-Require Export CDuplicate.
-Require Export CDstruct.
-Require Export CEval.
-Require Export CArithmetic.
-Require Export CUtil.
-Require Export CPrintutils.
-Require Export CEnvir.
-Require Export CNames.
-Require Export CSysutils.
-Require Export CGram.
-Require Export CContext.
-Require Export CMatch.
-Require Export CAltrep.
-Require Export CCoerce.
-Require Export CAttrib.
-Require Export CObjects.
-Require Export CArray.
-Require Export CLogic.
-Require Export CSubscript.
-Require Export CSubassign.
+From CoqR.core Require Export Conflicts.
+From CoqR.core Require Export CRmath.
+From CoqR.core Require Export CRinternals.
+From CoqR.core Require Export CDefn.
+From CoqR.core Require Export CMemory.
+From CoqR.core Require Export CRinlinedfuns.
+From CoqR.core Require Export CBuiltin.
+From CoqR.core Require Export CDuplicate.
+From CoqR.core Require Export CDstruct.
+From CoqR.core Require Export CEval.
+From CoqR.core Require Export CArithmetic.
+From CoqR.core Require Export CUtil.
+From CoqR.core Require Export CPrintutils.
+From CoqR.core Require Export CEnvir.
+From CoqR.core Require Export CNames.
+From CoqR.core Require Export CSysutils.
+From CoqR.core Require Export CGram.
+From CoqR.core Require Export CContext.
+From CoqR.core Require Export CMatch.
+From CoqR.core Require Export CAltrep.
+From CoqR.core Require Export CCoerce.
+From CoqR.core Require Export CAttrib.
+From CoqR.core Require Export CObjects.
+From CoqR.core Require Export CArray.
+From CoqR.core Require Export CLogic.
+From CoqR.core Require Export CSubscript.
+From CoqR.core Require Export CSubassign.
 
 (** Evaluates the expression in the global environment. **)
 Definition eval_global globals runs e :=

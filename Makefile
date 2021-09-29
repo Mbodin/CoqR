@@ -29,6 +29,12 @@ clean_local:
 	${AT}rm -f src/*.vo || true
 	${AT}rm -f src/*.vos || true
 	${AT}rm -f src/*.vok || true
+	${AT}rm -f src/*/.*.aux || true
+	${AT}rm -f src/*/*.aux || true
+	${AT}rm -f src/*/*.glob || true
+	${AT}rm -f src/*/*.vo || true
+	${AT}rm -f src/*/*.vos || true
+	${AT}rm -f src/*/*.vok || true
 	${AT}rm src/extract.{ml,mli} || true
 
 clean: clean_local clean_interp clean_random

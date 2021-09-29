@@ -21,8 +21,7 @@
 Set Implicit Arguments.
 From Coq Require Import Ascii.
 From CoqR Require Import Loops.
-Require Import CRinternals.
-Require Import CRinlinedfuns.
+From CoqR.core Require Import CRinternals CRinlinedfuns.
 
 Section Parameterised.
 

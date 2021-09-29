@@ -20,10 +20,7 @@
 
 Set Implicit Arguments.
 From CoqR Require Import Loops.
-Require Import Conflicts.
-Require Import CRinternals.
-Require Import CMemory.
-Require Import CDstruct.
+From CoqR.core Require Import Conflicts CRinternals CMemory CDstruct.
 
 Section Parameterised.
 

@@ -5,8 +5,8 @@
 (* LATER: Use file Fappli_IEEE_extra.v of Compcert/lib/? I need to set up a license for this
   (either GPL or something compatible with the INRIA non-commercial license). *)
 
-Require Import Common.
-Require Import LibExec.
+From Lib Require Import Common.
+From Lib Require Import LibExec.
 From TLC Require Import LibInt.
 From Flocq Require Import IEEE754.Binary IEEE754.Bits.
 
@@ -16,8 +16,7 @@ Definition double : Type := IEEE754.Binary.full_float.
 
 (* Warning: this is using the Leibniz equality, not the usual “equality operator” on floats. *)
 Instance double_comparable : Comparable double.
-  prove_comparable_simple_inductive.
-Defined.
+Proof. prove_comparable_simple_inductive. Defined.
 
 Open Scope Int_scope.
 

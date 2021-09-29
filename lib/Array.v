@@ -5,8 +5,8 @@
 Set Implicit Arguments.
 
 From TLC Require Export LibNat LibContainer.
-Require Import Heap.
-Require Export Common.
+From Lib Require Import Heap.
+From Lib Require Export Common.
 
 (** * Module Type Definition **)
 

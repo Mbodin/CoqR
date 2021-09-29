@@ -1,8 +1,8 @@
 (** This file formalises bit fields of a given size. **)
 
 Set Implicit Arguments.
-Require Export Common.
-Require Export LibExec.
+From Lib Require Export Common.
+From Lib Require Export LibExec.
 From TLC Require Import LibInt LibNat LibLogic.
 
 

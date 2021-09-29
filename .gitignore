@@ -13,7 +13,6 @@
 .*.cache
 *.save
 
-Makefile.coq
 .coqdeps.d
 
 html
@@ -28,9 +27,6 @@ extract.ml
 extract.mli
 extractBisect.ml
 extractBisect.mli
-
-CoqMakefile.conf
-Makefile.coq.conf
 
 _build
 

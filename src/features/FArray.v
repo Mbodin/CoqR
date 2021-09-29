@@ -19,9 +19,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Require Import Ascii.
+From Coq Require Import Ascii.
 From CoqR Require Import Rcore.
-Require Import FUtil.
+From CoqR.features Require Import FUtil.
 
 Section Parameters.
 

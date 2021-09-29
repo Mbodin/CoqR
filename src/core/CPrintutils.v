@@ -21,7 +21,7 @@
 Set Implicit Arguments.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
-Require Import CArithmetic.
+From CoqR.core Require Import CArithmetic.
 
 Section Parameterised.
 

@@ -29,7 +29,7 @@
 Set Implicit Arguments.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
-Require Import CRinlinedfuns.
+From CoqR.core Require Import CRinlinedfuns.
 
 
 Section Parameterised.

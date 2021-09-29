@@ -76,7 +76,7 @@ if ($fileExist and not $generateCoq) {
 print "Executing Coq file…\n" ;
 
 open (PIPE, "cat src/funlist.v |"
-    . "coqtop -R ./lib/tlc/src TLC -R ./lib/extra Lib -R ./src Main -noglob -quiet |")
+    . "coqtop -R _build/default CoqR -R _build/default/lib Lib -R _build/default/src Main -noglob -quiet |")
     or die "Can’t execute Coq for some reason." ;
 
 print "Translating output to $mlFile…\n" ;

@@ -18,10 +18,10 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
-Require Import Rcore.
-Require Import RfeaturesAux.
-Require Import Rinit.
-Require Import InvariantsAux InvariantsTactics.
+From CoqR Require Import Rcore.
+From CoqR Require Import RfeaturesAux.
+From CoqR Require Import Rinit.
+From CoqR Require Import InvariantsAux InvariantsTactics.
 From Paco Require Import paco.
 
 

@@ -19,7 +19,7 @@
 
 Set Implicit Arguments.
 From Coq Require Export String.
-Require Export RinternalsAux.
+From CoqR Require Export RinternalsAux.
 From Lib Require Export Common Heap.
 From TLC Require Export LibMap.
 From TLC Require Import LibStream.

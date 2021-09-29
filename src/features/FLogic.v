@@ -20,7 +20,7 @@
 
 Set Implicit Arguments.
 From CoqR Require Import Rcore.
-Require Import FUtil.
+From CoqR.features Require Import FUtil.
 
 
 Section Parameters.

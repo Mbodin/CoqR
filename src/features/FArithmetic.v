@@ -20,9 +20,7 @@
 
 Set Implicit Arguments.
 From CoqR Require Import Rcore.
-Require Import FUtil.
-Require Import FComplex.
-Require Import FSign.
+From CoqR.features Require Import FUtil FComplex FSign.
 
 Section Parameters.
 

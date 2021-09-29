@@ -20,7 +20,7 @@
 Set Implicit Arguments.
 From TLC Require Import LibContainer.
 From Paco Require Import paco.
-Require Import InvariantsAux.
+From CoqR Require Import InvariantsAux.
 
 (** * Simplifying tactics **)
 

@@ -21,12 +21,8 @@
 Set Implicit Arguments.
 From Lib Require Import Double.
 From CoqR Require Import Loops.
-Require Import CRinternals.
-Require Import CMemory.
-Require Import CRinlinedfuns.
-Require Import CRmath.
-Require Import CArithmetic.
-Require Import CCoerce.
+From CoqR.core Require Import CRinternals CMemory CRinlinedfuns CRmath.
+From CoqR.core Require Import CArithmetic CCoerce.
 
 Section Parameterised.
 

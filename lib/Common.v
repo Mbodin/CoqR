@@ -5,7 +5,7 @@
   this file may need some cleanup to update to fresher versions of TLC. **)
 
 From Lib Require Import LibExec.
-Require Export Heap.
+From Lib Require Export Heap.
 From TLC Require Import LibStream LibString LibNat.
 From TLC Require Export LibTactics LibReflect LibLogic LibBool LibInt LibList.
 

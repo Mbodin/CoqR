@@ -19,19 +19,16 @@
 
 From Coq Require Import Extraction.
 
-Require Export Rinit Rparsing.
+From CoqR Require Export Rinit Rparsing.
 
 Extraction Language Ocaml.
 
-Require Import ExtrOcamlBasic.
-Require Import ExtrOcamlNatInt.
-Require Import ExtrOcamlString.
+From Coq Require Import ExtrOcamlBasic ExtrOcamlNatInt ExtrOcamlString.
 
 Set Extraction AccessOpaque.
 
 (* TODO: Clean. *)
-(* As classical logic statements are now unused, they should not be extracted
-   (otherwise, useless errors will be launched). *)
+(** Avoiding the extraction of classical statements. **)
 Extraction Inline (*epsilon epsilon_def*) classicT arbitrary indefinite_description (*Inhab_witness*) Fix isTrue.
 
 Extract Constant run_stdout_print => "Hooks.stdout_print".

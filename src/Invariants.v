@@ -20,7 +20,7 @@
 Set Implicit Arguments.
 From TLC Require Import LibContainer.
 From Paco Require Import paco.
-Require Export Path MonadTactics.
+From CoqR Require Export Path MonadTactics.
 
 Open Scope list_scope.
 
