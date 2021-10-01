@@ -25,15 +25,16 @@
 		"ocaml": ">=4.5",
 		"@opam/dune": ">=2.5",
 		"@opam/odoc": "*",
-		"@opam/ocamlfind": "1.8.1",
 		"@opam/menhir": ">=20190626 <20200123",
+		"@opam/ocamlfind": "1.8.1",
 		"@opam/coq": "^8.13",
 		"coq-flocq": "3.1.2",
 		"coq-paco": "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
 		"@opam/extlib": "*",
 		"@opam/bisect": "*",
 		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f",
-		"tlc": "*"
+		"tlc": "*",
+		"coq-itree": "github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0"
 	},
 	"resolutions": {
 		"tlc": {
@@ -78,6 +79,29 @@
 				],
 				"install": [
 					[ "./remake", "install" ]
+				]
+			}
+		},
+		"coq-ext-lib": {
+			"source": "github:coq-community/coq-ext-lib#aeb71ca2f5e5538f23f287772d3d84b35241415a",
+			"version": "0.11.4",
+			"override": {
+				"dependencies": {
+					"@opam/coq": "*"
+				},
+				"buildsInSource": true,
+				"buildEnv": {
+					"HOME": "#{self.target_dir}",
+					"COQBIN": "#{@opam/coq.bin}/",
+					"COQLIB": "#{@opam/coq.lib}/coq/",
+					"COQMAKEFILE": "Makefile.coq"
+				},
+				"build": [
+					[ "coq_makefile", "-f", "_CoqProject", "-o", "Makefile.coq", "-install", "user", "DESTDIR", "=", "#{self.install}", "COQMF_WINDRIVE", "=", "#{@opam/coq.lib}/coq" ],
+					[ "make", "-j", "theories" ]
+				],
+				"install": [
+					[ "make", "install" ]
 				]
 			}
 		}

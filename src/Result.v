@@ -21,6 +21,91 @@ Set Implicit Arguments.
 From CoqR Require Import Rinternals State InternalTypes Globals.
 
 
+(** * Event types **)
+
+(** This developpment is based on [itree]s.
+  In this framework, we have to define a set of events needed to define our semantics. **)
+
+(** ** Globals **)
+
+(** Events to manipulate global variables. **)
+
+(** As most functions of the formalism only read global variables,
+  and that knowing that global variables are generally constant is
+  an important property to have, we separate the reading and writing
+  events.
+  Thus, only functions actually modifying global variables (typically
+  the ones in [Rinit]) will carry the writing events, and it will be
+  possible to formally prove that as soon as only reading events are
+  used, global variables don’t change values. **)
+
+Inductive RGlobal : Type -> Type :=
+  | rglobal : GlobalVariable -> RGlobal SEXP
+  | type2Table : SExpType -> RGlobal Type2Table_type
+  .
+
+Inductive WGlobal : Type -> Type :=
+  | wglobal : GlobalVariable -> SEXP -> WGlobal SEXP
+  | wtype2Table : ArrayList.array Type2Table_type -> WGlobal Type2Table_type
+  .
+
+(** ** State **)
+
+(** Events for the state: allocation, reading, and writing. **)
+
+Inductive EState : Type -> Type :=
+  | alloc_sexp : SExpRec -> EState unit
+  | read_sexp : SEXP -> EState SExpRec
+  | write_sexp : SEXP -> SExpRec -> EState unit
+  .
+
+(** ** Control-flow **)
+
+(** We distinguish between erroneous events and jumping events. **)
+
+(** Erroneous events break the control-flow, halting the execution. **)
+
+Inductive Error : Type -> Type :=
+  | error : forall T, string -> Error T
+  (** The program yielded an error described by the provided message.
+    This error is not guaranteed not to happen. **)
+  | impossible : forall T, string -> Error T
+  (** Similar to [error], but this error is not meant to happens.
+    If such an error happens, it is either a bug in the CoqR interpreter, or an undefined
+    behaviour of the (source code of the) reference interpreter GNU R. **)
+  | not_implemented : forall T, string -> Error T
+  (** the result relies on a feature not yet implemented. **)
+  .
+
+(** A precision about [not_implemented] and [error]: if the C source
+  code of R throw a not-implemented error, we consider this as an
+  error thrown in the original interpreter and use the constructor
+  [error].  We only throw [not_implemented] when our Coq code has not
+  implemented a behaviour of R.  The construct [error] thus models the
+  errors thrown by the R program. **)
+
+(** The difference between [error] and [impossible] is that [error] is
+  thrown when the R interpreter throws an error (usally using the
+  [error] C function), and [impossible] is thrown when R does not
+  throw an error, but we know for sure that such a case can never
+  happen, or such a case would lead an undefined behaviour in the
+  original program. Typically because the C program accepts an
+  impossible case to be missing, but that Coq does not recognise this
+  case to be impossible. So if there is a possible case in which Coq
+  must return something, but that the R interpreter in C does not
+  cover this case (for instance if C features an expression [e->type]
+  without checking whether [e] actually maps to a valid object), the
+  Coq interpreter will return [impossible]. **)
+
+Inductive ControlFlow : Type -> Type :=
+  | longjump : forall T, nat -> context_type -> ControlFlow T
+  (** the program yielded a call to [LONGJMP] with the provided arguments. **)
+  .
+
+
+
+(* TODO: update ************************************************** *)
+
 (** * Monadic Type **)
 
 (** ** [contextual]: [_SEXP] and [_bool] **)
@@ -114,28 +199,6 @@ Arguments result_bottom {A}.
 Global Instance result_Inhab : forall A, Inhab (result A) :=
   fun _ => Inhab_of_val (result_impossible "[arbitrary]").
 
-
-(** A precision about [result_not_implemented] and [result_error]:
-  if the C source code of R throw a not-implemented error, we consider
-  this as an error thrown in the original interpreter and use the
-  constructor [result_error].
-  We only throw [result_not_implemented] when our Coq code has not
-  implemented a behaviour of R.
-  The construct [result_error] thus models the errors thrown by the
-  R program. **)
-
-(** The difference between [result_error] and [result_impossible] is
-  that [result_error] is thrown when the R interpreter throws an error
-  (usally using the [error] C function), and [result_impossible] is
-  thrown when R does not throw an error, but we know for sure that such
-  a case can never happen, or such a case would lead an undefined
-  behaviour in the original program. Typically because the C program accepts
-  an impossible case to be missing, but that Coq does not recognise this
-  case to be impossible. So if there is a possible case in which Coq
-  must return something, but that the R interpreter in C does not cover
-  this case (for instance by writting [e->type] without checking whether
-  [e] actually maps to a valid expression), the Coq interpreter will
-  return [result_impossible]. **)
 
 
 (** * [FUNTAB] **)
