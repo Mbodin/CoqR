@@ -22,6 +22,12 @@ From CoqR Require Import Rinternals State InternalTypes Globals.
 From ITree Require Export ITree.
 From ExtLib Require Structures.Monad.
 
+Import ITree.Eq.Eq.
+
+Export Structures.Monad.
+Export Monads.
+Export MonadNotation.
+
 
 (** * Event types **)
 
@@ -105,33 +111,108 @@ Inductive LongJump : Type -> Type :=
   .
 
 
-(** * Standard Events **)
-
-(** The events declared in the previous section are useful to separately
-  express all the kinds of events that a R function can use.
-  However, it would be cumbersome to assume all the assumptions of the
-  form [eff -< Error] for each of the usual kinds.
-  We thus introduce, as a shortcut, the following definition. **)
-
-Class StandardEvents eff := {
-    StandardRGlobal :> RGlobal -< eff ;
-    (** Reading global variables is usual, but writing is not. **)
-    StandardEState :> EState -< eff ;
-    StandardError :> Error -< eff ;
-    (** Long jumps are not commons. **)
-  }.
-
-
-(** * Contextual Type **)
+(** * Contextual Types **)
 
 (** This project is based on the [itree] type.  This type is useful
   to define all the program’s effects, but in some context doesn’t
-  behave well with coercions.  We introduce an ad-hoc type
-  [contextual] in order to help us coercing global variables into
-  the [SEXP] type in specific [if]-conditions.
-  In order to activate these coercions, we wrap them within a module. **)
+  behave well with coercions.
+  In order to use Coq’s coercion mechanism, we identify the following
+  usage cases, each being in a separate use-case of R functions:
+  - R ([RGlobal]): the minimum level, only able to read global variables.
+  - RE ([RGlobal +' Error]): as above, but are also allowed to fail.
+  - RS ([RGlobal +' EState]): the level of most R functions that can’t fail:
+    they read global variables as well as manipulate the C heap.
+  - RSE ([RGlobal +' EState +' Error]): the level of most R functions:
+    they read global variables, manipulate the C heap, and fail.
+  - RWS ([RGlobal +' WGlobal +' EState]): the level of some internal
+    functions in [Rinit].
+  - RSJE ([RGlobal +' EState +' LongJump +' Error]): the level of some rare
+    functions based on long jump.
+  - RWSJE ([RGlobal +' WGlobal +' EState +' LongJump +' Error]): the maximum
+    level in which all events are allowed.
+  These levels are designed such that the information about what the function
+  is allowed to do is embedded in its type: a function in the RE level can’t
+  change the value of global variables, for instance.
+  For each of these levels, we define a type (for instance, [cRE] for the RE
+  level), as well as coercions to other levels to manipulate them seemlessly.
+  Unfortunately, Coq coercions don’t manipulate [forall] quantifiers, and we
+  have to limit ourselves to the two most common results: [bool] and [SEXP].
+  The fact that we can split all R functions into these separate levels was
+  not obvious from the organisation of GNU R, but shows some intuition on
+  how it is structured. **)
 
-Module Type StandardEventsType.
+Definition cR T := itree RGlobal T.
+Definition cRE T := itree (RGlobal +' Error) T.
+Definition cRS T := itree (RGlobal +' EState) T.
+Definition cRSE T := itree (RGlobal +' EState +' Error) T.
+Definition cRWS T := itree (RGlobal +' WGlobal +' EState) T.
+Definition cRSJE T := itree (RGlobal +' EState +' LongJump +' Error) T.
+Definition cRWSJE T := itree (RGlobal +' WGlobal +' EState +' LongJump +' Error) T.
+
+Definition cR_bool := cR bool.
+Definition cRE_bool := cRE bool.
+Definition cRS_bool := cRS bool.
+Definition cRSE_bool := cRSE bool.
+Definition cRWS_bool := cRWS bool.
+Definition cRSJE_bool := cRSJE bool.
+Definition cRWSJE_bool := cRWSJE bool.
+
+Definition cR_SEXP := cR SEXP.
+Definition cRE_SEXP := cRE SEXP.
+Definition cRS_SEXP := cRS SEXP.
+Definition cRSE_SEXP := cRSE SEXP.
+Definition cRWS_SEXP := cRWS SEXP.
+Definition cRSJE_SEXP := cRSJE SEXP.
+Definition cRWSJE_SEXP := cRWSJE SEXP.
+
+Instance Embeddable_itree_event : forall E F R,
+  E -< F ->
+  Embeddable (itree E R) (itree F R).
+Proof. introv S T. refine (translate S T). Defined.
+
+Definition cR_cRE : forall T, cR T -> cRE T := fun _ => embed.
+Coercion cR_cRE_bool := @cR_cRE bool : cR_bool -> cRE_bool.
+Coercion cR_cRE_SEXP := @cR_cRE SEXP : cR_SEXP -> cRE_SEXP.
+
+Definition cR_cRS : forall T, cR T -> cRS T := fun _ => embed.
+Coercion cR_cRS_bool := @cR_cRS bool : cR_bool -> cRS_bool.
+Coercion cR_cRS_SEXP := @cR_cRS SEXP : cR_SEXP -> cRS_SEXP.
+
+Definition cRE_cRSE : forall T, cRE T -> cRSE T := fun _ => embed.
+Coercion cRE_cRSE_bool := @cRE_cRSE bool : cRE_bool -> cRSE_bool.
+Coercion cRE_cRSE_SEXP := @cRE_cRSE SEXP : cRE_SEXP -> cRSE_SEXP.
+
+Definition cRS_cRSE : forall T, cRS T -> cRSE T := fun _ => embed.
+Coercion cRS_cRSE_bool := @cRS_cRSE bool : cRS_bool -> cRSE_bool.
+Coercion cRS_cRSE_SEXP := @cRS_cRSE SEXP : cRS_SEXP -> cRSE_SEXP.
+
+Definition cRS_cRWS : forall T, cRS T -> cRWS T := fun _ => embed.
+Coercion cRS_cRWS_bool := @cRS_cRWS bool : cRS_bool -> cRWS_bool.
+Coercion cRS_cRWS_SEXP := @cRS_cRWS SEXP : cRS_SEXP -> cRWS_SEXP.
+
+Definition cRSE_cRSJE : forall T, cRSE T -> cRSJE T := fun _ => embed.
+Coercion cRSE_cRSJE_bool := @cRSE_cRSJE bool : cRSE_bool -> cRSJE_bool.
+Coercion cRSE_cRSJE_SEXP := @cRSE_cRSJE SEXP : cRSE_SEXP -> cRSJE_SEXP.
+
+Definition cRSJE_cRWSJE : forall T, cRSJE T -> cRWSJE T := fun _ => embed.
+Coercion cRSJE_cRWSJE_bool := @cRSJE_cRWSJE bool : cRSJE_bool -> cRWSJE_bool.
+Coercion cRSJE_cRWSJE_SEXP := @cRSJE_cRWSJE SEXP : cRSJE_SEXP -> cRWSJE_SEXP.
+
+
+(** To be sure not to have made mistakes, we prove the ambiguous paths to be equal. **)
+
+Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP : forall e,
+  cRS_cRSE_SEXP (cR_cRS_SEXP e) = cRE_cRSE_SEXP (cR_cRE_SEXP e).
+Proof.
+Admitted. (* TODO *)
+
+Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_bool : forall b,
+  cRS_cRSE_bool (cR_cRS_bool b) = cRE_cRSE_bool (cR_cRE_bool b).
+Proof.
+Admitted. (* TODO *)
+
+
+Module Type StandardEventsType. (* TODO: Remove: we no longer needs this if we go for open types *)
 
 Parameter eff : Type -> Type.
 Parameter std : StandardEvents eff.
@@ -144,13 +225,7 @@ Export EFF.
 
 Local Instance std : StandardEvents eff := std.
 
-Import Structures.Monad.
-Import Monads.
-Import MonadNotation.
-
 Open Scope monad_scope.
-
-Definition contextual T := itree eff T.
 
 Instance Monad_contextual : Monad contextual := Monad_itree.
 
