@@ -47,7 +47,7 @@ Definition is_zero (x : double) :=
   decide (x = IEEE754.Binary.F754_zero false \/ x = IEEE754.Binary.F754_zero true).
 
 Parameter opp : double -> double. (* TODO: use Flocq. *)
-Parameter fabs : double -> double. (* TODO: use Flocq. *) (* FIXME: Why is [abs] refused as a name here? *)
+Parameter fabs : double -> double. (* TODO: use Flocq, the name [abs] is reserved by a notation for Z. *)
 Parameter add : double -> double -> double. (* TODO: use Flocq. *)
 Parameter sub : double -> double -> double. (* TODO: use Flocq. *)
 Parameter mult : double -> double -> double. (* TODO: use Flocq. *)

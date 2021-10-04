@@ -19,6 +19,8 @@
 
 Set Implicit Arguments.
 From CoqR Require Import Rinternals State InternalTypes Globals.
+From ITree Require Export ITree.
+From ExtLib Require Structures.Monad.
 
 
 (** * Event types **)
@@ -97,16 +99,133 @@ Inductive Error : Type -> Type :=
   without checking whether [e] actually maps to a valid object), the
   Coq interpreter will return [impossible]. **)
 
-Inductive ControlFlow : Type -> Type :=
-  | longjump : forall T, nat -> context_type -> ControlFlow T
+Inductive LongJump : Type -> Type :=
+  | longjump : forall T, nat -> context_type -> LongJump T
   (** the program yielded a call to [LONGJMP] with the provided arguments. **)
   .
 
 
+(** * Standard Events **)
+
+(** The events declared in the previous section are useful to separately
+  express all the kinds of events that a R function can use.
+  However, it would be cumbersome to assume all the assumptions of the
+  form [eff -< Error] for each of the usual kinds.
+  We thus introduce, as a shortcut, the following definition. **)
+
+Class StandardEvents eff := {
+    StandardRGlobal :> RGlobal -< eff ;
+    (** Reading global variables is usual, but writing is not. **)
+    StandardEState :> EState -< eff ;
+    StandardError :> Error -< eff ;
+    (** Long jumps are not commons. **)
+  }.
+
+
+(** * Contextual Type **)
+
+(** This project is based on the [itree] type.  This type is useful
+  to define all the program’s effects, but in some context doesn’t
+  behave well with coercions.  We introduce an ad-hoc type
+  [contextual] in order to help us coercing global variables into
+  the [SEXP] type in specific [if]-conditions.
+  In order to activate these coercions, we wrap them within a module. **)
+
+Module Type StandardEventsType.
+
+Parameter eff : Type -> Type.
+Parameter std : StandardEvents eff.
+
+End StandardEventsType.
+
+Module Contextual (EFF : StandardEventsType).
+
+Export EFF.
+
+Local Instance std : StandardEvents eff := std.
+
+Import Structures.Monad.
+Import Monads.
+Import MonadNotation.
+
+Open Scope monad_scope.
+
+Definition contextual T := itree eff T.
+
+Instance Monad_contextual : Monad contextual := Monad_itree.
+
+Definition _bool := contextual bool.
+Definition _SEXP := contextual SEXP.
+
+Definition SEXP_SEXP (e : SEXP) : _SEXP := ret e.
+Coercion SEXP_SEXP : SEXP >-> _SEXP.
+
+Definition bool_bool (b : bool) : _bool := ret b.
+Coercion bool_bool : bool >-> _bool.
+
+Definition GlobalVariable_SEXP (G : GlobalVariable) : _SEXP := trigger (rglobal G).
+Coercion GlobalVariable_SEXP : GlobalVariable >-> _SEXP.
+
+Definition contextual_and (a b : _bool) : _bool :=
+  a <- a ;;
+  b <- b ;;
+  ret (a && b).
+
+Infix "'&&" := contextual_and (at level 40, left associativity).
+
+Open Scope type_scope.
+Import Eq.
+
+(** The lift of [&&] to ['&&] is just a lift in the contextual monad. **)
+Lemma contextual_and_bool : forall a b : bool,
+  a '&& b ≈ (a && b : _bool).
+Proof. intros. tau_steps. reflexivity. Qed.
+
+Definition contextual_or (a b : _bool) : _bool :=
+  a <- a ;;
+  b <- b ;;
+  (a || b : _bool).
+
+Infix "'||" := contextual_or (at level 50, left associativity).
+
+Lemma contextual_or_bool : forall a b : bool,
+  a '|| b ≈ (a || b : _bool).
+Proof. intros. tau_steps. reflexivity. Qed.
+
+Definition contextual_neg (b : _bool) : _bool :=
+  b <- b ;;
+  (negb b : _bool).
+
+Notation "'! b" := (contextual_neg b) (at level 35, right associativity).
+
+Lemma contextual_neg_bool : forall b : bool,
+  '! b ≈ (negb b : _bool).
+Proof. intros. tau_steps. reflexivity. Qed.
+
+Definition contextual_decide P `{Decidable P} : _bool := decide P.
+Arguments contextual_decide P {_}.
+
+Notation "''decide' P" := (contextual_decide P) (at level 70, no associativity).
+
+Definition contextual_eq A `{Comparable A} (a b : contextual A) : _bool :=
+  a <- a ;;
+  b <- b ;;
+  'decide (a = b).
+
+Definition contextual_eq_SEXP : _SEXP -> _SEXP -> _bool := @contextual_eq _ _.
+
+Infix "'==" := contextual_eq (at level 70, no associativity).
+
+Notation "a '!= b" := ('! (a '== b)) (at level 70, no associativity).
+
+Notation "'ifc' b 'then' v1 'else' v2" :=
+  (x <- (b : _bool) ;; if x then v1 else v2)
+  (at level 200, right associativity) : type_scope.
+
+End Contextual.
+
 
 (* TODO: update ************************************************** *)
-
-(** * Monadic Type **)
 
 (** ** [contextual]: [_SEXP] and [_bool] **)
 

@@ -1,5 +1,5 @@
 {
-  "checksum": "caa5fca4c39c0b523e3198b8e7991f1f",
+  "checksum": "231cfa0287878074b9175ead533d2dd9",
   "root": "CoqR@link-dev:./package.json",
   "node": {
     "tlc@github:charguer/tlc#2415b8dcf1138ade515ea4bfdcd5460be1ef4db4@27aca90a": {
@@ -264,6 +264,7 @@
         "coq-paco@github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622@d41d8cd9",
         "coq-itree@github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0@d41d8cd9",
         "coq-flocq@git:https://gitlab.inria.fr/flocq/flocq.git#ca655d2542bdcf024bce5c26dbc0f13b856aa1f6@d5b59627",
+        "coq-ext-lib@github:coq-community/coq-ext-lib#aeb71ca2f5e5538f23f287772d3d84b35241415a@1fce7ce9",
         "@opam/odoc@opam:1.5.3@29f53af8",
         "@opam/ocamlfind@opam:1.8.1@b7dc3072",
         "@opam/menhir@opam:20190924@33d150a4",

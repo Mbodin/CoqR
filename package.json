@@ -9,7 +9,7 @@
 		"buildEnv": {
 			"COQBIN": "#{@opam/coq.bin}/",
 			"COQLIB": "#{@opam/coq.lib}/coq/",
-			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/lib/coq:#{tlc.install}/lib:#{coq-paco.install}/user-contrib",
+			"COQPATH": "#{coq-flocq.install}/coq:#{coq-prelude.install}/lib/coq:#{tlc.install}/lib:#{coq-paco.install}/user-contrib:#{coq-itree.install}/lib/coq/user-contrib:#{coq-ext-lib.install}/user-contrib",
 			"TARGETDIR": "#{self.target_dir}"
 		}
 	},
@@ -34,7 +34,8 @@
 		"@opam/bisect": "*",
 		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f",
 		"tlc": "*",
-		"coq-itree": "github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0"
+		"coq-itree": "github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0",
+		"coq-ext-lib": "*"
 	},
 	"resolutions": {
 		"tlc": {
