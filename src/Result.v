@@ -19,14 +19,31 @@
 
 Set Implicit Arguments.
 From CoqR Require Import Rinternals State InternalTypes Globals.
-From ITree Require Export ITree.
 From ExtLib Require Structures.Monad.
+From ITree Require Export ITree.
+From ITree Require Import TranslateFacts.
 
 Import ITree.Eq.Eq.
 
 Export Structures.Monad.
 Export Monads.
 Export MonadNotation.
+
+Open Scope type_scope.
+
+
+(** * Lemmas **)
+
+(** A lemma to easily convert the events of [itree]s. **)
+Instance Embeddable_itree_event : forall E F R,
+  E -< F ->
+  Embeddable (itree E R) (itree F R).
+Proof. introv S T. refine (translate S T). Defined.
+
+(** A lemma to unfold [embed]. **)
+Lemma embed_unfold : forall A B (H : Embeddable A B),
+  embed = H.
+Proof. reflexivity. Qed.
 
 
 (** * Event types **)
@@ -74,14 +91,14 @@ Inductive EState : Type -> Type :=
 (** Erroneous events break the control-flow, halting the execution. **)
 
 Inductive Error : Type -> Type :=
-  | error : forall T, string -> Error T
+  | error [T] : string -> Error T
   (** The program yielded an error described by the provided message.
     This error is not guaranteed not to happen. **)
-  | impossible : forall T, string -> Error T
+  | impossible [T] : string -> Error T
   (** Similar to [error], but this error is not meant to happens.
     If such an error happens, it is either a bug in the CoqR interpreter, or an undefined
     behaviour of the (source code of the) reference interpreter GNU R. **)
-  | not_implemented : forall T, string -> Error T
+  | not_implemented [T] : string -> Error T
   (** the result relies on a feature not yet implemented. **)
   .
 
@@ -106,7 +123,7 @@ Inductive Error : Type -> Type :=
   Coq interpreter will return [impossible]. **)
 
 Inductive LongJump : Type -> Type :=
-  | longjump : forall T, nat -> context_type -> LongJump T
+  | longjump [T] : nat -> context_type -> LongJump T
   (** the program yielded a call to [LONGJMP] with the provided arguments. **)
   .
 
@@ -141,13 +158,21 @@ Inductive LongJump : Type -> Type :=
   not obvious from the organisation of GNU R, but shows some intuition on
   how it is structured. **)
 
-Definition cR T := itree RGlobal T.
-Definition cRE T := itree (RGlobal +' Error) T.
-Definition cRS T := itree (RGlobal +' EState) T.
-Definition cRSE T := itree (RGlobal +' EState +' Error) T.
-Definition cRWS T := itree (RGlobal +' WGlobal +' EState) T.
-Definition cRSJE T := itree (RGlobal +' EState +' LongJump +' Error) T.
-Definition cRWSJE T := itree (RGlobal +' WGlobal +' EState +' LongJump +' Error) T.
+Definition cR := itree RGlobal.
+Definition cRE := itree (RGlobal +' Error).
+Definition cRS := itree (RGlobal +' EState).
+Definition cRSE := itree (RGlobal +' EState +' Error).
+Definition cRWS := itree (RGlobal +' WGlobal +' EState).
+Definition cRSJE := itree (RGlobal +' EState +' LongJump +' Error).
+Definition cRWSJE := itree (RGlobal +' WGlobal +' EState +' LongJump +' Error).
+
+Instance Monad_cR : Monad cR := Monad_itree.
+Instance Monad_cRE : Monad cRE := Monad_itree.
+Instance Monad_cRS : Monad cRS := Monad_itree.
+Instance Monad_cRSE : Monad cRSE := Monad_itree.
+Instance Monad_cRWS : Monad cRWS := Monad_itree.
+Instance Monad_cRSJE : Monad cRSJE := Monad_itree.
+Instance Monad_cRWSJE : Monad cRWSJE := Monad_itree.
 
 Definition cR_bool := cR bool.
 Definition cRE_bool := cRE bool.
@@ -164,11 +189,6 @@ Definition cRSE_SEXP := cRSE SEXP.
 Definition cRWS_SEXP := cRWS SEXP.
 Definition cRSJE_SEXP := cRSJE SEXP.
 Definition cRWSJE_SEXP := cRWSJE SEXP.
-
-Instance Embeddable_itree_event : forall E F R,
-  E -< F ->
-  Embeddable (itree E R) (itree F R).
-Proof. introv S T. refine (translate S T). Defined.
 
 Definition cR_cRE : forall T, cR T -> cRE T := fun _ => embed.
 Coercion cR_cRE_bool := @cR_cRE bool : cR_bool -> cRE_bool.
@@ -202,197 +222,102 @@ Coercion cRSJE_cRWSJE_SEXP := @cRSJE_cRWSJE SEXP : cRSJE_SEXP -> cRWSJE_SEXP.
 (** To be sure not to have made mistakes, we prove the ambiguous paths to be equal. **)
 
 Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP : forall e,
-  cRS_cRSE_SEXP (cR_cRS_SEXP e) = cRE_cRSE_SEXP (cR_cRE_SEXP e).
+  cRS_cRSE_SEXP (cR_cRS_SEXP e) ≅ cRE_cRSE_SEXP (cR_cRE_SEXP e).
 Proof.
-Admitted. (* TODO *)
+  intros.
+  unfolds cRS_cRSE_SEXP, cRS_cRSE. unfolds cR_cRS_SEXP, cR_cRS.
+  unfolds cR_cRE_SEXP, cR_cRE. unfolds cRE_cRSE_SEXP, cRE_cRSE.
+  repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
+  do 2 rewrite <- translate_cmpE. reflexivity.
+Qed.
 
 Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_bool : forall b,
-  cRS_cRSE_bool (cR_cRS_bool b) = cRE_cRSE_bool (cR_cRE_bool b).
+  cRS_cRSE_bool (cR_cRS_bool b) ≅ cRE_cRSE_bool (cR_cRE_bool b).
 Proof.
-Admitted. (* TODO *)
+  intros.
+  unfolds cRS_cRSE_bool, cRS_cRSE. unfolds cR_cRS_bool, cR_cRS.
+  unfolds cR_cRE_bool, cR_cRE. unfolds cRE_cRSE_bool, cRE_cRSE.
+  repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
+  do 2 rewrite <- translate_cmpE. reflexivity.
+Qed.
 
 
-Module Type StandardEventsType. (* TODO: Remove: we no longer needs this if we go for open types *)
+Instance cRE_Inhab : forall A, Inhab (cRE A) :=
+  fun _ => Inhab_of_val (trigger (impossible "[arbitrary]")).
 
-Parameter eff : Type -> Type.
-Parameter std : StandardEvents eff.
+Instance cRSE_Inhab : forall A, Inhab (cRSE A) :=
+  fun _ => Inhab_of_val (cRE_cRSE arbitrary).
 
-End StandardEventsType.
+Instance cRSJE_Inhab : forall A, Inhab (cRSJE A) :=
+  fun _ => Inhab_of_val (cRSE_cRSJE arbitrary).
 
-Module Contextual (EFF : StandardEventsType).
+Instance cRWSJE_Inhab : forall A, Inhab (cRWSJE A) :=
+  fun _ => Inhab_of_val (cRSJE_cRWSJE arbitrary).
 
-Export EFF.
-
-Local Instance std : StandardEvents eff := std.
 
 Open Scope monad_scope.
 
-Instance Monad_contextual : Monad contextual := Monad_itree.
+Definition SEXP_cR_SEXP (e : SEXP) : cR_SEXP := ret e.
+Coercion SEXP_cR_SEXP : SEXP >-> cR_SEXP.
 
-Definition _bool := contextual bool.
-Definition _SEXP := contextual SEXP.
+Definition bool_cR_bool (b : bool) : cR_bool := ret b.
+Coercion bool_cR_bool : bool >-> cR_bool.
 
-Definition SEXP_SEXP (e : SEXP) : _SEXP := ret e.
-Coercion SEXP_SEXP : SEXP >-> _SEXP.
+Definition GlobalVariable_cR_SEXP (G : GlobalVariable) : cR_SEXP := trigger (rglobal G).
+Coercion GlobalVariable_cR_SEXP : GlobalVariable >-> cR_SEXP.
 
-Definition bool_bool (b : bool) : _bool := ret b.
-Coercion bool_bool : bool >-> _bool.
-
-Definition GlobalVariable_SEXP (G : GlobalVariable) : _SEXP := trigger (rglobal G).
-Coercion GlobalVariable_SEXP : GlobalVariable >-> _SEXP.
-
-Definition contextual_and (a b : _bool) : _bool :=
+Definition cR_and (a b : cR_bool) : cR_bool :=
   a <- a ;;
   b <- b ;;
   ret (a && b).
 
-Infix "'&&" := contextual_and (at level 40, left associativity).
-
-Open Scope type_scope.
-Import Eq.
+Infix "'&&" := cR_and (at level 40, left associativity).
 
 (** The lift of [&&] to ['&&] is just a lift in the contextual monad. **)
-Lemma contextual_and_bool : forall a b : bool,
-  a '&& b ≈ (a && b : _bool).
+Lemma cR_and_bool : forall a b : bool,
+  a '&& b ≅ (a && b : cR_bool).
 Proof. intros. tau_steps. reflexivity. Qed.
 
-Definition contextual_or (a b : _bool) : _bool :=
+Definition cR_or (a b : cR_bool) : cR_bool :=
   a <- a ;;
   b <- b ;;
-  (a || b : _bool).
+  (a || b : cR_bool).
 
-Infix "'||" := contextual_or (at level 50, left associativity).
+Infix "'||" := cR_or (at level 50, left associativity).
 
-Lemma contextual_or_bool : forall a b : bool,
-  a '|| b ≈ (a || b : _bool).
+Lemma cR_or_bool : forall a b : bool,
+  a '|| b ≅ (a || b : cR_bool).
 Proof. intros. tau_steps. reflexivity. Qed.
 
-Definition contextual_neg (b : _bool) : _bool :=
+Definition cR_neg (b : cR_bool) : cR_bool :=
   b <- b ;;
-  (negb b : _bool).
+  (negb b : cR_bool).
 
-Notation "'! b" := (contextual_neg b) (at level 35, right associativity).
+Notation "'! b" := (cR_neg b) (at level 35, right associativity).
 
-Lemma contextual_neg_bool : forall b : bool,
-  '! b ≈ (negb b : _bool).
+Lemma cR_neg_bool : forall b : bool,
+  '! b ≅ (negb b : cR_bool).
 Proof. intros. tau_steps. reflexivity. Qed.
 
-Definition contextual_decide P `{Decidable P} : _bool := decide P.
-Arguments contextual_decide P {_}.
+Definition cR_decide P `{Decidable P} : cR_bool := decide P.
+Arguments cR_decide P {_}.
 
-Notation "''decide' P" := (contextual_decide P) (at level 70, no associativity).
+Notation "''decide' P" := (cR_decide P) (at level 70, no associativity).
 
-Definition contextual_eq A `{Comparable A} (a b : contextual A) : _bool :=
+Definition cR_eq A `{Comparable A} (a b : cR A) : cR_bool :=
   a <- a ;;
   b <- b ;;
   'decide (a = b).
 
-Definition contextual_eq_SEXP : _SEXP -> _SEXP -> _bool := @contextual_eq _ _.
+Definition cR_eq_SEXP : cR_SEXP -> cR_SEXP -> cR_bool := @cR_eq _ _.
 
-Infix "'==" := contextual_eq (at level 70, no associativity).
+Infix "'==" := cR_eq (at level 70, no associativity).
 
 Notation "a '!= b" := ('! (a '== b)) (at level 70, no associativity).
 
 Notation "'ifc' b 'then' v1 'else' v2" :=
-  (x <- (b : _bool) ;; if x then v1 else v2)
+  (x <- (b : cR_bool) ;; if x then v1 else v2)
   (at level 200, right associativity) : type_scope.
-
-End Contextual.
-
-
-(* TODO: update ************************************************** *)
-
-(** ** [contextual]: [_SEXP] and [_bool] **)
-
-(** The [contextual A] type represents something that can be converted into
-  a [A] given the right context, of global variables and current state.
-  This monad is used in the [result] monad below. **)
-
-Definition contextual (A : Type) := Globals -> state -> A.
-
-(** The most frequently used instances are [_SEXP] and [_bool]. **)
-Definition _SEXP := contextual SEXP.
-Definition _bool := contextual bool.
-
-(** The bind operation of the monad. **)
-Definition contextual_bind A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
-  fun globals S => cont (e globals S) globals S.
-
-(** The return operation of the monad. **)
-Definition contextual_ret A (a : A) : contextual A :=
-  fun _ _ => a.
-
-Declare Scope monad_scope.
-
-Notation "'let%contextual' a ':=' e 'in' cont" :=
-  (contextual_bind e (fun a => cont))
-  (at level 50, left associativity) : monad_scope.
-
-
-(** ** The main monad: [result] **)
-
-(** The monad type of results.
-  Every function in this formalisation returns a type in this monad.
-  A result can be:
-  - [rresult_success r A]: the program succeedingly resulted in [r] in the state [S].
-  - [rresult_longjump]: the program yielded a call to [LONGJMP] with the provided arguments.
-  - [rresult_error_stack stack msg S]: the program resulted in an error described by [msg],
-    with the state [S], and the call stack [stack].
-    This error is not meant to be caught: it will be propagated along to be printed.
-  - [rresult_impossible_stack]: this result should never happen.
-    It corresponds to either a bug in the CoqR interpreter, or an undefined behaviour of the
-    (source code of the) reference interpreter GNU R.
-  - [rresult_not_implemented_stack]: the result relies on a feature not yet implemented.
-  - [rresult_bottom]: a termination monad.
-    Indeed, in Coq, any function has to terminate.  As R program may not, we provide some
-    fuel which is decremented along the way.  Reaching [0] yields this result: we went out
-    of fuel during the computation. **)
-Inductive rresult (A : Type) :=
-  | rresult_success : A -> state -> rresult A
-  | rresult_longjump : nat -> context_type -> state -> rresult A
-  | rresult_error_stack : list string -> string -> state -> rresult A
-  | rresult_impossible_stack : list string -> string -> state -> rresult A
-  | rresult_not_implemented_stack : list string -> string -> rresult A
-  | rresult_bottom : state -> rresult A
-  .
-Arguments rresult_success [A].
-Arguments rresult_longjump [A].
-Arguments rresult_error_stack [A].
-Arguments rresult_impossible_stack [A].
-Arguments rresult_not_implemented_stack [A].
-Arguments rresult_bottom {A}.
-
-(** We wrap [rresult] in a state monad. **)
-Definition result A := contextual (rresult A).
-
-
-Definition result_success : forall A, A -> result A :=
-  fun _ a _ => rresult_success a.
-Arguments result_success [A].
-
-Definition result_longjump (A : Type) : nat -> context_type -> result A :=
-  fun i ct _ => rresult_longjump i ct.
-Arguments result_longjump [A].
-
-Definition result_error (A : Type) msg : result A :=
-  fun _ => rresult_error_stack nil msg.
-Arguments result_error [A].
-
-Definition result_impossible (A : Type) msg : result A :=
-  fun _ => rresult_impossible_stack nil msg.
-Arguments result_impossible [A].
-
-Definition result_not_implemented (A : Type) msg : result A :=
-  fun _ S => rresult_not_implemented_stack nil msg.
-Arguments result_not_implemented [A].
-
-Definition result_bottom : forall A, result A :=
-  fun _ _ => rresult_bottom.
-Arguments result_bottom {A}.
-
-Global Instance result_Inhab : forall A, Inhab (result A) :=
-  fun _ => Inhab_of_val (result_impossible "[arbitrary]").
-
 
 
 (** * [FUNTAB] **)
@@ -411,7 +336,7 @@ Definition function_code :=
   SEXP -> (** op **)
   SEXP -> (** args **)
   SEXP -> (** rho **)
-  result SEXP.
+  cRSJE SEXP.
 
 (** [FUNTAB] **)
 Record funtab_cell := make_funtab_cell {
@@ -424,8 +349,7 @@ Record funtab_cell := make_funtab_cell {
   }.
 
 Instance funtab_cell_Inhab : Inhab funtab_cell.
-  apply Inhab_of_val. constructors; apply arbitrary.
-Qed.
+Proof. apply Inhab_of_val. constructors; apply arbitrary. Defined.
 
 Definition funtab := ArrayList.array funtab_cell.
 
