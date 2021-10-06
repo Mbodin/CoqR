@@ -84,7 +84,7 @@
 			}
 		},
 		"coq-ext-lib": {
-			"source": "github:coq-community/coq-ext-lib#aeb71ca2f5e5538f23f287772d3d84b35241415a",
+			"source": "github:minkiminki/coq-ext-lib#0e78bc3af67ea4447ed61ed89d818384cb49d7fa",
 			"version": "0.11.4",
 			"override": {
 				"dependencies": {

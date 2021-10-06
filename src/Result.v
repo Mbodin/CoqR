@@ -18,6 +18,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
+Set Universe Polymorphism.
 From CoqR Require Import Rinternals State InternalTypes Globals.
 From ExtLib Require Structures.Monad.
 From ITree Require Export ITree.
@@ -83,7 +84,6 @@ Inductive EState : Type -> Type :=
   | read_sexp : SEXP -> EState SExpRec
   | write_sexp : SEXP -> SExpRec -> EState unit
   .
-
 
 (** ** [FUNTAB] **)
 
@@ -151,6 +151,8 @@ Inductive LongJump : Type -> Type :=
 
 
 (** * Contextual Types **)
+
+Unset Universe Polymorphism.
 
 (** This project is based on the [itree] type.  This type is useful
   to define all the program’s effects, but in some context doesn’t
