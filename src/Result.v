@@ -84,6 +84,28 @@ Inductive EState : Type -> Type :=
   | write_sexp : SEXP -> SExpRec -> EState unit
   .
 
+
+(** ** [FUNTAB] **)
+
+(** The [FUNTAB] structure is used to store primitive and internal
+  functions, as well as some constructs to evaluate it. Most of these
+  constructs can be found in include/Defn.h. **)
+
+(** Following GNU R, all such functions have the same type: they take
+  four SEXP and return an SEXP.  The four SEXP respectively correspond
+  to the [call], [op], [args], and [rho] parameters of each functions.
+  The most important is [args], which is an R list of arguments. **)
+
+Inductive Funtab : Type -> Type :=
+  | call_funtab :
+    SEXP -> (** call **)
+    SEXP -> (** op **)
+    SEXP -> (** args **)
+    SEXP -> (** rho **)
+    Funtab SEXP
+  .
+
+
 (** ** Control-flow **)
 
 (** We distinguish between erroneous events and jumping events. **)
@@ -139,14 +161,18 @@ Inductive LongJump : Type -> Type :=
   - RE ([RGlobal +' Error]): as above, but are also allowed to fail.
   - RS ([RGlobal +' EState]): the level of most R functions that can’t fail:
     they read global variables as well as manipulate the C heap.
-  - RSE ([RGlobal +' EState +' Error]): the level of most R functions:
-    they read global variables, manipulate the C heap, and fail.
+  - RSE ([RGlobal +' EState +' Error]): as above, but are also allowed to
+    fail.
+  - RSFE ([RGlobal +' EState +' Funtab +' Error]): the level of most R
+    functions: they read global variables, manipulate the C heap, can call
+    functions in the [FUNTAB] array, and fail.
   - RWS ([RGlobal +' WGlobal +' EState]): the level of some internal
     functions in [Rinit].
-  - RSJE ([RGlobal +' EState +' LongJump +' Error]): the level of some rare
-    functions based on long jump.
-  - RWSJE ([RGlobal +' WGlobal +' EState +' LongJump +' Error]): the maximum
-    level in which all events are allowed.
+  - RSFJE ([RGlobal +' EState +' Funtab +' LongJump +' Error]): the level
+    of some rare functions based on long jump, as well as the level of the
+    functions in the [FUNTAB] array.
+  - RWSFJE ([RGlobal +' WGlobal +' EState +' Funtab +' LongJump +' Error]):
+    the maximum level in which all events are allowed to live in.
   These levels are designed such that the information about what the function
   is allowed to do is embedded in its type: a function in the RE level can’t
   change the value of global variables, for instance.
@@ -158,37 +184,41 @@ Inductive LongJump : Type -> Type :=
   not obvious from the organisation of GNU R, but shows some intuition on
   how it is structured. **)
 
-Definition cR := itree RGlobal.
-Definition cRE := itree (RGlobal +' Error).
-Definition cRS := itree (RGlobal +' EState).
-Definition cRSE := itree (RGlobal +' EState +' Error).
-Definition cRWS := itree (RGlobal +' WGlobal +' EState).
-Definition cRSJE := itree (RGlobal +' EState +' LongJump +' Error).
-Definition cRWSJE := itree (RGlobal +' WGlobal +' EState +' LongJump +' Error).
+Definition cR T := itree RGlobal T.
+Definition cRE T := itree (RGlobal +' Error) T.
+Definition cRS T := itree (RGlobal +' EState) T.
+Definition cRSE T := itree (RGlobal +' EState +' Error) T.
+Definition cRSFE T := itree (RGlobal +' EState +' Funtab +' Error) T.
+Definition cRWS T := itree (RGlobal +' WGlobal +' EState) T.
+Definition cRSFJE T := itree (RGlobal +' EState +' Funtab +' LongJump +' Error) T.
+Definition cRWSFJE T := itree (RGlobal +' WGlobal +' EState +' Funtab +' LongJump +' Error) T.
 
 Instance Monad_cR : Monad cR := Monad_itree.
 Instance Monad_cRE : Monad cRE := Monad_itree.
 Instance Monad_cRS : Monad cRS := Monad_itree.
 Instance Monad_cRSE : Monad cRSE := Monad_itree.
+Instance Monad_cRSFE : Monad cRSE := Monad_itree.
 Instance Monad_cRWS : Monad cRWS := Monad_itree.
-Instance Monad_cRSJE : Monad cRSJE := Monad_itree.
-Instance Monad_cRWSJE : Monad cRWSJE := Monad_itree.
+Instance Monad_cRSFJE : Monad cRSFJE := Monad_itree.
+Instance Monad_cRWSFJE : Monad cRWSFJE := Monad_itree.
 
 Definition cR_bool := cR bool.
 Definition cRE_bool := cRE bool.
 Definition cRS_bool := cRS bool.
 Definition cRSE_bool := cRSE bool.
+Definition cRSFE_bool := cRSFE bool.
 Definition cRWS_bool := cRWS bool.
-Definition cRSJE_bool := cRSJE bool.
-Definition cRWSJE_bool := cRWSJE bool.
+Definition cRSFJE_bool := cRSFJE bool.
+Definition cRWSFJE_bool := cRWSFJE bool.
 
 Definition cR_SEXP := cR SEXP.
 Definition cRE_SEXP := cRE SEXP.
 Definition cRS_SEXP := cRS SEXP.
 Definition cRSE_SEXP := cRSE SEXP.
+Definition cRSFE_SEXP := cRSFE SEXP.
 Definition cRWS_SEXP := cRWS SEXP.
-Definition cRSJE_SEXP := cRSJE SEXP.
-Definition cRWSJE_SEXP := cRWSJE SEXP.
+Definition cRSFJE_SEXP := cRSFJE SEXP.
+Definition cRWSFJE_SEXP := cRWSFJE SEXP.
 
 Definition cR_cRE : forall T, cR T -> cRE T := fun _ => embed.
 Coercion cR_cRE_bool := @cR_cRE bool : cR_bool -> cRE_bool.
@@ -202,24 +232,38 @@ Definition cRE_cRSE : forall T, cRE T -> cRSE T := fun _ => embed.
 Coercion cRE_cRSE_bool := @cRE_cRSE bool : cRE_bool -> cRSE_bool.
 Coercion cRE_cRSE_SEXP := @cRE_cRSE SEXP : cRE_SEXP -> cRSE_SEXP.
 
+(** The following coercion technically introduce a warning, but it is
+  a benign one, as shown by the lemmas
+  [ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP] and
+  [ambiguous_coercion_cR_cRS_cRE_CRSE_bool] below.  We thus temporary
+  disable the notation warning there. **)
+Local Set Warnings "-ambiguous-paths".
+
 Definition cRS_cRSE : forall T, cRS T -> cRSE T := fun _ => embed.
 Coercion cRS_cRSE_bool := @cRS_cRSE bool : cRS_bool -> cRSE_bool.
 Coercion cRS_cRSE_SEXP := @cRS_cRSE SEXP : cRS_SEXP -> cRSE_SEXP.
+
+Local Set Warnings "ambiguous-paths". (** Setting the warning again. **)
+
+Definition cRSE_cRSFE : forall T, cRSE T -> cRSFE T := fun _ => embed.
+Coercion cRSE_cRSFE_bool := @cRSE_cRSFE bool : cRSE_bool -> cRSFE_bool.
+Coercion cRSE_cRSFE_SEXP := @cRSE_cRSFE SEXP : cRSE_SEXP -> cRSFE_SEXP.
 
 Definition cRS_cRWS : forall T, cRS T -> cRWS T := fun _ => embed.
 Coercion cRS_cRWS_bool := @cRS_cRWS bool : cRS_bool -> cRWS_bool.
 Coercion cRS_cRWS_SEXP := @cRS_cRWS SEXP : cRS_SEXP -> cRWS_SEXP.
 
-Definition cRSE_cRSJE : forall T, cRSE T -> cRSJE T := fun _ => embed.
-Coercion cRSE_cRSJE_bool := @cRSE_cRSJE bool : cRSE_bool -> cRSJE_bool.
-Coercion cRSE_cRSJE_SEXP := @cRSE_cRSJE SEXP : cRSE_SEXP -> cRSJE_SEXP.
+Definition cRSFE_cRSFJE : forall T, cRSFE T -> cRSFJE T := fun _ => embed.
+Coercion cRSFE_cRSFJE_bool := @cRSFE_cRSFJE bool : cRSFE_bool -> cRSFJE_bool.
+Coercion cRSFE_cRSFJE_SEXP := @cRSFE_cRSFJE SEXP : cRSFE_SEXP -> cRSFJE_SEXP.
 
-Definition cRSJE_cRWSJE : forall T, cRSJE T -> cRWSJE T := fun _ => embed.
-Coercion cRSJE_cRWSJE_bool := @cRSJE_cRWSJE bool : cRSJE_bool -> cRWSJE_bool.
-Coercion cRSJE_cRWSJE_SEXP := @cRSJE_cRWSJE SEXP : cRSJE_SEXP -> cRWSJE_SEXP.
+Definition cRSFJE_cRWSFJE : forall T, cRSFJE T -> cRWSFJE T := fun _ => embed.
+Coercion cRSJE_cRWSFJE_bool := @cRSFJE_cRWSFJE bool : cRSFJE_bool -> cRWSFJE_bool.
+Coercion cRSJE_cRWSFJE_SEXP := @cRSFJE_cRWSFJE SEXP : cRSFJE_SEXP -> cRWSFJE_SEXP.
 
 
-(** To be sure not to have made mistakes, we prove the ambiguous paths to be equal. **)
+(** Some coercions above introduced ambiguous pathes, which we prove
+  to not change the result. **)
 
 Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP : forall e,
   cRS_cRSE_SEXP (cR_cRS_SEXP e) ≅ cRE_cRSE_SEXP (cR_cRE_SEXP e).
@@ -248,11 +292,14 @@ Instance cRE_Inhab : forall A, Inhab (cRE A) :=
 Instance cRSE_Inhab : forall A, Inhab (cRSE A) :=
   fun _ => Inhab_of_val (cRE_cRSE arbitrary).
 
-Instance cRSJE_Inhab : forall A, Inhab (cRSJE A) :=
-  fun _ => Inhab_of_val (cRSE_cRSJE arbitrary).
+Instance cRSFE_Inhab : forall A, Inhab (cRSFE A) :=
+  fun _ => Inhab_of_val (cRSE_cRSFE arbitrary).
 
-Instance cRWSJE_Inhab : forall A, Inhab (cRWSJE A) :=
-  fun _ => Inhab_of_val (cRSJE_cRWSJE arbitrary).
+Instance cRSFJE_Inhab : forall A, Inhab (cRSFJE A) :=
+  fun _ => Inhab_of_val (cRSFE_cRSFJE arbitrary).
+
+Instance cRWSFJE_Inhab : forall A, Inhab (cRWSFJE A) :=
+  fun _ => Inhab_of_val (cRSFJE_cRWSFJE arbitrary).
 
 
 Open Scope monad_scope.
@@ -322,27 +369,21 @@ Notation "'ifc' b 'then' v1 'else' v2" :=
 
 (** * [FUNTAB] **)
 
-(** This section defines the [FUNTAB] structure, which is used to store
-  primitive and internal functions, as well as some constructs to
-  evaluate it. Most of these constructs can be found in
-  include/Defn.h. **)
-
-(** Following GNU R, all functions in the array [R_FunTab] have the same type: they take four SEXP
-  and return an SEXP.
-  The four SEXP respectively correspond to the call, op, args, and rho parameters of each functions.
-  The most important is args, which is an R list of arguments. **)
-Definition function_code :=
+(** We have defined above the [Funtab] effect.  This effects calls a
+  function with the following type. **)
+Definition funtab_function :=
   SEXP -> (** call **)
   SEXP -> (** op **)
   SEXP -> (** args **)
   SEXP -> (** rho **)
-  cRSJE SEXP.
+  cRSFJE SEXP.
 
-(** [FUNTAB] **)
+(** The [FUNTAB] is then an array of such functions, with some
+  additional meta-data, like the function name: **)
 Record funtab_cell := make_funtab_cell {
     fun_name : string ;
-    fun_cfun : function_code ;
-    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat] here. **)
+    fun_cfun : funtab_function ;
+    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat]. **)
     fun_eval : funtab_eval_arg ;
     fun_arity : int ;
     fun_gram : PPinfo
