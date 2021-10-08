@@ -3,7 +3,6 @@
   We define arrays as lists for simplicity, but we extract them differently for efficiency. **)
 
 Set Implicit Arguments.
-Set Universe Polymorphism.
 
 From TLC Require Export LibNat LibContainer.
 From Lib Require Import Heap.
@@ -13,7 +12,7 @@ From Lib Require Export Common.
 
 Module Type ArraySpec.
 
-Parameter array@{u} : Type@{u} -> Type@{max(Set,u)}.
+Parameter array@{u} : Type@{u} -> Type@{u}.
 
 Parameter length : forall T, array T -> nat.
 

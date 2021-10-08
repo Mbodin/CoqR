@@ -154,6 +154,11 @@ Inductive LongJump : Type -> Type :=
 
 Unset Universe Polymorphism.
 
+(* FIXME: This looks like a bug: adding the following line solves the universe inconsistency! *)
+Section FixingPolymorphism.
+Constraint itreeF.u1 < ArrayList.array.u.
+End FixingPolymorphism.
+
 (** This project is based on the [itree] type.  This type is useful
   to define all the program’s effects, but in some context doesn’t
   behave well with coercions.
