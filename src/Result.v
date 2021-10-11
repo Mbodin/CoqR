@@ -75,14 +75,14 @@ Inductive WGlobal : Type -> Type :=
   | wtype2Table : ArrayList.array Type2Table_type -> WGlobal Type2Table_type
   .
 
-(** ** State **)
+(** ** Heap **)
 
 (** Events for the state: allocation, reading, and writing. **)
 
-Inductive EState : Type -> Type :=
-  | alloc_sexp : SExpRec -> EState unit
-  | read_sexp : SEXP -> EState SExpRec
-  | write_sexp : SEXP -> SExpRec -> EState unit
+Inductive EHeap : Type -> Type :=
+  | alloc_sexp : SExpRec -> EHeap unit
+  | read_sexp : SEXP -> EHeap SExpRec
+  | write_sexp : SEXP -> SExpRec -> EHeap unit
   .
 
 (** ** [FUNTAB] **)
@@ -166,19 +166,19 @@ End FixingPolymorphism.
   usage cases, each being in a separate use-case of R functions:
   - R ([RGlobal]): the minimum level, only able to read global variables.
   - RE ([RGlobal +' Error]): as above, but are also allowed to fail.
-  - RS ([RGlobal +' EState]): the level of most R functions that can’t fail:
+  - RH ([RGlobal +' EHeap]): the level of most R functions that can’t fail:
     they read global variables as well as manipulate the C heap.
-  - RSE ([RGlobal +' EState +' Error]): as above, but are also allowed to
+  - RHE ([RGlobal +' EHeap +' Error]): as above, but are also allowed to
     fail.
-  - RSFE ([RGlobal +' EState +' Funtab +' Error]): the level of most R
+  - RHFE ([RGlobal +' EHeap +' Funtab +' Error]): the level of most R
     functions: they read global variables, manipulate the C heap, can call
     functions in the [FUNTAB] array, and fail.
-  - RWS ([RGlobal +' WGlobal +' EState]): the level of some internal
-    functions in [Rinit].
-  - RSFJE ([RGlobal +' EState +' Funtab +' LongJump +' Error]): the level
+  - RHFJE ([RGlobal +' EHeap +' Funtab +' LongJump +' Error]): the level
     of some rare functions based on long jump, as well as the level of the
     functions in the [FUNTAB] array.
-  - RWSFJE ([RGlobal +' WGlobal +' EState +' Funtab +' LongJump +' Error]):
+  - RWH ([RGlobal +' WGlobal +' EHeap]): the level of some internal
+    functions in [Rinit].
+  - RWHFJE ([RGlobal +' WGlobal +' EHeap +' Funtab +' LongJump +' Error]):
     the maximum level in which all events are allowed to live in.
   These levels are designed such that the information about what the function
   is allowed to do is embedded in its type: a function in the RE level can’t
@@ -193,120 +193,140 @@ End FixingPolymorphism.
 
 Definition cR T := itree RGlobal T.
 Definition cRE T := itree (RGlobal +' Error) T.
-Definition cRS T := itree (RGlobal +' EState) T.
-Definition cRSE T := itree (RGlobal +' EState +' Error) T.
-Definition cRSFE T := itree (RGlobal +' EState +' Funtab +' Error) T.
-Definition cRWS T := itree (RGlobal +' WGlobal +' EState) T.
-Definition cRSFJE T := itree (RGlobal +' EState +' Funtab +' LongJump +' Error) T.
-Definition cRWSFJE T := itree (RGlobal +' WGlobal +' EState +' Funtab +' LongJump +' Error) T.
+Definition cRH T := itree (RGlobal +' EHeap) T.
+Definition cRHE T := itree (RGlobal +' EHeap +' Error) T.
+Definition cRHFE T := itree (RGlobal +' EHeap +' Funtab +' Error) T.
+Definition cRHFJE T := itree (RGlobal +' EHeap +' Funtab +' LongJump +' Error) T.
+Definition cRWH T := itree (RGlobal +' WGlobal +' EHeap) T.
+Definition cRWHFJE T := itree (RGlobal +' WGlobal +' EHeap +' Funtab +' LongJump +' Error) T.
 
 Instance Monad_cR : Monad cR := Monad_itree.
 Instance Monad_cRE : Monad cRE := Monad_itree.
-Instance Monad_cRS : Monad cRS := Monad_itree.
-Instance Monad_cRSE : Monad cRSE := Monad_itree.
-Instance Monad_cRSFE : Monad cRSE := Monad_itree.
-Instance Monad_cRWS : Monad cRWS := Monad_itree.
-Instance Monad_cRSFJE : Monad cRSFJE := Monad_itree.
-Instance Monad_cRWSFJE : Monad cRWSFJE := Monad_itree.
+Instance Monad_cRH : Monad cRH := Monad_itree.
+Instance Monad_cRHE : Monad cRHE := Monad_itree.
+Instance Monad_cRHFE : Monad cRHE := Monad_itree.
+Instance Monad_cRHFJE : Monad cRHFJE := Monad_itree.
+Instance Monad_cRWH : Monad cRWH := Monad_itree.
+Instance Monad_cRWHFJE : Monad cRWHFJE := Monad_itree.
 
 Definition cR_bool := cR bool.
 Definition cRE_bool := cRE bool.
-Definition cRS_bool := cRS bool.
-Definition cRSE_bool := cRSE bool.
-Definition cRSFE_bool := cRSFE bool.
-Definition cRWS_bool := cRWS bool.
-Definition cRSFJE_bool := cRSFJE bool.
-Definition cRWSFJE_bool := cRWSFJE bool.
+Definition cRH_bool := cRH bool.
+Definition cRHE_bool := cRHE bool.
+Definition cRHFE_bool := cRHFE bool.
+Definition cRHFJE_bool := cRHFJE bool.
+Definition cRWH_bool := cRWH bool.
+Definition cRWHFJE_bool := cRWHFJE bool.
 
 Definition cR_SEXP := cR SEXP.
 Definition cRE_SEXP := cRE SEXP.
-Definition cRS_SEXP := cRS SEXP.
-Definition cRSE_SEXP := cRSE SEXP.
-Definition cRSFE_SEXP := cRSFE SEXP.
-Definition cRWS_SEXP := cRWS SEXP.
-Definition cRSFJE_SEXP := cRSFJE SEXP.
-Definition cRWSFJE_SEXP := cRWSFJE SEXP.
+Definition cRH_SEXP := cRH SEXP.
+Definition cRHE_SEXP := cRHE SEXP.
+Definition cRHFE_SEXP := cRHFE SEXP.
+Definition cRHFJE_SEXP := cRHFJE SEXP.
+Definition cRWH_SEXP := cRWH SEXP.
+Definition cRWHFJE_SEXP := cRWHFJE SEXP.
 
 Definition cR_cRE : forall T, cR T -> cRE T := fun _ => embed.
 Coercion cR_cRE_bool := @cR_cRE bool : cR_bool -> cRE_bool.
 Coercion cR_cRE_SEXP := @cR_cRE SEXP : cR_SEXP -> cRE_SEXP.
 
-Definition cR_cRS : forall T, cR T -> cRS T := fun _ => embed.
-Coercion cR_cRS_bool := @cR_cRS bool : cR_bool -> cRS_bool.
-Coercion cR_cRS_SEXP := @cR_cRS SEXP : cR_SEXP -> cRS_SEXP.
+Definition cR_cRH : forall T, cR T -> cRH T := fun _ => embed.
+Coercion cR_cRH_bool := @cR_cRH bool : cR_bool -> cRH_bool.
+Coercion cR_cRH_SEXP := @cR_cRH SEXP : cR_SEXP -> cRH_SEXP.
 
-Definition cRE_cRSE : forall T, cRE T -> cRSE T := fun _ => embed.
-Coercion cRE_cRSE_bool := @cRE_cRSE bool : cRE_bool -> cRSE_bool.
-Coercion cRE_cRSE_SEXP := @cRE_cRSE SEXP : cRE_SEXP -> cRSE_SEXP.
+Definition cRE_cRHE : forall T, cRE T -> cRHE T := fun _ => embed.
+Coercion cRE_cRHE_bool := @cRE_cRHE bool : cRE_bool -> cRHE_bool.
+Coercion cRE_cRHE_SEXP := @cRE_cRHE SEXP : cRE_SEXP -> cRHE_SEXP.
 
 (** The following coercion technically introduce a warning, but it is
-  a benign one, as shown by the lemmas
-  [ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP] and
-  [ambiguous_coercion_cR_cRS_cRE_CRSE_bool] below.  We thus temporary
-  disable the notation warning there. **)
+  a benign one, as shown by the lemmas [ambiguous_coercion_cR_cRHE*]
+  below.  We thus temporary disable the notation warning there. **)
 Local Set Warnings "-ambiguous-paths".
-
-Definition cRS_cRSE : forall T, cRS T -> cRSE T := fun _ => embed.
-Coercion cRS_cRSE_bool := @cRS_cRSE bool : cRS_bool -> cRSE_bool.
-Coercion cRS_cRSE_SEXP := @cRS_cRSE SEXP : cRS_SEXP -> cRSE_SEXP.
-
+Definition cRH_cRHE : forall T, cRH T -> cRHE T := fun _ => embed.
+Coercion cRH_cRHE_bool := @cRH_cRHE bool : cRH_bool -> cRHE_bool.
+Coercion cRH_cRHE_SEXP := @cRH_cRHE SEXP : cRH_SEXP -> cRHE_SEXP.
 Local Set Warnings "ambiguous-paths". (** Setting the warning again. **)
 
-Definition cRSE_cRSFE : forall T, cRSE T -> cRSFE T := fun _ => embed.
-Coercion cRSE_cRSFE_bool := @cRSE_cRSFE bool : cRSE_bool -> cRSFE_bool.
-Coercion cRSE_cRSFE_SEXP := @cRSE_cRSFE SEXP : cRSE_SEXP -> cRSFE_SEXP.
+Definition cRHE_cRHFE : forall T, cRHE T -> cRHFE T := fun _ => embed.
+Coercion cRHE_cRHFE_bool := @cRHE_cRHFE bool : cRHE_bool -> cRHFE_bool.
+Coercion cRHE_cRHFE_SEXP := @cRHE_cRHFE SEXP : cRHE_SEXP -> cRHFE_SEXP.
 
-Definition cRS_cRWS : forall T, cRS T -> cRWS T := fun _ => embed.
-Coercion cRS_cRWS_bool := @cRS_cRWS bool : cRS_bool -> cRWS_bool.
-Coercion cRS_cRWS_SEXP := @cRS_cRWS SEXP : cRS_SEXP -> cRWS_SEXP.
+Definition cRHFE_cRHFJE : forall T, cRHFE T -> cRHFJE T := fun _ => embed.
+Coercion cRHFE_cRHFJE_bool := @cRHFE_cRHFJE bool : cRHFE_bool -> cRHFJE_bool.
+Coercion cRHFE_cRHFJE_SEXP := @cRHFE_cRHFJE SEXP : cRHFE_SEXP -> cRHFJE_SEXP.
 
-Definition cRSFE_cRSFJE : forall T, cRSFE T -> cRSFJE T := fun _ => embed.
-Coercion cRSFE_cRSFJE_bool := @cRSFE_cRSFJE bool : cRSFE_bool -> cRSFJE_bool.
-Coercion cRSFE_cRSFJE_SEXP := @cRSFE_cRSFJE SEXP : cRSFE_SEXP -> cRSFJE_SEXP.
+Definition cRH_cRWH : forall T, cRH T -> cRWH T := fun _ => embed.
+Coercion cRH_cRWH_bool := @cRH_cRWH bool : cRH_bool -> cRWH_bool.
+Coercion cRH_cRWH_SEXP := @cRH_cRWH SEXP : cRH_SEXP -> cRWH_SEXP.
 
-Definition cRSFJE_cRWSFJE : forall T, cRSFJE T -> cRWSFJE T := fun _ => embed.
-Coercion cRSJE_cRWSFJE_bool := @cRSFJE_cRWSFJE bool : cRSFJE_bool -> cRWSFJE_bool.
-Coercion cRSJE_cRWSFJE_SEXP := @cRSFJE_cRWSFJE SEXP : cRSFJE_SEXP -> cRWSFJE_SEXP.
+Definition cRWH_cRWHFJE : forall T, cRWH T -> cRWHFJE T := fun _ => embed.
+Coercion cRWH_cRWHFJE_bool := @cRWH_cRWHFJE bool : cRWH_bool -> cRWHFJE_bool.
+Coercion cRWH_cRWHFJE_SEXP := @cRWH_cRWHFJE SEXP : cRWH_SEXP -> cRWHFJE_SEXP.
 
+(** As above, an ambiguous path is created, but it is a benign one, as shown by the lemmas
+  [ambiguous_coercion_cRH_cRWHFJE*] below. **)
+Local Set Warnings "-ambiguous-paths".
+Definition cRHFJE_cRWHFJE : forall T, cRHFJE T -> cRWHFJE T := fun _ => embed.
+Coercion cRHFJE_cRWHFJE_bool := @cRHFJE_cRWHFJE bool : cRHFJE_bool -> cRWHFJE_bool.
+Coercion cRHFJE_cRWHFJE_SEXP := @cRHFJE_cRWHFJE SEXP : cRHFJE_SEXP -> cRWHFJE_SEXP.
+Local Set Warnings "ambiguous-paths". (** Setting the warning again. **)
 
 (** Some coercions above introduced ambiguous pathes, which we prove
   to not change the result. **)
 
-Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_SEXP : forall e,
-  cRS_cRSE_SEXP (cR_cRS_SEXP e) ≅ cRE_cRSE_SEXP (cR_cRE_SEXP e).
+Lemma ambiguous_coercion_cR_CRHE : forall T (e : cR T),
+  cRH_cRHE (cR_cRH e) ≅ cRE_cRHE (cR_cRE e).
 Proof.
-  intros.
-  unfolds cRS_cRSE_SEXP, cRS_cRSE. unfolds cR_cRS_SEXP, cR_cRS.
-  unfolds cR_cRE_SEXP, cR_cRE. unfolds cRE_cRSE_SEXP, cRE_cRSE.
+  intros. unfolds cRH_cRHE, cR_cRH, cRE_cRHE, cR_cRE.
   repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
   do 2 rewrite <- translate_cmpE. reflexivity.
 Qed.
 
-Lemma ambiguous_coercion_cR_cRS_cRE_CRSE_bool : forall b,
-  cRS_cRSE_bool (cR_cRS_bool b) ≅ cRE_cRSE_bool (cR_cRE_bool b).
+Lemma ambiguous_coercion_cR_CRHE_SEXP : forall e,
+  cRH_cRHE_SEXP (cR_cRH_SEXP e) ≅ cRE_cRHE_SEXP (cR_cRE_SEXP e).
+Proof. apply ambiguous_coercion_cR_CRHE. Qed.
+
+Lemma ambiguous_coercion_cR_CRHE_bool : forall b,
+  cRH_cRHE_bool (cR_cRH_bool b) ≅ cRE_cRHE_bool (cR_cRE_bool b).
+Proof. apply ambiguous_coercion_cR_CRHE. Qed.
+
+Lemma ambiguous_coercion_cRH_cRWHJE : forall T (e : cRH T),
+  cRHFJE_cRWHFJE (cRHFE_cRHFJE (cRHE_cRHFE (cRH_cRHE e))) ≅ cRWH_cRWHFJE (cRH_cRWH e).
 Proof.
-  intros.
-  unfolds cRS_cRSE_bool, cRS_cRSE. unfolds cR_cRS_bool, cR_cRS.
-  unfolds cR_cRE_bool, cR_cRE. unfolds cRE_cRSE_bool, cRE_cRSE.
+  intros. unfolds cRHFJE_cRWHFJE, cRHFE_cRHFJE, cRHE_cRHFE, cRH_cRHE, cRWH_cRWHFJE, cRH_cRWH.
   repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
-  do 2 rewrite <- translate_cmpE. reflexivity.
+  repeat rewrite <- translate_cmpE.
+  lazymatch goal with |- translate ?f _ ≅ translate ?g _ => asserts E: (f = g) end.
+  { clear. extens. intros T e. destruct~ e. }
+  rewrite E. reflexivity.
 Qed.
+
+Lemma ambiguous_coercion_cRH_cRWHJE_SEXP : forall e,
+  cRHFJE_cRWHFJE_SEXP (cRHFE_cRHFJE_SEXP (cRHE_cRHFE_SEXP (cRH_cRHE_SEXP e)))
+  ≅ cRWH_cRWHFJE_SEXP (cRH_cRWH_SEXP e).
+Proof. apply ambiguous_coercion_cRH_cRWHJE. Qed.
+
+Lemma ambiguous_coercion_cRH_cRWHJE_bool : forall e,
+  cRHFJE_cRWHFJE_bool (cRHFE_cRHFJE_bool (cRHE_cRHFE_bool (cRH_cRHE_bool e)))
+  ≅ cRWH_cRWHFJE_bool (cRH_cRWH_bool e).
+Proof. apply ambiguous_coercion_cRH_cRWHJE. Qed.
 
 
 Instance cRE_Inhab : forall A, Inhab (cRE A) :=
   fun _ => Inhab_of_val (trigger (impossible "[arbitrary]")).
 
-Instance cRSE_Inhab : forall A, Inhab (cRSE A) :=
-  fun _ => Inhab_of_val (cRE_cRSE arbitrary).
+Instance cRHE_Inhab : forall A, Inhab (cRHE A) :=
+  fun _ => Inhab_of_val (cRE_cRHE arbitrary).
 
-Instance cRSFE_Inhab : forall A, Inhab (cRSFE A) :=
-  fun _ => Inhab_of_val (cRSE_cRSFE arbitrary).
+Instance cRHFE_Inhab : forall A, Inhab (cRHFE A) :=
+  fun _ => Inhab_of_val (cRHE_cRHFE arbitrary).
 
-Instance cRSFJE_Inhab : forall A, Inhab (cRSFJE A) :=
-  fun _ => Inhab_of_val (cRSFE_cRSFJE arbitrary).
+Instance cRHFJE_Inhab : forall A, Inhab (cRHFJE A) :=
+  fun _ => Inhab_of_val (cRHFE_cRHFJE arbitrary).
 
-Instance cRWSFJE_Inhab : forall A, Inhab (cRWSFJE A) :=
-  fun _ => Inhab_of_val (cRSFJE_cRWSFJE arbitrary).
+Instance cRWHFJE_Inhab : forall A, Inhab (cRWHFJE A) :=
+  fun _ => Inhab_of_val (cRHFJE_cRWHFJE arbitrary).
 
 
 Open Scope monad_scope.
@@ -383,7 +403,7 @@ Definition funtab_function :=
   SEXP -> (** op **)
   SEXP -> (** args **)
   SEXP -> (** rho **)
-  cRSFJE SEXP.
+  cRHFJE SEXP.
 
 (** The [FUNTAB] is then an array of such functions, with some
   additional meta-data, like the function name: **)
