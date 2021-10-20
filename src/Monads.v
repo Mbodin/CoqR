@@ -35,7 +35,7 @@ Definition get_state A (cont : state -> contextual A) : contextual A :=
   fun globals S => cont S globals S.
 
 (** Getting the current state. **)
-Notation "'get%state' S 'in' cont" :=
+Notation "'get%state' S 'in' cont" := (* Unused in core/features *)
   (get_state (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -43,7 +43,7 @@ Notation "'get%state' S 'in' cont" :=
 Definition set_state A S (cont : contextual A) : contextual A :=
   fun globals _ => cont globals S.
 
-Notation "'set%state' S 'in' cont" :=
+Notation "'set%state' S 'in' cont" := (* Unused in core/features *)
   (set_state S cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -53,8 +53,8 @@ Definition map_state A (f : state -> state) (cont : contextual A) : contextual A
   set%state f S in
   cont.
 
-Notation "'map%state' S 'in' cont" :=
-  (map_state S cont)
+Notation "'map%state' f 'in' cont" := (* Used in core/features with f := state_with_contect, update_R_ExitContext, update_R_ReturnedValue, update_R_SymbolTable, update_R_Connections. *)
+  (map_state f cont)
   (at level 50, left associativity) : monad_scope.
 
 (** Extract a state componenent. **)
@@ -62,7 +62,7 @@ Definition read_state A B (f : state -> A) (cont : A -> contextual B) : contextu
   get%state S in
   cont (f S).
 
-Notation "'read%state' a ':=' f 'in' cont" :=
+Notation "'read%state' a ':=' f 'in' cont" := (* Used in core/features, but only to read global variables *)
   (read_state f (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -131,7 +131,7 @@ Ltac normalise t :=
 Ltac get_expected_type cont :=
   lazymatch goal with |- ?ty => cont ty end.
 
-Notation "'normalise%' t" :=
+Notation "'normalise%' t" := (* Unused in core/features *)
   (ltac:(get_expected_type ltac:(fun ty => normalise (t : ty))))
   (at level 50, no associativity, only parsing) : monad_scope.
 
@@ -196,7 +196,7 @@ Notation "'ifc' b 'then' v1 'else' v2" :=
 Definition get_contextual A B (e : contextual A) (cont : A -> contextual B) : contextual B :=
   fun globals S => cont (e globals S) globals S.
 
-Notation "'let%fetch' a 'in' cont" :=
+Notation "'let%fetch' a 'in' cont" := (* Used in core, but only on the parts that I freshly updated to take [contextual] as argument. *)
   (get_contextual a (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -254,7 +254,7 @@ Ltac make_contextual t :=
   | _ => normalise (contextual_ret t)
   end.
 
-Notation "'contextual%' t" :=
+Notation "'contextual%' t" := (* Unused in core/features. *)
   (ltac:(make_contextual t))
   (at level 35, only parsing) : monad_scope.
 
@@ -265,7 +265,7 @@ Definition get_globals A (cont : Globals -> contextual A) : contextual A :=
   fun globals => cont globals globals.
 
 (** Getting the current state of global variables. **)
-Notation "'get%globals' S 'in' cont" :=
+Notation "'get%globals' S 'in' cont" := (* Used on once in core, and it was to read an eelement of [Type2Table]. *)
   (get_globals (fun S => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -277,7 +277,7 @@ Notation "'get%globals' S 'in' cont" :=
 Definition set_globals A globals (cont : contextual A) : contextual A :=
   fun _ => cont globals.
 
-Notation "'set%globals' globals 'in' cont" :=
+Notation "'set%globals' globals 'in' cont" := (* Used only once, and in Rinit. *)
   (set_globals globals cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -286,7 +286,7 @@ Definition map_globals A f (cont : contextual A) : contextual A :=
   set%globals f globals in
   cont.
 
-Notation "'map%globals' f 'in' cont" :=
+Notation "'map%globals' f 'in' cont" := (* Used once to update [Type2Table], and another to flatten the global variables. *)
   (map_globals f cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -296,7 +296,7 @@ Definition write_globals A C (p : _SEXP) (cont : contextual A) : contextual A :=
   map%globals fun globals => {{ globals with C := p }} in
   cont.
 
-Notation "'write%globals' C ':=' p 'in' cont" :=
+Notation "'write%globals' C ':=' p 'in' cont" := (* Only used in Rinit. *)
   (write_globals C p cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -305,7 +305,7 @@ Definition write_globals_list A (L : list (_ * _SEXP)) (cont : contextual A) : c
   map%globals fun globals => {{ globals with L }} in
   cont.
 
-Notation "'write%globals' L 'in' cont" :=
+Notation "'write%globals' L 'in' cont" := (* Only used in Rinit. *)
   (write_globals_list L cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -341,7 +341,7 @@ Notation "'add%stack%' fname 'in' cont" :=
   (add_stack fname cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'add%stack' fname 'in' cont" :=
+Notation "'add%stack' fname 'in' cont" := (* Used everywhere. *)
   (normalise% (add%stack% fname in cont))
   (at level 50, left associativity, only parsing) : monad_scope.
 
@@ -370,7 +370,7 @@ Definition if_success (A B : Type) (r : result A) (f : A -> result B) : result B
 
 (** We provide the [let%success] notation.  It takes a result and evaluate it.
   Some tuple notations are accepted for convenience. **)
-Notation "'let%success' a ':=' r 'in' cont" :=
+Notation "'let%success' a ':=' r 'in' cont" := (* Used everywhere *)
   (if_success r (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -432,7 +432,7 @@ Definition if_success_defined := if_success_defined_msg "".
 
 (** Similar to [let%success], the [let%defined] notation takes an option type.
   Some tuple notations also have been defined for convenience. **)
-Notation "'let%defined' a ':=' o 'in' cont" :=
+Notation "'let%defined' a ':=' o 'in' cont" := (* Used to deal with [nth_option], with [interpret_open/close/destroy/print/flush], [context_nextcontext], and [get_VecSxp_length]. *)
   (if_defined o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -456,7 +456,7 @@ Notation "'let%defined' '(' a1 ',' a2 ',' a3 ',' a4 ',' a5 ')' ':=' o 'in' cont"
    let '(a1, a2, a3, a4, a5) := x in cont)
   (at level 50, left associativity) : monad_scope.
 
-Notation "'let%success%defined' a ':=' o 'in' cont" :=
+Notation "'let%success%defined' a ':=' o 'in' cont" := (* Unused in core/features. *)
   (if_success_defined o (fun a => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -545,7 +545,7 @@ Definition write_defined A (p : _SEXP) p_ (cont : result A) :=
 
 (** The notation [write%defined p := p_] writes the object [p_] in the
   place given by the pointer [p]. **)
-Notation "'write%defined' p ':=' p_ 'in' cont" :=
+Notation "'write%defined' p ':=' p_ 'in' cont" := (* Used in core/features, but a surprisingly little number of times (most use [write%Logical/Integer/Real/etc.]. *)
   (write_defined p p_ cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -554,7 +554,7 @@ Definition write_defined_contextual A p p_ (cont : result A) :=
   write%defined p := p_ in
   cont.
 
-Notation "'write%defined%contextual' p ':=' p_ 'in' cont" :=
+Notation "'write%defined%contextual' p ':=' p_ 'in' cont" := (* Used only once in core. *)
   (write_defined_contextual p p_ cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -565,7 +565,7 @@ Definition read_defined A (p : _SEXP) (cont : SExpRec -> result A) :=
 
 (** The notation [read%defined p_ := p] reads the object pointer by [p],
   giving it the name [p_]. **)
-Notation "'read%defined' p_ ':=' p 'in' cont" :=
+Notation "'read%defined' p_ ':=' p 'in' cont" := (* Used in the files of core I updated to take [contextual] as arguments. *)
   (read_defined p (fun p_ => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -576,7 +576,7 @@ Definition let_alloc A p_ cont : contextual A :=
   cont p.
 
 (** Allocates a new memory cell. **)
-Notation "'let%alloc' p ':=' p_ 'in' cont" :=
+Notation "'let%alloc' p ':=' p_ 'in' cont" := (* Used in Rinit. *)
   (let_alloc p_ (fun p => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -585,7 +585,7 @@ Definition let_alloc_contextual A p_ cont : contextual A :=
   let%alloc p := p_ in
   cont p.
 
-Notation "'let%alloc%contextual' p ':=' p_ 'in' cont" :=
+Notation "'let%alloc%contextual' p ':=' p_ 'in' cont" := (* Used in core. *)
   (let_alloc_contextual p_ (fun p => cont))
   (at level 50, left associativity) : monad_scope.
 
@@ -595,7 +595,7 @@ Notation "'let%alloc%contextual' p ':=' p_ 'in' cont" :=
 (** The monadic binder [run%success] is equivalent to [let%success],
   but doesn’t bind any new term.  This is practical when we only care
   of the side-effects of an imperative function, but not its result. **)
-Notation "'run%success' c 'in' cont" :=
+Notation "'run%success' c 'in' cont" := (* Used everywhere *)
   (let%success _ := c in cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -611,7 +611,7 @@ Definition if_then_else_success A (b : result bool) c1 c2 : result A :=
   let%success b := b in
   if b then c1 else c2.
 
-Notation "'if%success' b 'then' c1 'else' c2" :=
+Notation "'if%success' b 'then' c1 'else' c2" := (* Used everywhere *)
   (if_then_else_success b c1 c2)
   (at level 50, left associativity) : monad_scope.
 
@@ -634,14 +634,14 @@ Notation "'if%success' b 'then' c 'in' cont" :=
 Definition if_then_else_contextual A (b : _bool) c1 c2 : result A :=
   if%success contextual_result b then c1 else c2.
 
-Notation "'if%contextual' b 'then' c1 'else' c2" :=
+Notation "'if%contextual' b 'then' c1 'else' c2" := (* Unused in core/features. *)
   (if_then_else_contextual b c1 c2)
   (at level 50, left associativity) : monad_scope.
 
 Definition if_then_contextual A (b : _bool) c cont : result A :=
   if%success contextual_result b then c in cont.
 
-Notation "'if%contextual' b 'then' c 'in' cont" :=
+Notation "'if%contextual' b 'then' c 'in' cont" := (* Unused in core/features. *)
   (if_then_contextual b c cont)
   (at level 50, left associativity) : monad_scope.
 
@@ -657,7 +657,7 @@ Definition if_option_defined A B (c : result (option A)) cont_then cont_else : r
   | None => cont_else
   end.
 
-Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" :=
+Notation "'if%defined' ans ':=' c 'then' cont_then 'else' cont_else" := (* Used with [RemoveFromList] and [DispatchGroup], functions that were translated from being imperative to returning an [option] type. *)
   (if_option_defined c (fun ans => cont_then) cont_else)
   (at level 50, left associativity) : monad_scope.
 

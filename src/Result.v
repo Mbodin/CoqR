@@ -18,7 +18,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA *)
 
 Set Implicit Arguments.
-Set Universe Polymorphism.
 From CoqR Require Import Rinternals State InternalTypes Globals.
 From ExtLib Require Structures.Monad.
 From ITree Require Export ITree.
@@ -152,12 +151,9 @@ Inductive LongJump : Type -> Type :=
 
 (** * Contextual Types **)
 
-Unset Universe Polymorphism.
-
-(* FIXME: This looks like a bug: adding the following line solves the universe inconsistency! *)
-Section FixingPolymorphism.
+Section UniverseHelp. (* See https://github.com/coq/coq/issues/15049 *)
 Constraint itreeF.u1 < ArrayList.array.u.
-End FixingPolymorphism.
+End UniverseHelp.
 
 (** This project is based on the [itree] type.  This type is useful
   to define all the program’s effects, but in some context doesn’t
