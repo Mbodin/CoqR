@@ -32,7 +32,7 @@
 		"coq-paco": "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
 		"@opam/extlib": "*",
 		"@opam/bisect": "*",
-		"coq-prelude": "github:Mbodin/coq-prelude#f4a63ff15337a6edd69923b88440d78e8e1c7a2f",
+		"coq-prelude": "github:Mbodin/coq-prelude#29cdfa7fa87564209594435ed37d9db77d2875ca",
 		"tlc": "*",
 		"coq-itree": "github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0",
 		"coq-ext-lib": "*"
