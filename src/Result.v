@@ -48,7 +48,7 @@ Proof. reflexivity. Qed.
 
 (** * Event types **)
 
-(** This developpment is based on [itree]s.
+(** This development is based on [itree]s.
   In this framework, we have to define a set of events needed to define our semantics. **)
 
 (** ** Globals **)
@@ -147,6 +147,91 @@ Inductive LongJump : Type -> Type :=
   | longjump [T] : nat -> context_type -> LongJump T
   (** the program yielded a call to [LONGJMP] with the provided arguments. **)
   .
+
+
+(** * Event Descriptors **)
+
+(** Given the events defined in the previous section, one could imagine
+  joining all these events in a single type [RGlobal +' WGlobal +' …].
+  However, this would tell us very few information about what each
+  function actually do.
+  Instead, we would like to have some kind of minimal set of events.
+  For instance, most function never update the value of any global variable:
+  the event [WGlobal] should preferably not be present in the type of
+  such functions.
+  Inferring this minimal set is not trivial in general without having to add
+  a lot of annotations or using some kind of meta-programming (typically, Ltac).
+  Typically, Coq doesn’t provide a mechanism to infer that an expression of the
+  form [if _ then a else b] should have some kind of union type between the type
+  of [a] and the type of [b] (and for good reasons).
+  However, we are here in the presence of a lattice of types, and this can be
+  circumvented. **)
+
+(** We first define an event descriptor, that state for each kind of events
+  whether it can be triggerred by a given function. **)
+Record event_descriptor := make_event_descriptor {
+    dRGlobal : bool ;
+    dWGlobal : bool ;
+    dEHeap : bool ;
+    dFuntab : bool ;
+    dError : bool ;
+    dLongJump : bool ;
+  }.
+
+(** The correspondances between the fields of [event_descriptor] and events,
+  mainly for automation purposes. **)
+Definition event_descriptor_correspondance := [
+    (dRGlobal, RGlobal) ;
+    (dWGlobal, WGlobal) ;
+    (dEHeap, EHeap) ;
+    (dFuntab, Funtab) ;
+    (dError, Error) ;
+    (dLongJump, LongJump) ;
+  ].
+
+(** [event d] is the event type corresponding to the event descriptor [d]. **)
+Definition event d :=
+  fold_left (fun T '(dE, E) => if dE d then E else void1) void1
+  event_descriptor_correspondance.
+
+Ltac build_merge op :=
+  intros d1 d2;
+  destruct d1 eqn: E1; destruct d2 eqn: E2;
+  lazymatch type of E1 with
+  | _ = ?v1 =>
+    lazymatch type of E2 with
+    | _ = ?v2 =>
+      let rec g ctx v1 v2 :=
+        lazymatch v1 with
+        | make_event_descriptor => ctx make_event_descriptor
+        | ?v1' ?b1 =>
+          lazymatch v2 with
+          | ?v2' ?b2 =>
+            g (fun f => ctx f (op b1 b2)) v1' v2'
+          end
+        end
+      in
+      g (@id (bool -> event_descriptor)) v1 v2
+    end
+  end.
+
+Definition join_descr : event_descriptor -> event_descriptor -> event_descriptor :=
+  ltac:(build_merge (fun b1 b2 => b1 || b2)).
+
+Definition meet_descr : event_descriptor -> event_descriptor -> event_descriptor :=
+  ltac:(build_merge (fun b1 b2 => b1 && b2)).
+
+Definition empty_descr : event_descriptor :=
+  ltac:(constructor; exact false).
+
+(* TODO *)
+Definition merge : forall d1 d2, event d1 -> event d2 -> event (merge_descr d1 d2).
+
+Definition if_then_else : forall d1 d2 R, itree (event d1) R -> itree (event d2) R -> itree (event (merge_descr d1 d2)) R.
+
+Definition read : global_variable -> itree event_read SEXP.
+
+Definition return : forall R, itree (event empty_descr) R.
 
 
 (** * Contextual Types **)
