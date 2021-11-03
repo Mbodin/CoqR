@@ -53,6 +53,8 @@ Proof. reflexivity. Qed.
 
 (** ** Globals **)
 
+Universe r. (** We force each event kind to return in the same universe. **)
+
 (** Events to manipulate global variables. **)
 
 (** As most functions of the formalism only read global variables,
@@ -64,12 +66,12 @@ Proof. reflexivity. Qed.
   possible to formally prove that as soon as only reading events are
   used, global variables don’t change values. **)
 
-Inductive RGlobal : Type -> Type :=
+Inductive RGlobal : Type -> Type@{r} :=
   | rglobal : GlobalVariable -> RGlobal SEXP
   | type2Table : SExpType -> RGlobal Type2Table_type
   .
 
-Inductive WGlobal : Type -> Type :=
+Inductive WGlobal : Type -> Type@{r} :=
   | wglobal : GlobalVariable -> SEXP -> WGlobal SEXP
   | wtype2Table : ArrayList.array Type2Table_type -> WGlobal Type2Table_type
   .
@@ -78,7 +80,7 @@ Inductive WGlobal : Type -> Type :=
 
 (** Events for the state: allocation, reading, and writing. **)
 
-Inductive EHeap : Type -> Type :=
+Inductive EHeap : Type -> Type@{r} :=
   | alloc_sexp : SExpRec -> EHeap unit
   | read_sexp : SEXP -> EHeap SExpRec
   | write_sexp : SEXP -> SExpRec -> EHeap unit
@@ -95,7 +97,7 @@ Inductive EHeap : Type -> Type :=
   to the [call], [op], [args], and [rho] parameters of each functions.
   The most important is [args], which is an R list of arguments. **)
 
-Inductive Funtab : Type -> Type :=
+Inductive Funtab : Type -> Type@{r} :=
   | call_funtab :
     SEXP -> (** call **)
     SEXP -> (** op **)
@@ -111,7 +113,7 @@ Inductive Funtab : Type -> Type :=
 
 (** Erroneous events break the control-flow, halting the execution. **)
 
-Inductive Error : Type -> Type :=
+Inductive Error : Type -> Type@{r} :=
   | error [T] : string -> Error T
   (** The program yielded an error described by the provided message.
     This error is not guaranteed not to happen. **)
@@ -143,7 +145,7 @@ Inductive Error : Type -> Type :=
   without checking whether [e] actually maps to a valid object), the
   Coq interpreter will return [impossible]. **)
 
-Inductive LongJump : Type -> Type :=
+Inductive LongJump : Type -> Type@{r} :=
   | longjump [T] : nat -> context_type -> LongJump T
   (** the program yielded a call to [LONGJMP] with the provided arguments. **)
   .
@@ -151,24 +153,30 @@ Inductive LongJump : Type -> Type :=
 
 (** * Event Descriptors **)
 
+Module EventDescriptor.
+
 (** Given the events defined in the previous section, one could imagine
   joining all these events in a single type [RGlobal +' WGlobal +' …].
-  However, this would tell us very few information about what each
-  function actually do.
-  Instead, we would like to have some kind of minimal set of events.
-  For instance, most function never update the value of any global variable:
-  the event [WGlobal] should preferably not be present in the type of
-  such functions.
+  This would however provide very few information about what each function
+  actually do.  Instead, we would like to have some kind of minimal set of
+  events associated to each function.  For instance, most function never
+  update the value of any global variable: the event [WGlobal] should
+  preferably not be present in the type of such functions.  Not having such
+  an event in the signature of a function ensures by type that this
+  function will never modify a global variable, thus helping proving
+  properties for this function.
+
   Inferring this minimal set is not trivial in general without having to add
   a lot of annotations or using some kind of meta-programming (typically, Ltac).
-  Typically, Coq doesn’t provide a mechanism to infer that an expression of the
-  form [if _ then a else b] should have some kind of union type between the type
-  of [a] and the type of [b] (and for good reasons).
-  However, we are here in the presence of a lattice of types, and this can be
-  circumvented. **)
+  For instance, Coq doesn’t provide a mechanism to infer that an expression of
+  the form [if _ then a else b] should have some kind of union type between the
+  type of [a] and the type of [b] (and for good reasons: such common larger
+  type may not exist or may not be unique).  We are however here in the presence
+  of a lattice of types, and this can be wroked with by explicitely defining
+  this lattice. **)
 
-(** We first define an event descriptor, that state for each kind of events
-  whether it can be triggerred by a given function. **)
+(** Event descriptor state for each kind of events whether it can be triggerred
+  by the associated function. **)
 Record event_descriptor := make_event_descriptor {
     dRGlobal : bool ;
     dWGlobal : bool ;
@@ -186,12 +194,64 @@ Definition event_descriptor_correspondance := [
     (dEHeap, EHeap) ;
     (dFuntab, Funtab) ;
     (dError, Error) ;
-    (dLongJump, LongJump) ;
+    (dLongJump, LongJump)
   ].
+
+(** Adding the definitions expected by [OrderedType]. **)
+Definition t := event_descriptor.
+
+Definition eq (d1 d2 : t) :=
+  Forall (fun '(dE, _) => dE d1 = dE d2) event_descriptor_correspondance.
+
+Global Instance Decidable_eq : forall d1 d2, Decidable (eq d1 d2).
+Proof.
+  intros d1 d2. unfolds eq.
+  (* This is frustrating: I can’t apply [Forall_Decidable] because of universe constraints here. *)
+  induction event_descriptor_correspondance as [|[dE ?] l].
+  - applys decidable_make true. rew_bool_eq. apply~ Forall_nil.
+  - applys Decidable_equiv (dE d1 = dE d2 /\ Forall (fun '(dE, _) => dE d1 = dE d2) l).
+    + iff F; inverts~ F. constructors~.
+    + typeclass.
+Defined.
+
+Lemma eq_refl : forall d, eq d d.
+Proof.
+  intro d. destruct d. unfolds.
+  repeat apply Forall_cons; (reflexivity || apply Forall_nil).
+Qed.
+  
+Lemma eq_sym : forall x y : t, eq x y -> eq y x.
+Proof.
+  intros d1 d2 F. destruct d1, d2. unfolds eq, event_descriptor_correspondance.
+  repeat (let E := fresh "E" in inverts F as E F; simpl in E).
+  repeat constructors; simpls~.
+Qed.
+
+Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
+Proof.
+  intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondance.
+  repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E).
+  repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E).
+  repeat constructors; substs~.
+Qed.
+
+Definition lt (d1 d2 : t) :=
+  Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) event_descriptor_correspondance.
+
+Lemma lt_trans : forall d1 d2 d3 : t, lt d1 d2 -> lt d2 d3 -> lt d1 d3.
+Proof.
+  intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondance.
+  repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  repeat constructors; simpl; rewrite decide_spec; rew_bool_eq~.
+Qed.
+
+Lemma lt_not_eq : forall d1 d2 : t, lt d1 d2 -> ~ eq d1 d2.
+Admitted.
 
 (** [event d] is the event type corresponding to the event descriptor [d]. **)
 Definition event d :=
-  fold_left (fun T '(dE, E) => if dE d then E else void1) void1
+  fold_left (fun '(dE, E) T => if (dE d : bool) then (E : Type -> Type@{r}) else void1) void1
   event_descriptor_correspondance.
 
 Ltac build_merge op :=
@@ -223,6 +283,8 @@ Definition meet_descr : event_descriptor -> event_descriptor -> event_descriptor
 
 Definition empty_descr : event_descriptor :=
   ltac:(constructor; exact false).
+
+End EventDescriptor.
 
 (* TODO *)
 Definition merge : forall d1 d2, event d1 -> event d2 -> event (merge_descr d1 d2).
