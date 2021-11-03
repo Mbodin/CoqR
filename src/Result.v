@@ -291,28 +291,32 @@ Definition event d : Type -> Type@{r} :=
   fold_left (fun '(dE, E) T => if (dE d : bool) then (E : Type -> Type@{r}) +' T else T) void1
     event_descriptor_correspondance.
 
+(** Mapping each component of two event descriptors. **)
 Definition map2 (f : bool -> bool -> bool) (d1 d2 : event_descriptor) : event_descriptor.
 Proof.
-  destruct d1 eqn: E1. destruct d2 eqn: E2.
-  lazymatch type of E1 with
-  | _ = ?v1 =>
-    lazymatch type of E2 with
-    | _ = ?v2 =>
-      let rec g ctx v1 v2 :=
-        lazymatch v1 with
-        | make_event_descriptor => exact (ctx make_event_descriptor)
-        | ?v1' ?b1 =>
-          lazymatch v2 with
-          | ?v2' ?b2 =>
-            g (fun f' => ctx f' (f b1 b2)) v1' v2'
-          end
-        end
-      in
-      let T := type of make_event_descriptor in
-      g (@id T) v1 v2
-    end
-  end.
+  let rec g acc l :=
+    lazymatch l with
+    | [] => exact acc
+    | (?dE, _) :: ?l => g (acc (f (dE d1) (dE d2))) l
+    end in
+  let l := eval compute in event_descriptor_correspondance in
+  g make_event_descriptor l.
 Defined.
+
+Lemma map2_assoc : forall f,
+  LibOperation.assoc f ->
+  LibOperation.assoc (map2 f).
+Proof. intros f Af d1 d2 d3. destruct d1, d2, d3; compute; fequals. Qed.
+
+Lemma map2_comm : forall f,
+  LibOperation.comm f ->
+  LibOperation.comm (map2 f).
+Proof. intros f Af d1 d2. destruct d1, d2; compute; fequals. Qed.
+
+Lemma map2_same : forall f,
+  LibOperation.idempotent2 f ->
+  LibOperation.idempotent2 (map2 f).
+Proof. intros f Af d. destruct d; compute; fequals. Qed.
 
 (** The [join] and [meet] operations of the lattice. **)
 
@@ -322,15 +326,113 @@ Definition join : event_descriptor -> event_descriptor -> event_descriptor :=
 Definition meet : event_descriptor -> event_descriptor -> event_descriptor :=
   map2 (fun b1 b2 => b1 && b2).
 
-(** The bottom of the lattice. **)
+Lemma join_assoc : LibOperation.assoc join.
+Proof. apply map2_assoc. apply or_assoc. Qed.
 
+Lemma join_comm : LibOperation.comm join.
+Proof. apply map2_comm. apply or_comm. Qed.
+
+Lemma join_same : LibOperation.idempotent2 join.
+Proof. apply map2_same. apply or_same. Qed.
+
+Lemma le_join : forall d1 d2,
+  le d1 d2 ->
+  join d1 d2 = d2.
+Proof.
+  introv F. destruct d1, d2.
+  repeat (let E := fresh "E" in inverts F as E F; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  fequals; lazymatch goal with |- ?b1 || ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
+Qed.
+
+Lemma join_le_l : forall d1 d2,
+  le d1 (join d1 d2).
+Proof.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; left~.
+Qed.
+
+Lemma join_le_r : forall d1 d2,
+  le d2 (join d1 d2).
+Proof.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; right~.
+Qed.
+
+Lemma meet_assoc : LibOperation.assoc meet.
+Proof. apply map2_assoc. apply and_assoc. Qed.
+
+Lemma meet_comm : LibOperation.comm meet.
+Proof. apply map2_comm. apply and_comm. Qed.
+
+Lemma meet_same : LibOperation.idempotent2 meet.
+Proof. apply map2_same. apply and_same. Qed.
+
+Lemma le_meet : forall d1 d2,
+  le d1 d2 ->
+  meet d1 d2 = d1.
+Proof.
+  introv F. destruct d1, d2.
+  repeat (let E := fresh "E" in inverts F as E F; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  fequals; lazymatch goal with |- ?b1 && ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
+Qed.
+
+Lemma meet_le_l : forall d1 d2,
+  le (meet d1 d2) d1.
+Proof.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; intros (?&?); autos~.
+Qed.
+
+Lemma meet_le_r : forall d1 d2,
+  le (meet d1 d2) d2.
+Proof.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; intros (?&?); autos~.
+Qed.
+
+(** The bottom of the lattice. **)
 Definition empty : event_descriptor :=
   ltac:(constructor; exact false).
 
-Lemma join_empty : forall d, join empty d = d.
+Lemma empty_bottom : forall d, le empty d.
 Proof.
-  intro d. destruct d. fequals.
-Admitted. (* Oups, I made a mistake. *)
+  intro d. destruct d.
+  repeat constructor; simpl; rewrite decide_spec; rew_bool_eq*.
+Qed.
+
+Lemma join_empty_r : LibOperation.neutral_r join empty.
+Proof. intro d. destruct d. fequals; apply or_false_r. Qed.
+
+Lemma join_empty_l : LibOperation.neutral_l join empty.
+Proof. intro d. destruct d. fequals; apply or_false_l. Qed.
+
+Lemma meet_empty_r : LibOperation.absorb_r meet empty.
+Proof. intro d. destruct d. fequals; apply and_false_r. Qed.
+
+Lemma meet_empty_l : LibOperation.absorb_l meet empty.
+Proof. intro d. destruct d. fequals; apply and_false_l. Qed.
+
+(** The top of the lattice. **)
+Definition full : event_descriptor :=
+  ltac:(constructor; exact true).
+
+Lemma full_top : forall d, le d full.
+Proof.
+  intro d. destruct d.
+  repeat constructor; simpl; rewrite decide_spec; rew_bool_eq~.
+Qed.
+
+Lemma join_full_r : LibOperation.absorb_r join full.
+Proof. intro d. destruct d. fequals; apply or_true_r. Qed.
+
+Lemma join_full_l : LibOperation.absorb_l join full.
+Proof. intro d. destruct d. fequals; apply or_true_l. Qed.
+
+Lemma meet_full_r : LibOperation.neutral_r meet full.
+Proof. intro d. destruct d. fequals; apply and_true_r. Qed.
+
+Lemma meet_full_l : LibOperation.neutral_l meet full.
+Proof. intro d. destruct d. fequals; apply and_true_l. Qed.
 
 (** Basic projections with only one event. **)
 
@@ -352,12 +454,54 @@ Definition only_dError : event_descriptor :=
 Definition only_dLongJump : event_descriptor :=
   ltac:(refine {| dLongJump := true |}; exact false).
 
+(** The order [le] is directly link with subtyping. **)
+Global Instance event_le : forall d1 d2,
+  le d1 d2 ->
+  event d1 -< event d2.
+Proof.
+  introv L. unfolds event, le.
+  asserts G: ((void1 : Type -> Type@{r}) -< (void1 : Type -> Type@{r})); [ typeclass |]. gen G.
+  generalize (void1 : Type -> Type@{r}) at 1 3. generalize (void1 : Type -> Type@{r}).
+  gen L. induction event_descriptor_correspondance as [|(dE&?) l]; introv F I.
+  - typeclass.
+  - repeat rewrite fold_left_cons. apply IHl.
+    + inverts~ F.
+    + asserts Id: (dE d1 -> dE d2).
+      { inverts F as E ?. rewrite decide_spec in E. rew_bool_eq~ in E. }
+      repeat cases_if; (typeclass || false~).
+Defined.
+
+Definition if_then_else : forall d1 d2 d3 R,
+  itree (event d1) bool ->
+  itree (event d2) R ->
+  itree (event d3) R ->
+  itree (event (join d1 (join d2 d3))) R.
+Proof.
+  introv b t e.
+  set (d := join d1 (join d2 d3)).
+  asserts L1: (le d1 d).
+  { apply join_le_l. }
+  asserts L2: (le d2 d).
+  { eapply le_trans; [ apply join_le_l | apply join_le_r ]. }
+  asserts L3: (le d3 d).
+  { eapply le_trans; [ apply join_le_r | apply join_le_r ]. }
+  let d x T :=
+    lazymatch goal with
+    |- ?g _ =>
+      let tx := type of x in
+      let E := fresh "E" in
+      asserts E: (Embeddable tx (g T)); [ typeclass |];
+      refine (let x : g T := embed x in _)
+    end in
+  d b bool;
+  d t R;
+  d e R.
+  exact (ITree.bind b (fun b => if b then t else e)).
+Defined.
+
+(* TODO: Probably a bind, as well as the usual monads. *)
+
 End EventDescriptor.
-
-(* TODO *)
-Definition merge : forall d1 d2, event d1 -> event d2 -> event (merge_descr d1 d2).
-
-Definition if_then_else : forall d1 d2 R, itree (event d1) R -> itree (event d2) R -> itree (event (merge_descr d1 d2)) R.
 
 Definition read : global_variable -> itree event_read SEXP.
 
