@@ -214,31 +214,53 @@ Proof.
     + typeclass.
 Defined.
 
+Lemma eq_eq : forall d1 d2, eq d1 d2 <-> d1 = d2.
+Proof.
+  intros d1 d2. destruct d1, d2. unfolds eq, event_descriptor_correspondance. iff F.
+  - repeat (let E := fresh "E" in inverts F as E F; simpl in E).
+    fequals~.
+  - inverts F. repeat constructors~.
+Qed.
+
+Global Instance Comparable_t : Comparable t.
+Proof.
+  constructors. intros d1 d2. applys Decidable_equiv.
+  - apply eq_eq.
+  - typeclass.
+Defined.
+
 Lemma eq_refl : forall d, eq d d.
-Proof.
-  intro d. destruct d. unfolds.
-  repeat apply Forall_cons; (reflexivity || apply Forall_nil).
-Qed.
-  
+Proof. intro d. apply~ eq_eq. Qed.
+
 Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-Proof.
-  intros d1 d2 F. destruct d1, d2. unfolds eq, event_descriptor_correspondance.
-  repeat (let E := fresh "E" in inverts F as E F; simpl in E).
-  repeat constructors; simpls~.
-Qed.
+Proof. intros d1 d2 E. apply eq_eq in E. apply~ eq_eq. Qed.
 
 Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-Proof.
-  intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondance.
-  repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E).
-  repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E).
-  repeat constructors; substs~.
-Qed.
+Proof. intros d1 d2 d3 E1 E2. apply eq_eq in E1, E2. apply eq_eq. substs~. Qed.
 
-Definition lt (d1 d2 : t) :=
+Definition le (d1 d2 : t) :=
   Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) event_descriptor_correspondance.
 
-Lemma lt_trans : forall d1 d2 d3 : t, lt d1 d2 -> lt d2 d3 -> lt d1 d3.
+Global Instance Decidable_le : forall d1 d2, Decidable (le d1 d2).
+Proof.
+  intros d1 d2. unfolds le.
+  (* This is frustrating: I can’t apply [Forall_Decidable] because of universe constraints here. *)
+  induction event_descriptor_correspondance as [|[dE ?] l].
+  - applys decidable_make true. rew_bool_eq. apply~ Forall_nil.
+  - applys Decidable_equiv ((dE d1 -> dE d2) /\ Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) l).
+    + iff F; inverts F as I F.
+      * constructors~. rewrite decide_spec. rew_bool_eq~.
+      * rewrite decide_spec in I. rew_bool_eq~ in I.
+    + typeclass.
+Defined.
+
+Definition lt (d1 d2 : t) :=
+  le d1 d2 /\ d1 <> d2.
+
+Global Instance Decidable_lt : forall d1 d2, Decidable (lt d1 d2).
+Proof. typeclass. Defined.
+
+Lemma le_trans : forall d1 d2 d3 : t, le d1 d2 -> le d2 d3 -> le d1 d3.
 Proof.
   intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondance.
   repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
@@ -246,43 +268,89 @@ Proof.
   repeat constructors; simpl; rewrite decide_spec; rew_bool_eq~.
 Qed.
 
+Lemma le_antisym : forall d1 d2 : t, le d1 d2 -> le d2 d1 -> d1 = d2.
+Proof.
+  intros d1 d2 F1 F2. destruct d1, d2. unfolds eq, event_descriptor_correspondance.
+  repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
+  fequals; extens; splits~.
+Qed.
+
+Lemma lt_trans : forall d1 d2 d3 : t, lt d1 d2 -> lt d2 d3 -> lt d1 d3.
+Proof.
+  introv (L1&D1) (L2&D2). splits~.
+  - applys le_trans L1 L2.
+  - intro_subst. forwards: le_antisym L1 L2. substs~.
+Qed.
+
 Lemma lt_not_eq : forall d1 d2 : t, lt d1 d2 -> ~ eq d1 d2.
-Admitted.
+Proof. introv (L&D) E. apply eq_eq in E. substs~. Qed.
 
 (** [event d] is the event type corresponding to the event descriptor [d]. **)
-Definition event d :=
-  fold_left (fun '(dE, E) T => if (dE d : bool) then (E : Type -> Type@{r}) else void1) void1
-  event_descriptor_correspondance.
+Definition event d : Type -> Type@{r} :=
+  fold_left (fun '(dE, E) T => if (dE d : bool) then (E : Type -> Type@{r}) +' T else T) void1
+    event_descriptor_correspondance.
 
-Ltac build_merge op :=
-  intros d1 d2;
-  destruct d1 eqn: E1; destruct d2 eqn: E2;
+Definition map2 (f : bool -> bool -> bool) (d1 d2 : event_descriptor) : event_descriptor.
+Proof.
+  destruct d1 eqn: E1. destruct d2 eqn: E2.
   lazymatch type of E1 with
   | _ = ?v1 =>
     lazymatch type of E2 with
     | _ = ?v2 =>
       let rec g ctx v1 v2 :=
         lazymatch v1 with
-        | make_event_descriptor => ctx make_event_descriptor
+        | make_event_descriptor => exact (ctx make_event_descriptor)
         | ?v1' ?b1 =>
           lazymatch v2 with
           | ?v2' ?b2 =>
-            g (fun f => ctx f (op b1 b2)) v1' v2'
+            g (fun f' => ctx f' (f b1 b2)) v1' v2'
           end
         end
       in
-      g (@id (bool -> event_descriptor)) v1 v2
+      let T := type of make_event_descriptor in
+      g (@id T) v1 v2
     end
   end.
+Defined.
 
-Definition join_descr : event_descriptor -> event_descriptor -> event_descriptor :=
-  ltac:(build_merge (fun b1 b2 => b1 || b2)).
+(** The [join] and [meet] operations of the lattice. **)
 
-Definition meet_descr : event_descriptor -> event_descriptor -> event_descriptor :=
-  ltac:(build_merge (fun b1 b2 => b1 && b2)).
+Definition join : event_descriptor -> event_descriptor -> event_descriptor :=
+  map2 (fun b1 b2 => b1 || b2).
 
-Definition empty_descr : event_descriptor :=
+Definition meet : event_descriptor -> event_descriptor -> event_descriptor :=
+  map2 (fun b1 b2 => b1 && b2).
+
+(** The bottom of the lattice. **)
+
+Definition empty : event_descriptor :=
   ltac:(constructor; exact false).
+
+Lemma join_empty : forall d, join empty d = d.
+Proof.
+  intro d. destruct d. fequals.
+Admitted. (* Oups, I made a mistake. *)
+
+(** Basic projections with only one event. **)
+
+Definition only_dRGlobal : event_descriptor :=
+  ltac:(refine {| dRGlobal := true |}; exact false).
+
+Definition only_dWGlobal : event_descriptor :=
+  ltac:(refine {| dWGlobal := true |}; exact false).
+
+Definition only_dEHeap : event_descriptor :=
+  ltac:(refine {| dEHeap := true |}; exact false).
+
+Definition only_dFuntab : event_descriptor :=
+  ltac:(refine {| dFuntab := true |}; exact false).
+
+Definition only_dError : event_descriptor :=
+  ltac:(refine {| dError := true |}; exact false).
+
+Definition only_dLongJump : event_descriptor :=
+  ltac:(refine {| dLongJump := true |}; exact false).
 
 End EventDescriptor.
 
