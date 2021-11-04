@@ -86,6 +86,15 @@ Inductive EHeap : Type -> Type@{r} :=
   | write_sexp : SEXP -> SExpRec -> EHeap unit
   .
 
+(** ** Inputs and outputs **)
+
+Inductive EIO : Type -> Type@{r} :=
+  | run_stdout_print : Rconnection -> string -> EIO (option Rconnection)
+  | run_stderr_print : Rconnection -> string -> EIO (option Rconnection)
+  | run_stdout_flush : Rconnection -> EIO (option Rconnection)
+  | run_stderr_flush : Rconnection -> EIO (option Rconnection)
+  .
+
 (** ** [FUNTAB] **)
 
 (** The [FUNTAB] structure is used to store primitive and internal
@@ -113,24 +122,18 @@ Inductive Funtab : Type -> Type@{r} :=
 
 (** Erroneous events break the control-flow, halting the execution. **)
 
+(** The program yielded an error described by the provided message.
+  This error is not guaranteed not to happen. **)
 Inductive Error : Type -> Type@{r} :=
   | error [T] : string -> Error T
-  (** The program yielded an error described by the provided message.
-    This error is not guaranteed not to happen. **)
-  | impossible [T] : string -> Error T
-  (** Similar to [error], but this error is not meant to happens.
-    If such an error happens, it is either a bug in the CoqR interpreter, or an undefined
-    behaviour of the (source code of the) reference interpreter GNU R. **)
-  | not_implemented [T] : string -> Error T
-  (** the result relies on a feature not yet implemented. **)
   .
 
-(** A precision about [not_implemented] and [error]: if the C source
-  code of R throw a not-implemented error, we consider this as an
-  error thrown in the original interpreter and use the constructor
-  [error].  We only throw [not_implemented] when our Coq code has not
-  implemented a behaviour of R.  The construct [error] thus models the
-  errors thrown by the R program. **)
+(** Similar to [error], but this error is not meant to happen.
+  If such an error happens, it is either a bug in the CoqR interpreter, or an undefined
+  behaviour of the (source code of the) reference interpreter GNU R. **)
+Inductive Impossible : Type -> Type@{r} :=
+  | impossible [T] : string -> Impossible T
+  .
 
 (** The difference between [error] and [impossible] is that [error] is
   thrown when the R interpreter throws an error (usally using the
@@ -148,6 +151,30 @@ Inductive Error : Type -> Type@{r} :=
 Inductive LongJump : Type -> Type@{r} :=
   | longjump [T] : nat -> context_type -> LongJump T
   (** the program yielded a call to [LONGJMP] with the provided arguments. **)
+  .
+
+(** ** Development **)
+
+(** Features for developping purposes. **)
+
+(** The result relies on a feature not yet implemented. **)
+Inductive NotImplemented : Type -> Type@{r} :=
+  | not_implemented [T] : string -> NotImplemented T
+  .
+
+(** A precision about [not_implemented] and [error]: if the C source
+  code of R throw a not-implemented error, we consider this as an
+  error thrown in the original interpreter and use the constructor
+  [error].  We only throw [not_implemented] when our Coq code has not
+  implemented a behaviour of R.  The construct [error] thus models the
+  errors thrown by the R program. **)
+
+Inductive Debug : Type -> Type@{r} :=
+  | add_stack : string -> Debug unit
+  (** When entering a function, we mark it using this event.
+    This can then help to trace function definitions when debugging. **)
+  | debug_log : string -> Debug unit
+  (** A debug log, only meant for development purposes. **)
   .
 
 
@@ -181,9 +208,13 @@ Record event_descriptor := make_event_descriptor {
     dRGlobal : bool ;
     dWGlobal : bool ;
     dEHeap : bool ;
+    dEIO : bool ;
     dFuntab : bool ;
     dError : bool ;
+    dImpossible : bool ;
     dLongJump : bool ;
+    dNotImplemented : bool ;
+    dDebug : bool ;
   }.
 
 (** The correspondances between the fields of [event_descriptor] and events,
@@ -192,9 +223,13 @@ Definition event_descriptor_correspondance := [
     (dRGlobal, RGlobal) ;
     (dWGlobal, WGlobal) ;
     (dEHeap, EHeap) ;
+    (dEIO, EIO) ;
     (dFuntab, Funtab) ;
     (dError, Error) ;
-    (dLongJump, LongJump)
+    (dImpossible, Impossible) ;
+    (dLongJump, LongJump) ;
+    (dNotImplemented, NotImplemented) ;
+    (dDebug, Debug)
   ].
 
 (** Adding the definitions expected by [OrderedType]. **)
@@ -341,7 +376,8 @@ Lemma le_join : forall d1 d2,
 Proof.
   introv F. destruct d1, d2.
   repeat (let E := fresh "E" in inverts F as E F; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
-  fequals; lazymatch goal with |- ?b1 || ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
+  unfolds join, map2; fequals;
+    lazymatch goal with |- ?b1 || ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
 Qed.
 
 Lemma join_le_l : forall d1 d2,
@@ -373,7 +409,8 @@ Lemma le_meet : forall d1 d2,
 Proof.
   introv F. destruct d1, d2.
   repeat (let E := fresh "E" in inverts F as E F; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
-  fequals; lazymatch goal with |- ?b1 && ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
+  unfolds meet, map2; fequals;
+    lazymatch goal with |- ?b1 && ?b2 = _ => destruct b1, b2; (reflexivity || false*) end.
 Qed.
 
 Lemma meet_le_l : forall d1 d2,
@@ -401,16 +438,16 @@ Proof.
 Qed.
 
 Lemma join_empty_r : LibOperation.neutral_r join empty.
-Proof. intro d. destruct d. fequals; apply or_false_r. Qed.
+Proof. intro d. destruct d. unfolds join, map2, empty; fequals; apply or_false_r. Qed.
 
 Lemma join_empty_l : LibOperation.neutral_l join empty.
-Proof. intro d. destruct d. fequals; apply or_false_l. Qed.
+Proof. intro d. destruct d. unfolds join, map2, empty; fequals; apply or_false_l. Qed.
 
 Lemma meet_empty_r : LibOperation.absorb_r meet empty.
-Proof. intro d. destruct d. fequals; apply and_false_r. Qed.
+Proof. intro d. destruct d. unfolds meet, map2, empty; fequals; try apply and_false_r. Qed.
 
 Lemma meet_empty_l : LibOperation.absorb_l meet empty.
-Proof. intro d. destruct d. fequals; apply and_false_l. Qed.
+Proof. intro d. destruct d. unfolds meet, map2, empty; fequals; apply and_false_l. Qed.
 
 (** The top of the lattice. **)
 Definition full : event_descriptor :=
@@ -423,38 +460,111 @@ Proof.
 Qed.
 
 Lemma join_full_r : LibOperation.absorb_r join full.
-Proof. intro d. destruct d. fequals; apply or_true_r. Qed.
+Proof. intro d. destruct d. unfolds join, map2, full; fequals; apply or_true_r. Qed.
 
 Lemma join_full_l : LibOperation.absorb_l join full.
-Proof. intro d. destruct d. fequals; apply or_true_l. Qed.
+Proof. intro d. destruct d. unfolds join, map2, full; fequals; apply or_true_l. Qed.
 
 Lemma meet_full_r : LibOperation.neutral_r meet full.
-Proof. intro d. destruct d. fequals; apply and_true_r. Qed.
+Proof. intro d. destruct d. unfolds meet, map2, full; fequals; apply and_true_r. Qed.
 
 Lemma meet_full_l : LibOperation.neutral_l meet full.
-Proof. intro d. destruct d. fequals; apply and_true_l. Qed.
+Proof. intro d. destruct d. unfolds meet, map2, full; fequals; apply and_true_l. Qed.
 
 (** Basic projections with only one event. **)
 
 Definition only_dRGlobal : event_descriptor :=
   ltac:(refine {| dRGlobal := true |}; exact false).
 
+Global Instance event_only_dRGlobal : RGlobal -< event only_dRGlobal.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dRGlobal.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
 Definition only_dWGlobal : event_descriptor :=
   ltac:(refine {| dWGlobal := true |}; exact false).
+
+Global Instance event_only_dWGlobal : WGlobal -< event only_dWGlobal.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dWGlobal.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
 
 Definition only_dEHeap : event_descriptor :=
   ltac:(refine {| dEHeap := true |}; exact false).
 
+Global Instance event_only_dEHeap : EHeap -< event only_dEHeap.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dEHeap.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
+Definition only_dEIO : event_descriptor :=
+  ltac:(refine {| dEIO := true |}; exact false).
+
+Global Instance event_only_dEIO : EIO -< event only_dEIO.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dEIO.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
 Definition only_dFuntab : event_descriptor :=
   ltac:(refine {| dFuntab := true |}; exact false).
+
+Global Instance event_only_dFuntab : Funtab -< event only_dFuntab.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dFuntab.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
 
 Definition only_dError : event_descriptor :=
   ltac:(refine {| dError := true |}; exact false).
 
+Global Instance event_only_dError : Error -< event only_dError.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dError.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
+Definition only_dImpossible : event_descriptor :=
+  ltac:(refine {| dImpossible := true |}; exact false).
+
+Global Instance event_only_dImpossible : Impossible -< event only_dImpossible.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dImpossible.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
 Definition only_dLongJump : event_descriptor :=
   ltac:(refine {| dLongJump := true |}; exact false).
 
-(** The order [le] is directly link with subtyping. **)
+Global Instance event_only_dLongJump : LongJump -< event only_dLongJump.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dLongJump.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
+Definition only_dNotImplemented : event_descriptor :=
+  ltac:(refine {| dNotImplemented := true |}; exact false).
+
+Global Instance event_only_dNotImplemented : NotImplemented -< event only_dNotImplemented.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dNotImplemented.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
+Definition only_dDebug : event_descriptor :=
+  ltac:(refine {| dDebug := true |}; exact false).
+
+Global Instance event_only_dDebug : Debug -< event only_dDebug.
+Proof.
+  unfolds event, event_descriptor_correspondance, only_dDebug.
+  repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
+Defined.
+
+
+(** The order [le] is directly linked with subtyping. **)
 Global Instance event_le : forall d1 d2,
   le d1 d2 ->
   event d1 -< event d2.
@@ -471,41 +581,47 @@ Proof.
       repeat cases_if; (typeclass || false~).
 Defined.
 
-Definition if_then_else : forall d1 d2 d3 R,
-  itree (event d1) bool ->
-  itree (event d2) R ->
-  itree (event d3) R ->
-  itree (event (join d1 (join d2 d3))) R.
+(** Monadic structure **)
+
+Definition ret R (r : R) : itree (event empty) R :=
+  Ret r.
+
+Definition bind [d1 d2 T U] (x : itree (event d1) T) (k : T -> itree (event d2) U) :
+  itree (event (join d1 d2)) U :=
+  let L1 := join_le_l d1 d2 in
+  let L2 := join_le_r d1 d2 in
+  ITree.bind
+    (@embed (itree (event d1) T) (itree (event (join d1 d2)) T) ltac:(typeclass) x)
+    (fun t => @embed (itree (event d2) U) (itree (event (join d1 d2)) U) ltac:(typeclass) (k t)).
+
+Definition if_then_else [d1 d2 d3 R] (b : itree (event d1) bool)
+  (t : itree (event d2) R) (e : itree (event d3) R) : itree (event (join d1 (join d2 d3))) R :=
+  bind b (fun b =>
+    let L2 := join_le_l d2 d3 in
+    let L3 := join_le_r d2 d3 in
+    if b
+    then (@embed (itree (event d2) R) (itree (event (join d2 d3)) R) ltac:(typeclass) t)
+    else (@embed (itree (event d3) R) (itree (event (join d2 d3)) R) ltac:(typeclass) e)).
+
+Definition lift [A B d] (f : A -> B) (a : itree (event d) A) : itree (event d) B.
 Proof.
-  introv b t e.
-  set (d := join d1 (join d2 d3)).
-  asserts L1: (le d1 d).
-  { apply join_le_l. }
-  asserts L2: (le d2 d).
-  { eapply le_trans; [ apply join_le_l | apply join_le_r ]. }
-  asserts L3: (le d3 d).
-  { eapply le_trans; [ apply join_le_r | apply join_le_r ]. }
-  let d x T :=
-    lazymatch goal with
-    |- ?g _ =>
-      let tx := type of x in
-      let E := fresh "E" in
-      asserts E: (Embeddable tx (g T)); [ typeclass |];
-      refine (let x : g T := embed x in _)
-    end in
-  d b bool;
-  d t R;
-  d e R.
-  exact (ITree.bind b (fun b => if b then t else e)).
+  lets r: (bind a (fun a => ret (f a))).
+  rewrite join_empty_r in r. exact r.
 Defined.
 
-(* TODO: Probably a bind, as well as the usual monads. *)
+Definition lift2 [A B C d1 d2] (f : A -> B -> C) (a : itree (event d1) A) (b : itree (event d2) B)
+  : itree (event (join d1 d2)) C :=
+  bind a (fun a => lift (f a) b).
+
+Definition or [d1 d2] (a : itree (event d1) bool) (b : itree (event d2) bool) :=
+  lift2 or a b.
+Definition and [d1 d2] (a : itree (event d1) bool) (b : itree (event d2) bool) :=
+  lift2 and a b.
+
+Definition rglobal : GlobalVariable -> itree (event only_dRGlobal) SEXP :=
+  fun x => trigger (rglobal x).
 
 End EventDescriptor.
-
-Definition read : global_variable -> itree event_read SEXP.
-
-Definition return : forall R, itree (event empty_descr) R.
 
 
 (** * Contextual Types **)
