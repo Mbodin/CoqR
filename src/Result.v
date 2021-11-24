@@ -51,9 +51,9 @@ Proof. reflexivity. Qed.
 (** This development is based on [itree]s.
   In this framework, we have to define a set of events needed to define our semantics. **)
 
-(** ** Globals **)
-
 Universe r. (** We force each event kind to return in the same universe. **)
+
+(** ** Globals **)
 
 (** Events to manipulate global variables. **)
 
@@ -80,7 +80,7 @@ Inductive WGlobal : Type -> Type@{r} :=
 
 (** Events for the state: allocation, reading, and writing. **)
 
-Inductive EHeap : Type -> Type@{r} :=
+Inductive EHeap : Type -> Type@{r} := (* TODO: Should probably be split *)
   | alloc_sexp : SExpRec -> EHeap unit
   | read_sexp : SEXP -> EHeap SExpRec
   | write_sexp : SEXP -> SExpRec -> EHeap unit
@@ -114,7 +114,6 @@ Inductive Funtab : Type -> Type@{r} :=
     SEXP -> (** rho **)
     Funtab SEXP
   .
-
 
 (** ** Control-flow **)
 
@@ -217,9 +216,9 @@ Record event_descriptor := make_event_descriptor {
     dDebug : bool ;
   }.
 
-(** The correspondances between the fields of [event_descriptor] and events,
+(** The correspondences between the fields of [event_descriptor] and events,
   mainly for automation purposes. **)
-Definition event_descriptor_correspondance := [
+Definition event_descriptor_correspondence := [
     (dRGlobal, RGlobal) ;
     (dWGlobal, WGlobal) ;
     (dEHeap, EHeap) ;
@@ -236,13 +235,13 @@ Definition event_descriptor_correspondance := [
 Definition t := event_descriptor.
 
 Definition eq (d1 d2 : t) :=
-  Forall (fun '(dE, _) => dE d1 = dE d2) event_descriptor_correspondance.
+  Forall (fun '(dE, _) => dE d1 = dE d2) event_descriptor_correspondence.
 
 Global Instance Decidable_eq : forall d1 d2, Decidable (eq d1 d2).
 Proof.
   intros d1 d2. unfolds eq.
   (* This is frustrating: I can’t apply [Forall_Decidable] because of universe constraints here. *)
-  induction event_descriptor_correspondance as [|[dE ?] l].
+  induction event_descriptor_correspondence as [|[dE ?] l].
   - applys decidable_make true. rew_bool_eq. apply~ Forall_nil.
   - applys Decidable_equiv (dE d1 = dE d2 /\ Forall (fun '(dE, _) => dE d1 = dE d2) l).
     + iff F; inverts~ F. constructors~.
@@ -251,7 +250,7 @@ Defined.
 
 Lemma eq_eq : forall d1 d2, eq d1 d2 <-> d1 = d2.
 Proof.
-  intros d1 d2. destruct d1, d2. unfolds eq, event_descriptor_correspondance. iff F.
+  intros d1 d2. destruct d1, d2. unfolds eq, event_descriptor_correspondence. iff F.
   - repeat (let E := fresh "E" in inverts F as E F; simpl in E).
     fequals~.
   - inverts F. repeat constructors~.
@@ -274,13 +273,13 @@ Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
 Proof. intros d1 d2 d3 E1 E2. apply eq_eq in E1, E2. apply eq_eq. substs~. Qed.
 
 Definition le (d1 d2 : t) :=
-  Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) event_descriptor_correspondance.
+  Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) event_descriptor_correspondence.
 
 Global Instance Decidable_le : forall d1 d2, Decidable (le d1 d2).
 Proof.
   intros d1 d2. unfolds le.
   (* This is frustrating: I can’t apply [Forall_Decidable] because of universe constraints here. *)
-  induction event_descriptor_correspondance as [|[dE ?] l].
+  induction event_descriptor_correspondence as [|[dE ?] l].
   - applys decidable_make true. rew_bool_eq. apply~ Forall_nil.
   - applys Decidable_equiv ((dE d1 -> dE d2) /\ Forall (fun '(dE, _) => decide ((dE d1 : bool) -> dE d2)) l).
     + iff F; inverts F as I F.
@@ -297,7 +296,7 @@ Proof. typeclass. Defined.
 
 Lemma le_trans : forall d1 d2 d3 : t, le d1 d2 -> le d2 d3 -> le d1 d3.
 Proof.
-  intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondance.
+  intros d1 d2 d3 F1 F2. destruct d1, d2, d3. unfolds eq, event_descriptor_correspondence.
   repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
   repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
   repeat constructors; simpl; rewrite decide_spec; rew_bool_eq~.
@@ -305,7 +304,7 @@ Qed.
 
 Lemma le_antisym : forall d1 d2 : t, le d1 d2 -> le d2 d1 -> d1 = d2.
 Proof.
-  intros d1 d2 F1 F2. destruct d1, d2. unfolds eq, event_descriptor_correspondance.
+  intros d1 d2 F1 F2. destruct d1, d2. unfolds eq, event_descriptor_correspondence.
   repeat (let E := fresh "E" in inverts F1 as E F1; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
   repeat (let E := fresh "E" in inverts F2 as E F2; simpl in E; rewrite decide_spec in E; rew_bool_eq in E).
   fequals; extens; splits~.
@@ -322,9 +321,9 @@ Lemma lt_not_eq : forall d1 d2 : t, lt d1 d2 -> ~ eq d1 d2.
 Proof. introv (L&D) E. apply eq_eq in E. substs~. Qed.
 
 (** [event d] is the event type corresponding to the event descriptor [d]. **)
-Definition event d : Type -> Type@{r} :=
+Definition event (d : t) : Type -> Type@{r} :=
   fold_left (fun '(dE, E) T => if (dE d : bool) then (E : Type -> Type@{r}) +' T else T) void1
-    event_descriptor_correspondance.
+    event_descriptor_correspondence.
 
 (** Mapping each component of two event descriptors. **)
 Definition map2 (f : bool -> bool -> bool) (d1 d2 : event_descriptor) : event_descriptor.
@@ -334,7 +333,7 @@ Proof.
     | [] => exact acc
     | (?dE, _) :: ?l => g (acc (f (dE d1) (dE d2))) l
     end in
-  let l := eval compute in event_descriptor_correspondance in
+  let l := eval compute in event_descriptor_correspondence in
   g make_event_descriptor l.
 Defined.
 
@@ -355,10 +354,10 @@ Proof. intros f Af d. destruct d; compute; fequals. Qed.
 
 (** The [join] and [meet] operations of the lattice. **)
 
-Definition join : event_descriptor -> event_descriptor -> event_descriptor :=
+Definition join : t -> t -> t :=
   map2 (fun b1 b2 => b1 || b2).
 
-Definition meet : event_descriptor -> event_descriptor -> event_descriptor :=
+Definition meet : t -> t -> t :=
   map2 (fun b1 b2 => b1 && b2).
 
 Lemma join_assoc : LibOperation.assoc join.
@@ -383,14 +382,14 @@ Qed.
 Lemma join_le_l : forall d1 d2,
   le d1 (join d1 d2).
 Proof.
-  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondence.
   repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; left~.
 Qed.
 
 Lemma join_le_r : forall d1 d2,
   le d2 (join d1 d2).
 Proof.
-  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondence.
   repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; right~.
 Qed.
 
@@ -416,14 +415,14 @@ Qed.
 Lemma meet_le_l : forall d1 d2,
   le (meet d1 d2) d1.
 Proof.
-  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondence.
   repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; intros (?&?); autos~.
 Qed.
 
 Lemma meet_le_r : forall d1 d2,
   le (meet d1 d2) d2.
 Proof.
-  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondance.
+  intros d1 d2. destruct d1, d2. unfolds le, event_descriptor_correspondence.
   repeat constructors; rewrite decide_spec; rew_bool_eq; simpl; rew_istrue; intros (?&?); autos~.
 Qed.
 
@@ -431,45 +430,49 @@ Qed.
 Definition empty : event_descriptor :=
   ltac:(constructor; exact false).
 
-Lemma empty_bottom : forall d, le empty d.
+Definition bottom : t := empty.
+
+Lemma bottom_is_bottom : forall d, le bottom d.
 Proof.
   intro d. destruct d.
   repeat constructor; simpl; rewrite decide_spec; rew_bool_eq*.
 Qed.
 
-Lemma join_empty_r : LibOperation.neutral_r join empty.
-Proof. intro d. destruct d. unfolds join, map2, empty; fequals; apply or_false_r. Qed.
+Lemma join_bottom_r : LibOperation.neutral_r join bottom.
+Proof. intro d. destruct d. unfolds join, map2, bottom, empty; fequals; apply or_false_r. Qed.
 
-Lemma join_empty_l : LibOperation.neutral_l join empty.
-Proof. intro d. destruct d. unfolds join, map2, empty; fequals; apply or_false_l. Qed.
+Lemma join_bottom_l : LibOperation.neutral_l join bottom.
+Proof. intro d. destruct d. unfolds join, map2, bottom, empty; fequals; apply or_false_l. Qed.
 
-Lemma meet_empty_r : LibOperation.absorb_r meet empty.
-Proof. intro d. destruct d. unfolds meet, map2, empty; fequals; try apply and_false_r. Qed.
+Lemma meet_bottom_r : LibOperation.absorb_r meet bottom.
+Proof. intro d. destruct d. unfolds meet, map2, bottom, empty; fequals; try apply and_false_r. Qed.
 
-Lemma meet_empty_l : LibOperation.absorb_l meet empty.
-Proof. intro d. destruct d. unfolds meet, map2, empty; fequals; apply and_false_l. Qed.
+Lemma meet_bottom_l : LibOperation.absorb_l meet bottom.
+Proof. intro d. destruct d. unfolds meet, map2, bottom, empty; fequals; apply and_false_l. Qed.
 
 (** The top of the lattice. **)
 Definition full : event_descriptor :=
   ltac:(constructor; exact true).
 
-Lemma full_top : forall d, le d full.
+Definition top : t := full.
+
+Lemma top_is_top : forall d, le d top.
 Proof.
   intro d. destruct d.
   repeat constructor; simpl; rewrite decide_spec; rew_bool_eq~.
 Qed.
 
-Lemma join_full_r : LibOperation.absorb_r join full.
-Proof. intro d. destruct d. unfolds join, map2, full; fequals; apply or_true_r. Qed.
+Lemma join_top_r : LibOperation.absorb_r join top.
+Proof. intro d. destruct d. unfolds join, map2, top, full; fequals; apply or_true_r. Qed.
 
-Lemma join_full_l : LibOperation.absorb_l join full.
-Proof. intro d. destruct d. unfolds join, map2, full; fequals; apply or_true_l. Qed.
+Lemma join_top_l : LibOperation.absorb_l join top.
+Proof. intro d. destruct d. unfolds join, map2, top, full; fequals; apply or_true_l. Qed.
 
-Lemma meet_full_r : LibOperation.neutral_r meet full.
-Proof. intro d. destruct d. unfolds meet, map2, full; fequals; apply and_true_r. Qed.
+Lemma meet_top_r : LibOperation.neutral_r meet top.
+Proof. intro d. destruct d. unfolds meet, map2, top, full; fequals; apply and_true_r. Qed.
 
-Lemma meet_full_l : LibOperation.neutral_l meet full.
-Proof. intro d. destruct d. unfolds meet, map2, full; fequals; apply and_true_l. Qed.
+Lemma meet_top_l : LibOperation.neutral_l meet top.
+Proof. intro d. destruct d. unfolds meet, map2, top, full; fequals; apply and_true_l. Qed.
 
 (** Basic projections with only one event. **)
 
@@ -478,7 +481,7 @@ Definition only_dRGlobal : event_descriptor :=
 
 Global Instance event_only_dRGlobal : RGlobal -< event only_dRGlobal.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dRGlobal.
+  unfolds event, event_descriptor_correspondence, only_dRGlobal.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -487,7 +490,7 @@ Definition only_dWGlobal : event_descriptor :=
 
 Global Instance event_only_dWGlobal : WGlobal -< event only_dWGlobal.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dWGlobal.
+  unfolds event, event_descriptor_correspondence, only_dWGlobal.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -496,7 +499,7 @@ Definition only_dEHeap : event_descriptor :=
 
 Global Instance event_only_dEHeap : EHeap -< event only_dEHeap.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dEHeap.
+  unfolds event, event_descriptor_correspondence, only_dEHeap.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -505,7 +508,7 @@ Definition only_dEIO : event_descriptor :=
 
 Global Instance event_only_dEIO : EIO -< event only_dEIO.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dEIO.
+  unfolds event, event_descriptor_correspondence, only_dEIO.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -514,7 +517,7 @@ Definition only_dFuntab : event_descriptor :=
 
 Global Instance event_only_dFuntab : Funtab -< event only_dFuntab.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dFuntab.
+  unfolds event, event_descriptor_correspondence, only_dFuntab.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -523,7 +526,7 @@ Definition only_dError : event_descriptor :=
 
 Global Instance event_only_dError : Error -< event only_dError.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dError.
+  unfolds event, event_descriptor_correspondence, only_dError.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -532,7 +535,7 @@ Definition only_dImpossible : event_descriptor :=
 
 Global Instance event_only_dImpossible : Impossible -< event only_dImpossible.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dImpossible.
+  unfolds event, event_descriptor_correspondence, only_dImpossible.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -541,7 +544,7 @@ Definition only_dLongJump : event_descriptor :=
 
 Global Instance event_only_dLongJump : LongJump -< event only_dLongJump.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dLongJump.
+  unfolds event, event_descriptor_correspondence, only_dLongJump.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -550,7 +553,7 @@ Definition only_dNotImplemented : event_descriptor :=
 
 Global Instance event_only_dNotImplemented : NotImplemented -< event only_dNotImplemented.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dNotImplemented.
+  unfolds event, event_descriptor_correspondence, only_dNotImplemented.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -559,7 +562,7 @@ Definition only_dDebug : event_descriptor :=
 
 Global Instance event_only_dDebug : Debug -< event only_dDebug.
 Proof.
-  unfolds event, event_descriptor_correspondance, only_dDebug.
+  unfolds event, event_descriptor_correspondence, only_dDebug.
   repeat rewrite fold_left_cons. rewrite fold_left_nil. simpl. typeclass.
 Defined.
 
@@ -572,7 +575,7 @@ Proof.
   introv L. unfolds event, le.
   asserts G: ((void1 : Type -> Type@{r}) -< (void1 : Type -> Type@{r})); [ typeclass |]. gen G.
   generalize (void1 : Type -> Type@{r}) at 1 3. generalize (void1 : Type -> Type@{r}).
-  gen L. induction event_descriptor_correspondance as [|(dE&?) l]; introv F I.
+  gen L. induction event_descriptor_correspondence as [|(dE&?) l]; introv F I.
   - typeclass.
   - repeat rewrite fold_left_cons. apply IHl.
     + inverts~ F.
@@ -581,9 +584,129 @@ Proof.
       repeat cases_if; (typeclass || false~).
 Defined.
 
+End EventDescriptor.
+
+
+(** How we assume events are organised. **)
+
+Module Type FullEventLattice.
+
+(** The main type of event descriptor. **)
+Parameter t : Type.
+Parameter event : t -> Type -> Type.
+
+(** It is ordered. **)
+Parameter eq : t -> t -> Prop.
+Parameter eq_refl : forall d : t, eq d d.
+Parameter eq_sym : forall x y : t, eq x y -> eq y x.
+Parameter le : t -> t -> Prop.
+Parameter lt : t -> t -> Prop.
+Parameter le_trans : forall d1 d2 d3 : t, le d1 d2 -> le d2 d3 -> le d1 d3.
+Parameter le_antisym : forall d1 d2 : t, le d1 d2 -> le d2 d1 -> d1 = d2.
+Parameter lt_trans : forall d1 d2 d3 : t, lt d1 d2 -> lt d2 d3 -> lt d1 d3.
+Parameter lt_not_eq : forall d1 d2 : t, lt d1 d2 -> ~ eq d1 d2.
+
+(** The order is compatible with the event embedding. **)
+Parameter event_le : forall d1 d2 : t, le d1 d2 -> event d1 -< event d2.
+
+(** It is structured as a lattice. **)
+Parameter join : t -> t -> t.
+Parameter join_assoc : LibOperation.assoc join.
+Parameter join_comm : LibOperation.comm join.
+Parameter join_same : LibOperation.idempotent2 join.
+Parameter le_join : forall d1 d2 : t, le d1 d2 -> join d1 d2 = d2.
+Parameter join_le_l : forall d1 d2 : t, le d1 (join d1 d2).
+Parameter join_le_r : forall d1 d2 : t, le d2 (join d1 d2).
+
+Parameter meet : t -> t -> t.
+Parameter meet_assoc : LibOperation.assoc meet.
+Parameter meet_comm : LibOperation.comm meet.
+Parameter meet_same : LibOperation.idempotent2 meet.
+Parameter le_meet : forall d1 d2 : t, le d1 d2 -> meet d1 d2 = d1.
+Parameter meet_le_l : forall d1 d2 : t, le (meet d1 d2) d1.
+Parameter meet_le_r : forall d1 d2 : t, le (meet d1 d2) d2.
+
+Parameter bottom : t.
+Parameter bottom_is_bottom : forall d : t, le bottom d.
+Parameter join_bottom_r : LibOperation.neutral_r join bottom.
+Parameter join_bottom_l : LibOperation.neutral_l join bottom.
+Parameter meet_bottom_r : LibOperation.absorb_r meet bottom.
+Parameter meet_bottom_l : LibOperation.absorb_l meet bottom.
+
+Parameter top : t.
+Parameter top_is_top : forall d : t, le d top.
+Parameter join_top_r : LibOperation.absorb_r join top.
+Parameter join_top_l : LibOperation.absorb_l join top.
+Parameter meet_top_r : LibOperation.neutral_r meet top.
+Parameter meet_top_l : LibOperation.neutral_l meet top.
+
+End FullEventLattice.
+
+
+(** A subtype of [FullEventLattice] which is what is actually being used. **)
+(* FIXME: Remove what can be removed. *)
+
+Module Type EventLattice.
+
+(** The main type of event descriptor. **)
+Parameter t : Type.
+Parameter event : t -> Type -> Type.
+
+(** It is ordered. **)
+Parameter eq : t -> t -> Prop.
+Parameter eq_refl : forall d : t, eq d d.
+Parameter eq_sym : forall x y : t, eq x y -> eq y x.
+Parameter le : t -> t -> Prop.
+Parameter lt : t -> t -> Prop.
+Parameter le_trans : forall d1 d2 d3 : t, le d1 d2 -> le d2 d3 -> le d1 d3.
+Parameter le_antisym : forall d1 d2 : t, le d1 d2 -> le d2 d1 -> d1 = d2.
+Parameter lt_trans : forall d1 d2 d3 : t, lt d1 d2 -> lt d2 d3 -> lt d1 d3.
+Parameter lt_not_eq : forall d1 d2 : t, lt d1 d2 -> ~ eq d1 d2.
+
+(** The order is compatible with the event embedding. **)
+Parameter event_le : forall d1 d2 : t, le d1 d2 -> event d1 -< event d2.
+
+(** It is structured as a lattice. **)
+Parameter join : t -> t -> t.
+Parameter join_assoc : LibOperation.assoc join.
+Parameter join_comm : LibOperation.comm join.
+Parameter join_same : LibOperation.idempotent2 join.
+Parameter le_join : forall d1 d2 : t, le d1 d2 -> join d1 d2 = d2.
+Parameter join_le_l : forall d1 d2 : t, le d1 (join d1 d2).
+Parameter join_le_r : forall d1 d2 : t, le d2 (join d1 d2).
+
+Parameter meet : t -> t -> t.
+Parameter meet_assoc : LibOperation.assoc meet.
+Parameter meet_comm : LibOperation.comm meet.
+Parameter meet_same : LibOperation.idempotent2 meet.
+Parameter le_meet : forall d1 d2 : t, le d1 d2 -> meet d1 d2 = d1.
+Parameter meet_le_l : forall d1 d2 : t, le (meet d1 d2) d1.
+Parameter meet_le_r : forall d1 d2 : t, le (meet d1 d2) d2.
+
+Parameter bottom : t.
+Parameter bottom_is_bottom : forall d : t, le bottom d.
+Parameter join_bottom_r : LibOperation.neutral_r join bottom.
+Parameter join_bottom_l : LibOperation.neutral_l join bottom.
+Parameter meet_bottom_r : LibOperation.absorb_r meet bottom.
+Parameter meet_bottom_l : LibOperation.absorb_l meet bottom.
+
+Parameter top : t.
+Parameter top_is_top : forall d : t, le d top.
+Parameter join_top_r : LibOperation.absorb_r join top.
+Parameter join_top_l : LibOperation.absorb_l join top.
+Parameter meet_top_r : LibOperation.neutral_r meet top.
+Parameter meet_top_l : LibOperation.neutral_l meet top.
+
+End EventLattice.
+
+Module MonadFromEventLattice (E : EventLattice).
+
+Include E.
+Local Instance event_le' : forall d1 d2 : t, le d1 d2 -> event d1 -< event d2 := event_le.
+
 (** Monadic structure **)
 
-Definition ret R (r : R) : itree (event empty) R :=
+Definition ret R (r : R) : itree (event bottom) R :=
   Ret r.
 
 Definition bind [d1 d2 T U] (x : itree (event d1) T) (k : T -> itree (event d2) U) :
@@ -606,7 +729,7 @@ Definition if_then_else [d1 d2 d3 R] (b : itree (event d1) bool)
 Definition lift [A B d] (f : A -> B) (a : itree (event d) A) : itree (event d) B.
 Proof.
   lets r: (bind a (fun a => ret (f a))).
-  rewrite join_empty_r in r. exact r.
+  rewrite join_bottom_r in r. exact r.
 Defined.
 
 Definition lift2 [A B C d1 d2] (f : A -> B -> C) (a : itree (event d1) A) (b : itree (event d2) B)
@@ -618,227 +741,67 @@ Definition or [d1 d2] (a : itree (event d1) bool) (b : itree (event d2) bool) :=
 Definition and [d1 d2] (a : itree (event d1) bool) (b : itree (event d2) bool) :=
   lift2 and a b.
 
-Definition rglobal : GlobalVariable -> itree (event only_dRGlobal) SEXP :=
+(* Helper lemma for [easy_convert]. *)
+Lemma assoc_inv : forall A (f : A -> A -> A),
+  LibOperation.assoc f ->
+  forall x y z, f (f x y) z = f x (f y z).
+Proof. introv assoc. introv. rewrite~ assoc. Qed.
+
+(** Given [t : itree (event _) _], tries to simplify the goal using [E]’s equations
+  to seemlessly [t]. **)
+Ltac easy_convert t :=
+  let rec foreach l tac :=
+    lazymatch l with
+    | nil => idtac
+    | boxer ?v :: ?l => tac v; foreach l tac
+    end in
+  let lemmas := constr:(>> (assoc_inv join_assoc) join_same (assoc_inv meet_assoc) meet_same
+                           join_bottom_r join_bottom_l meet_bottom_r meet_bottom_l
+                           join_top_r join_top_l meet_top_r meet_top_l) in
+  repeat progress foreach lemmas ltac:(fun lemma => try rewrite lemma) ;
+  exact t.
+
+Lemma bind_of_return : forall A B d (a : A) (f : A -> itree (event d) B),
+  bind (ret a) f ≅ ltac:(easy_convert (f a)).
+Proof.
+  introv. unfolds bind, ret, @embed, Embeddable_itree_event.
+  rewrite translate_ret, bind_ret_l.
+  (* FIXME: I need to prove that
+     using the fact that [bottom] is less than [d] to get [event bottom -< event d]
+     using [event_le], then using [translate] on [itree]
+     is the same than
+     rewriting the type of the [itree] using [join_bottom_l]. *)
+Admitted. (* TODO *)
+
+Lemma return_of_bind : forall A d (aM : itree (event d) A),
+  bind aM (@ret _) ≅ ltac:(easy_convert aM).
+Proof.
+  introv. unfolds bind, ret, @embed, Embeddable_itree_event.
+  lazymatch goal with |- ITree.bind _ ?f ≅ _ => asserts E: (forall a : A, f a ≅ Ret a) end.
+  { intro a. rewrite translate_ret. reflexivity. }
+  (* FIXME: I need a lemma similar to [eutt_eq_bind] but for ≅ *)
+Admitted. (* TODO *)
+
+Lemma bind_associativity : forall A B C d1 d2 d3
+    (aM : itree (event d1) A) (f : A -> itree (event d2) B) (g : B -> itree (event d3) C),
+  bind (bind aM f) g ≅ ltac:(easy_convert (bind aM (fun a => bind (f a) g))).
+Proof.
+  introv. unfolds bind, ret, @embed, Embeddable_itree_event.
+  rewrite translate_bind, bind_bind, <- translate_cmpE.
+  (* TODO: An interesting property to prove about [event_le] here:
+     it is compatible with the transitivity of [le]. *)
+Admitted. (* TODO *)
+
+End MonadFromEventLattice.
+
+(** Instantiation. **)
+
+Module EventMonad := MonadFromEventLattice (EventDescriptor).
+
+Definition Rglobal : GlobalVariable -> itree (EventMonad.event EventDescriptor.only_dRGlobal) SEXP :=
   fun x => trigger (rglobal x).
 
-End EventDescriptor.
-
-
-(** * Contextual Types **)
-
-Section UniverseHelp. (* See https://github.com/coq/coq/issues/15049 *)
-Constraint itreeF.u1 < ArrayList.array.u.
-End UniverseHelp.
-
-(** This project is based on the [itree] type.  This type is useful
-  to define all the program’s effects, but in some context doesn’t
-  behave well with coercions.
-  In order to use Coq’s coercion mechanism, we identify the following
-  usage cases, each being in a separate use-case of R functions:
-  - R ([RGlobal]): the minimum level, only able to read global variables
-    (typically [R_NilValue]—see [Globals]).
-  - RE ([RGlobal +' Error]): as above, but are also allowed to fail.
-  - RH ([RGlobal +' EHeap]): the level of most R functions that can’t fail:
-    they read global variables as well as manipulate the C heap.
-  - RHE ([RGlobal +' EHeap +' Error]): as above, but are also allowed to
-    fail.
-  - RHFE ([RGlobal +' EHeap +' Funtab +' Error]): the level of most R
-    functions: they read global variables, manipulate the C heap, can call
-    functions in the [FUNTAB] array, and fail.
-  - RHFJE ([RGlobal +' EHeap +' Funtab +' LongJump +' Error]): the level
-    of some rare functions based on long jump, as well as the level of the
-    functions in the [FUNTAB] array.
-  - RWH ([RGlobal +' WGlobal +' EHeap]): the level of some internal
-    functions in [Rinit].
-  - RWHFJE ([RGlobal +' WGlobal +' EHeap +' Funtab +' LongJump +' Error]):
-    the maximum level in which all events are allowed to live in.
-  These levels are designed such that the information about what the function
-  is allowed to do is embedded in its type: a function in the RE level can’t
-  change the value of global variables, for instance.
-  For each of these levels, we define a monadic type (for instance, [mRE] for
-  the RE level), as well as coercions to other levels to easily manipulate them.)
-  Unfortunately, Coq coercions don’t manipulate [forall] quantifiers, and we
-  have to limit ourselves to the two most common results: [bool] and [SEXP].
-  The fact that we can split all R functions into these separate levels was
-  not obvious from the organisation of GNU R, but shows some intuition on
-  how it is structured. **)
-
-Definition mR T := itree RGlobal T.
-Definition mRE T := itree (RGlobal +' Error) T.
-Definition mRH T := itree (RGlobal +' EHeap) T.
-Definition mRHE T := itree (RGlobal +' EHeap +' Error) T.
-Definition mRHFE T := itree (RGlobal +' EHeap +' Funtab +' Error) T.
-Definition mRHFJE T := itree (RGlobal +' EHeap +' Funtab +' LongJump +' Error) T.
-Definition mRWH T := itree (RGlobal +' WGlobal +' EHeap) T.
-Definition mRWHFJE T := itree (RGlobal +' WGlobal +' EHeap +' Funtab +' LongJump +' Error) T.
-
-Instance Monad_mR : Monad mR := Monad_itree.
-Instance Monad_mRE : Monad mRE := Monad_itree.
-Instance Monad_mRH : Monad mRH := Monad_itree.
-Instance Monad_mRHE : Monad mRHE := Monad_itree.
-Instance Monad_mRHFE : Monad mRHE := Monad_itree.
-Instance Monad_mRHFJE : Monad mRHFJE := Monad_itree.
-Instance Monad_mRWH : Monad mRWH := Monad_itree.
-Instance Monad_mRWHFJE : Monad mRWHFJE := Monad_itree.
-
-Definition mR_bool := mR bool.
-Definition mRE_bool := mRE bool.
-Definition mRH_bool := mRH bool.
-Definition mRHE_bool := mRHE bool.
-Definition mRHFE_bool := mRHFE bool.
-Definition mRHFJE_bool := mRHFJE bool.
-Definition mRWH_bool := mRWH bool.
-Definition mRWHFJE_bool := mRWHFJE bool.
-
-Definition mR_SEXP := mR SEXP.
-Definition mRE_SEXP := mRE SEXP.
-Definition mRH_SEXP := mRH SEXP.
-Definition mRHE_SEXP := mRHE SEXP.
-Definition mRHFE_SEXP := mRHFE SEXP.
-Definition mRHFJE_SEXP := mRHFJE SEXP.
-Definition mRWH_SEXP := mRWH SEXP.
-Definition mRWHFJE_SEXP := mRWHFJE SEXP.
-
-Definition mR_mRE : forall T, mR T -> mRE T := fun _ => embed.
-Coercion mR_mRE_bool := @mR_mRE bool : mR_bool -> mRE_bool.
-Coercion mR_mRE_SEXP := @mR_mRE SEXP : mR_SEXP -> mRE_SEXP.
-
-Definition mR_mRH : forall T, mR T -> mRH T := fun _ => embed.
-Coercion mR_mRH_bool := @mR_mRH bool : mR_bool -> mRH_bool.
-Coercion mR_mRH_SEXP := @mR_mRH SEXP : mR_SEXP -> mRH_SEXP.
-
-Definition mRE_mRHE : forall T, mRE T -> mRHE T := fun _ => embed.
-Coercion mRE_mRHE_bool := @mRE_mRHE bool : mRE_bool -> mRHE_bool.
-Coercion mRE_mRHE_SEXP := @mRE_mRHE SEXP : mRE_SEXP -> mRHE_SEXP.
-
-(** The following coercion technically introduce a warning, but it is
-  a benign one, as shown by the lemmas [ambiguous_coercion_mR_mRHE*]
-  below.  We thus temporary disable the notation warning there. **)
-Local Set Warnings "-ambiguous-paths".
-Definition mRH_mRHE : forall T, mRH T -> mRHE T := fun _ => embed.
-Coercion mRH_mRHE_bool := @mRH_mRHE bool : mRH_bool -> mRHE_bool.
-Coercion mRH_mRHE_SEXP := @mRH_mRHE SEXP : mRH_SEXP -> mRHE_SEXP.
-Local Set Warnings "ambiguous-paths". (** Setting the warning again. **)
-
-Definition mRHE_mRHFE : forall T, mRHE T -> mRHFE T := fun _ => embed.
-Coercion mRHE_mRHFE_bool := @mRHE_mRHFE bool : mRHE_bool -> mRHFE_bool.
-Coercion mRHE_mRHFE_SEXP := @mRHE_mRHFE SEXP : mRHE_SEXP -> mRHFE_SEXP.
-
-Definition mRHFE_mRHFJE : forall T, mRHFE T -> mRHFJE T := fun _ => embed.
-Coercion mRHFE_mRHFJE_bool := @mRHFE_mRHFJE bool : mRHFE_bool -> mRHFJE_bool.
-Coercion mRHFE_mRHFJE_SEXP := @mRHFE_mRHFJE SEXP : mRHFE_SEXP -> mRHFJE_SEXP.
-
-Definition mRH_mRWH : forall T, mRH T -> mRWH T := fun _ => embed.
-Coercion mRH_mRWH_bool := @mRH_mRWH bool : mRH_bool -> mRWH_bool.
-Coercion mRH_mRWH_SEXP := @mRH_mRWH SEXP : mRH_SEXP -> mRWH_SEXP.
-
-Definition mRWH_mRWHFJE : forall T, mRWH T -> mRWHFJE T := fun _ => embed.
-Coercion mRWH_mRWHFJE_bool := @mRWH_mRWHFJE bool : mRWH_bool -> mRWHFJE_bool.
-Coercion mRWH_mRWHFJE_SEXP := @mRWH_mRWHFJE SEXP : mRWH_SEXP -> mRWHFJE_SEXP.
-
-(** As above, an ambiguous path is created, but it is a benign one, as shown by the lemmas
-  [ambiguous_coercion_mRH_mRWHFJE*] below. **)
-Local Set Warnings "-ambiguous-paths".
-Definition mRHFJE_mRWHFJE : forall T, mRHFJE T -> mRWHFJE T := fun _ => embed.
-Coercion mRHFJE_mRWHFJE_bool := @mRHFJE_mRWHFJE bool : mRHFJE_bool -> mRWHFJE_bool.
-Coercion mRHFJE_mRWHFJE_SEXP := @mRHFJE_mRWHFJE SEXP : mRHFJE_SEXP -> mRWHFJE_SEXP.
-Local Set Warnings "ambiguous-paths". (** Setting the warning again. **)
-
-(** Some coercions above introduced ambiguous pathes, which we prove
-  to not change the result. **)
-
-Lemma ambiguous_coercion_mR_CRHE : forall T (e : mR T),
-  mRH_mRHE (mR_mRH e) ≅ mRE_mRHE (mR_mRE e).
-Proof.
-  intros. unfolds mRH_mRHE, mR_mRH, mRE_mRHE, mR_mRE.
-  repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
-  do 2 rewrite <- translate_cmpE. reflexivity.
-Qed.
-
-Lemma ambiguous_coercion_mR_CRHE_bool : forall b,
-  mRH_mRHE_bool (mR_mRH_bool b) ≅ mRE_mRHE_bool (mR_mRE_bool b).
-Proof. apply ambiguous_coercion_mR_CRHE. Qed.
-
-Lemma ambiguous_coercion_mR_CRHE_SEXP : forall e,
-  mRH_mRHE_SEXP (mR_mRH_SEXP e) ≅ mRE_mRHE_SEXP (mR_mRE_SEXP e).
-Proof. apply ambiguous_coercion_mR_CRHE. Qed.
-
-Lemma ambiguous_coercion_mRH_mRWHJE : forall T (e : mRH T),
-  mRHFJE_mRWHFJE (mRHFE_mRHFJE (mRHE_mRHFE (mRH_mRHE e))) ≅ mRWH_mRWHFJE (mRH_mRWH e).
-Proof.
-  intros. unfolds mRHFJE_mRWHFJE, mRHFE_mRHFJE, mRHE_mRHFE, mRH_mRHE, mRWH_mRWHFJE, mRH_mRWH.
-  repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
-  repeat rewrite <- translate_cmpE.
-  lazymatch goal with |- translate ?f _ ≅ translate ?g _ => asserts E: (f = g) end.
-  { clear. extens. intros T e. destruct~ e. }
-  rewrite E. reflexivity.
-Qed.
-
-Lemma ambiguous_coercion_mRH_mRWHJE_bool : forall e,
-  mRHFJE_mRWHFJE_bool (mRHFE_mRHFJE_bool (mRHE_mRHFE_bool (mRH_mRHE_bool e)))
-  ≅ mRWH_mRWHFJE_bool (mRH_mRWH_bool e).
-Proof. apply ambiguous_coercion_mRH_mRWHJE. Qed.
-
-Lemma ambiguous_coercion_mRH_mRWHJE_SEXP : forall e,
-  mRHFJE_mRWHFJE_SEXP (mRHFE_mRHFJE_SEXP (mRHE_mRHFE_SEXP (mRH_mRHE_SEXP e)))
-  ≅ mRWH_mRWHFJE_SEXP (mRH_mRWH_SEXP e).
-Proof. apply ambiguous_coercion_mRH_mRWHJE. Qed.
-
-Lemma ambiguous_coercion_mR_mRWHJE : forall T (e : mR T),
-  mRHFJE_mRWHFJE (mRHFE_mRHFJE (mRHE_mRHFE (mRE_mRHE (mR_mRE e))))
-  ≅ mRWH_mRWHFJE (mRH_mRWH (mR_mRH e)).
-Proof.
-  intros. unfolds mRHFJE_mRWHFJE, mRHFE_mRHFJE, mRHE_mRHFE, mRE_mRHE, mR_mRE.
-  unfolds mRWH_mRWHFJE, mRH_mRWH, mR_mRH.
-  repeat rewrite embed_unfold. unfolds Embeddable_itree_event.
-  repeat rewrite <- translate_cmpE.
-  lazymatch goal with |- translate ?f _ ≅ translate ?g _ => asserts E: (f = g) end.
-  { clear. extens. intros T e. destruct~ e. }
-  rewrite E. reflexivity.
-Qed.
-
-Lemma ambiguous_coercion_mR_mRWHJE_bool : forall e,
-  mRHFJE_mRWHFJE_bool (mRHFE_mRHFJE_bool (mRHE_mRHFE_bool (mRE_mRHE_bool (mR_mRE_bool e))))
-  ≅ mRWH_mRWHFJE_bool (mRH_mRWH_bool (mR_mRH_bool e)).
-Proof. apply ambiguous_coercion_mR_mRWHJE. Qed.
-
-Lemma ambiguous_coercion_mR_mRWHJE_SEXP : forall e,
-  mRHFJE_mRWHFJE_SEXP (mRHFE_mRHFJE_SEXP (mRHE_mRHFE_SEXP (mRE_mRHE_SEXP (mR_mRE_SEXP e))))
-  ≅ mRWH_mRWHFJE_SEXP (mRH_mRWH_SEXP (mR_mRH_SEXP e)).
-Proof. apply ambiguous_coercion_mR_mRWHJE. Qed.
-
-Instance mRE_Inhab : forall A, Inhab (mRE A) :=
-  fun _ => Inhab_of_val (trigger (impossible "[arbitrary]")).
-
-Instance mRHE_Inhab : forall A, Inhab (mRHE A) :=
-  fun _ => Inhab_of_val (mRE_mRHE arbitrary).
-
-Instance mRHFE_Inhab : forall A, Inhab (mRHFE A) :=
-  fun _ => Inhab_of_val (mRHE_mRHFE arbitrary).
-
-Instance mRHFJE_Inhab : forall A, Inhab (mRHFJE A) :=
-  fun _ => Inhab_of_val (mRHFE_mRHFJE arbitrary).
-
-Instance mRWHFJE_Inhab : forall A, Inhab (mRWHFJE A) :=
-  fun _ => Inhab_of_val (mRHFJE_mRWHFJE arbitrary).
-
-
-Open Scope monad_scope.
-
-Definition SEXP_mR_SEXP (e : SEXP) : mR_SEXP := ret e.
-Coercion SEXP_mR_SEXP : SEXP >-> mR_SEXP.
-
-Definition bool_mR_bool (b : bool) : mR_bool := ret b.
-Coercion bool_mR_bool : bool >-> mR_bool.
-
-Definition GlobalVariable_mR_SEXP (G : GlobalVariable) : mR_SEXP := trigger (rglobal G).
-Coercion GlobalVariable_mR_SEXP : GlobalVariable >-> mR_SEXP.
-
-Definition mR_and (a b : mR_bool) : mR_bool :=
-  a <- a ;;
-  b <- b ;;
-  ret (a && b).
-
+(* TODO
 Infix "'&&" := mR_and (at level 40, left associativity).
 
 (** The lift of [&&] to ['&&] is just a lift in the contextual monad. **)
@@ -846,20 +809,11 @@ Lemma mR_and_bool : forall a b : bool,
   a '&& b ≅ (a && b : mR_bool).
 Proof. intros. tau_steps. reflexivity. Qed.
 
-Definition mR_or (a b : mR_bool) : mR_bool :=
-  a <- a ;;
-  b <- b ;;
-  (a || b : mR_bool).
-
 Infix "'||" := mR_or (at level 50, left associativity).
 
 Lemma mR_or_bool : forall a b : bool,
   a '|| b ≅ (a || b : mR_bool).
 Proof. intros. tau_steps. reflexivity. Qed.
-
-Definition mR_neg (b : mR_bool) : mR_bool :=
-  b <- b ;;
-  (negb b : mR_bool).
 
 Notation "'! b" := (mR_neg b) (at level 35, right associativity).
 
@@ -872,11 +826,6 @@ Arguments mR_decide P {_}.
 
 Notation "''decide' P" := (mR_decide P) (at level 70, no associativity).
 
-Definition mR_eq A `{Comparable A} (a b : mR A) : mR_bool :=
-  a <- a ;;
-  b <- b ;;
-  'decide (a = b).
-
 Definition mR_eq_SEXP : mR_SEXP -> mR_SEXP -> mR_bool := @mR_eq _ _.
 
 Infix "'==" := mR_eq (at level 70, no associativity).
@@ -886,10 +835,11 @@ Notation "a '!= b" := ('! (a '== b)) (at level 70, no associativity).
 Notation "'ifc' b 'then' v1 'else' v2" :=
   (x <- (b : mR_bool) ;; if x then v1 else v2)
   (at level 200, right associativity) : type_scope.
-
+*)
 
 (** * [FUNTAB] **)
 
+(*
 (** We have defined above the [Funtab] effect.  This effects calls a
   function with the following type. **)
 Definition funtab_function :=
@@ -914,4 +864,5 @@ Instance funtab_cell_Inhab : Inhab funtab_cell.
 Proof. apply Inhab_of_val. constructors; apply arbitrary. Defined.
 
 Definition funtab := ArrayList.array funtab_cell.
+*)
 
