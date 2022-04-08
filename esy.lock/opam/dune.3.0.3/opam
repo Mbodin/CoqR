@@ -29,7 +29,7 @@ conflicts: [
   "merlin" {< "3.4.0"}
   "ocaml-lsp-server" {< "1.3.0"}
   "dune-configurator" {< "2.3.0"}
-  "odoc" {< "1.3.0"}
+  "odoc" {< "2.0.1"}
   "dune-release" {< "1.3.0"}
   "js_of_ocaml-compiler" {< "3.6.0"}
   "jbuilder" {= "transition"}
@@ -39,7 +39,7 @@ build: [
   # opam 2 sets OPAM_SWITCH_PREFIX, so we don't need a hardcoded path
   ["ocaml" "configure.ml" "--libdir" lib] {opam-version < "2"}
   ["ocaml" "bootstrap.ml" "-j" jobs]
-  ["./dune.exe" "build" "-p" name "--profile" "dune-bootstrap" "-j" jobs]
+  ["./dune.exe" "build" "dune.install" "--release" "--profile" "dune-bootstrap" "-j" jobs]
 ]
 depends: [
   # Please keep the lower bound in sync with .github/workflows/workflow.yml,
@@ -48,11 +48,12 @@ depends: [
   "base-unix"
   "base-threads"
 ]
-x-commit-hash: "e41c66259135d6d1d72b031be6684bf8826a2586"
 url {
-  src: "https://github.com/ocaml/dune/releases/download/2.9.1/dune-2.9.1.tbz"
+  src:
+    "https://github.com/ocaml/dune/releases/download/3.0.3/fiber-3.0.3.tbz"
   checksum: [
-    "sha256=b374feb22b34099ccc6dd32128e18d088ff9a81837952b29f05110b308c09f26"
-    "sha512=fce1aa520db785c25ded75a959e9dafeb7887d4f5deeb14b044cd5b9e2d235dca24589d794d2f01513765bc4764cf72f8659bd15f3a4fc06efa61363dc5d709b"
+    "sha256=d504499a1658f0d99caefbffd7386f2e31d46ceca73167157fe4686c41e5732f"
+    "sha512=aa1bdf87a00994d18ddc9d9d6ef914813c10dbc8c68c34c00467669092dde9adc95718937f8a60a2e1307b25f281196b20e913b2f82e2ee6aadd24d54dca88aa"
   ]
 }
+x-commit-hash: "68c36597dfb99187ccbadf578988deaf690c4e25"

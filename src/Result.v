@@ -779,7 +779,7 @@ Proof.
   introv. unfolds bind, ret, @embed, Embeddable_itree_event.
   lazymatch goal with |- ITree.bind _ ?f ≅ _ => asserts E: (forall a : A, f a ≅ Ret a) end.
   { intro a. rewrite translate_ret. reflexivity. }
-  (* FIXME: I need a lemma similar to [eutt_eq_bind] but for ≅ *)
+  (* FIXME: I need a lemma similar to [eutt_eq_bind] but for ≅ -> eq_itree_clo_bind *)
 Admitted. (* TODO *)
 
 Lemma bind_associativity : forall A B C d1 d2 d3

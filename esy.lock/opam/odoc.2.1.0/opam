@@ -33,24 +33,17 @@ depends: [
   "result"
   "tyxml" {>= "4.3.0"}
   "fmt"
-  "logs"
-  "re" {>= "1.7.2"}
 
-  "ocaml-migrate-parsetree" {>= "1.0.6"}
-
-  "ocaml-version" {with-test & >= "2.3.0"}
-  "lwt" {with-test}
-  "alcotest" {with-test & >= "0.8.3"}
-  "markup" {with-test & >= "1.0.0"}
   "ocamlfind" {with-test}
   "yojson" {with-test}
   ("ocaml" {< "4.04.1" & with-test} | "sexplib0" {with-test})
   "conf-jq" {with-test}
 
-  "bisect_ppx" {dev & = "2.5.0"}
   "ppx_expect" {with-test}
-  ("ocaml" {< "4.03.0" & with-test} | "mdx" {with-test})
   "bos" {with-test}
+
+  "bisect_ppx" {dev & > "2.5.0"}
+  ("ocaml" {< "4.03.0" & dev} | "mdx" {dev})
 ]
 
 build: [
@@ -58,10 +51,10 @@ build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
 url {
-  src: "https://github.com/ocaml/odoc/releases/download/2.0.0/odoc-2.0.0.tbz"
+  src: "https://github.com/ocaml/odoc/releases/download/2.1.0/odoc-2.1.0.tbz"
   checksum: [
-    "sha256=8c31eb2aff18b4b90898afa341f4457cc7a29658caacf9cc9594bdc8120cd007"
-    "sha512=8649ae418877a1b85c74369e3c6897a3d38f8f237e37b8fa6050ce8f9edf6faf92427dbf3d915412c86d2fa777bfc901867ffa793b05ecd08e676f280c5fb60a"
+    "sha256=65a2523a50ee368164f1f24f75866a6a36cdb0d00039c3006ec824351d4e4967"
+    "sha512=cf4d7e884b94a9b9c4bcb62d4423d7289d7bbbf2642c5eacf9577b76eb835cf6ecc79d2384d36d174d2e9d8f758b5082c0c4bf8f66b5c6db4e9805dc3fc9ee1a"
   ]
 }
-x-commit-hash: "34ef06a986a291c8338e62f8de517a1d7ed63e0a"
+x-commit-hash: "d654ee2a4ff3e1465dcf92b882c26de71f7a9986"

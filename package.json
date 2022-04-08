@@ -22,27 +22,27 @@
 		"report": "make report"
 	},
 	"dependencies": {
-		"ocaml": ">=4.5",
-		"@opam/dune": ">=2.5",
+		"ocaml": ">=4.5 <4.12",
+		"@opam/dune": ">=2.6",
 		"@opam/odoc": "*",
 		"@opam/menhir": ">=20190626 <20200123",
 		"@opam/ocamlfind": "1.8.1",
-		"@opam/coq": "^8.13",
+		"@opam/coq": "8.13.2",
 		"coq-flocq": "3.1.2",
-		"coq-paco": "github:Mbodin/coq-paco#40cea8feac992e4b69266516ed70f0916366d622",
-		"@opam/extlib": "*",
+		"coq-paco": "github:Mbodin/coq-paco#578aa3c31cae3ecb2232e0f10bad3470c33554cb",
+		"@opam/extlib": ">=0.11.4",
 		"@opam/bisect": "*",
 		"coq-prelude": "github:Mbodin/coq-prelude#29cdfa7fa87564209594435ed37d9db77d2875ca",
 		"tlc": "*",
-		"coq-itree": "github:Mbodin/InteractionTrees#f40b620d3ee15663c2d3558e00d246059f1b5dd0",
-		"coq-ext-lib": "*"
+		"coq-itree": "github:Mbodin/InteractionTrees#7d9c3e998255cf02476c66a2eacd9cf5a9fe1fa3",
+		"coq-ext-lib": ">=0.11.1"
 	},
 	"resolutions": {
 		"tlc": {
 			"source": "github:charguer/tlc#2415b8dcf1138ade515ea4bfdcd5460be1ef4db4",
 			"override": {
 				"dependencies": {
-					"@opam/coq": "^8.13"
+					"@opam/coq": "*"
 				},
 				"buildEnv": {
 					"HOME": "#{self.target_dir}",
@@ -58,10 +58,9 @@
 		},
 		"coq-flocq": {
 			"source": "git:https://gitlab.inria.fr/flocq/flocq.git#ca655d2542bdcf024bce5c26dbc0f13b856aa1f6",
-			"version": "3.4.2",
 			"override": {
 				"dependencies": {
-					"@opam/coq": "^8.13",
+					"@opam/coq": "*",
 					"@opam/conf-autoconf": "*",
 					"@opam/conf-g++": "*"
 				},
@@ -84,8 +83,7 @@
 			}
 		},
 		"coq-ext-lib": {
-			"source": "github:minkiminki/coq-ext-lib#0e78bc3af67ea4447ed61ed89d818384cb49d7fa",
-			"version": "0.11.4",
+			"source": "github:minkiminki/coq-ext-lib#6ff2bdb069b7d34f2f429ce594b08fe327502770",
 			"override": {
 				"dependencies": {
 					"@opam/coq": "*"
