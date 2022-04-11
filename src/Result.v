@@ -23,7 +23,7 @@ From ExtLib Require Structures.Monad.
 From ITree Require Export ITree.
 From ITree Require Import TranslateFacts.
 
-Import ITree.Eq.Eq.
+Import ITree.Eq.Eqit.
 
 Export Structures.Monad.
 Export Monads.

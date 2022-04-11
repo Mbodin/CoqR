@@ -1,5 +1,6 @@
 (lang dune 2.5)
 (using coq 0.2)
+(using menhir 2.1)
 
 (name CoqR)
 (license GPL-2.0-or-later)

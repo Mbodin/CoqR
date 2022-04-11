@@ -23,9 +23,12 @@
 	(action
 		(run ./gen-funlist.pl)))
 
+(menhir
+	(modules parser)
+	(flags --explain))
+
 (executable
 	(name runR)
-	(libraries menhir)
 	(modes (best exe)))
 
 (install
