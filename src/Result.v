@@ -177,6 +177,9 @@ Inductive Debug : Type -> Type@{r} :=
   .
 
 
+(* TODO LATER: Base ourselves on the library of generalised binders for monad hierachies,
+ currently under construction. *)
+
 (** * Event Descriptors **)
 
 Module EventDescriptor.
@@ -747,19 +750,44 @@ Lemma assoc_inv : forall A (f : A -> A -> A),
   forall x y z, f (f x y) z = f x (f y z).
 Proof. introv assoc. introv. rewrite~ assoc. Qed.
 
+Definition easy_convert_lemmas :=
+  >> (assoc_inv join_assoc) join_same (assoc_inv meet_assoc) meet_same
+     join_bottom_r join_bottom_l meet_bottom_r meet_bottom_l
+     join_top_r join_top_l meet_top_r meet_top_l.
+
+Ltac foreach l tac :=
+  lazymatch l with
+  | nil => idtac
+  | boxer ?v :: ?l => tac v; foreach l tac
+  end.
+
+Ltac fold_left_boxer v tac l :=
+  lazymatch l with
+  | nil => constr:(v)
+  | boxer ?vl :: ?l =>
+    let v' := tac v vl in
+    fold_left_boxer v' tac l
+  end.
+
 (** Given [t : itree (event _) _], tries to simplify the goal using [E]’s equations
   to seemlessly [t]. **)
 Ltac easy_convert t :=
-  let rec foreach l tac :=
-    lazymatch l with
-    | nil => idtac
-    | boxer ?v :: ?l => tac v; foreach l tac
-    end in
-  let lemmas := constr:(>> (assoc_inv join_assoc) join_same (assoc_inv meet_assoc) meet_same
-                           join_bottom_r join_bottom_l meet_bottom_r meet_bottom_l
-                           join_top_r join_top_l meet_top_r meet_top_l) in
-  repeat progress foreach lemmas ltac:(fun lemma => try rewrite lemma) ;
+  repeat progress foreach easy_convert_lemmas ltac:(fun lemma => try rewrite lemma) ;
   exact t.
+
+(** Given [t : itree (event _) _], tries to simplify its type using the same equations. **)
+Ltac simplify_term t :=
+  let rec aux t :=
+    lazymatch type of t with
+    | itree (event ?d) ?T =>
+      fold_left_boxer t ltac:(fun t lemma =>
+        constr:(t) (* TODO: rewrite lemma in the type of t. Note that this will use morphisms under the hood: we really need rewrite here. *)
+        ) easy_convert_lemmas
+    | ?f _ _ =>
+      let t := eval unfold f in t in
+      aux t
+    end in
+  aux t.
 
 Lemma bind_of_return : forall A B d (a : A) (f : A -> itree (event d) B),
   bind (ret a) f ≅ ltac:(easy_convert (f a)).
@@ -798,71 +826,14 @@ End MonadFromEventLattice.
 
 Module EventMonad := MonadFromEventLattice (EventDescriptor).
 
-Definition Rglobal : GlobalVariable -> itree (EventMonad.event EventDescriptor.only_dRGlobal) SEXP :=
+Import EventMonad.
+
+Definition Rglobal : GlobalVariable -> itree (event EventDescriptor.only_dRGlobal) SEXP :=
   fun x => trigger (rglobal x).
 
-(* TODO
-Infix "'&&" := mR_and (at level 40, left associativity).
+Definition result d A := itree (event d) A.
 
-(** The lift of [&&] to ['&&] is just a lift in the contextual monad. **)
-Lemma mR_and_bool : forall a b : bool,
-  a '&& b ≅ (a && b : mR_bool).
-Proof. intros. tau_steps. reflexivity. Qed.
-
-Infix "'||" := mR_or (at level 50, left associativity).
-
-Lemma mR_or_bool : forall a b : bool,
-  a '|| b ≅ (a || b : mR_bool).
-Proof. intros. tau_steps. reflexivity. Qed.
-
-Notation "'! b" := (mR_neg b) (at level 35, right associativity).
-
-Lemma mR_neg_bool : forall b : bool,
-  '! b ≅ (negb b : mR_bool).
-Proof. intros. tau_steps. reflexivity. Qed.
-
-Definition mR_decide P `{Decidable P} : mR_bool := decide P.
-Arguments mR_decide P {_}.
-
-Notation "''decide' P" := (mR_decide P) (at level 70, no associativity).
-
-Definition mR_eq_SEXP : mR_SEXP -> mR_SEXP -> mR_bool := @mR_eq _ _.
-
-Infix "'==" := mR_eq (at level 70, no associativity).
-
-Notation "a '!= b" := ('! (a '== b)) (at level 70, no associativity).
-
-Notation "'ifc' b 'then' v1 'else' v2" :=
-  (x <- (b : mR_bool) ;; if x then v1 else v2)
-  (at level 200, right associativity) : type_scope.
-*)
-
-(** * [FUNTAB] **)
-
-(*
-(** We have defined above the [Funtab] effect.  This effects calls a
-  function with the following type. **)
-Definition funtab_function :=
-  SEXP -> (** call **)
-  SEXP -> (** op **)
-  SEXP -> (** args **)
-  SEXP -> (** rho **)
-  mRHFJE SEXP.
-
-(** The [FUNTAB] is then an array of such functions, with some
-  additional meta-data, like the function name: **)
-Record funtab_cell := make_funtab_cell {
-    fun_name : string ;
-    fun_cfun : funtab_function ;
-    fun_code : int ; (** The number stored here can be quite large. We thus use [int] instead of [nat]. **)
-    fun_eval : funtab_eval_arg ;
-    fun_arity : int ;
-    fun_gram : PPinfo
-  }.
-
-Instance funtab_cell_Inhab : Inhab funtab_cell.
-Proof. apply Inhab_of_val. constructors; apply arbitrary. Defined.
-
-Definition funtab := ArrayList.array funtab_cell.
-*)
+Definition rcompose d1 d2 T U V (f : T -> result d1 U) (g : U -> result d2 V) (x : T)
+  : result (join d1 d2) V :=
+  bind (f x) g.
 
